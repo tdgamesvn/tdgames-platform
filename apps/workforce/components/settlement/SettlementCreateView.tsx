@@ -16,6 +16,19 @@ interface SettlementCreateViewProps {
 
 const fmt = (n: number) => n.toLocaleString();
 
+const CLICKUP_STATUS_PALETTE = [
+  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  'bg-pink-500/20 text-pink-400 border-pink-500/30',
+  'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  'bg-red-500/20 text-red-400 border-red-500/30',
+  'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+];
+
 const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   workers, tasks, vcbSellRate, onBack, onCreate,
 }) => {
@@ -29,17 +42,47 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const [selBonusType, setSelBonusType] = useState<'percent' | 'amount'>('amount');
   const [selBonusValue, setSelBonusValue] = useState(0);
   const [selTaxRate, setSelTaxRate] = useState(10);
+  const [includeAllStatuses, setIncludeAllStatuses] = useState(false);
+  const [selectedClickupStatuses, setSelectedClickupStatuses] = useState<string[]>([]);
 
-  // Eligible tasks
+  // All tasks for this worker (unpaid only)
   const periodEnd = selPeriod ? new Date(selPeriod + '-01') : null;
   if (periodEnd) { periodEnd.setMonth(periodEnd.getMonth() + 1); periodEnd.setDate(0); }
-  const eligibleTasks = tasks.filter(t => {
+
+  const workerTasks = tasks.filter(t => {
     if (t.worker_id !== selWorkerId) return false;
     if (t.payment_status === 'paid') return false;
-    if (!t.closed_date) return false;
-    if (periodEnd && new Date(t.closed_date) > periodEnd) return false;
     return true;
   });
+
+  // Available ClickUp statuses from worker's tasks
+  const availableClickupStatuses = [...new Set(workerTasks.map(t => t.clickup_status).filter(Boolean))].sort() as string[];
+
+  const eligibleTasks = workerTasks.filter(t => {
+    // When not including all statuses, require closed_date (original behavior)
+    if (!includeAllStatuses) {
+      if (!t.closed_date) return false;
+      if (periodEnd && new Date(t.closed_date) > periodEnd) return false;
+    } else {
+      // When including all statuses, use period filter on closed_date OR created_at
+      if (periodEnd) {
+        const refDate = t.closed_date || t.start_date;
+        if (refDate && new Date(refDate) > periodEnd) return false;
+      }
+      // Apply ClickUp status filter if any selected
+      if (selectedClickupStatuses.length > 0) {
+        if (!t.clickup_status || !selectedClickupStatuses.includes(t.clickup_status)) return false;
+      }
+    }
+    return true;
+  });
+
+  const toggleClickupStatus = (status: string) => {
+    setSelectedClickupStatuses(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+    setSelTaskIds([]);
+  };
 
   const selectedTasksData = eligibleTasks.filter(t => selTaskIds.includes(t.id!));
   const selectedTotal = selectedTasksData.reduce((s, t) => s + (t.price || 0), 0);
@@ -85,6 +128,62 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
           </div>
         </div>
 
+        {/* Status Filter Toggle */}
+        {selWorkerId && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <label className={labelCls + ' !mb-0'}>Trạng thái task</label>
+              <div className="flex items-center bg-surface border border-primary/10 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => { setIncludeAllStatuses(false); setSelectedClickupStatuses([]); setSelTaskIds([]); }}
+                  className={`px-4 py-2 text-xs font-bold transition-all ${
+                    !includeAllStatuses ? 'bg-primary/20 text-primary' : 'text-neutral-medium hover:text-white'
+                  }`}
+                >
+                  Chỉ đã đóng
+                </button>
+                <button
+                  onClick={() => { setIncludeAllStatuses(true); setSelTaskIds([]); }}
+                  className={`px-4 py-2 text-xs font-bold transition-all ${
+                    includeAllStatuses ? 'bg-blue-500/20 text-blue-400' : 'text-neutral-medium hover:text-white'
+                  }`}
+                >
+                  Tất cả trạng thái
+                </button>
+              </div>
+              {!includeAllStatuses && (
+                <span className="text-[10px] text-neutral-medium/50">💡 Chỉ hiện task có ngày đóng (Approved/Closed)</span>
+              )}
+            </div>
+
+            {/* ClickUp Status Filter Pills */}
+            {includeAllStatuses && availableClickupStatuses.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] text-neutral-medium/50 mr-1">Filter:</span>
+                {availableClickupStatuses.map((status, idx) => {
+                  const isActive = selectedClickupStatuses.includes(status);
+                  const colorCls = CLICKUP_STATUS_PALETTE[idx % CLICKUP_STATUS_PALETTE.length];
+                  const count = workerTasks.filter(t => t.clickup_status === status).length;
+                  return (
+                    <button key={status} onClick={() => toggleClickupStatus(status)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider transition-all border ${
+                        isActive ? colorCls : 'text-neutral-medium/50 border-primary/10 hover:text-white hover:bg-white/5'
+                      }`}>
+                      {isActive ? '✓ ' : ''}{status} <span className="opacity-50 ml-1">({count})</span>
+                    </button>
+                  );
+                })}
+                {selectedClickupStatuses.length > 0 && (
+                  <button onClick={() => { setSelectedClickupStatuses([]); setSelTaskIds([]); }}
+                    className="text-[10px] text-red-400 hover:text-red-300 font-bold ml-2">
+                    ✕ Xóa filter
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Task Selection */}
         {selWorkerId && (
           <div className="space-y-3">
@@ -112,12 +211,20 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                       <input type="checkbox" checked={isSelected} onChange={() => toggleTask(t.id!)}
                         className="accent-primary w-4 h-4 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{t.title}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-white text-sm font-medium truncate">{t.title}</p>
+                          {t.clickup_status && (
+                            <span className="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/20 capitalize">
+                              {t.clickup_status}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-1.5 text-[10px] text-neutral-medium/50 mt-0.5">
                           {t.clickup_space_name && <span>{t.clickup_space_name}</span>}
                           {t.clickup_space_name && t.clickup_folder_name && <span>|</span>}
                           {t.clickup_folder_name && <span>{t.clickup_folder_name}</span>}
                           {t.closed_date && <span className="ml-1">• Closed: {t.closed_date}</span>}
+                          {!t.closed_date && t.start_date && <span className="ml-1">• Created: {t.start_date}</span>}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
