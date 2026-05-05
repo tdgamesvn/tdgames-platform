@@ -71,7 +71,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
   });
 
   const editSelectedTasks = availableTasks.filter(t => editTaskIds.includes(t.id!));
-  const editTotal = editSelectedTasks.reduce((sum, t) => sum + (t.price || 0), 0);
+  const editTotal = editSelectedTasks.reduce((sum, t) => sum + (t.price || 0) + (t.bonus || 0), 0);
   const editPreview = svc.computeSettlementTotals(editTotal, editBonusType, editBonusValue, editTaxRate);
 
   // Dominant currency from selected priced tasks

@@ -85,8 +85,9 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   };
 
   const selectedTasksData = eligibleTasks.filter(t => selTaskIds.includes(t.id!));
-  const selectedTotal = selectedTasksData.reduce((s, t) => s + (t.price || 0), 0);
+  const selectedPriceTotal = selectedTasksData.reduce((s, t) => s + (t.price || 0), 0);
   const selectedBonusTotal = selectedTasksData.reduce((s, t) => s + (t.bonus || 0), 0);
+  const selectedTotal = selectedPriceTotal + selectedBonusTotal;
   const previewCalc = computeSettlementTotals(selectedTotal, selBonusType, selBonusValue, selTaxRate);
 
   const toggleTask = (tid: string) => setSelTaskIds(prev => prev.includes(tid) ? prev.filter(i => i !== tid) : [...prev, tid]);
