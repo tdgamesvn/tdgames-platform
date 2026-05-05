@@ -266,3 +266,43 @@ export async function fetchSettlementTasks(settlementId: string): Promise<Workfo
   if (error) throw error;
   return (data || []).map((d: any) => d.task);
 }
+
+export async function updateSettlementTasks(
+  settlementId: string,
+  newTaskIds: string[],
+  totalAmount: number,
+  currency: string,
+  bonusType: 'percent' | 'amount',
+  bonusValue: number,
+  taxRate: number,
+  notes: string,
+  accountType: 'company' | 'personal'
+): Promise<void> {
+  const { bonusAmount, taxAmount, netAmount } = computeSettlementTotals(totalAmount, bonusType, bonusValue, taxRate);
+
+  // 1. Remove old task links
+  await supabase.from('wf_settlement_tasks').delete().eq('settlement_id', settlementId);
+
+  // 2. Insert new task links
+  if (newTaskIds.length > 0) {
+    const links = newTaskIds.map(tid => ({ settlement_id: settlementId, task_id: tid }));
+    const { error: lErr } = await supabase.from('wf_settlement_tasks').insert(links);
+    if (lErr) throw lErr;
+  }
+
+  // 3. Update settlement record
+  const { error } = await supabase.from('wf_settlements').update({
+    total_tasks: newTaskIds.length,
+    total_amount: totalAmount,
+    currency,
+    bonus_type: bonusType,
+    bonus_value: bonusValue,
+    bonus_amount: bonusAmount,
+    tax_rate: taxRate,
+    tax_amount: taxAmount,
+    net_amount: netAmount,
+    notes,
+    account_type: accountType,
+  }).eq('id', settlementId);
+  if (error) throw error;
+}

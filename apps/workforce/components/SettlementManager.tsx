@@ -49,6 +49,7 @@ const SettlementManager: React.FC<SettlementManagerProps> = ({
         <SettlementDetailView
           settlement={detailSettlement}
           workers={workers}
+          allTasks={tasks}
           vcbSellRate={vcbSellRate}
           onBack={() => setView('list')}
           onUpdate={onUpdateSettlement}
