@@ -92,9 +92,19 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const toggleTask = (tid: string) => setSelTaskIds(prev => prev.includes(tid) ? prev.filter(i => i !== tid) : [...prev, tid]);
   const selectAll = () => setSelTaskIds(selTaskIds.length === eligibleTasks.length ? [] : eligibleTasks.map(t => t.id!));
 
+  // Determine dominant currency from selected tasks that have a price > 0
+  const getDominantCurrency = () => {
+    const pricedTasks = selectedTasksData.filter(t => (t.price || 0) > 0);
+    if (pricedTasks.length === 0) return eligibleTasks[0]?.currency || 'VND';
+    const counts: Record<string, number> = {};
+    pricedTasks.forEach(t => { counts[t.currency] = (counts[t.currency] || 0) + 1; });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  };
+  const dominantCurrency = getDominantCurrency();
+
   const handleCreate = () => {
     if (!selWorkerId || selTaskIds.length === 0) return;
-    const currency = eligibleTasks[0]?.currency || 'VND';
+    const currency = dominantCurrency;
     const accountType = selTaxRate === 0 ? 'personal' : 'company';
     onCreate(selWorkerId, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, accountType as 'company' | 'personal');
     onBack();
@@ -285,7 +295,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                 <div className="mt-3 p-4 rounded-xl bg-black/30 space-y-2 text-sm">
                   <div className="flex justify-between text-neutral-medium">
                     <span>Tổng giá tasks ({selTaskIds.length} tasks)</span>
-                    <span className="text-primary font-bold">{fmt(selectedTotal)} {eligibleTasks[0]?.currency || 'VND'}</span>
+                    <span className="text-primary font-bold">{fmt(selectedTotal)} {dominantCurrency}</span>
                   </div>
                   {previewCalc.bonusAmount > 0 && (
                     <div className="flex justify-between text-yellow-400">
@@ -306,7 +316,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                   )}
                   <div className="flex justify-between text-emerald-400 font-black text-base pt-2 border-t border-white/10">
                     <span>💰 THỰC NHẬN</span>
-                    <span>{fmt(previewCalc.netAmount)} {eligibleTasks[0]?.currency || 'VND'}</span>
+                    <span>{fmt(previewCalc.netAmount)} {dominantCurrency}</span>
                   </div>
                 </div>
               )}
@@ -316,7 +326,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
             <div className="flex items-center justify-between pt-4 border-t border-primary/10">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Thực nhận</p>
-                <p className="text-2xl font-black text-emerald-400">{fmt(previewCalc.netAmount)} <span className="text-xs text-neutral-medium">{eligibleTasks[0]?.currency || 'VND'}</span></p>
+                <p className="text-2xl font-black text-emerald-400">{fmt(previewCalc.netAmount)} <span className="text-xs text-neutral-medium">{dominantCurrency}</span></p>
                 {selectedBonusTotal > 0 && (
                   <p className="text-yellow-400/60 text-[10px]">+ Bonus task: {fmt(selectedBonusTotal)}</p>
                 )}
