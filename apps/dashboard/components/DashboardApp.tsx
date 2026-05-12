@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import { fetchCeoDashboard, CeoDashboardData, Alert } from '../services/dashboardService';
 import TrendChart from './TrendChart';
 import PlTable from './PlTable';

@@ -21,7 +21,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         setIsLoading(true);
         setError('');
         try {
-            const { loginWithCredentials } = await import('@/apps/invoice/services/supabaseService');
+            const { loginWithCredentials } = await import('@/services/authService');
             const user = await loginWithCredentials(username, password);
             onLogin(user);
         } catch (e: any) {

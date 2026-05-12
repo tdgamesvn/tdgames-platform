@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_INVOICE } from '@/constants';
-import { InvoiceData, ServiceItem, BankingInfo, ClientInfo, ClientRecord, StudioRecord, StudioInfo, AccountUser } from '@/types';
+import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioInfo, AccountUser } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { createAndPollDraft, getEInvoiceDetail } from '../services/sePayService';
-import { fetchExchangeRate, ExchangeRateData, avgRate } from '../services/exchangeRateService';
+import { useExchangeRate } from '@/services/ExchangeRateContext';
 import {
   saveInvoiceToCloud,
   fetchInvoicesFromCloud,
@@ -11,21 +11,13 @@ import {
   updateEInvoiceInCloud,
   deleteInvoiceFromCloud,
   getNextInvoiceNumber,
-  saveBankToCloud,
-  fetchBanksFromCloud,
-  deleteBankFromCloud,
-  updateBankInCloud,
-  setDefaultBankInCloud,
   fetchClientsFromCloud,
   saveClientToCloud,
   updateClientInCloud,
-  fetchStudiosFromCloud,
-  saveStudioToCloud,
-  updateStudioInCloud,
-  setDefaultStudioInCloud,
-  deleteStudioFromCloud,
 } from '../services/supabaseService';
 import { setHashTab } from '@/App';
+import { useBankManager } from './useBankManager';
+import { useStudioManager } from './useStudioManager';
 
 type InvoiceTab = 'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring';
 const VALID_TABS: InvoiceTab[] = ['edit', 'preview', 'history', 'dashboard', 'activity', 'recurring'];
@@ -55,25 +47,25 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Data State ──
   const [history, setHistory] = useState<InvoiceData[]>([]);
-  const [banks, setBanks] = useState<(BankingInfo & { id: string; isDefault: boolean })[]>([]);
   const [clients, setClients] = useState<ClientRecord[]>([]);
-  const [studios, setStudios] = useState<StudioRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState<{ text: string, type: 'success' | 'warning' | 'error' } | null>(null);
 
-  // ── Manager State ──
-  const [showBankManager, setShowBankManager] = useState(false);
-  const [showStudioManager, setShowStudioManager] = useState(false);
-  const [editingBankId, setEditingBankId] = useState<string | null>(null);
-  const [editingBankData, setEditingBankData] = useState<BankingInfo | null>(null);
-  const [editingStudioId, setEditingStudioId] = useState<string | null>(null);
-  const [editingStudioData, setEditingStudioData] = useState<StudioInfo | null>(null);
-  const [newStudio, setNewStudio] = useState<StudioInfo>({ name: '', address: '', email: '', taxCode: '' });
-  const [newBank, setNewBank] = useState<BankingInfo>({
-    alias: '', accountName: '', accountNumber: '', bankName: '',
-    branchName: '', bankAddress: '', citadCode: '', swiftCode: ''
-  });
+  const notify = useCallback((text: string, type: 'success' | 'warning' | 'error' = 'success') => {
+    setLastMessage({ text, type });
+  }, []);
+
+  // ── Bank/Studio sub-managers ──
+  const applyBankToInvoice = useCallback((info: BankingInfo) => {
+    setInvoice(prev => ({ ...prev, bankingInfo: info }));
+  }, []);
+  const applyStudioToInvoice = useCallback((info: StudioInfo) => {
+    setInvoice(prev => ({ ...prev, studioInfo: info }));
+  }, []);
+
+  const bankMgr = useBankManager(notify, applyBankToInvoice);
+  const studioMgr = useStudioManager(notify, applyStudioToInvoice);
 
   // ── Client Suggestions ──
   const [clientSuggestions, setClientSuggestions] = useState<ClientRecord[]>([]);
@@ -90,12 +82,13 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Exchange Rate (USD→VND for eInvoice) ──
   const [showExchangeRateModal, setShowExchangeRateModal] = useState(false);
+  // ── Live VCB Exchange Rate (shared via Context) ──
+  const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
   const [exchangeRate, setExchangeRate] = useState<number>(25400);
   const [exchangeRateTarget, setExchangeRateTarget] = useState<InvoiceData | null>(null);
 
-  // ── Live VCB Exchange Rate ──
-  const [vcbRate, setVcbRate] = useState<ExchangeRateData | null>(null);
-  const [vcbRateLoading, setVcbRateLoading] = useState(false);
+  // Auto-sync exchangeRate input from shared VCB context whenever it updates
+  useEffect(() => { setExchangeRate(avgUsdVnd); }, [avgUsdVnd]);
 
   // ── Save-after-export ──
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -115,9 +108,9 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Effects ──
   useEffect(() => {
-    loadBanks(activeTab === 'edit');
+    bankMgr.loadBanks(activeTab === 'edit');
     loadClients();
-    loadStudios().then(data => {
+    studioMgr.loadStudios().then(data => {
       if (activeTab === 'edit') {
         const def = data.find(s => s.isDefault);
         if (def) {
@@ -172,28 +165,6 @@ export function useInvoiceState(initialTab?: string | null) {
     };
   }, [currentUser]);
 
-  // ── Auto-fetch VCB Exchange Rate ──
-  useEffect(() => {
-    const loadRate = async () => {
-      setVcbRateLoading(true);
-      try {
-        const data = await fetchExchangeRate();
-        setVcbRate(data);
-        // Auto-populate the exchange rate with VCB avg rate (buy + sell) / 2
-        if (data.buy > 0 && data.sell > 0) setExchangeRate(avgRate(data));
-      } catch (err) {
-        console.warn('[VCB Rate] Failed to fetch:', err);
-      } finally {
-        setVcbRateLoading(false);
-      }
-    };
-
-    loadRate();
-    // Refresh every hour
-    const interval = setInterval(loadRate, 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
   useEffect(() => {
     getNextInvoiceNumber().then(nextNum => {
       setInvoice(prev => ({ ...prev, invoiceNumber: nextNum }));
@@ -215,31 +186,9 @@ export function useInvoiceState(initialTab?: string | null) {
     setIsLoading(false);
   };
 
-  const loadBanks = async (autoApplyDefault = false) => {
-    const data = await fetchBanksFromCloud();
-    setBanks(data);
-    if (autoApplyDefault) {
-      const defaultBank = data.find(b => b.isDefault);
-      if (defaultBank) {
-        const { id, isDefault, ...bankInfo } = defaultBank;
-        updateInvoice('bankingInfo', bankInfo);
-      }
-    }
-  };
-
   const loadClients = async () => {
     const data = await fetchClientsFromCloud();
     setClients(data);
-  };
-
-  const loadStudios = async () => {
-    const data = await fetchStudiosFromCloud();
-    setStudios(data);
-    return data;
-  };
-
-  const notify = (text: string, type: 'success' | 'warning' | 'error' = 'success') => {
-    setLastMessage({ text, type });
   };
 
   // ── Invoice Helpers ──
@@ -294,98 +243,6 @@ export function useInvoiceState(initialTab?: string | null) {
     if (!c) return;
     const { id: _id, ...info } = c;
     updateInvoice('clientInfo', info);
-  };
-
-  // ── Studio Handlers ──
-  const handleAddStudio = async () => {
-    if (!newStudio.name) return notify('Please enter a company name.', 'error');
-    setIsLoading(true);
-    try { await saveStudioToCloud(newStudio); setNewStudio({ name: '', address: '', email: '', taxCode: '' }); await loadStudios(); notify('Studio saved!', 'success'); }
-    catch (e: any) { notify('Error: ' + e.message, 'error'); }
-    finally { setIsLoading(false); }
-  };
-
-  const handleSetDefaultStudio = async (id: string) => {
-    try {
-      await setDefaultStudioInCloud(id, studios);
-      const updated = await loadStudios();
-      const def = updated.find(s => s.id === id);
-      if (def) { const { id: _id, isDefault: _d, ...info } = def; updateInvoice('studioInfo', info); }
-      notify('Default studio set!', 'success');
-    } catch (e: any) { notify('Error: ' + e.message, 'error'); }
-  };
-
-  const handleDeleteStudio = async (id: string) => {
-    if (!confirm('Delete this studio?')) return;
-    setIsLoading(true);
-    try { await deleteStudioFromCloud(id); await loadStudios(); notify('Studio deleted.', 'success'); }
-    catch (e: any) { notify('Error: ' + e.message, 'error'); }
-    finally { setIsLoading(false); }
-  };
-
-  const handleEditStudio = (s: StudioRecord) => {
-    setEditingStudioId(s.id);
-    const { id, isDefault, ...info } = s;
-    setEditingStudioData(info);
-  };
-
-  const handleUpdateStudio = async () => {
-    if (!editingStudioId || !editingStudioData) return;
-    setIsLoading(true);
-    try { await updateStudioInCloud(editingStudioId, editingStudioData); setEditingStudioId(null); setEditingStudioData(null); await loadStudios(); notify('Studio updated!', 'success'); }
-    catch (e: any) { notify('Error: ' + e.message, 'error'); }
-    finally { setIsLoading(false); }
-  };
-
-  // ── Bank Handlers ──
-  const handleAddBank = async () => {
-    if (!newBank.accountName || !newBank.accountNumber || !newBank.alias) return alert("Please enter Alias, Account Name and Account Number.");
-    setIsLoading(true);
-    try {
-      await saveBankToCloud(newBank); notify("Account saved!", "success");
-      setNewBank({ alias: '', accountName: '', accountNumber: '', bankName: '', branchName: '', bankAddress: '', citadCode: '', swiftCode: '' });
-      await loadBanks();
-    } catch (error: any) { notify("Error saving account: " + error.message, "error"); }
-    finally { setIsLoading(false); }
-  };
-
-  const handleDeleteBank = async (id: string) => {
-    if (!confirm("Delete this bank account?")) return;
-    try { await deleteBankFromCloud(id); await loadBanks(); notify("Account deleted.", "success"); }
-    catch (error) { notify("Cannot delete.", "error"); }
-  };
-
-  const handleSetDefaultBank = async (id: string) => {
-    try {
-      await setDefaultBankInCloud(id, banks);
-      const updated = await fetchBanksFromCloud(); setBanks(updated);
-      const defaultBank = updated.find(b => b.id === id);
-      if (defaultBank) { const { id: _id, isDefault: _def, ...bankInfo } = defaultBank; updateInvoice('bankingInfo', bankInfo); }
-      notify("Default account set!", "success");
-    } catch (error: any) { notify("Error setting default: " + error.message, "error"); }
-  };
-
-  const handleEditBank = (bank: BankingInfo & { id: string; isDefault: boolean }) => {
-    setEditingBankId(bank.id);
-    const { id, isDefault, ...bankInfo } = bank;
-    setEditingBankData(bankInfo);
-  };
-
-  const handleCancelEdit = () => { setEditingBankId(null); setEditingBankData(null); };
-
-  const handleUpdateBank = async () => {
-    if (!editingBankId || !editingBankData) return;
-    setIsLoading(true);
-    try { await updateBankInCloud(editingBankId, editingBankData); notify("Account updated!", "success"); setEditingBankId(null); setEditingBankData(null); await loadBanks(); }
-    catch (error: any) { notify("Update error: " + error.message, "error"); }
-    finally { setIsLoading(false); }
-  };
-
-  const handleBankSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const bankId = e.target.value;
-    if (!bankId) return;
-    const selectedBank = banks.find(b => b.id === bankId);
-    if (selectedBank) { const { id, isDefault, ...bankInfo } = selectedBank; updateInvoice('bankingInfo', bankInfo); }
   };
 
   // ── Invoice CRUD ──
@@ -681,13 +538,32 @@ export function useInvoiceState(initialTab?: string | null) {
     // Core
     currentUser, setCurrentUser, invoice, setInvoice, activeTab, setActiveTab, accessibleTabs,
     // Data
-    history, banks, clients, studios, isLoading, isExporting, lastMessage, setLastMessage,
+    history, clients, isLoading, isExporting, lastMessage, setLastMessage,
     filteredHistory, formatCurrencySimple,
-    // Managers
-    showBankManager, setShowBankManager, showStudioManager, setShowStudioManager,
-    editingBankId, editingBankData, setEditingBankData,
-    editingStudioId, setEditingStudioId, editingStudioData, setEditingStudioData,
-    newStudio, setNewStudio, newBank, setNewBank,
+    // Bank manager (sub-hook)
+    banks: bankMgr.banks,
+    showBankManager: bankMgr.showBankManager, setShowBankManager: bankMgr.setShowBankManager,
+    editingBankId: bankMgr.editingBankId,
+    editingBankData: bankMgr.editingBankData, setEditingBankData: bankMgr.setEditingBankData,
+    newBank: bankMgr.newBank, setNewBank: bankMgr.setNewBank,
+    handleAddBank: bankMgr.handleAddBank,
+    handleDeleteBank: bankMgr.handleDeleteBank,
+    handleSetDefaultBank: bankMgr.handleSetDefaultBank,
+    handleEditBank: bankMgr.handleEditBank,
+    handleCancelEdit: bankMgr.handleCancelEdit,
+    handleUpdateBank: bankMgr.handleUpdateBank,
+    handleBankSelect: bankMgr.handleBankSelect,
+    // Studio manager (sub-hook)
+    studios: studioMgr.studios,
+    showStudioManager: studioMgr.showStudioManager, setShowStudioManager: studioMgr.setShowStudioManager,
+    editingStudioId: studioMgr.editingStudioId, setEditingStudioId: studioMgr.setEditingStudioId,
+    editingStudioData: studioMgr.editingStudioData, setEditingStudioData: studioMgr.setEditingStudioData,
+    newStudio: studioMgr.newStudio, setNewStudio: studioMgr.setNewStudio,
+    handleAddStudio: studioMgr.handleAddStudio,
+    handleSetDefaultStudio: studioMgr.handleSetDefaultStudio,
+    handleDeleteStudio: studioMgr.handleDeleteStudio,
+    handleEditStudio: studioMgr.handleEditStudio,
+    handleUpdateStudio: studioMgr.handleUpdateStudio,
     // Client suggestions
     clientSuggestions, setClientSuggestions, showSuggestions, setShowSuggestions,
     // eInvoice
@@ -705,8 +581,6 @@ export function useInvoiceState(initialTab?: string | null) {
     updateInvoice, updateItem, notify,
     handleLogout, loadHistory,
     handleSaveClient, handleSelectClient,
-    handleAddStudio, handleSetDefaultStudio, handleDeleteStudio, handleEditStudio, handleUpdateStudio,
-    handleAddBank, handleDeleteBank, handleSetDefaultBank, handleEditBank, handleCancelEdit, handleUpdateBank, handleBankSelect,
     handleSaveToCloud, toggleStatus, handleDeleteInvoice, loadFromHistory, handleDuplicateInvoice,
     // Payment modal
     paymentModal, setPaymentModal, confirmPayment,

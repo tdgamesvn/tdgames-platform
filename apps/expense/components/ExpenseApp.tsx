@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import { useExpenseState, ExpenseTab } from '../hooks/useExpenseState';
-import { fetchExchangeRate, ExchangeRateData, avgRate } from '@/apps/invoice/services/exchangeRateService';
+import { useExchangeRate } from '@/services/ExchangeRateContext';
 import ExpenseList from './ExpenseList';
 import ExpenseForm from './ExpenseForm';
 import ExpenseRecurring from './ExpenseRecurring';
@@ -47,26 +47,8 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
   const state = useExpenseState(currentUser.username, initialTab);
   const [showForm, setShowForm] = useState(false);
 
-  // ── Live VCB Exchange Rate ──
-  const [vcbRate, setVcbRate] = useState<ExchangeRateData | null>(null);
-  const [vcbRateLoading, setVcbRateLoading] = useState(false);
-
-  useEffect(() => {
-    const loadRate = async () => {
-      setVcbRateLoading(true);
-      try {
-        const data = await fetchExchangeRate();
-        setVcbRate(data);
-      } catch (err) {
-        console.warn('[VCB Rate] Failed to fetch:', err);
-      } finally {
-        setVcbRateLoading(false);
-      }
-    };
-    loadRate();
-    const interval = setInterval(loadRate, 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // ── Live VCB Exchange Rate (shared via Context) ──
+  const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
 
   const navbarTab = TAB_MAP[state.activeTab];
   const accessibleTabs = (['overview', 'history', 'recurring', 'activity', 'reports'] as const).map(t => t);
@@ -112,7 +94,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
             categories={state.categories}
             isLoading={state.isLoading}
             onNavigateToList={() => state.setActiveTab('list')}
-            vcbAvgRate={vcbRate ? avgRate(vcbRate) : 25000}
+            vcbAvgRate={avgUsdVnd}
           />
         )}
         {state.activeTab === 'list' && (
@@ -144,7 +126,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
                 onToggleStatus={state.handleToggleStatus}
                 onRefresh={state.loadAll}
                 onAdd={() => { state.setEditingExpense(null); setShowForm(true); }}
-                vcbAvgRate={vcbRate ? avgRate(vcbRate) : 25000}
+                vcbAvgRate={avgUsdVnd}
               />
             )}
           </>

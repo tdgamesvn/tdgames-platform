@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser, WorkforceTask, Settlement } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import {
   fetchMyTasks,
   fetchMySettlements,

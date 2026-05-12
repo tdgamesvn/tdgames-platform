@@ -137,8 +137,11 @@ export const fetchInvoicesFromCloud = async (): Promise<InvoiceData[]> => {
 };
 
 /**
- * Tính số hoá đơn tiếp theo.
+ * Tính số hoá đơn tiếp theo trong năm hiện tại.
  * Format: INV-YYYYMM-NNN  (e.g. INV-202603-007)
+ *
+ * Chỉ fetch 1 row có invoice_number lớn nhất theo prefix năm — DB sort dictionary
+ * order trùng với numeric order vì sequence luôn được pad zero.
  */
 export const getNextInvoiceNumber = async (): Promise<string> => {
     const now = new Date();
@@ -151,16 +154,12 @@ export const getNextInvoiceNumber = async (): Promise<string> => {
             .from('invoice_invoices')
             .select('invoice_number')
             .like('invoice_number', `${yearPrefix}%`)
-            .order('created_at', { ascending: false })
-            .limit(500);
-        const allNumbers: number[] = (data || [])
-            .map((row: any) => row.invoice_number as string)
-            .filter((n: string) => typeof n === 'string' && n.startsWith(yearPrefix))
-            .map((n: string) => {
-                const parts = n.split('-');
-                return parseInt(parts[parts.length - 1], 10) || 0;
-            });
-        const maxSeq = allNumbers.length > 0 ? Math.max(...allNumbers) : 0;
+            .order('invoice_number', { ascending: false })
+            .limit(1);
+        const latest = data?.[0]?.invoice_number as string | undefined;
+        if (!latest) return `${issuePrefix}-001`;
+        const parts = latest.split('-');
+        const maxSeq = parseInt(parts[parts.length - 1], 10) || 0;
         return `${issuePrefix}-${String(maxSeq + 1).padStart(3, '0')}`;
     } catch {
         return `${issuePrefix}-001`;
@@ -386,44 +385,6 @@ export const deleteStudioFromCloud = async (id: string) => {
         .delete()
         .eq('id', id);
     if (error) throw new Error(`Delete studio failed: ${error.message}`);
-};
-
-// ────────────────────────────────────────────────────────────────
-// ACCOUNT / AUTH METHODS
-// ────────────────────────────────────────────────────────────────
-
-const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member'] as const;
-type ValidRole = typeof VALID_ROLES[number];
-const parseRole = (r: string): ValidRole => VALID_ROLES.includes(r as ValidRole) ? r as ValidRole : 'member';
-
-export const loginWithCredentials = async (username: string, password: string): Promise<AccountUser> => {
-    // Support both username (admin) and email (user@gmail.com) login
-    const email = username.includes('@') ? username : `${username}@tdgames.local`;
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error('Tài khoản hoặc mật khẩu không đúng.');
-    const meta = data.user.user_metadata;
-    return {
-        id: data.user.id,
-        username: meta.username || data.user.email?.split('@')[0] || username,
-        role: parseRole(meta.role || 'member'),
-        employee_id: meta.employee_id || undefined,
-    };
-};
-
-export const logoutFromAuth = async (): Promise<void> => {
-    await supabase.auth.signOut();
-};
-
-export const getAuthUser = async (): Promise<AccountUser | null> => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return null;
-    const meta = session.user.user_metadata;
-    return {
-        id: session.user.id,
-        username: meta.username || session.user.email?.split('@')[0] || 'unknown',
-        role: parseRole(meta.role || 'member'),
-        employee_id: meta.employee_id || undefined,
-    };
 };
 
 // ────────────────────────────────────────────────────────────────

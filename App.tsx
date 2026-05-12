@@ -16,6 +16,7 @@ import DashboardApp from './apps/dashboard/components/DashboardApp';
 import PortalApp from './apps/portal/components/PortalApp';
 import FreelancerPortalApp from './apps/freelancer-portal/components/FreelancerPortalApp';
 import { supabase } from './services/supabaseClient';
+import { ExchangeRateProvider } from './services/ExchangeRateContext';
 
 const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
@@ -284,4 +285,10 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+const AppWithProviders: React.FC = () => (
+  <ExchangeRateProvider>
+    <App />
+  </ExchangeRateProvider>
+);
+
+export default AppWithProviders;

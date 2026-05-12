@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
-import { fetchExchangeRate, ExchangeRateData, avgRate } from '@/apps/invoice/services/exchangeRateService';
+import { Navbar } from '@/components/Navbar';
+import { useExchangeRate } from '@/services/ExchangeRateContext';
 import { useWorkforceState, WorkforceTab } from '../hooks/useWorkforceState';
 import WorkerList from './WorkerList';
 import WorkerForm from './WorkerForm';
@@ -52,26 +52,8 @@ const REVERSE_TAB: Record<string, WorkforceTab> = {
 const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useWorkforceState(currentUser.username, initialTab);
 
-  // ── Live VCB Exchange Rate ──
-  const [vcbRate, setVcbRate] = useState<ExchangeRateData | null>(null);
-  const [vcbRateLoading, setVcbRateLoading] = useState(false);
-
-  useEffect(() => {
-    const loadRate = async () => {
-      setVcbRateLoading(true);
-      try {
-        const data = await fetchExchangeRate();
-        setVcbRate(data);
-      } catch (err) {
-        console.warn('[VCB Rate] Failed to fetch:', err);
-      } finally {
-        setVcbRateLoading(false);
-      }
-    };
-    loadRate();
-    const interval = setInterval(loadRate, 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // ── Live VCB Exchange Rate (shared via Context) ──
+  const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
 
   const navbarTab = TAB_MAP[state.activeTab];
   const accessibleTabs = (['history', 'recurring', 'activity', 'reports', 'overview', 'dashboard'] as const).map(t => t);
@@ -151,7 +133,7 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
             onUpdate={state.handleUpdateTask}
             onRefresh={state.loadAll}
             onToast={showToast}
-            vcbSellRate={vcbRate ? avgRate(vcbRate) : 0}
+            vcbSellRate={vcbRate ? avgUsdVnd : 0}
           />
         )}
         {state.activeTab === 'settlements' && (
@@ -159,7 +141,7 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
             settlements={state.settlements}
             workers={state.workers}
             tasks={state.tasks}
-            vcbSellRate={vcbRate ? avgRate(vcbRate) : 0}
+            vcbSellRate={vcbRate ? avgUsdVnd : 0}
             onCreateSettlement={state.handleCreateSettlement}
             onUpdateSettlement={state.handleUpdateSettlement}
             onDeleteSettlement={state.handleDeleteSettlement}
@@ -169,7 +151,7 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
           <ProjectAcceptanceManager
             acceptances={state.projectAcceptances}
             tasks={state.tasks}
-            vcbSellRate={vcbRate ? avgRate(vcbRate) : 0}
+            vcbSellRate={vcbRate ? avgUsdVnd : 0}
             onCreateAcceptance={state.handleCreateProjectAcceptance}
             onUpdateAcceptance={state.handleUpdateProjectAcceptance}
             onDeleteAcceptance={state.handleDeleteProjectAcceptance}
@@ -177,7 +159,7 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
         )}
 
         {state.activeTab === 'financials' && (
-          <FinancialDashboard vcbAvgRate={vcbRate ? avgRate(vcbRate) : 25000} />
+          <FinancialDashboard vcbAvgRate={avgUsdVnd} />
         )}
 
         {state.activeTab === 'config' && (

@@ -220,7 +220,7 @@ Deno.serve(async (req: Request) => {
         supabase.from("hr_employees").select("id, full_name, email, status, position, department_id, join_date, employee_code"),
         supabase.from("hr_departments").select("id, name"),
         supabase.from("hr_contracts").select("id, employee_id, type, status, start_date, end_date, base_salary"),
-        supabase.from("portal_leave_requests").select("id, employee_id, status, leave_type, start_date, end_date").eq("status", "pending"),
+        supabase.from("att_requests").select("id, employee_id, status, leave_type, date_from, date_to").eq("request_type", "leave").eq("status", "pending"),
       ]);
 
       const employees = empRes.data || [];
@@ -454,8 +454,8 @@ Deno.serve(async (req: Request) => {
       const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
 
       const [attRes, leaveRes, empRes] = await Promise.all([
-        supabase.from("attendance_records").select("*").gte("date", startDate).lt("date", endDate),
-        supabase.from("portal_leave_requests").select("*").gte("start_date", startDate).lt("start_date", endDate),
+        supabase.from("att_records").select("*").gte("date", startDate).lt("date", endDate),
+        supabase.from("att_requests").select("*").eq("request_type", "leave").gte("date_from", startDate).lt("date_from", endDate),
         supabase.from("hr_employees").select("id, full_name, status").eq("status", "active"),
       ]);
 
@@ -544,8 +544,7 @@ Deno.serve(async (req: Request) => {
         const businessTables = [
           "hr_employees", "hr_departments", "hr_positions", "hr_contracts",
           "pay_payroll_sheets", "pay_payroll_records", "pay_salary_configs",
-          "attendance_records", "attendance_shifts",
-          "portal_leave_requests",
+          "att_records", "att_shifts", "att_requests",
           "crm_clients", "crm_projects", "crm_documents",
           "crm_outreach_leads", "crm_email_log", "crm_email_templates",
           "crm_outreach_config", "crm_outreach_batch_log",
@@ -573,7 +572,7 @@ Deno.serve(async (req: Request) => {
           data: {
             note: "Audit using service_role — all tables accessible. Check Supabase Dashboard for RLS enable/disable status per table.",
             tables: results,
-            recommendation: "Tables with sensitive data (hr_employees, pay_payroll_records, portal_leave_requests) MUST have RLS enabled with role-based policies.",
+            recommendation: "Tables with sensitive data (hr_employees, pay_payroll_records, att_requests) MUST have RLS enabled with role-based policies.",
           },
         });
       }

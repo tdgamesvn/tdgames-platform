@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AppBackground from '@/components/AppBackground';
-import { AccountUser } from '@/types';
+import {
+  AccountUser,
+  HrEmployee,
+  HrDepartment,
+  PayPayrollRecord,
+  PayPayrollSheet,
+  AttMonthlyRecord,
+  AttMonthlySheet,
+} from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import {
   fetchEmployeeDirectory,
   fetchDepartments,
@@ -10,6 +18,14 @@ import {
   fetchMyAttendance,
   fetchMyProfile,
 } from '../services/portalService';
+
+type DirectoryEmployee = Pick<
+  HrEmployee,
+  'id' | 'full_name' | 'email' | 'work_email' | 'phone' | 'position' | 'avatar_url' | 'status' | 'type' | 'department_id' | 'date_of_birth' | 'address'
+>;
+type DepartmentLite = Pick<HrDepartment, 'id' | 'name'>;
+type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
+type AttendanceWithSheet = AttMonthlyRecord & { sheet?: AttMonthlySheet };
 import { toPublicUrl } from '@/apps/hr/services/hrService';
 import LeaveTab from './LeaveTab';
 import ProfileTab from './ProfileTab';
@@ -49,10 +65,10 @@ const REVERSE_TAB: Record<string, PortalTab> = {
 
 const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
   const [activeTab, setActiveTab] = useState<PortalTab>('directory');
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [payslips, setPayslips] = useState<any[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<DirectoryEmployee[]>([]);
+  const [departments, setDepartments] = useState<DepartmentLite[]>([]);
+  const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceWithSheet[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   /** undefined = đang tải hồ sơ; null = không có employee_id hoặc lỗi */
@@ -132,7 +148,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
     }
   }, [activeTab, currentUser.employee_id]);
 
-  const deptMap = Object.fromEntries(departments.map((d: any) => [d.id, d.name]));
+  const deptMap = Object.fromEntries(departments.map(d => [d.id, d.name]));
 
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>

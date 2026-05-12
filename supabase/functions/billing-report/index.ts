@@ -220,7 +220,7 @@ Deno.serve(async (req: Request) => {
         supabase.from("hr_employees").select("id, full_name, email, status, position, department_id, join_date, employee_code"),
         supabase.from("hr_departments").select("id, name"),
         supabase.from("hr_contracts").select("id, employee_id, type, status, start_date, end_date, base_salary"),
-        supabase.from("portal_leave_requests").select("id, employee_id, status, leave_type, start_date, end_date").eq("status", "pending"),
+        supabase.from("att_requests").select("id, employee_id, status, leave_type, date_from, date_to").eq("request_type", "leave").eq("status", "pending"),
       ]);
 
       const employees = empRes.data || [];
@@ -454,8 +454,8 @@ Deno.serve(async (req: Request) => {
       const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
 
       const [attRes, leaveRes, empRes] = await Promise.all([
-        supabase.from("attendance_records").select("*").gte("date", startDate).lt("date", endDate),
-        supabase.from("portal_leave_requests").select("*").gte("start_date", startDate).lt("start_date", endDate),
+        supabase.from("att_records").select("*").gte("date", startDate).lt("date", endDate),
+        supabase.from("att_requests").select("*").eq("request_type", "leave").gte("date_from", startDate).lt("date_from", endDate),
         supabase.from("hr_employees").select("id, full_name, status").eq("status", "active"),
       ]);
 

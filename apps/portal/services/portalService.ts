@@ -1,8 +1,19 @@
 import { supabase } from '@/services/supabaseClient';
-import type { HrParkingRegistration, HrParkingVehicleType } from '@/types';
+import type {
+  HrEmployee, HrDepartment, HrParkingRegistration, HrParkingVehicleType,
+  PayPayrollRecord, PayPayrollSheet, AttMonthlyRecord, AttMonthlySheet,
+} from '@/types';
+
+type DirectoryEmployee = Pick<
+  HrEmployee,
+  'id' | 'full_name' | 'email' | 'work_email' | 'phone' | 'position' | 'avatar_url' | 'status' | 'type' | 'department_id' | 'date_of_birth' | 'address'
+>;
+type DepartmentLite = Pick<HrDepartment, 'id' | 'name'>;
+type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
+type AttendanceWithSheet = AttMonthlyRecord & { sheet?: AttMonthlySheet };
 
 // Fetch all employees for directory (public info only)
-export async function fetchEmployeeDirectory() {
+export async function fetchEmployeeDirectory(): Promise<DirectoryEmployee[]> {
   const { data, error } = await supabase
     .from('hr_employees')
     .select(`
@@ -13,22 +24,22 @@ export async function fetchEmployeeDirectory() {
     .in('type', ['fulltime', 'parttime'])
     .order('full_name');
   if (error) throw error;
-  return data || [];
+  return (data as DirectoryEmployee[]) || [];
 }
 
 // Fetch departments for mapping
-export async function fetchDepartments() {
+export async function fetchDepartments(): Promise<DepartmentLite[]> {
   const { data, error } = await supabase
     .from('hr_departments')
     .select('id, name')
     .order('name');
   if (error) throw error;
-  return data || [];
+  return (data as DepartmentLite[]) || [];
 }
 
 // Fetch my payroll records — from finalized payroll sheets (confirmed or paid).
 // Draft is hidden; after HR marks "Đã trả", status becomes paid and must still be visible here.
-export async function fetchMyPayslips(employeeId: string) {
+export async function fetchMyPayslips(employeeId: string): Promise<PayslipWithSheet[]> {
   const { data: visibleSheets } = await supabase
     .from('pay_payroll_sheets')
     .select('id')
@@ -46,11 +57,11 @@ export async function fetchMyPayslips(employeeId: string) {
     .in('sheet_id', sheetIds)
     .order('created_at', { ascending: false });
   if (error && error.code !== '42P01') throw error;
-  return data || [];
+  return (data as PayslipWithSheet[]) || [];
 }
 
 // Fetch my monthly attendance records — only from FINALIZED attendance sheets
-export async function fetchMyAttendance(employeeId: string) {
+export async function fetchMyAttendance(employeeId: string): Promise<AttendanceWithSheet[]> {
   // 1. Get finalized sheet IDs
   const { data: finalizedSheets } = await supabase
     .from('att_monthly_sheets')
@@ -69,7 +80,7 @@ export async function fetchMyAttendance(employeeId: string) {
     .in('sheet_id', sheetIds)
     .order('created_at', { ascending: false });
   if (error && error.code !== '42P01') throw error;
-  return data || [];
+  return (data as AttendanceWithSheet[]) || [];
 }
 
 // Fetch full profile for the logged-in employee

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser, CrmActivity } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import { useCrmState, CrmTab } from '../hooks/useCrmState';
 import ClientList from './ClientList';
 import EmailOutreach from './EmailOutreach';

@@ -2,7 +2,7 @@ import React from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import { useHrState, HrTab } from '../hooks/useHrState';
 import EmployeeList from './EmployeeList';
 import EmployeeForm from './EmployeeForm';

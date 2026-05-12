@@ -164,7 +164,7 @@ export async function fetchCeoDashboard(
     supabase.from('pay_payroll_sheets').select('id, title, status, month, year, total_net_salary, total_company_cost')
       .order('year', { ascending: false }).order('month', { ascending: false }).limit(1),
     supabase.from('hr_contracts').select('id, employee_id, status, end_date').eq('status', 'active'),
-    supabase.from('portal_leave_requests').select('id, status').eq('status', 'pending'),
+    supabase.from('att_requests').select('id, status').eq('request_type', 'leave').eq('status', 'pending'),
     supabase.from('crm_outreach_leads').select('id, status, tier, created_at'),
     supabase.from('crm_email_log').select('id, status, sent_at'),
   ]);

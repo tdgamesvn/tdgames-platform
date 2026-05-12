@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
-import { Navbar } from '@/apps/invoice/components/Navbar';
+import { Navbar } from '@/components/Navbar';
 import { usePayrollState } from '../hooks/usePayrollState';
 import { FALLBACK_PAYROLL_FORMULA } from '../services/payrollFormulaService';
 import PayrollSheet from './PayrollSheet';
