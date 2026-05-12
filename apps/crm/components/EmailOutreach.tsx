@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog } from '@/types';
 import * as svc from '../services/outreachService';
 import type { PipelineStats } from '../services/outreachService';
+import { getOutreachApiBase, outreachRequest, supabaseEdgeFunctionPost } from '../services/outreachApi';
 
 // ══════════════════════════════════════════════════════════════
 // ── Constants ─────────────────────────────────────────────────
@@ -184,8 +185,12 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
     if (!confirm('Chạy auto batch ngay bây giờ?')) return;
     setTriggeringBatch(true);
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const res = await fetch(`${supabaseUrl}/functions/v1/outreach-auto-batch`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const res = await supabaseEdgeFunctionPost('outreach-auto-batch', {});
+      if (!res.ok) {
+        const errText = await res.text();
+        alert(`Lỗi batch (${res.status}): ${errText.slice(0, 200)}`);
+        return;
+      }
       const data = await res.json();
       alert(`Batch hoàn thành!\n\nĐã gửi: ${data.total_sent || 0}\nThất bại: ${data.total_failed || 0}`);
       // Reload logs
@@ -356,22 +361,13 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
 // ── LEADS TAB ─────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-// ── Outreach API helper (uses Supabase proxy to bypass CORS) ──
-function getOutreachAPI(): string {
-  // Use Supabase Edge Function proxy to avoid CORS issues with VPS
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (supabaseUrl) return `${supabaseUrl}/functions/v1/outreach-proxy`;
-  // Fallback to direct VPS URL
-  return import.meta.env.VITE_OUTREACH_API_URL || '';
-}
-
 interface QuotaStatus { sent_today: number; daily_limit: number; remaining: number; }
 
 async function fetchQuota(): Promise<QuotaStatus> {
-  const API = getOutreachAPI();
-  if (!API) return { sent_today: 0, daily_limit: 30, remaining: 30 };
+  const base = getOutreachApiBase();
+  if (!base) return { sent_today: 0, daily_limit: 30, remaining: 30 };
   try {
-    const res = await fetch(`${API}/api/email/status`);
+    const res = await outreachRequest('/api/email/status');
     if (!res.ok) throw new Error();
     return res.json();
   } catch { return { sent_today: 0, daily_limit: 30, remaining: 30 }; }
@@ -404,13 +400,14 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
   // Send email to a single lead
   const handleSendEmail = async (leadId: string, templateName: string = 'initial_outreach') => {
-    const API = getOutreachAPI();
-    if (!API) { alert('VITE_OUTREACH_API_URL chưa cấu hình'); return; }
+    if (!getOutreachApiBase()) {
+      alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
+      return;
+    }
     setSendingId(leadId);
     try {
-      const res = await fetch(`${API}/api/email/send`, {
+      const res = await outreachRequest('/api/email/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lead_id: leadId, template_name: templateName }),
       });
       if (res.status === 429) { alert('Đã đạt giới hạn email/ngày. Thử lại ngày mai.'); return; }
@@ -424,8 +421,10 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
   // Bulk send via server-side batch (with 2-5 min delay between each email)
   const handleBulkSend = async () => {
-    const API = getOutreachAPI();
-    if (!API) { alert('VITE_OUTREACH_API_URL chưa cấu hình'); return; }
+    if (!getOutreachApiBase()) {
+      alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
+      return;
+    }
     const pendingCount = leads.filter(l => l.outreach_status === 'pending').length;
     const remaining = quota?.remaining || 30;
     const batchSize = Math.min(pendingCount, remaining);
@@ -435,8 +434,8 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     
     // Trigger server-side batch
     try {
-      const res = await fetch(`${API}/api/email/batch`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await outreachRequest('/api/email/batch', {
+        method: 'POST',
         body: JSON.stringify({ template_name: 'initial_outreach', limit: batchSize, min_delay: 120, max_delay: 300 }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); alert(`Lỗi: ${err.error || err.detail || res.status}`); return; }
@@ -448,7 +447,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       // Poll for status every 10 seconds
       const pollInterval = setInterval(async () => {
         try {
-          const sr = await fetch(`${API}/api/email/batch-status`);
+          const sr = await outreachRequest('/api/email/batch-status');
           if (!sr.ok) return;
           const st = await sr.json();
           setBulkProgress({ current: st.current, total: st.total, success: st.success, failed: st.failed });
@@ -468,18 +467,18 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
   // Verify pending emails before sending
   const handleVerifyEmails = async () => {
-    console.log('[Verify] Button clicked');
-    const API = getOutreachAPI();
-    console.log('[Verify] API URL:', API);
-    if (!API) { alert('VITE_OUTREACH_API_URL chưa cấu hình'); return; }
+    if (!getOutreachApiBase()) {
+      alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
+      return;
+    }
     const pendingCount = leads.filter(l => l.outreach_status === 'pending').length;
     if (pendingCount === 0) { alert('Không có leads pending cần verify.'); return; }
     if (!confirm(`Verify ${Math.min(pendingCount, 100)} email addresses?\n\nKiểm tra: MX records, SMTP, catch-all, domain match, disposable, role-based.\nEmail không hợp lệ sẽ được đánh dấu "invalid_email".`)) return;
     setVerifying(true);
     setVerifyResult(null);
     try {
-      const res = await fetch(`${API}/api/email/verify-pending`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await outreachRequest('/api/email/verify-pending', {
+        method: 'POST',
         body: JSON.stringify({ limit: 100 }),
       });
       if (!res.ok) { alert(`Lỗi: ${res.status}`); return; }
@@ -492,16 +491,16 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
   // Check bounces from Gmail inbox
   const handleCheckBounces = async () => {
-    console.log('[Bounce] Button clicked');
-    const API = getOutreachAPI();
-    console.log('[Bounce] API URL:', API);
-    if (!API) { alert('VITE_OUTREACH_API_URL chưa cấu hình'); return; }
+    if (!getOutreachApiBase()) {
+      alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
+      return;
+    }
     if (!confirm('Quét Gmail inbox tìm email bị bounce?\n\nSẽ tự động đánh dấu leads bị bounce trong database.')) return;
     setCheckingBounces(true);
     setBounceResult(null);
     try {
-      const res = await fetch(`${API}/api/email/check-bounces`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await outreachRequest('/api/email/check-bounces', {
+        method: 'POST',
         body: JSON.stringify({ days_back: 14, max_results: 50, auto_update: true }),
       });
       if (!res.ok) { alert(`Lỗi: ${res.status}`); return; }
@@ -1195,9 +1194,11 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
       {error && (
         <div style={{ background: '#FF453A15', border: '1px solid #FF453A30', borderRadius: '10px', padding: '14px 20px' }}>
           <p style={{ fontSize: '13px', color: '#FF453A', fontWeight: 600 }}>⚠️ {error}</p>
-          {error.includes('VITE_OUTREACH_API_URL') && (
+          {(error.includes('Outreach API') || error.includes('OUTREACH') || error.includes('outreach-proxy')) && (
             <p style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
-              FastAPI chưa deploy trên VPS. Cần triển khai Phase 2 để sử dụng tính năng này.
+              Cấu hình <code style={{ color: '#ccc' }}>VITE_OUTREACH_API_URL</code> (FastAPI + CORS) hoặc deploy Edge{' '}
+              <code style={{ color: '#ccc' }}>outreach-proxy</code> trên Supabase và secret{' '}
+              <code style={{ color: '#ccc' }}>OUTREACH_API_URL</code>.
             </p>
           )}
         </div>

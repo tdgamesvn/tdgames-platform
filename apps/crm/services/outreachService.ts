@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabaseClient';
 import { CrmOutreachLead, CrmEmailLog, CrmEmailTemplate } from '@/types';
+import { outreachRequest } from './outreachApi';
 
 // ══════════════════════════════════════════════════════════════
 // ── OUTREACH LEADS ────────────────────────────────────────────
@@ -191,14 +192,9 @@ export function parseCsvLeads(csvText: string): Omit<CrmOutreachLead, 'id' | 'cr
 // ── FASTAPI INTEGRATION (Phase 2) ─────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const API_BASE = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/outreach-proxy` : (import.meta.env.VITE_OUTREACH_API_URL || '');
-
 export async function discoverContacts(company: string, domain: string): Promise<any[]> {
-  if (!API_BASE) throw new Error('VITE_OUTREACH_API_URL chưa cấu hình (cần FastAPI trên VPS)');
-  const res = await fetch(`${API_BASE}/api/leads/discover`, {
+  const res = await outreachRequest('/api/leads/discover', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ company, domain }),
   });
   if (!res.ok) throw new Error(`Discovery failed: ${res.status}`);
@@ -206,10 +202,8 @@ export async function discoverContacts(company: string, domain: string): Promise
 }
 
 export async function sendOutreachEmail(leadId: string, templateName: string): Promise<any> {
-  if (!API_BASE) throw new Error('VITE_OUTREACH_API_URL chưa cấu hình (cần FastAPI trên VPS)');
-  const res = await fetch(`${API_BASE}/api/email/send`, {
+  const res = await outreachRequest('/api/email/send', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lead_id: leadId, template_name: templateName }),
   });
   if (!res.ok) throw new Error(`Send failed: ${res.status}`);
