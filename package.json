@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gitnexus:analyze": "gitnexus analyze",
+    "gitnexus:status": "gitnexus status",
+    "gitnexus:clean": "gitnexus clean",
+    "gitnexus:setup": "gitnexus setup"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
@@ -22,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "gitnexus": "^1.6.4",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }
