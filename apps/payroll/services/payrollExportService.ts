@@ -1,12 +1,17 @@
 import * as XLSX from 'xlsx';
-import { PayPayrollSheet, PayPayrollRecord } from '@/types';
+import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
+import { FALLBACK_PAYROLL_FORMULA } from './payrollFormulaService';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
 /**
  * Export bảng lương ra file Excel (.xlsx)
  */
-export function exportPayrollToExcel(sheet: PayPayrollSheet, records: PayPayrollRecord[]) {
+export function exportPayrollToExcel(
+  sheet: PayPayrollSheet,
+  records: PayPayrollRecord[],
+  _formula?: PayrollFormulaConfig,
+) {
   const rows: any[][] = [];
 
   // ── Header ──
@@ -149,9 +154,13 @@ export function exportPayrollToExcel(sheet: PayPayrollSheet, records: PayPayroll
 /**
  * Export phiếu lương cá nhân ra Excel
  */
-export function exportPaySlipToExcel(sheet: PayPayrollSheet, rec: PayPayrollRecord) {
-  const STANDARD_DAYS = 22;
-  const ratio = rec.work_days / STANDARD_DAYS;
+export function exportPaySlipToExcel(
+  sheet: PayPayrollSheet,
+  rec: PayPayrollRecord,
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+) {
+  const std = formula.standardWorkDays;
+  const ratio = rec.work_days / std;
   const empName = rec.employee?.full_name || 'N/A';
   const empCode = rec.employee?.employee_code || '';
 
@@ -166,13 +175,13 @@ export function exportPaySlipToExcel(sheet: PayPayrollSheet, rec: PayPayrollReco
   rows.push(['Phòng ban:', rec.employee?.department?.name || '—']);
   rows.push(['Chức vụ:', rec.employee?.position || '—']);
   if (rec.is_probation) {
-    rows.push(['Trạng thái:', 'THỬ VIỆC – Không đóng BH, Thuế 10%']);
+    rows.push(['Trạng thái:', `THỬ VIỆC – Không đóng BH, Thuế ${(formula.probationPitRate * 100).toFixed(0)}%`]);
   }
   rows.push([]);
 
   // Detail table
   rows.push(['Khoản mục', 'Tham chiếu', 'Thực tế']);
-  rows.push(['Ngày công', `${STANDARD_DAYS} ngày`, `${rec.work_days} ngày`]);
+  rows.push(['Ngày công', `${std} ngày`, `${rec.work_days} ngày`]);
   rows.push(['Tỷ lệ ngày công', '', (ratio * 100).toFixed(2) + '%']);
   rows.push([]);
   rows.push(['— BƯỚC 1-2: LƯƠNG THỰC TẾ —']);
@@ -193,13 +202,13 @@ export function exportPaySlipToExcel(sheet: PayPayrollSheet, rec: PayPayrollReco
     rows.push(['— THỬ VIỆC: THUẾ 10% – KHÔNG BH —']);
     rows.push(['BH nhân viên', '', '0 (không đóng)']);
     rows.push(['Thu nhập chịu thuế', '', rec.taxable_income]);
-    rows.push(['Thuế TNCN (10% cố định)', '', rec.pit]);
+    rows.push([`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`, '', rec.pit]);
   } else {
     rows.push(['— BƯỚC 3-8: BẢO HIỂM → THUẾ → NET —']);
-    rows.push(['BH nhân viên (10.5%)', '', rec.employee_bhxh]);
+    rows.push([`BH nhân viên (${(formula.bhEmployeeRate * 100).toFixed(2)}%)`, '', rec.employee_bhxh]);
     rows.push(['Thu nhập chịu thuế (CB + ĐT + KPI)', '', rec.taxable_income]);
-    rows.push(['Giảm trừ bản thân', '', -15_500_000]);
-    rows.push(['Giảm trừ NPT (' + rec.dependents_count + ' người)', '', -(rec.dependents_count * 6_200_000)]);
+    rows.push(['Giảm trừ bản thân', '', -formula.personalDeduction]);
+    rows.push(['Giảm trừ NPT (' + rec.dependents_count + ' người)', '', -(rec.dependents_count * formula.dependentDeduction)]);
     rows.push(['Thu nhập tính thuế', '', rec.assessable_income]);
     rows.push(['Thuế TNCN (lũy tiến)', '', rec.pit]);
   }
@@ -209,7 +218,7 @@ export function exportPaySlipToExcel(sheet: PayPayrollSheet, rec: PayPayrollReco
   if (rec.is_probation) {
     rows.push(['BH công ty', '', '0 (không đóng)']);
   } else {
-    rows.push(['BH công ty (21.5%)', '', rec.company_bhxh]);
+    rows.push([`BH công ty (${(formula.bhCompanyRate * 100).toFixed(2)}%)`, '', rec.company_bhxh]);
   }
   rows.push(['Tổng chi phí công ty', '', rec.total_company_cost]);
 

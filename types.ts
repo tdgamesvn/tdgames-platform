@@ -461,6 +461,59 @@ export interface HrContract {
   created_at: string;
 }
 
+/** Biên bản bàn giao tài sản / dụng cụ làm việc (in & ký). */
+export interface HrEquipmentHandover {
+  id: string;
+  employee_id: string;
+  handover_number: string;
+  handover_date: string;
+  status: 'draft' | 'signed' | 'returned';
+  location: string;
+  giver_name: string;
+  receiver_ack: string;
+  notes: string;
+  /** PDF biên bản đã ký (upload sau khi in/ký) */
+  file_url: string;
+  created_at: string;
+  updated_at: string | null;
+  items?: HrEquipmentHandoverItem[];
+}
+
+export interface HrEquipmentHandoverItem {
+  id: string;
+  handover_id: string;
+  name: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  serial_number: string;
+  condition_notes: string;
+  sort_order: number;
+}
+
+export type HrParkingVehicleType = 'motorcycle' | 'car' | 'bicycle' | 'electric_bike' | 'other';
+export type HrParkingStatus = 'pending' | 'active' | 'expired' | 'cancelled';
+
+/** Đăng ký gửi xe / làm thẻ. */
+export interface HrParkingRegistration {
+  id: string;
+  employee_id: string;
+  vehicle_type: HrParkingVehicleType;
+  license_plate: string;
+  vehicle_brand: string;
+  vehicle_model: string;
+  color: string;
+  card_number: string;
+  parking_area: string;
+  registered_at: string | null;
+  effective_from: string | null;
+  effective_to: string | null;
+  status: HrParkingStatus;
+  notes: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
 export interface HrPositionHistory {
   id: string;
   employee_id: string;
@@ -689,6 +742,45 @@ export interface AttMonthlyRecord {
 // ── Payroll (Tính lương) ──────────────────────────────────
 // ══════════════════════════════════════════════════════════
 
+/** Một bậc thuế lũy tiến (limit = null nghĩa là bậc cuối, vô hạn). */
+export interface PayrollTaxBracketRow {
+  limit: number | null;
+  rate: number;
+  deduction: number;
+}
+
+/** Dòng DB: bộ thông số công thức (AMIS-style: nhiều bản theo effective_from). */
+export interface PayPayrollFormulaSettings {
+  id: string;
+  name: string;
+  effective_from: string;
+  standard_work_days: number;
+  hours_per_day: number;
+  bh_employee_rate: number;
+  bh_company_rate: number;
+  personal_deduction: number;
+  dependent_deduction: number;
+  ot_rate_weekday: number;
+  probation_pit_rate: number;
+  tax_brackets: PayrollTaxBracketRow[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+/** Đã chuẩn hoá để đưa vào calculatePayroll (limit số, bậc cuối = Infinity). */
+export interface PayrollFormulaConfig {
+  standardWorkDays: number;
+  hoursPerDay: number;
+  bhEmployeeRate: number;
+  bhCompanyRate: number;
+  personalDeduction: number;
+  dependentDeduction: number;
+  otRateWeekday: number;
+  probationPitRate: number;
+  taxBrackets: { limit: number; rate: number; deduction: number }[];
+}
+
 export interface PayPayrollSheet {
   id: string;
   month: number;
@@ -696,6 +788,12 @@ export interface PayPayrollSheet {
   title: string;
   status: 'draft' | 'confirmed' | 'paid';
   created_at: string;
+  updated_at?: string | null;
+  confirmed_at?: string | null;
+  paid_at?: string | null;
+  confirmed_by?: string | null;
+  paid_by?: string | null;
+  formula_settings_id?: string | null;
 }
 
 export interface PayPayrollRecord {

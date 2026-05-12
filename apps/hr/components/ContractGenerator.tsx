@@ -244,13 +244,18 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
 
         {/* Success badge */}
         {saveSuccess && !savePrompt && (
-          <span style={{
-            fontSize: 12, color: '#34C759', fontWeight: 800,
-            background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.3)',
-            borderRadius: 8, padding: '6px 12px',
-          }}>
-            ✅ Đã lưu vào hồ sơ
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 420 }}>
+            <span style={{
+              fontSize: 12, color: '#34C759', fontWeight: 800,
+              background: 'rgba(52,199,89,0.12)', border: '1px solid rgba(52,199,89,0.3)',
+              borderRadius: 8, padding: '6px 12px',
+            }}>
+              ✅ Đã lưu vào hồ sơ
+            </span>
+            <span style={{ fontSize: 11, color: '#888', lineHeight: 1.45 }}>
+              In / gửi ký → khi có bản PDF đã ký, vào <strong style={{ color: '#aaa' }}>Chi tiết nhân viên → tab Hợp đồng → Upload PDF đã ký</strong> để lưu trữ và tải về sau này.
+            </span>
+          </div>
         )}
 
         <button onClick={handlePrint} disabled={!canExport} style={{

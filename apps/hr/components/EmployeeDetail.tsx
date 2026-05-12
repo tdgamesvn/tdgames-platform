@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrProjectHistory, AccountUser, WorkforceTask } from '@/types';
 import * as svc from '../services/hrService';
@@ -7,6 +7,8 @@ import { getDashboardData, FulltimeKPI } from '@/apps/workforce/services/dashboa
 import { supabase } from '@/services/supabaseClient';
 import DocumentManager from './DocumentManager';
 import ContractGenerator from './ContractGenerator';
+import EquipmentHandoverSection from './EquipmentHandoverSection';
+import ParkingRegistrationSection from './ParkingRegistrationSection';
 
 interface Props {
   employee: HrEmployee;
@@ -16,7 +18,7 @@ interface Props {
   onEdit: (e: HrEmployee) => void;
 }
 
-type DetailTab = 'info' | 'tasks' | 'contracts' | 'evaluations' | 'projects' | 'documents';
+type DetailTab = 'info' | 'tasks' | 'contracts' | 'equipment' | 'parking' | 'evaluations' | 'projects' | 'documents';
 
 const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, onBack, onEdit }) => {
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
@@ -32,6 +34,8 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   const [wfTasks, setWfTasks] = useState<WorkforceTask[]>([]);
   const [recentKPI, setRecentKPI] = useState<FulltimeKPI | null>(null);
   const [loading, setLoading] = useState(false);
+  const [equipmentCount, setEquipmentCount] = useState(0);
+  const [parkingCount, setParkingCount] = useState(0);
 
   // Role change state
   const [currentRole, setCurrentRole] = useState<string>('');
@@ -93,14 +97,19 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
     const load = async () => {
       setLoading(true);
       try {
-        const [c, e, p] = await Promise.all([
+        const office = employee.type === 'fulltime' || employee.type === 'parttime';
+        const [c, e, p, handovers, parking] = await Promise.all([
           svc.fetchContracts(employee.id),
           svc.fetchEvaluations(employee.id),
           svc.fetchProjectHistory(employee.id),
+          office ? svc.fetchEquipmentHandovers(employee.id) : Promise.resolve([]),
+          office ? svc.fetchParkingRegistrations(employee.id) : Promise.resolve([]),
         ]);
         setContracts(c);
         setEvaluations(e);
         setProjectHistory(p);
+        setEquipmentCount(office ? handovers.length : 0);
+        setParkingCount(office ? parking.length : 0);
 
         if (employee.worker_id) {
           // Fetch tasks for this worker
@@ -255,6 +264,80 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
     setContracts(c);
   };
 
+  const signedPdfInputRef = useRef<HTMLInputElement>(null);
+  /** Gắn PDF vào hợp đồng có sẵn, hoặc tạo bản ghi mới khi chưa có hợp đồng */
+  type PendingSignedPdf = { mode: 'attach'; contractId: string } | { mode: 'create' };
+  const pendingSignedPdfRef = useRef<PendingSignedPdf | null>(null);
+  const CREATING_SIGNED_PDF = '__creating_signed_pdf__';
+  const [uploadingSignedPdfId, setUploadingSignedPdfId] = useState<string | null>(null);
+
+  const triggerSignedPdfUpload = (contractId: string) => {
+    pendingSignedPdfRef.current = { mode: 'attach', contractId };
+    signedPdfInputRef.current?.click();
+  };
+
+  const triggerSignedPdfUploadNewContract = () => {
+    pendingSignedPdfRef.current = { mode: 'create' };
+    signedPdfInputRef.current?.click();
+  };
+
+  const handleSignedPdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const pending = pendingSignedPdfRef.current;
+    e.target.value = '';
+    pendingSignedPdfRef.current = null;
+    if (!file || !pending) return;
+    if (!file.type.includes('pdf')) {
+      alert('Vui lòng chọn file PDF.');
+      return;
+    }
+
+    if (pending.mode === 'create') {
+      setUploadingSignedPdfId(CREATING_SIGNED_PDF);
+      try {
+        const { url } = await uploadFileToR2(file);
+        const isFreelancer = employee.type === 'freelancer';
+        const today = new Date().toISOString().split('T')[0];
+        await svc.saveContract({
+          employee_id: employee.id,
+          contract_type: isFreelancer ? 'service' : 'labor',
+          title: `PDF đã ký — ${new Date().toLocaleDateString('vi-VN')}`,
+          contract_number: '',
+          start_date: today,
+          end_date: null,
+          salary: 0,
+          currency: employee.rate_currency || 'VND',
+          rate_type: employee.rate_type || '',
+          rate_amount: employee.rate_amount || 0,
+          file_url: url,
+          status: 'active',
+          notes: 'Hồ sơ tạo khi upload bản PDF đã ký.',
+        });
+        await refreshContracts();
+      } catch (err: any) {
+        alert(err.message || 'Upload thất bại');
+      } finally {
+        setUploadingSignedPdfId(null);
+      }
+      return;
+    }
+
+    const contractId = pending.contractId;
+    setUploadingSignedPdfId(contractId);
+    try {
+      const { url } = await uploadFileToR2(file);
+      await updateContract(contractId, { file_url: url });
+      await refreshContracts();
+      if (editingContract?.id === contractId) {
+        setEditContractForm(f => ({ ...f, file_url: url }));
+      }
+    } catch (err: any) {
+      alert(err.message || 'Upload thất bại');
+    } finally {
+      setUploadingSignedPdfId(null);
+    }
+  };
+
   const handleEditContract = (c: HrContract) => {
     setEditingContract(c);
     setEditContractForm({
@@ -264,6 +347,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       end_date: c.end_date,
       status: c.status,
       notes: c.notes,
+      file_url: c.file_url,
     });
   };
 
@@ -289,6 +373,47 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
 
 
   const dept = departments.find(d => d.id === employee.department_id);
+  /** Bàn giao dụng cụ & gửi xe chỉ áp dụng nhân viên tại văn phòng (FT/PT), không áp dụng freelancer. */
+  const isOfficeStaffType = employee.type === 'fulltime' || employee.type === 'parttime';
+  const wfTaskStatusClass = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return 'bg-emerald-500/20 text-emerald-400';
+      case 'completed':
+        return 'bg-blue-500/20 text-blue-400';
+      case 'rejected':
+        return 'bg-red-500/20 text-red-400';
+      default:
+        return 'bg-white/10 text-neutral-medium';
+    }
+  };
+  const wfTaskStatusLabel: Record<string, string> = {
+    in_progress: 'Đang làm',
+    completed: 'Hoàn thành',
+    approved: 'Đã duyệt',
+    rejected: 'Từ chối',
+  };
+
+  const reloadEquipmentParkingCounts = useCallback(async () => {
+    if (!isOfficeStaffType) return;
+    try {
+      const [h, pk] = await Promise.all([
+        svc.fetchEquipmentHandovers(employee.id),
+        svc.fetchParkingRegistrations(employee.id),
+      ]);
+      setEquipmentCount(h.length);
+      setParkingCount(pk.length);
+    } catch {
+      /* ignore */
+    }
+  }, [employee.id, isOfficeStaffType]);
+
+  useEffect(() => {
+    if (!isOfficeStaffType && (activeTab === 'equipment' || activeTab === 'parking')) {
+      setActiveTab('info');
+    }
+  }, [employee.type, activeTab, isOfficeStaffType]);
+
   const tabCls = (t: DetailTab) => `px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === t ? 'bg-white/10 text-white' : 'text-neutral-medium hover:text-white hover:bg-white/5'}`;
 
   const infoPair = (label: string, value: string | number | null | undefined) => {
@@ -455,6 +580,12 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         <button className={tabCls('info')} onClick={() => setActiveTab('info')}>📋 Thông tin</button>
         <button className={tabCls('tasks')} onClick={() => setActiveTab('tasks')}>🎯 Lịch sử Task ({wfTasks.length})</button>
         <button className={tabCls('contracts')} onClick={() => setActiveTab('contracts')}>📄 Hợp đồng ({contracts.length})</button>
+        {isOfficeStaffType && (
+          <>
+            <button className={tabCls('equipment')} onClick={() => setActiveTab('equipment')}>🧰 Bàn giao dụng cụ ({equipmentCount})</button>
+            <button className={tabCls('parking')} onClick={() => setActiveTab('parking')}>🅿️ Gửi xe ({parkingCount})</button>
+          </>
+        )}
         <button className={tabCls('evaluations')} onClick={() => setActiveTab('evaluations')}>⭐ Đánh giá ({evaluations.length})</button>
         <button className={tabCls('projects')} onClick={() => setActiveTab('projects')}>📁 Dự án ({projectHistory.length})</button>
         <button className={tabCls('documents')} onClick={() => setActiveTab('documents')}>🗂️ Hồ sơ</button>
@@ -612,53 +743,95 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
           ) : wfTasks.length === 0 ? (
             <p className="text-neutral-medium text-sm text-center py-12">Chưa có task nào được ghi nhận</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {wfTasks.map(t => (
-                <div key={t.id} className="rounded-[16px] border border-primary/10 bg-surface p-5 hover:border-primary/30 transition-all">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="text-white font-bold text-sm leading-snug pr-4">{t.title}</h4>
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md flex-shrink-0 ${
-                      t.status === 'done' ? 'bg-emerald-500/20 text-emerald-400' :
-                      t.status === 'in_progress' ? 'bg-blue-500/20 text-blue-400' :
-                      t.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
-                      'bg-white/10 text-neutral-medium'
-                    }`}>{t.status.replace('_', ' ')}</span>
-                  </div>
-                  {t.project_name && <p className="text-xs text-neutral-medium font-bold mb-1">📁 {t.project_name}</p>}
-                  <p className="text-[11px] text-neutral-medium/60 line-clamp-2 mb-3">{t.description || 'Không có mô tả'}</p>
-                  
-                  <div className="flex justify-between items-end mt-auto pt-3 border-t border-white/5">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] text-neutral-medium font-black uppercase tracking-widest">Rate chi phí</span>
-                      <span className="text-sm font-bold text-white">
-                        {t.internal_price ? `${t.internal_price.toLocaleString()} ${t.internal_currency}` : '—'}
-                      </span>
-                    </div>
-                    {employee.type === 'fulltime' && (
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-[10px] text-primary/70 font-black uppercase tracking-widest">Client Giá thu</span>
-                        <span className="text-sm font-bold text-primary">
-                          {t.client_price ? `${t.client_price.toLocaleString()} ${t.client_currency}` : '—'}
+            <>
+              <p className="text-neutral-medium text-xs rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+                <span className="text-cyan-400/90 font-bold">Đồng bộ Workforce:</span> danh sách chỉ đọc từ Workforce (sync
+                ClickUp). Tại đây chỉ xem <span className="text-white/80">tên task, dự án, khách hàng, trạng thái</span>
+                — cập nhật giá / ghi chú / sync task trong module Workforce.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {wfTasks.map(t => {
+                  const st = (t.status || 'in_progress') as string;
+                  const projectLabel =
+                    t.project?.trim() || t.clickup_folder_name || t.clickup_list_name || '';
+                  const clientLabel =
+                    t.client_name?.trim() || t.clickup_space_name || '';
+                  return (
+                    <div
+                      key={t.id}
+                      className="rounded-[16px] border border-primary/10 bg-surface p-5 hover:border-primary/30 transition-all"
+                    >
+                      <div className="flex justify-between items-start gap-3 mb-3">
+                        <h4 className="text-white font-bold text-sm leading-snug min-w-0">{t.title}</h4>
+                        <span
+                          className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md flex-shrink-0 ${wfTaskStatusClass(st)}`}
+                        >
+                          {wfTaskStatusLabel[st] || st.replace(/_/g, ' ')}
                         </span>
                       </div>
-                    )}
-                  </div>
-                  <div className="mt-3 flex justify-between items-center text-[10px] text-neutral-medium/50 font-mono">
-                    <span>Giao: {t.start_date || '—'}</span>
-                    <span>Deadline: {t.deadline || '—'}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                      <div className="space-y-1.5 text-[12px]">
+                        <p className="text-neutral-medium">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-white/35 mr-2">Dự án</span>
+                          <span className="text-white/90">{projectLabel || '—'}</span>
+                        </p>
+                        <p className="text-neutral-medium">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-white/35 mr-2">Khách hàng</span>
+                          <span className="text-white/90">{clientLabel || '—'}</span>
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
+      )}
+
+      {/* Equipment handover Tab — chỉ FT/PT */}
+      {!loading && isOfficeStaffType && activeTab === 'equipment' && (
+        <EquipmentHandoverSection
+          employee={employee}
+          department={dept}
+          onListChange={reloadEquipmentParkingCounts}
+        />
+      )}
+
+      {/* Parking Tab — chỉ FT/PT */}
+      {!loading && isOfficeStaffType && activeTab === 'parking' && (
+        <ParkingRegistrationSection employee={employee} onListChange={reloadEquipmentParkingCounts} />
       )}
 
       {/* Contracts Tab */}
       {!loading && activeTab === 'contracts' && (
         <div className="space-y-4">
+          <input
+            ref={signedPdfInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            aria-hidden
+            onChange={handleSignedPdfFileChange}
+          />
+          <p className="text-neutral-medium text-xs rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3">
+            <span className="text-emerald-400/90 font-bold">PDF đã ký:</span> Xuất hợp đồng → gửi ký → upload file PDF đã ký vào đây để lưu trữ, xem lại và tải về khi cần.
+          </p>
           {contracts.length === 0 ? (
-            <p className="text-neutral-medium text-sm text-center py-12">Chưa có hợp đồng</p>
+            <div className="rounded-[16px] border border-dashed border-emerald-500/20 bg-white/[0.02] px-6 py-10 text-center space-y-4">
+              <p className="text-white font-bold text-sm">Chưa có hợp đồng trong hồ sơ</p>
+              <p className="text-neutral-medium text-xs max-w-lg mx-auto leading-relaxed">
+                Nút <span className="text-white/90 font-semibold">Xuất hợp đồng</span> (phía trên) tạo bản nháp và có thể lưu vào hồ sơ sau khi in.
+                Nếu bạn đã có sẵn bản PDF đã ký, dùng nút bên dưới để lưu trữ ngay — không cần tạo hợp đồng trước.
+              </p>
+              <button
+                type="button"
+                onClick={triggerSignedPdfUploadNewContract}
+                disabled={uploadingSignedPdfId === CREATING_SIGNED_PDF}
+                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-black text-white border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 transition-all disabled:opacity-50"
+              >
+                {uploadingSignedPdfId === CREATING_SIGNED_PDF ? '⏳ Đang upload…' : '📤 Upload PDF đã ký'}
+              </button>
+            </div>
           ) : contracts.map(c => (
             <div key={c.id} className="rounded-[16px] border border-primary/10 bg-surface p-5">
               {editingContract?.id === c.id ? (
@@ -704,6 +877,38 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                       className="flex-1 bg-white/5 border border-primary/10 rounded-lg px-3 py-1.5 text-white text-sm outline-none focus:border-blue-500/50"
                     />
                   </div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">PDF đã ký (lưu trữ)</p>
+                    {(editContractForm as Partial<HrContract>).file_url ? (
+                      <div className="flex flex-wrap gap-2 items-center">
+                        <a
+                          href={toPublicUrl((editContractForm as Partial<HrContract>).file_url!)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-400 hover:underline"
+                        >
+                          Xem PDF hiện tại
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => editingContract && triggerSignedPdfUpload(editingContract.id)}
+                          disabled={uploadingSignedPdfId === editingContract?.id}
+                          className="text-xs font-bold text-amber-400 hover:underline"
+                        >
+                          {uploadingSignedPdfId === editingContract?.id ? 'Đang tải…' : 'Thay file PDF'}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => editingContract && triggerSignedPdfUpload(editingContract.id)}
+                        disabled={uploadingSignedPdfId === editingContract?.id}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      >
+                        {uploadingSignedPdfId === editingContract?.id ? 'Đang upload…' : '📤 Upload PDF đã ký'}
+                      </button>
+                    )}
+                  </div>
                   <div className="flex gap-2 pt-1">
                     <button onClick={handleSaveContractEdit} disabled={savingContractEdit}
                       className="px-4 py-1.5 rounded-lg text-xs font-black text-white"
@@ -718,8 +923,8 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 </div>
               ) : (
                 // ── Display Row ──
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
                     <p className="text-white font-bold truncate">{c.title}</p>
                     <p className="text-neutral-medium text-xs mt-1">
                       {c.contract_type === 'labor' ? 'HĐ Lao động' : c.contract_type === 'service' ? 'HĐ Dịch vụ' : c.contract_type === 'nda' ? 'NDA' : c.contract_type.toUpperCase()}
@@ -727,42 +932,74 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                     </p>
                     <p className="text-neutral-medium/60 text-[11px] mt-1">{c.start_date} → {c.end_date || '∞'}</p>
                     {c.notes && <p className="text-neutral-medium/40 text-[10px] mt-1 truncate">{c.notes}</p>}
+                    {c.file_url ? (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+                        <span className="text-[10px] font-bold text-emerald-400/90">📄 Đã lưu PDF đã ký</span>
+                        <a
+                          href={toPublicUrl(c.file_url)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-blue-400 hover:underline"
+                        >
+                          Mở xem
+                        </a>
+                        <a
+                          href={toPublicUrl(c.file_url)}
+                          download
+                          className="text-[11px] text-cyan-400 hover:underline"
+                        >
+                          Tải về
+                        </a>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-amber-500/80 mt-2">Chưa có PDF đã ký — upload sau khi các bên ký.</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                      c.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
-                      c.status === 'expired' ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'
-                    }`}>{c.status}</span>
-                    <button onClick={() => setViewingContract(c)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
-                      style={{ background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)' }}>
-                      👁️ Xem
+                  <div className="flex flex-col items-stretch sm:items-end gap-2 flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => triggerSignedPdfUpload(c.id)}
+                      disabled={uploadingSignedPdfId === c.id}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white border border-emerald-500/40 bg-emerald-500/15 hover:bg-emerald-500/25 transition-all disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {uploadingSignedPdfId === c.id ? '⏳ Đang upload…' : c.file_url ? '📤 Thay PDF đã ký' : '📤 Upload PDF đã ký'}
                     </button>
-                    <button onClick={() => handleEditContract(c)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
-                      style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)' }}>
-                      ✏️ Sửa
-                    </button>
-                    {confirmDeleteId === c.id ? (
-                      <>
-                        <span className="text-[11px] text-red-400 font-bold">Xóa?</span>
-                        <button onClick={() => handleDeleteContract(c)}
+                    <div className="flex flex-wrap items-center gap-2 justify-end">
+                      <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${
+                        c.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+                        c.status === 'expired' ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'
+                      }`}>{c.status}</span>
+                      <button onClick={() => setViewingContract(c)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)' }}>
+                        👁️ Xem
+                      </button>
+                      <button onClick={() => handleEditContract(c)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)' }}>
+                        ✏️ Sửa
+                      </button>
+                      {confirmDeleteId === c.id ? (
+                        <>
+                          <span className="text-[11px] text-red-400 font-bold">Xóa?</span>
+                          <button onClick={() => handleDeleteContract(c)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
+                            style={{ background: 'linear-gradient(135deg, #FF453A, #FF375F)' }}>
+                            Xác nhận
+                          </button>
+                          <button onClick={() => setConfirmDeleteId(null)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold border border-primary/10 text-neutral-medium hover:text-white transition-all">
+                            Huỷ
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteId(c.id)}
                           className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
                           style={{ background: 'linear-gradient(135deg, #FF453A, #FF375F)' }}>
-                          Xác nhận
+                          🗑️
                         </button>
-                        <button onClick={() => setConfirmDeleteId(null)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-bold border border-primary/10 text-neutral-medium hover:text-white transition-all">
-                          Huỷ
-                        </button>
-                      </>
-                    ) : (
-                      <button onClick={() => setConfirmDeleteId(c.id)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white hover:opacity-80 transition-all"
-                        style={{ background: 'linear-gradient(135deg, #FF453A, #FF375F)' }}>
-                        🗑️
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

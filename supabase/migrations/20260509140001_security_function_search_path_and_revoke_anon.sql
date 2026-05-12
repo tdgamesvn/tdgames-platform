@@ -1,0 +1,53 @@
+-- Harden function search_path; revoke direct anon execute (superseded by next migration for PUBLIC).
+
+ALTER FUNCTION public.get_jwt_role() SET search_path = public, pg_temp;
+ALTER FUNCTION public.is_staff() SET search_path = public, pg_temp;
+ALTER FUNCTION public.is_admin_or_ke_toan() SET search_path = public, pg_temp;
+ALTER FUNCTION public.sync_payroll_to_expense() SET search_path = public, pg_temp;
+ALTER FUNCTION public.sync_invoice_to_expense() SET search_path = public, pg_temp;
+ALTER FUNCTION public.sync_settlement_to_expense() SET search_path = public, pg_temp;
+ALTER FUNCTION public.get_my_role() SET search_path = public, pg_temp;
+ALTER FUNCTION public.get_my_company_id() SET search_path = public, pg_temp;
+ALTER FUNCTION public.get_my_visible_task_ids() SET search_path = public, pg_temp;
+ALTER FUNCTION public.get_my_visible_project_ids() SET search_path = public, pg_temp;
+ALTER FUNCTION public.transition_task_status(uuid, task_status, text) SET search_path = public, pg_temp;
+ALTER FUNCTION public.update_clickup_sync_schedule(text[], boolean) SET search_path = public, pg_temp;
+ALTER FUNCTION public.rls_auto_enable() SET search_path = public, pg_temp;
+ALTER FUNCTION public.hr_generate_employee_code() SET search_path = public, pg_temp;
+ALTER FUNCTION public.handle_updated_at() SET search_path = public, pg_temp;
+ALTER FUNCTION public.log_invoice_change() SET search_path = public, pg_temp;
+ALTER FUNCTION public.find_auth_user_by_email(text) SET search_path = public, pg_temp;
+ALTER FUNCTION public.invoice_verify_login(text, text) SET search_path = public, pg_temp;
+ALTER FUNCTION public.sync_hr_employee_auth_user() SET search_path = public, auth, pg_temp;
+ALTER FUNCTION public.pay_payroll_sheets_before_upd() SET search_path = public, pg_temp;
+ALTER FUNCTION public.refresh_payroll_expense_for_sheet(uuid) SET search_path = public, pg_temp;
+ALTER FUNCTION public.trg_payroll_records_touch_expense() SET search_path = public, pg_temp;
+
+REVOKE EXECUTE ON FUNCTION public.get_jwt_role() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.is_staff() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.is_admin_or_ke_toan() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sync_payroll_to_expense() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sync_invoice_to_expense() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sync_settlement_to_expense() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_my_role() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_my_company_id() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_my_visible_task_ids() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_my_visible_project_ids() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.transition_task_status(uuid, task_status, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.update_clickup_sync_schedule(text[], boolean) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.hr_generate_employee_code() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.handle_updated_at() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.log_invoice_change() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.refresh_payroll_expense_for_sheet(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.trg_payroll_records_touch_expense() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.pay_payroll_sheets_before_upd() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sync_hr_employee_auth_user() FROM anon;
+
+GRANT EXECUTE ON FUNCTION public.get_jwt_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_staff() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_ke_toan() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_company_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_visible_task_ids() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_visible_project_ids() TO authenticated;

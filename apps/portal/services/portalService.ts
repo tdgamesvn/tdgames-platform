@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
+import type { HrParkingRegistration, HrParkingVehicleType } from '@/types';
 
 // Fetch all employees for directory (public info only)
 export async function fetchEmployeeDirectory() {
@@ -25,19 +26,19 @@ export async function fetchDepartments() {
   return data || [];
 }
 
-// Fetch my payroll records — only from CONFIRMED payroll sheets
+// Fetch my payroll records — from finalized payroll sheets (confirmed or paid).
+// Draft is hidden; after HR marks "Đã trả", status becomes paid and must still be visible here.
 export async function fetchMyPayslips(employeeId: string) {
-  // 1. Get confirmed sheet IDs
-  const { data: confirmedSheets } = await supabase
+  const { data: visibleSheets } = await supabase
     .from('pay_payroll_sheets')
     .select('id')
-    .eq('status', 'confirmed');
+    .in('status', ['confirmed', 'paid']);
 
-  if (!confirmedSheets || confirmedSheets.length === 0) return [];
+  if (!visibleSheets || visibleSheets.length === 0) return [];
 
-  const sheetIds = confirmedSheets.map(s => s.id);
+  const sheetIds = visibleSheets.map(s => s.id);
 
-  // 2. Fetch records only from confirmed sheets
+  // Fetch records only from those sheets
   const { data, error } = await supabase
     .from('pay_payroll_records')
     .select('*, sheet:pay_payroll_sheets(*)')
@@ -90,6 +91,71 @@ const EMPLOYEE_EDITABLE_FIELDS = [
   'tax_code', 'insurance_number',
   'bank_name', 'bank_account', 'bank_branch',
 ];
+
+/** Đăng ký gửi xe — chỉ 3 trường chính (còn lại để trống / mặc định trong DB). */
+export async function fetchMyParkingRegistrations(employeeId: string): Promise<HrParkingRegistration[]> {
+  const { data, error } = await supabase
+    .from('hr_parking_registrations')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as HrParkingRegistration[];
+}
+
+export async function saveMyParkingRegistration(
+  employeeId: string,
+  row: { vehicle_type: HrParkingVehicleType; license_plate: string; color: string },
+): Promise<HrParkingRegistration> {
+  const { data, error } = await supabase
+    .from('hr_parking_registrations')
+    .insert({
+      employee_id: employeeId,
+      vehicle_type: row.vehicle_type,
+      license_plate: row.license_plate.trim(),
+      color: row.color.trim(),
+      vehicle_brand: '',
+      vehicle_model: '',
+      card_number: '',
+      parking_area: '',
+      registered_at: new Date().toISOString().slice(0, 10),
+      effective_from: null,
+      effective_to: null,
+      status: 'active',
+      notes: '',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as HrParkingRegistration;
+}
+
+export async function updateMyParkingRegistration(
+  id: string,
+  employeeId: string,
+  row: { vehicle_type: HrParkingVehicleType; license_plate: string; color: string },
+): Promise<void> {
+  const { error } = await supabase
+    .from('hr_parking_registrations')
+    .update({
+      vehicle_type: row.vehicle_type,
+      license_plate: row.license_plate.trim(),
+      color: row.color.trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('employee_id', employeeId);
+  if (error) throw error;
+}
+
+export async function deleteMyParkingRegistration(id: string, employeeId: string): Promise<void> {
+  const { error } = await supabase
+    .from('hr_parking_registrations')
+    .delete()
+    .eq('id', id)
+    .eq('employee_id', employeeId);
+  if (error) throw error;
+}
 
 export async function updateMyProfile(employeeId: string, updates: Record<string, any>) {
   // Filter to only allow editable fields

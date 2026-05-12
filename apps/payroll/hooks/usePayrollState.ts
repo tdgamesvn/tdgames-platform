@@ -1,9 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { PayPayrollSheet, PayPayrollRecord } from '@/types';
+import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import * as svc from '../services/payrollService';
+import { FALLBACK_PAYROLL_FORMULA } from '../services/payrollFormulaService';
 
 export type PayrollView = 'sheets' | 'detail';
+
+async function getSessionUserId(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
+}
 
 export function usePayrollState(initialTab?: string | null) {
   const [view, setView] = useState<PayrollView>('sheets');
@@ -12,23 +18,35 @@ export function usePayrollState(initialTab?: string | null) {
   const [activeSheet, setActiveSheet] = useState<PayPayrollSheet | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  // Load sheets on mount
-  useEffect(() => {
-    loadSheets();
-  }, []);
+  const [activeFormula, setActiveFormula] = useState<PayrollFormulaConfig | null>(null);
 
   const loadSheets = useCallback(async () => {
     setLoading(true);
     try {
       const data = await svc.fetchPayrollSheets();
       setSheets(data);
+      const tab = initialTab?.trim();
+      if (tab && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tab)) {
+        const sheet = data.find(s => s.id === tab);
+        if (sheet) {
+          const formula = await svc.resolveFormulaForSheet(sheet);
+          setActiveFormula(formula);
+          setActiveSheet(sheet);
+          const recs = await svc.fetchPayrollRecords(sheet.id);
+          setRecords(recs);
+          setView('detail');
+        }
+      }
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [initialTab]);
+
+  useEffect(() => {
+    loadSheets();
+  }, [loadSheets]);
 
   const createSheet = useCallback(async (month: number, year: number) => {
     setLoading(true);
@@ -54,22 +72,35 @@ export function usePayrollState(initialTab?: string | null) {
       }
 
       const { sheet, records: recs } = await svc.createPayrollSheet(month, year);
+      const formula = await svc.resolveFormulaForSheet(sheet);
+      setActiveFormula(formula);
       setSheets(prev => [sheet, ...prev]);
       setActiveSheet(sheet);
       setRecords(recs);
       setView('detail');
       setToast({ message: `Đã tạo bảng lương Tháng ${month}/${year}`, type: 'success' });
     } catch (err: any) {
-      setToast({ message: err.message, type: 'error' });
+      const code = err?.code;
+      const msg = String(err?.message || '');
+      if (code === '23505' || msg.includes('pay_payroll_sheets_month_year_key') || msg.toLowerCase().includes('duplicate')) {
+        setToast({
+          message: `Đã có bảng lương Tháng ${month}/${year}. Chọn bảng trong danh sách để mở.`,
+          type: 'error',
+        });
+      } else {
+        setToast({ message: err.message, type: 'error' });
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
   const openSheet = useCallback(async (sheet: PayPayrollSheet) => {
-    setActiveSheet(sheet);
     setLoading(true);
     try {
+      const formula = await svc.resolveFormulaForSheet(sheet);
+      setActiveFormula(formula);
+      setActiveSheet(sheet);
       const data = await svc.fetchPayrollRecords(sheet.id);
       setRecords(data);
       setView('detail');
@@ -96,41 +127,55 @@ export function usePayrollState(initialTab?: string | null) {
   }, [activeSheet]);
 
   const updateRecord = useCallback(async (id: string, field: string, value: number) => {
-    // Update locally, recalculate, save
+    const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
     setRecords(prev => prev.map(r => {
       if (r.id !== id) return r;
       const updated = { ...r, [field]: value };
-      return svc.recalculateRecord(updated);
+      return svc.recalculateRecord(updated, f);
     }));
-    // Debounced save handled by component
-  }, []);
+  }, [activeFormula]);
 
   const saveRecord = useCallback(async (rec: PayPayrollRecord) => {
+    const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
     try {
-      await svc.recalculateAndSave(rec);
+      await svc.recalculateAndSave(rec, f);
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
     }
-  }, []);
+  }, [activeFormula]);
 
   const confirmSheet = useCallback(async () => {
     if (!activeSheet) return;
     try {
-      await svc.updateSheetStatus(activeSheet.id, 'confirmed');
-      setActiveSheet(prev => prev ? { ...prev, status: 'confirmed' } : null);
-      setSheets(prev => prev.map(s => s.id === activeSheet.id ? { ...s, status: 'confirmed' } : s));
+      const uid = await getSessionUserId();
+      const updated = await svc.updateSheetStatus(activeSheet.id, 'confirmed', { userId: uid, setConfirmedBy: true });
+      setActiveSheet(updated);
+      setSheets(prev => prev.map(s => s.id === activeSheet.id ? updated : s));
       setToast({ message: 'Đã xác nhận bảng lương', type: 'success' });
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
     }
   }, [activeSheet]);
 
-  const rollbackSheet = useCallback(async () => {
-    if (!activeSheet) return;
+  const markSheetPaid = useCallback(async () => {
+    if (!activeSheet || activeSheet.status !== 'confirmed') return;
     try {
-      await svc.updateSheetStatus(activeSheet.id, 'draft');
-      setActiveSheet(prev => prev ? { ...prev, status: 'draft' } : null);
-      setSheets(prev => prev.map(s => s.id === activeSheet.id ? { ...s, status: 'draft' } : s));
+      const uid = await getSessionUserId();
+      const updated = await svc.updateSheetStatus(activeSheet.id, 'paid', { userId: uid, setPaidBy: true });
+      setActiveSheet(updated);
+      setSheets(prev => prev.map(s => s.id === activeSheet.id ? updated : s));
+      setToast({ message: 'Đã đánh dấu đã trả lương', type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' });
+    }
+  }, [activeSheet]);
+
+  const rollbackSheet = useCallback(async () => {
+    if (!activeSheet || activeSheet.status === 'paid') return;
+    try {
+      const updated = await svc.updateSheetStatus(activeSheet.id, 'draft');
+      setActiveSheet(updated);
+      setSheets(prev => prev.map(s => s.id === activeSheet.id ? updated : s));
       setToast({ message: 'Đã huỷ xác nhận — bảng lương quay lại Nháp', type: 'success' });
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
@@ -141,11 +186,12 @@ export function usePayrollState(initialTab?: string | null) {
     setView('sheets');
     setActiveSheet(null);
     setRecords([]);
+    setActiveFormula(null);
   }, []);
 
   return {
-    view, sheets, records, activeSheet, loading, toast,
+    view, sheets, records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, confirmSheet, rollbackSheet, backToSheets,
+    updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, backToSheets,
   };
 }

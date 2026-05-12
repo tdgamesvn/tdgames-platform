@@ -36,6 +36,7 @@ const TAB_LABELS: Record<string, string> = {
 const REVERSE_TAB: Record<string, HrTab> = {
   history: 'employees',
   edit: 'employeeForm',
+  recurring: 'employeeDetail',
   activity: 'departments',
   dashboard: 'reminders',
 };

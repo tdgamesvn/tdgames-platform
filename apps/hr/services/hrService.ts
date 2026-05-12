@@ -4,6 +4,7 @@ import {
   HrEvaluation, HrProjectHistory, HrDocument, HrReminder,
   HrSalaryComponent, HrEmployeeSalary,
   HrDependent, HrDependentDocument,
+  HrEquipmentHandover, HrEquipmentHandoverItem, HrParkingRegistration,
 } from '@/types';
 
 // ══════════════════════════════════════════════════════════════
@@ -942,4 +943,138 @@ export async function syncAllEmployeesToWorkforce(): Promise<number> {
     if (workerId) synced++;
   }
   return synced;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Equipment handover (biên bản bàn giao dụng cụ) ────────────
+// ══════════════════════════════════════════════════════════════
+
+export async function fetchEquipmentHandovers(employeeId: string): Promise<HrEquipmentHandover[]> {
+  const { data, error } = await supabase
+    .from('hr_equipment_handovers')
+    .select('*, items:hr_equipment_handover_items(*)')
+    .eq('employee_id', employeeId)
+    .order('handover_date', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row: any) => ({
+    ...row,
+    file_url: row.file_url ?? '',
+    items: [...(row.items || [])].sort(
+      (a: HrEquipmentHandoverItem, b: HrEquipmentHandoverItem) =>
+        (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.name || '').localeCompare(b.name || ''),
+    ),
+  })) as HrEquipmentHandover[];
+}
+
+export async function saveEquipmentHandover(
+  payload: Omit<HrEquipmentHandover, 'id' | 'created_at' | 'updated_at' | 'items'> & {
+    items: Array<Omit<HrEquipmentHandoverItem, 'id' | 'handover_id'>>;
+  },
+): Promise<HrEquipmentHandover> {
+  const { items, ...row } = payload;
+  const { data: parent, error: e1 } = await supabase
+    .from('hr_equipment_handovers')
+    .insert(row)
+    .select()
+    .single();
+  if (e1) throw e1;
+  if (items?.length) {
+    const ins = items.map((it, i) => ({
+      handover_id: parent.id,
+      name: it.name,
+      description: it.description ?? '',
+      quantity: it.quantity ?? 1,
+      unit: it.unit ?? 'cái',
+      serial_number: it.serial_number ?? '',
+      condition_notes: it.condition_notes ?? '',
+      sort_order: it.sort_order ?? i,
+    }));
+    const { error: e2 } = await supabase.from('hr_equipment_handover_items').insert(ins);
+    if (e2) throw e2;
+  }
+  const full = await fetchEquipmentHandovers(payload.employee_id);
+  const found = full.find(h => h.id === parent.id);
+  if (!found) throw new Error('Không tải lại được biên bản');
+  return found;
+}
+
+export async function updateEquipmentHandover(
+  id: string,
+  employeeId: string,
+  updates: Partial<Omit<HrEquipmentHandover, 'id' | 'created_at' | 'items'>> & {
+    items?: Array<Omit<HrEquipmentHandoverItem, 'id' | 'handover_id'>>;
+  },
+): Promise<HrEquipmentHandover> {
+  const { items, ...rest } = updates;
+  if (Object.keys(rest).length > 0) {
+    const { error: e1 } = await supabase
+      .from('hr_equipment_handovers')
+      .update({ ...rest, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (e1) throw e1;
+  }
+  if (items !== undefined) {
+    await supabase.from('hr_equipment_handover_items').delete().eq('handover_id', id);
+    if (items.length) {
+      const ins = items.map((it, i) => ({
+        handover_id: id,
+        name: it.name,
+        description: it.description ?? '',
+        quantity: it.quantity ?? 1,
+        unit: it.unit ?? 'cái',
+        serial_number: it.serial_number ?? '',
+        condition_notes: it.condition_notes ?? '',
+        sort_order: it.sort_order ?? i,
+      }));
+      const { error: e2 } = await supabase.from('hr_equipment_handover_items').insert(ins);
+      if (e2) throw e2;
+    }
+  }
+  const full = await fetchEquipmentHandovers(employeeId);
+  const found = full.find(h => h.id === id);
+  if (!found) throw new Error('Không tải lại được biên bản');
+  return found;
+}
+
+export async function deleteEquipmentHandover(id: string): Promise<void> {
+  const { error } = await supabase.from('hr_equipment_handovers').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Parking registration ─────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export async function fetchParkingRegistrations(employeeId: string): Promise<HrParkingRegistration[]> {
+  const { data, error } = await supabase
+    .from('hr_parking_registrations')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as HrParkingRegistration[];
+}
+
+export async function saveParkingRegistration(
+  row: Omit<HrParkingRegistration, 'id' | 'created_at' | 'updated_at'>,
+): Promise<HrParkingRegistration> {
+  const { data, error } = await supabase.from('hr_parking_registrations').insert(row).select().single();
+  if (error) throw error;
+  return data as HrParkingRegistration;
+}
+
+export async function updateParkingRegistration(
+  id: string,
+  updates: Partial<Omit<HrParkingRegistration, 'id' | 'created_at'>>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('hr_parking_registrations')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteParkingRegistration(id: string): Promise<void> {
+  const { error } = await supabase.from('hr_parking_registrations').delete().eq('id', id);
+  if (error) throw error;
 }

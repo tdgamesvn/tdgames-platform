@@ -61,6 +61,10 @@ const EmployeeForm: React.FC<Props> = ({
   const [tagInput, setTagInput] = useState('');
   const [contractForm, setContractForm] = useState(emptyContract);
   const [showContractForm, setShowContractForm] = useState(false);
+  const [pendingContractPdf, setPendingContractPdf] = useState<File | null>(null);
+  const contractListPdfInputRef = useRef<HTMLInputElement>(null);
+  const pendingListContractIdRef = useRef<string | null>(null);
+  const [uploadingContractPdfId, setUploadingContractPdfId] = useState<string | null>(null);
   const isEdit = !!editingEmployee;
   const [showValidation, setShowValidation] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -297,11 +301,53 @@ const EmployeeForm: React.FC<Props> = ({
     }
   };
 
-  const handleContractSubmit = () => {
+  const handleContractSubmit = async () => {
     if (!contractForm.title.trim() || !editingEmployee) return;
-    onSaveContract({ ...contractForm, employee_id: editingEmployee.id });
+    let file_url = contractForm.file_url;
+    if (pendingContractPdf) {
+      if (!pendingContractPdf.type.includes('pdf')) {
+        alert('File đính kèm phải là PDF.');
+        return;
+      }
+      try {
+        const r = await uploadFileToR2(pendingContractPdf);
+        file_url = r.url;
+      } catch (e: any) {
+        alert(e.message || 'Upload PDF thất bại');
+        return;
+      }
+    }
+    onSaveContract({ ...contractForm, employee_id: editingEmployee.id, file_url });
     setContractForm({ ...emptyContract, employee_id: editingEmployee.id });
+    setPendingContractPdf(null);
     setShowContractForm(false);
+  };
+
+  const triggerListContractPdf = (contractId: string) => {
+    pendingListContractIdRef.current = contractId;
+    contractListPdfInputRef.current?.click();
+  };
+
+  const handleListContractPdfChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const cid = pendingListContractIdRef.current;
+    e.target.value = '';
+    pendingListContractIdRef.current = null;
+    if (!file || !cid || !editingEmployee) return;
+    if (!file.type.includes('pdf')) {
+      alert('Vui lòng chọn file PDF.');
+      return;
+    }
+    setUploadingContractPdfId(cid);
+    try {
+      const { url } = await uploadFileToR2(file);
+      await onUpdateContract(cid, { file_url: url });
+      loadContracts(editingEmployee.id);
+    } catch (err: any) {
+      alert(err.message || 'Upload thất bại');
+    } finally {
+      setUploadingContractPdfId(null);
+    }
   };
 
   return (
@@ -953,20 +999,40 @@ const EmployeeForm: React.FC<Props> = ({
                     <option value="terminated">Đã kết thúc</option>
                   </select>
                 </div>
+                <div className="md:col-span-3">
+                  <label className={labelCls}>PDF đã ký (tùy chọn — upload sau khi các bên ký)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="block w-full text-sm text-neutral-medium file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-white/10 file:text-white"
+                    onChange={e => setPendingContractPdf(e.target.files?.[0] || null)}
+                  />
+                  {pendingContractPdf && (
+                    <p className="text-[11px] text-emerald-400/90 mt-1">Đã chọn: {pendingContractPdf.name}</p>
+                  )}
+                </div>
               </div>
-              <button type="button" onClick={handleContractSubmit} className="py-3 px-8 rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-btn-glow transition-all hover:shadow-btn-glow-hover" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>
+              <button type="button" onClick={() => void handleContractSubmit()} className="py-3 px-8 rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-btn-glow transition-all hover:shadow-btn-glow-hover" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>
                 ✚ Thêm hợp đồng
               </button>
             </div>
           )}
 
+          <input
+            ref={contractListPdfInputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            className="hidden"
+            aria-hidden
+            onChange={handleListContractPdfChange}
+          />
           {contracts.length === 0 ? (
             <p className="text-neutral-medium text-sm text-center py-8">Chưa có hợp đồng</p>
           ) : (
             <div className="space-y-3">
               {contracts.map(c => (
-                <div key={c.id} className="group relative rounded-[16px] border border-primary/10 bg-surface p-4 flex items-center justify-between hover:border-primary/30 transition-all">
-                  <div>
+                <div key={c.id} className="group relative rounded-[16px] border border-primary/10 bg-surface p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:border-primary/30 transition-all">
+                  <div className="min-w-0">
                     <p className="text-white font-bold text-sm">{c.title}</p>
                     <p className="text-neutral-medium text-xs mt-1">
                       {c.contract_type === 'labor' ? 'HĐ Lao động' : c.contract_type === 'service' ? 'HĐ Dịch vụ' : c.contract_type === 'nda' ? 'NDA' : 'Phụ lục'}
@@ -975,8 +1041,24 @@ const EmployeeForm: React.FC<Props> = ({
                     <p className="text-neutral-medium/60 text-[11px] mt-0.5">
                       {c.start_date} → {c.end_date || '∞'}
                     </p>
+                    {c.file_url ? (
+                      <div className="flex flex-wrap gap-2 mt-2 text-[11px]">
+                        <a href={toPublicUrl(c.file_url)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">PDF đã ký</a>
+                        <a href={toPublicUrl(c.file_url)} download className="text-cyan-400 hover:underline">Tải về</a>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-amber-500/70 mt-1.5">Chưa có PDF đã ký</p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => triggerListContractPdf(c.id)}
+                      disabled={uploadingContractPdfId === c.id}
+                      className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-emerald-500/35 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-50"
+                    >
+                      {uploadingContractPdfId === c.id ? '…' : c.file_url ? 'Thay PDF' : 'Upload PDF'}
+                    </button>
                     <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md ${c.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : c.status === 'expired' ? 'bg-orange-500/20 text-orange-400' : 'bg-red-500/20 text-red-400'}`}>{c.status}</span>
                     <button onClick={() => { if (confirm('Xóa hợp đồng này?')) onDeleteContract(c.id); }} className="p-1.5 rounded-lg hover:bg-white/5 text-neutral-medium hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>

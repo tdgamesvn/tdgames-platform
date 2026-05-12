@@ -2,28 +2,13 @@ import { supabase } from '@/services/supabaseClient';
 import {
   PayPayrollSheet, PayPayrollRecord,
   HrEmployee, HrEmployeeSalary,
+  PayrollFormulaConfig,
 } from '@/types';
-
-// ══════════════════════════════════════════════════════════
-// ── Constants ─────────────────────────────────────────────
-// ══════════════════════════════════════════════════════════
-
-const STANDARD_DAYS = 22;
-const HOURS_PER_DAY = 8;
-const BH_EMPLOYEE_RATE = 0.105;  // 10.5%
-const BH_COMPANY_RATE = 0.215;   // 21.5%
-const PERSONAL_DEDUCTION = 15_500_000;
-const DEPENDENT_DEDUCTION = 6_200_000;
-const OT_RATE_WEEKDAY = 1.5;     // 150% for weekday overtime
-
-// Tax brackets (progressive, 5-bracket shortcut)
-const TAX_BRACKETS: { limit: number; rate: number; deduction: number }[] = [
-  { limit: 10_000_000,   rate: 0.05, deduction: 0 },
-  { limit: 30_000_000,   rate: 0.10, deduction: 500_000 },
-  { limit: 60_000_000,   rate: 0.20, deduction: 3_500_000 },
-  { limit: 100_000_000,  rate: 0.30, deduction: 9_500_000 },
-  { limit: Infinity,     rate: 0.35, deduction: 14_500_000 },
-];
+import {
+  FALLBACK_PAYROLL_FORMULA,
+  fetchPayrollFormulaForMonth,
+  fetchPayrollFormulaById,
+} from './payrollFormulaService';
 
 // ══════════════════════════════════════════════════════════
 // ── Core: calculatePayroll (pure function, 8 steps) ──────
@@ -56,13 +41,13 @@ interface PayrollOutput {
   totalCompanyCost: number;
 }
 
-export function calculatePayroll(input: PayrollInput): PayrollOutput {
-  const r = (v: number) => Math.round(v); // round to đồng
+export function calculatePayroll(input: PayrollInput, formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA): PayrollOutput {
+  const r = (v: number) => Math.round(v);
+  const std = formula.standardWorkDays;
+  const hpd = formula.hoursPerDay;
 
-  // [BƯỚC 1] Tỷ lệ ngày công
-  const ratio = input.workDays / STANDARD_DAYS;
+  const ratio = input.workDays / std;
 
-  // [BƯỚC 2] Lương thực tế
   const baseSalaryActual = r(input.baseSalary * ratio);
   const lunchActual = r(input.lunchAllowance * ratio);
   const transportActual = r(input.transportAllowance * ratio);
@@ -71,9 +56,8 @@ export function calculatePayroll(input: PayrollInput): PayrollOutput {
   const kpiActual = r(input.kpiAllowance * ratio);
   const defaultOtActual = r(input.defaultOt * ratio);
 
-  // Tăng ca phát sinh: hours → money (Lương giờ × 150% × hours)
-  const hourlyRate = input.baseSalary / STANDARD_DAYS / HOURS_PER_DAY;
-  const extraOt = r(hourlyRate * OT_RATE_WEEKDAY * input.extraOtHours);
+  const hourlyRate = input.baseSalary / std / hpd;
+  const extraOt = r(hourlyRate * formula.otRateWeekday * input.extraOtHours);
 
   const grossRef = r(input.baseSalary + input.lunchAllowance + input.transportAllowance
     + input.phoneAllowance + input.clothingAllowance + input.kpiAllowance + input.defaultOt);
@@ -81,13 +65,11 @@ export function calculatePayroll(input: PayrollInput): PayrollOutput {
   const grossActual = baseSalaryActual + lunchActual + transportActual
     + phoneActual + clothingActual + kpiActual + defaultOtActual + extraOt;
 
-  // ── PROBATION: Không đóng BH, thuế TNCN 10% trên thu nhập chịu thuế ──
   if (input.isProbation) {
     const employeeBhxh = 0;
-    // Thu nhập chịu thuế: CB + Xăng xe + ĐT + KPI (không gồm ăn trưa, trang phục, tăng ca)
     const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual;
     const assessableIncome = taxableIncome;
-    const pit = r(taxableIncome * 0.10); // 10% cố định
+    const pit = r(taxableIncome * formula.probationPitRate);
     const netSalary = grossActual - pit;
     const companyBhxh = 0;
     const totalCompanyCost = grossActual;
@@ -99,23 +81,17 @@ export function calculatePayroll(input: PayrollInput): PayrollOutput {
     };
   }
 
-  // ── CHÍNH THỨC: Đóng BH + Thuế lũy tiến ──
-  // [BƯỚC 3] Bảo hiểm nhân viên (Tính trên lương cơ bản cố định)
-  const employeeBhxh = r(input.baseSalary * BH_EMPLOYEE_RATE);
-
-  // [BƯỚC 4] Thu nhập chịu thuế (CB + Xăng xe + ĐT + KPI — không gồm ăn trưa, trang phục, tăng ca)
+  const employeeBhxh = r(input.baseSalary * formula.bhEmployeeRate);
   const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual;
 
-  // [BƯỚC 5] Thu nhập tính thuế
   let assessableIncome = taxableIncome - employeeBhxh
-    - PERSONAL_DEDUCTION
-    - (input.dependentsCount * DEPENDENT_DEDUCTION);
+    - formula.personalDeduction
+    - (input.dependentsCount * formula.dependentDeduction);
   if (assessableIncome < 0) assessableIncome = 0;
 
-  // [BƯỚC 6] Thuế TNCN (tra biểu thuế lũy tiến)
   let pit = 0;
   if (assessableIncome > 0) {
-    for (const bracket of TAX_BRACKETS) {
+    for (const bracket of formula.taxBrackets) {
       if (assessableIncome <= bracket.limit) {
         pit = r(assessableIncome * bracket.rate - bracket.deduction);
         break;
@@ -123,11 +99,8 @@ export function calculatePayroll(input: PayrollInput): PayrollOutput {
     }
   }
 
-  // [BƯỚC 7] Net thực lĩnh
   const netSalary = grossActual - employeeBhxh - pit;
-
-  // [BƯỚC 8] Chi phí công ty (Tính trên lương cơ bản cố định)
-  const companyBhxh = r(input.baseSalary * BH_COMPANY_RATE);
+  const companyBhxh = r(input.baseSalary * formula.bhCompanyRate);
   const totalCompanyCost = grossActual + companyBhxh;
 
   return {
@@ -140,6 +113,16 @@ export function calculatePayroll(input: PayrollInput): PayrollOutput {
 // ══════════════════════════════════════════════════════════
 // ── CRUD: Payroll Sheets ─────────────────────────────────
 // ══════════════════════════════════════════════════════════
+
+/** Công thức gắn với bảng lương (theo formula_settings_id, hoặc theo kỳ tháng/năm). */
+export async function resolveFormulaForSheet(sheet: PayPayrollSheet): Promise<PayrollFormulaConfig> {
+  if (sheet.formula_settings_id) {
+    const got = await fetchPayrollFormulaById(sheet.formula_settings_id);
+    if (got) return got.config;
+  }
+  const { config } = await fetchPayrollFormulaForMonth(sheet.month, sheet.year);
+  return config;
+}
 
 export async function fetchPayrollSheets(): Promise<PayPayrollSheet[]> {
   const { data, error } = await supabase
@@ -156,9 +139,28 @@ export async function deletePayrollSheet(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function updateSheetStatus(id: string, status: PayPayrollSheet['status']): Promise<void> {
-  const { error } = await supabase.from('pay_payroll_sheets').update({ status }).eq('id', id);
+export type PayrollStatusActor = {
+  userId: string | null;
+  setConfirmedBy?: boolean;
+  setPaidBy?: boolean;
+};
+
+export async function updateSheetStatus(
+  id: string,
+  status: PayPayrollSheet['status'],
+  actor?: PayrollStatusActor,
+): Promise<PayPayrollSheet> {
+  const row: Record<string, unknown> = { status };
+  if (actor?.setConfirmedBy && actor.userId) row.confirmed_by = actor.userId;
+  if (actor?.setPaidBy && actor.userId) row.paid_by = actor.userId;
+  const { data, error } = await supabase
+    .from('pay_payroll_sheets')
+    .update(row)
+    .eq('id', id)
+    .select()
+    .single();
   if (error) throw error;
+  return data as PayPayrollSheet;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -199,11 +201,15 @@ const SALARY_NAME_MAP: Record<string, keyof PayPayrollRecord> = {
 export async function createPayrollSheet(
   month: number, year: number
 ): Promise<{ sheet: PayPayrollSheet; records: PayPayrollRecord[] }> {
-  // 1. Create sheet
+  const { settings: formulaRow, config: formulaConfig } = await fetchPayrollFormulaForMonth(month, year);
+
   const title = `Bảng lương Tháng ${month}/${year}`;
+  const insertSheet: Record<string, unknown> = { month, year, title };
+  if (formulaRow?.id) insertSheet.formula_settings_id = formulaRow.id;
+
   const { data: sheet, error: sheetErr } = await supabase
     .from('pay_payroll_sheets')
-    .insert({ month, year, title })
+    .insert(insertSheet)
     .select()
     .single();
   if (sheetErr) throw sheetErr;
@@ -267,7 +273,7 @@ export async function createPayrollSheet(
 
     // Attendance data
     const attRec = attRecords.find(r => r.employee_id === emp.id);
-    const workDays = attRec?.work_days ?? STANDARD_DAYS;
+    const workDays = attRec?.work_days ?? formulaConfig.standardWorkDays;
     const extraOtHours = attRec?.ot_hours ?? 0;
 
     // Probation check: NV thử việc nếu probation_end > ngày cuối tháng lương
@@ -289,7 +295,7 @@ export async function createPayrollSheet(
       isProbation,
     };
 
-    const output = calculatePayroll(input);
+    const output = calculatePayroll(input, formulaConfig);
 
     return {
       sheet_id: sheet.id,
@@ -331,7 +337,10 @@ export async function createPayrollSheet(
 // ── Recalculate ──────────────────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-export function recalculateRecord(rec: PayPayrollRecord): PayPayrollRecord {
+export function recalculateRecord(
+  rec: PayPayrollRecord,
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+): PayPayrollRecord {
   const input: PayrollInput = {
     workDays: rec.work_days,
     baseSalary: rec.base_salary,
@@ -345,7 +354,7 @@ export function recalculateRecord(rec: PayPayrollRecord): PayPayrollRecord {
     dependentsCount: rec.dependents_count,
     isProbation: rec.is_probation ?? false,
   };
-  const output = calculatePayroll(input);
+  const output = calculatePayroll(input, formula);
   return {
     ...rec,
     extra_ot: output.extraOt,
@@ -361,8 +370,11 @@ export function recalculateRecord(rec: PayPayrollRecord): PayPayrollRecord {
   };
 }
 
-export async function recalculateAndSave(rec: PayPayrollRecord): Promise<PayPayrollRecord> {
-  const updated = recalculateRecord(rec);
+export async function recalculateAndSave(
+  rec: PayPayrollRecord,
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+): Promise<PayPayrollRecord> {
+  const updated = recalculateRecord(rec, formula);
   const { employee, ...clean } = updated as any;
   await updatePayrollRecord(updated.id, clean);
   return updated;

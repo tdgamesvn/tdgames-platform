@@ -1,18 +1,19 @@
 import React from 'react';
-import { PayPayrollSheet, PayPayrollRecord } from '@/types';
+import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
 import { exportPaySlipToExcel } from '../services/payrollExportService';
 
 interface Props {
   sheet: PayPayrollSheet;
   record: PayPayrollRecord;
+  formula: PayrollFormulaConfig;
   onClose: () => void;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
-const STANDARD_DAYS = 22;
 
-const PaySlip: React.FC<Props> = ({ sheet, record: rec, onClose }) => {
-  const ratio = rec.work_days / STANDARD_DAYS;
+const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
+  const std = formula.standardWorkDays;
+  const ratio = rec.work_days / std;
   const empName = rec.employee?.full_name || 'N/A';
   const empCode = rec.employee?.employee_code || '';
   const dept = rec.employee?.department?.name || '—';
@@ -57,7 +58,7 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, onClose }) => {
   };
 
   const handleExportExcel = () => {
-    exportPaySlipToExcel(sheet, rec);
+    exportPaySlipToExcel(sheet, rec, formula);
   };
 
   return (
@@ -126,7 +127,7 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, onClose }) => {
             {rec.is_probation && (
               <div style={{ gridColumn: '1 / -1', marginTop: '4px' }}>
                 <span style={{ background: '#FFF3E0', color: '#E65100', padding: '2px 10px', borderRadius: '4px', fontSize: '9px', fontWeight: 900, letterSpacing: '0.08em' }}>
-                  ⭐ THỬ VIỆC – Không đóng BH, Thuế 10%
+                  ⭐ THỬ VIỆC – Không đóng BH, Thuế {(formula.probationPitRate * 100).toFixed(0)}%
                 </span>
               </div>
             )}
@@ -146,7 +147,7 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, onClose }) => {
               </tr>
             </thead>
             <tbody>
-              <Tr label={`Ngày công (tỷ lệ: ${(ratio * 100).toFixed(2)}%)`} ref_val={`${STANDARD_DAYS}`} actual={`${rec.work_days}`} />
+              <Tr label={`Ngày công (tỷ lệ: ${(ratio * 100).toFixed(2)}%)`} ref_val={`${std}`} actual={`${rec.work_days}`} />
               <Tr label="Lương cơ bản" ref_val={fmt(rec.base_salary)} actual={fmt(Math.round(rec.base_salary * ratio))} />
               <Tr label="Phụ cấp ăn trưa" ref_val={fmt(rec.lunch_allowance)} actual={fmt(Math.round(rec.lunch_allowance * ratio))} />
               <Tr label="PC xăng xe" ref_val={fmt(rec.transport_allowance)} actual={fmt(Math.round(rec.transport_allowance * ratio))} />
@@ -174,14 +175,14 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, onClose }) => {
                 <>
                   <Tr2 label="BH nhân viên" value="0 (không đóng – thử việc)" color="#999" />
                   <Tr2 label="Thu nhập chịu thuế" value={fmt(rec.taxable_income)} />
-                  <Tr2 label="Thuế TNCN (10% cố định)" value={rec.pit > 0 ? `-${fmt(rec.pit)}` : '0'} color="#d32f2f" />
+                  <Tr2 label={`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`} value={rec.pit > 0 ? `-${fmt(rec.pit)}` : '0'} color="#d32f2f" />
                 </>
               ) : (
                 <>
-                  <Tr2 label="BH nhân viên (10.5%)" value={`-${fmt(rec.employee_bhxh)}`} color="#e65100" />
+                  <Tr2 label={`BH nhân viên (${(formula.bhEmployeeRate * 100).toFixed(2)}%)`} value={`-${fmt(rec.employee_bhxh)}`} color="#e65100" />
                   <Tr2 label="Thu nhập chịu thuế (CB + ĐT + KPI)" value={fmt(rec.taxable_income)} />
-                  <Tr2 label="Giảm trừ bản thân" value={`-${fmt(15_500_000)}`} color="#888" />
-                  <Tr2 label={`Giảm trừ NPT (${rec.dependents_count} người)`} value={`-${fmt(rec.dependents_count * 6_200_000)}`} color="#888" />
+                  <Tr2 label="Giảm trừ bản thân" value={`-${fmt(formula.personalDeduction)}`} color="#888" />
+                  <Tr2 label={`Giảm trừ NPT (${rec.dependents_count} người)`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="#888" />
                   <Tr2 label="Thu nhập tính thuế" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0'} />
                   <Tr2 label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? `-${fmt(rec.pit)}` : '0'} color={rec.pit > 0 ? '#d32f2f' : '#2e7d32'} />
                 </>
@@ -210,7 +211,7 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, onClose }) => {
                 </>
               ) : (
                 <>
-                  <Tr2 label="BH công ty (21.5%)" value={fmt(rec.company_bhxh)} color="#1565c0" />
+                  <Tr2 label={`BH công ty (${(formula.bhCompanyRate * 100).toFixed(2)}%)`} value={fmt(rec.company_bhxh)} color="#1565c0" />
                   <TrBold2 label="TỔNG CHI PHÍ CÔNG TY" value={fmt(rec.total_company_cost)} color="#1565c0" />
                 </>
               )}

@@ -1,14 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/apps/invoice/components/Navbar';
-import { fetchEmployeeDirectory, fetchDepartments, fetchMyPayslips, fetchMyAttendance } from '../services/portalService';
+import {
+  fetchEmployeeDirectory,
+  fetchDepartments,
+  fetchMyPayslips,
+  fetchMyAttendance,
+  fetchMyProfile,
+} from '../services/portalService';
 import { toPublicUrl } from '@/apps/hr/services/hrService';
 import LeaveTab from './LeaveTab';
 import ProfileTab from './ProfileTab';
+import ParkingTab from './ParkingTab';
 
-type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'profile';
+type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'parking' | 'profile';
 
 interface PortalAppProps {
   currentUser: AccountUser;
@@ -20,6 +27,7 @@ const TAB_MAP: Record<PortalTab, string> = {
   payslip:    'activity',
   attendance: 'tasks',
   leave:      'recurring',
+  parking:    'overview',
   profile:    'edit',
 };
 const TAB_LABELS: Record<string, string> = {
@@ -27,6 +35,7 @@ const TAB_LABELS: Record<string, string> = {
   activity: 'Bảng lương',
   tasks:    'Chấm công',
   recurring: 'Nghỉ phép',
+  overview: 'Gửi xe',
   edit:     'Hồ sơ',
 };
 const REVERSE_TAB: Record<string, PortalTab> = {
@@ -34,6 +43,7 @@ const REVERSE_TAB: Record<string, PortalTab> = {
   activity: 'payslip',
   tasks:    'attendance',
   recurring: 'leave',
+  overview: 'parking',
   edit:     'profile',
 };
 
@@ -45,9 +55,46 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  /** undefined = đang tải hồ sơ; null = không có employee_id hoặc lỗi */
+  const [linkedEmployeeType, setLinkedEmployeeType] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (!currentUser.employee_id) {
+      setLinkedEmployeeType(null);
+      return;
+    }
+    let cancelled = false;
+    fetchMyProfile(currentUser.employee_id)
+      .then((p: { type?: string }) => {
+        if (!cancelled) setLinkedEmployeeType(p?.type ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setLinkedEmployeeType(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser.employee_id]);
+
+  /** Gửi xe chỉ cho nhân viên Fulltime / Parttime (không áp dụng freelancer). */
+  const parkingEligible =
+    linkedEmployeeType === 'fulltime' || linkedEmployeeType === 'parttime';
+
+  const accessibleTabs = useMemo(() => {
+    const tabs = ['history', 'activity', 'tasks', 'recurring'];
+    if (parkingEligible) tabs.push('overview');
+    tabs.push('edit');
+    return tabs;
+  }, [parkingEligible]);
+
+  useEffect(() => {
+    if (linkedEmployeeType === undefined) return;
+    if (activeTab === 'parking' && !parkingEligible) {
+      setActiveTab('directory');
+    }
+  }, [activeTab, parkingEligible, linkedEmployeeType]);
 
   const navbarTab = TAB_MAP[activeTab];
-  const accessibleTabs = ['history', 'activity', 'tasks', 'recurring', 'edit'];
 
   const handleNavChange = (tab: string) => {
     const mapped = REVERSE_TAB[tab];
@@ -462,6 +509,34 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
               currentUser={currentUser}
               onToast={(msg, type) => setToast({ message: msg, type })}
             />
+          )}
+
+          {/* ── Parking Tab ── */}
+          {activeTab === 'parking' && (
+            !currentUser.employee_id ? (
+              <div style={{ textAlign: 'center', padding: '60px', background: '#161616', borderRadius: '16px', border: '1px solid #222' }}>
+                <p style={{ fontSize: '48px', marginBottom: '12px' }}>🔗</p>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>Tài khoản chưa liên kết nhân viên</p>
+                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '8px' }}>Liên hệ HR để liên kết hồ sơ nhân viên</p>
+              </div>
+            ) : linkedEmployeeType === undefined ? (
+              <div style={{ textAlign: 'center', padding: '60px' }}>
+                <p className="animate-pulse" style={{ color: '#888' }}>Đang tải…</p>
+              </div>
+            ) : !parkingEligible ? (
+              <div style={{ textAlign: 'center', padding: '48px', background: '#161616', borderRadius: '16px', border: '1px solid #222', maxWidth: 520, margin: '0 auto' }}>
+                <p style={{ fontSize: '40px', marginBottom: '12px' }}>🅿️</p>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.75)' }}>Đăng ký gửi xe chỉ áp dụng nhân viên Fulltime / Parttime</p>
+                <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.35)', marginTop: '10px', lineHeight: 1.5 }}>
+                  Cộng tác viên Freelancer không sử dụng bãi gửi xe công ty theo quy trình này.
+                </p>
+              </div>
+            ) : (
+              <ParkingTab
+                employeeId={currentUser.employee_id}
+                onToast={(msg, type) => setToast({ message: msg, type })}
+              />
+            )
           )}
 
           {/* ── Profile Tab ── */}

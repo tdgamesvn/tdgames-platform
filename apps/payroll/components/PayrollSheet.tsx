@@ -1,25 +1,27 @@
 import React, { useState, useRef, useEffect } from 'react';
 import AppBackground from '@/components/AppBackground';
-import { PayPayrollSheet, PayPayrollRecord } from '@/types';
+import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
 import { exportPayrollToExcel } from '../services/payrollExportService';
 import PaySlip from './PaySlip';
 
 interface Props {
   sheet: PayPayrollSheet;
   records: PayPayrollRecord[];
+  /** Thông số công thức đang áp dụng cho bảng này (theo DB / kỳ). */
+  formula: PayrollFormulaConfig;
   loading: boolean;
   onBack: () => void;
   onUpdateRecord: (id: string, field: string, value: number) => void;
   onSaveRecord: (rec: PayPayrollRecord) => void;
   onConfirm: () => void;
+  onMarkPaid?: () => void;
   onRollback?: () => void;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
-const STANDARD_DAYS = 22;
 
 const PayrollSheet: React.FC<Props> = ({
-  sheet, records, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onRollback,
+  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onMarkPaid, onRollback,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -28,6 +30,7 @@ const PayrollSheet: React.FC<Props> = ({
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDraft = sheet.status === 'draft';
+  const isPaid = sheet.status === 'paid';
 
   // Focus when editing
   useEffect(() => {
@@ -73,11 +76,16 @@ const PayrollSheet: React.FC<Props> = ({
                   {sheet.status === 'draft' ? 'Nháp' : sheet.status === 'confirmed' ? 'Đã xác nhận' : 'Đã trả'}
                 </span>
                 <span className="text-neutral-medium text-xs">{records.length} nhân viên</span>
+                {isPaid && sheet.paid_at && (
+                  <span className="text-cyan-400/90 text-[10px] font-semibold">
+                    Đã trả: {new Date(sheet.paid_at).toLocaleString('vi-VN')}
+                  </span>
+                )}
               </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => exportPayrollToExcel(sheet, records)}
+            <button onClick={() => exportPayrollToExcel(sheet, records, formula)}
               className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
               style={{ background: 'linear-gradient(135deg, #059669, #34D399)' }}>
               📥 Export Excel
@@ -87,6 +95,13 @@ const PayrollSheet: React.FC<Props> = ({
                 className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
                 style={{ background: 'linear-gradient(135deg, #34D399, #059669)' }}>
                 ✅ Xác nhận bảng lương
+              </button>
+            )}
+            {sheet.status === 'confirmed' && onMarkPaid && (
+              <button onClick={onMarkPaid}
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #2563EB)' }}>
+                💳 Đánh dấu đã trả lương
               </button>
             )}
             {sheet.status === 'confirmed' && onRollback && (
@@ -140,7 +155,7 @@ const PayrollSheet: React.FC<Props> = ({
             {records.map(rec => {
               const isExpanded = expandedId === rec.id;
               const empName = rec.employee?.full_name || 'N/A';
-              const ratio = rec.work_days / STANDARD_DAYS;
+              const ratio = rec.work_days / formula.standardWorkDays;
 
               return (
                 <div key={rec.id}>
@@ -178,7 +193,7 @@ const PayrollSheet: React.FC<Props> = ({
                       ) : (
                         <span className={`text-xs ${isDraft ? 'text-emerald-400 cursor-text' : 'text-white'}`}
                           onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'work_days' })}>
-                          {rec.work_days}/{STANDARD_DAYS}
+                          {rec.work_days}/{formula.standardWorkDays}
                         </span>
                       )}
                     </div>
@@ -218,7 +233,7 @@ const PayrollSheet: React.FC<Props> = ({
                         {/* Left: Input + Steps 1-2 */}
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Input & Bước 1-2</div>
-                          <Row label="Ngày công" value={`${rec.work_days} / ${STANDARD_DAYS}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
+                          <Row label="Ngày công" value={`${rec.work_days} / ${formula.standardWorkDays}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
                           <Row label="Lương CB" value={fmt(rec.base_salary)} sub={`Thực: ${fmt(Math.round(rec.base_salary * ratio))}`} />
                           <Row label="PC ăn trưa" value={fmt(rec.lunch_allowance)} sub={`Thực: ${fmt(Math.round(rec.lunch_allowance * ratio))}`} />
                           <Row label="PC xăng xe" value={fmt(rec.transport_allowance)} sub={`Thực: ${fmt(Math.round(rec.transport_allowance * ratio))}`} />
@@ -242,7 +257,7 @@ const PayrollSheet: React.FC<Props> = ({
                             <>
                               <Row label="BH nhân viên" value="0 (không đóng)" color="text-neutral-medium/50" />
                               <Row label="Thu nhập chịu thuế" value={fmt(rec.taxable_income)} />
-                              <Row label="Thuế TNCN (10% cố định)" value={fmt(rec.pit)} color="text-red-400" />
+                              <Row label={`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`} value={fmt(rec.pit)} color="text-red-400" />
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
                                 <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
                               </div>
@@ -253,17 +268,17 @@ const PayrollSheet: React.FC<Props> = ({
                             </>
                           ) : (
                             <>
-                              <Row label="BH nhân viên (10.5%)" value={fmt(rec.employee_bhxh)} color="text-orange-400" />
+                              <Row label={`BH nhân viên (${(formula.bhEmployeeRate * 100).toFixed(2)}%)`} value={fmt(rec.employee_bhxh)} color="text-orange-400" />
                               <Row label="TNCT (CB + ĐT + KPI)" value={fmt(rec.taxable_income)} />
-                              <Row label="Giảm trừ bản thân" value={`-${fmt(15_500_000)}`} color="text-neutral-medium" />
-                              <Row label={`Giảm trừ NPT (${rec.dependents_count})`} value={`-${fmt(rec.dependents_count * 6_200_000)}`} color="text-neutral-medium" />
+                              <Row label="Giảm trừ bản thân" value={`-${fmt(formula.personalDeduction)}`} color="text-neutral-medium" />
+                              <Row label={`Giảm trừ NPT (${rec.dependents_count})`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="text-neutral-medium" />
                               <Row label="TNTT" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0 (âm → 0)'} />
                               <Row label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? fmt(rec.pit) : '0'} color={rec.pit > 0 ? 'text-red-400' : 'text-emerald-400'} />
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
                                 <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
                               </div>
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
-                                <Row label="BH công ty (21.5%)" value={fmt(rec.company_bhxh)} color="text-blue-400" />
+                                <Row label={`BH công ty (${(formula.bhCompanyRate * 100).toFixed(2)}%)`} value={fmt(rec.company_bhxh)} color="text-blue-400" />
                                 <Row label="Chi phí công ty" value={fmt(rec.total_company_cost)} bold color="text-blue-400" />
                               </div>
                             </>
@@ -296,6 +311,7 @@ const PayrollSheet: React.FC<Props> = ({
         <PaySlip
           sheet={sheet}
           record={paySlipRecord}
+          formula={formula}
           onClose={() => setPaySlipRecord(null)}
         />
       )}

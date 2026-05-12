@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/apps/invoice/components/Navbar';
 import { usePayrollState } from '../hooks/usePayrollState';
+import { FALLBACK_PAYROLL_FORMULA } from '../services/payrollFormulaService';
 import PayrollSheet from './PayrollSheet';
+import PayrollFormulaPanel from './PayrollFormulaPanel';
 
 interface PayrollAppProps {
   currentUser: AccountUser;
@@ -12,13 +14,20 @@ interface PayrollAppProps {
   initialTab?: string | null;
 }
 
-const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack }) => {
-  const state = usePayrollState();
+const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab }) => {
+  const state = usePayrollState(initialTab);
   const {
-    view, sheets, records, activeSheet, loading, toast,
+    view, sheets, records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, confirmSheet, rollbackSheet, backToSheets,
+    updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, backToSheets,
   } = state;
+
+  const [listTab, setListTab] = useState<'history' | 'formula'>(() =>
+    initialTab === 'formula' ? 'formula' : 'history',
+  );
+  useEffect(() => {
+    if (initialTab === 'formula') setListTab('formula');
+  }, [initialTab]);
 
   const [newMonth, setNewMonth] = useState(new Date().getMonth() + 1);
   const [newYear, setNewYear] = useState(new Date().getFullYear());
@@ -33,11 +42,13 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack }) => {
         <PayrollSheet
           sheet={activeSheet}
           records={records}
+          formula={activeFormula ?? FALLBACK_PAYROLL_FORMULA}
           loading={loading}
           onBack={backToSheets}
           onUpdateRecord={updateRecord}
           onSaveRecord={saveRecord}
           onConfirm={confirmSheet}
+          onMarkPaid={markSheetPaid}
           onRollback={rollbackSheet}
         />
       </>
@@ -51,16 +62,22 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack }) => {
       <Navbar
         theme="dark"
         currentUser={currentUser}
-        activeTab="history"
-        accessibleTabs={['history']}
-        onTabChange={() => {}}
+        activeTab={listTab}
+        accessibleTabs={['history', 'formula']}
+        onTabChange={t => setListTab(t as 'history' | 'formula')}
         onLogout={onBack}
         onBack={onBack}
         appName="Payroll"
-        tabLabels={{ history: 'Bảng lương' }}
+        tabLabels={{ history: 'Bảng lương', formula: 'Công thức' }}
       />
       {toast && <ToastNotification message={{ text: toast.message, type: toast.type }} onDismiss={() => setToast(null)} />}
 
+      {listTab === 'formula' ? (
+        <PayrollFormulaPanel
+          currentUser={currentUser}
+          onNotify={(message, type) => setToast({ message, type })}
+        />
+      ) : (
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -162,6 +179,7 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack }) => {
           </div>
         )}
       </main>
+      )}
     </div>
   );
 };
