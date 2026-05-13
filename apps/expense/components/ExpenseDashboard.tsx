@@ -105,10 +105,12 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
 
   const totalSourceVND = sourceData.reduce((s, c) => s + c.total, 0);
 
-  // ── Top 5 expenses ──
+  // ── Top 5 expenses — sort by VND-converted amount ──
   const topExpenses = useMemo(() =>
-    [...allExpenses].sort((a, b) => b.amount - a.amount).slice(0, 5),
-    [allExpenses]);
+    [...allExpenses]
+      .sort((a, b) => toVND(b.amount, b.currency) - toVND(a.amount, a.currency))
+      .slice(0, 5),
+    [allExpenses, vcbAvgRate]);
 
   // ── Auto-synced count ──
   const autoSyncedCount = expenses.filter(e => e.source_type && e.source_type !== 'manual').length;
@@ -469,6 +471,11 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
                   <p className="text-sm font-black text-red-400 tabular-nums">
                     {fmtVND(toVND(exp.amount, exp.currency))}
                   </p>
+                  {exp.currency !== 'VND' && (
+                    <p className="text-[9px] font-bold text-neutral-medium/60 tabular-nums">
+                      {exp.currency === 'USD' ? '$' : ''}{exp.amount.toLocaleString('en-US')} {exp.currency}
+                    </p>
+                  )}
                   <p className="text-[9px] font-bold text-neutral-medium">{exp.vendor || exp.client_name || '—'}</p>
                 </div>
               </div>
