@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { HrEmployee, HrParkingRegistration, HrParkingVehicleType } from '@/types';
 import * as svc from '../services/hrService';
-import ParkingFormPrint from './ParkingFormPrint';
 
 const inputCls =
   'w-full bg-white/5 border border-primary/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-primary/40';
@@ -15,19 +14,19 @@ const VEHICLE_LABELS: Record<HrParkingVehicleType, string> = {
   other: 'Khác',
 };
 
-/** Chỉ 3 trường: loại xe, màu, biển số — đồng bộ với Portal nhân viên. */
 function buildParkingPayload(
   employeeId: string,
   vehicle_type: HrParkingVehicleType,
   license_plate: string,
   color: string,
+  vehicle_brand: string,
 ): Omit<HrParkingRegistration, 'id' | 'created_at' | 'updated_at'> {
   return {
     employee_id: employeeId,
     vehicle_type,
     license_plate: license_plate.trim(),
     color: color.trim(),
-    vehicle_brand: '',
+    vehicle_brand: vehicle_brand.trim(),
     vehicle_model: '',
     card_number: '',
     parking_area: '',
@@ -52,8 +51,8 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
   const [vehicleType, setVehicleType] = useState<HrParkingVehicleType>('motorcycle');
   const [licensePlate, setLicensePlate] = useState('');
   const [color, setColor] = useState('');
+  const [vehicleBrand, setVehicleBrand] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [printReg, setPrintReg] = useState<HrParkingRegistration | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -76,6 +75,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
     setVehicleType('motorcycle');
     setLicensePlate('');
     setColor('');
+    setVehicleBrand('');
     setEditingId('new');
   };
 
@@ -83,6 +83,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
     setVehicleType(r.vehicle_type);
     setLicensePlate(r.license_plate);
     setColor(r.color);
+    setVehicleBrand(r.vehicle_brand || '');
     setEditingId(r.id);
   };
 
@@ -96,7 +97,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
       alert('Vui lòng nhập màu xe.');
       return;
     }
-    const payload = buildParkingPayload(employee.id, vehicleType, plate, color);
+    const payload = buildParkingPayload(employee.id, vehicleType, plate, color, vehicleBrand);
     setSaving(true);
     try {
       if (editingId === 'new') {
@@ -106,7 +107,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
           vehicle_type: payload.vehicle_type,
           license_plate: payload.license_plate,
           color: payload.color,
-          vehicle_brand: '',
+          vehicle_brand: payload.vehicle_brand,
           vehicle_model: '',
           card_number: '',
           parking_area: '',
@@ -147,11 +148,10 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
   }
 
   return (
-    <>
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-neutral-medium text-sm">
-          Đăng ký gửi xe: loại xe, màu, biển số. Nhân viên có thể tự khai trên Employee Portal.
+          Đăng ký gửi xe: loại xe, nhãn hiệu, màu, biển số. Nhân viên có thể tự khai trên Employee Portal.
         </p>
         {!editingId && (
           <button
@@ -170,7 +170,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
           <p className="text-xs font-black uppercase tracking-widest text-cyan-400">
             {editingId === 'new' ? 'Đăng ký mới' : 'Sửa đăng ký'}
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className={labelCls}>Loại xe</label>
               <select
@@ -185,6 +185,15 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className={labelCls}>Nhãn hiệu xe</label>
+              <input
+                className={inputCls}
+                value={vehicleBrand}
+                onChange={e => setVehicleBrand(e.target.value)}
+                placeholder="Honda, Yamaha, Toyota…"
+              />
             </div>
             <div>
               <label className={labelCls}>Màu xe</label>
@@ -238,19 +247,11 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
               >
                 <div>
                   <p className="text-white font-bold">
-                    {VEHICLE_LABELS[r.vehicle_type]} — <span className="text-cyan-400">{r.license_plate}</span>
+                    {VEHICLE_LABELS[r.vehicle_type]}{r.vehicle_brand ? ` · ${r.vehicle_brand}` : ''} — <span className="text-cyan-400">{r.license_plate}</span>
                   </p>
                   <p className="text-neutral-medium text-xs mt-1">Màu: {r.color || '—'}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPrintReg(r)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
-                    style={{ background: 'linear-gradient(135deg, #34C759, #30D158)' }}
-                  >
-                    In form
-                  </button>
                   <button
                     type="button"
                     onClick={() => startEdit(r)}
@@ -293,15 +294,6 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
         )
       )}
     </div>
-
-    {printReg && (
-      <ParkingFormPrint
-        employee={employee}
-        registration={printReg}
-        onClose={() => setPrintReg(null)}
-      />
-    )}
-    </>
   );
 };
 

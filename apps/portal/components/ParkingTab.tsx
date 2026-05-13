@@ -39,6 +39,7 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
   const [vehicleType, setVehicleType] = useState<HrParkingVehicleType>('motorcycle');
   const [licensePlate, setLicensePlate] = useState('');
   const [color, setColor] = useState('');
+  const [vehicleBrand, setVehicleBrand] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -62,6 +63,7 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
     setVehicleType('motorcycle');
     setLicensePlate('');
     setColor('');
+    setVehicleBrand('');
     setEditingId('new');
   };
 
@@ -69,6 +71,7 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
     setVehicleType(r.vehicle_type);
     setLicensePlate(r.license_plate);
     setColor(r.color);
+    setVehicleBrand(r.vehicle_brand || '');
     setEditingId(r.id);
   };
 
@@ -85,13 +88,14 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
     setSaving(true);
     try {
       if (editingId === 'new') {
-        await saveMyParkingRegistration(employeeId, { vehicle_type: vehicleType, license_plate: plate, color: color.trim() });
+        await saveMyParkingRegistration(employeeId, { vehicle_type: vehicleType, license_plate: plate, color: color.trim(), vehicle_brand: vehicleBrand.trim() });
         onToast('Đã thêm đăng ký gửi xe', 'success');
       } else if (editingId) {
         await updateMyParkingRegistration(editingId, employeeId, {
           vehicle_type: vehicleType,
           license_plate: plate,
           color: color.trim(),
+          vehicle_brand: vehicleBrand.trim(),
         });
         onToast('Đã cập nhật', 'success');
       }
@@ -130,7 +134,7 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
           Gửi xe
         </h2>
         <p style={{ color: '#888', fontSize: 14, marginTop: 4 }}>
-          Đăng ký phương tiện (loại xe, màu, biển số) để làm thẻ / bảo vệ.
+          Đăng ký phương tiện (loại xe, nhãn hiệu, màu, biển số) để làm thẻ / bảo vệ.
         </p>
       </div>
 
@@ -169,7 +173,7 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
           <p style={{ fontSize: 11, fontWeight: 900, color: '#F59E0B', textTransform: 'uppercase', marginBottom: 16 }}>
             {editingId === 'new' ? 'Đăng ký mới' : 'Sửa thông tin xe'}
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#9D9C9D', textTransform: 'uppercase', marginBottom: 6 }}>
                 Loại xe
@@ -183,6 +187,18 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
                   <option key={k} value={k} style={{ background: '#1A1A1A' }}>{VEHICLE_LABELS[k]}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#9D9C9D', textTransform: 'uppercase', marginBottom: 6 }}>
+                Nhãn hiệu xe
+              </label>
+              <input
+                type="text"
+                value={vehicleBrand}
+                onChange={e => setVehicleBrand(e.target.value)}
+                placeholder="Honda, Yamaha, Toyota…"
+                style={inputStyle}
+              />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#9D9C9D', textTransform: 'uppercase', marginBottom: 6 }}>
@@ -271,7 +287,7 @@ const ParkingTab: React.FC<Props> = ({ employeeId, onToast }) => {
               >
                 <div>
                   <p style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>
-                    {VEHICLE_LABELS[r.vehicle_type]} · <span style={{ color: '#F59E0B' }}>{r.license_plate}</span>
+                    {VEHICLE_LABELS[r.vehicle_type]}{r.vehicle_brand ? ` · ${r.vehicle_brand}` : ''} · <span style={{ color: '#F59E0B' }}>{r.license_plate}</span>
                   </p>
                   <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Màu: {r.color || '—'}</p>
                 </div>

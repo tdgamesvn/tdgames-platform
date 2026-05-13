@@ -116,7 +116,7 @@ export async function fetchMyParkingRegistrations(employeeId: string): Promise<H
 
 export async function saveMyParkingRegistration(
   employeeId: string,
-  row: { vehicle_type: HrParkingVehicleType; license_plate: string; color: string },
+  row: { vehicle_type: HrParkingVehicleType; license_plate: string; color: string; vehicle_brand?: string },
 ): Promise<HrParkingRegistration> {
   const { data, error } = await supabase
     .from('hr_parking_registrations')
@@ -125,7 +125,7 @@ export async function saveMyParkingRegistration(
       vehicle_type: row.vehicle_type,
       license_plate: row.license_plate.trim(),
       color: row.color.trim(),
-      vehicle_brand: '',
+      vehicle_brand: row.vehicle_brand?.trim() ?? '',
       vehicle_model: '',
       card_number: '',
       parking_area: '',
@@ -144,7 +144,7 @@ export async function saveMyParkingRegistration(
 export async function updateMyParkingRegistration(
   id: string,
   employeeId: string,
-  row: { vehicle_type: HrParkingVehicleType; license_plate: string; color: string },
+  row: { vehicle_type: HrParkingVehicleType; license_plate: string; color: string; vehicle_brand?: string },
 ): Promise<void> {
   const { error } = await supabase
     .from('hr_parking_registrations')
@@ -152,6 +152,7 @@ export async function updateMyParkingRegistration(
       vehicle_type: row.vehicle_type,
       license_plate: row.license_plate.trim(),
       color: row.color.trim(),
+      vehicle_brand: row.vehicle_brand?.trim() ?? '',
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
