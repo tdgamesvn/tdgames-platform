@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ExpenseRecord, ExpenseCategory } from '@/types';
+import { syncInvoiceRevenue } from '../services/expenseService';
 
 interface Props {
   expenses: ExpenseRecord[];
   categories: ExpenseCategory[];
   isLoading: boolean;
   onNavigateToList: () => void;
+  onRefresh?: () => void;
   vcbAvgRate: number;
 }
 
@@ -35,12 +37,30 @@ const SOURCE_LABELS: Record<string, { label: string; color: string; icon: string
 };
 
 // ---- Component ----
-const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, onNavigateToList, vcbAvgRate }) => {
+const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, onNavigateToList, onRefresh, vcbAvgRate }) => {
   const toVND = (amount: number, currency: string) => currency === 'USD' ? amount * vcbAvgRate : amount;
   const months = useMemo(() => getLast6Months(), []);
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
+  const currentDayOfMonth = now.getDate();
+  const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const monthProgress = Math.round((currentDayOfMonth / daysInCurrentMonth) * 100);
+
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSyncRevenue = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncInvoiceRevenue();
+      alert(`Đồng bộ hoàn tất: ${result.inserted} mới, ${result.updated} cập nhật`);
+      onRefresh?.();
+    } catch (e: any) {
+      alert('Lỗi sync: ' + (e.message || e));
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // ── Split revenue vs expense ──
   const allExpenses = useMemo(() => expenses.filter(e => e.type !== 'revenue'), [expenses]);
@@ -112,13 +132,20 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
           <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">Financial Hub</h2>
           <p className="text-neutral-medium text-sm mt-2">Tổng quan tài chính • {months[months.length - 1].label}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {autoSyncedCount > 0 && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-[10px] font-bold text-emerald-400">{autoSyncedCount} auto-synced</span>
             </div>
           )}
+          <button
+            onClick={handleSyncRevenue}
+            disabled={syncing}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-amber-500/30 text-amber-400 hover:bg-amber-500/10 transition-all disabled:opacity-50"
+          >
+            {syncing ? '⟳ Đang sync…' : '🔄 Sync doanh thu'}
+          </button>
           <button onClick={onNavigateToList}
             className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border border-primary/20 text-primary hover:bg-primary/5 transition-all">
             📋 Xem danh sách
@@ -186,11 +213,12 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* P&L Bar Chart — 3 cols */}
         <div className="lg:col-span-3 rounded-[20px] border bg-surface border-primary/10 p-6">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Doanh thu vs Chi phí 6 tháng (VND)</h3>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5"><div className="w-3 h-1.5 rounded-full bg-emerald-400" /><span className="text-[9px] text-neutral-medium">Doanh thu</span></div>
               <div className="flex items-center gap-1.5"><div className="w-3 h-1.5 rounded-full bg-red-400" /><span className="text-[9px] text-neutral-medium">Chi phí</span></div>
+              <div className="flex items-center gap-1.5"><div className="w-3 h-1.5 rounded-full bg-amber-400 opacity-70" style={{ border: '1px dashed #F59E0B' }} /><span className="text-[9px] text-neutral-medium">Đang chạy</span></div>
             </div>
           </div>
           {monthlyPL.every(m => m.expVND === 0 && m.revVND === 0) ? (
@@ -206,28 +234,36 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
                 return (
                   <div key={i} className="group/bar">
                     <div className="flex items-center gap-3">
-                      <span className={`text-[11px] font-bold tabular-nums w-16 flex-shrink-0 ${isCurrentMonth ? 'text-primary' : 'text-neutral-medium'}`}>
-                        {m.label}
-                      </span>
+                      <div className="w-16 flex-shrink-0">
+                        <span className={`text-[11px] font-bold tabular-nums block ${isCurrentMonth ? 'text-amber-400' : 'text-neutral-medium'}`}>
+                          {m.label}
+                        </span>
+                        {isCurrentMonth && (
+                          <span className="text-[8px] font-bold text-amber-400/60">{monthProgress}% tháng</span>
+                        )}
+                      </div>
                       <div className="flex-1 space-y-1">
                         {/* Revenue bar */}
-                        <div className="h-3.5 bg-white/[0.02] rounded-md overflow-hidden relative">
-                          <div className="h-full rounded-md bg-gradient-to-r from-emerald-500/60 to-emerald-400/80 transition-all duration-700"
+                        <div className={`h-3.5 rounded-md overflow-hidden relative ${isCurrentMonth ? 'bg-amber-500/5 border border-amber-500/10 border-dashed' : 'bg-white/[0.02]'}`}>
+                          <div className={`h-full rounded-md transition-all duration-700 ${isCurrentMonth ? 'bg-gradient-to-r from-amber-500/50 to-amber-400/70' : 'bg-gradient-to-r from-emerald-500/60 to-emerald-400/80'}`}
                             style={{ width: `${Math.max(revPct, revPct > 0 ? 2 : 0)}%`, animation: `barGrow 0.8s ease-out ${i * 0.1}s both` }} />
-                          {m.revVND > 0 && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-emerald-300/60 tabular-nums opacity-0 group-hover/bar:opacity-100 transition-opacity">+{fmt(m.revVND)}</span>}
+                          {m.revVND > 0 && <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold tabular-nums opacity-0 group-hover/bar:opacity-100 transition-opacity ${isCurrentMonth ? 'text-amber-300/60' : 'text-emerald-300/60'}`}>+{fmt(m.revVND)}</span>}
                         </div>
                         {/* Expense bar */}
-                        <div className="h-3.5 bg-white/[0.02] rounded-md overflow-hidden relative">
-                          <div className="h-full rounded-md bg-gradient-to-r from-red-500/60 to-red-400/80 transition-all duration-700"
+                        <div className={`h-3.5 rounded-md overflow-hidden relative ${isCurrentMonth ? 'bg-orange-500/5 border border-orange-500/10 border-dashed' : 'bg-white/[0.02]'}`}>
+                          <div className={`h-full rounded-md transition-all duration-700 ${isCurrentMonth ? 'bg-gradient-to-r from-orange-500/50 to-orange-400/70' : 'bg-gradient-to-r from-red-500/60 to-red-400/80'}`}
                             style={{ width: `${Math.max(expPct, expPct > 0 ? 2 : 0)}%`, animation: `barGrow 0.8s ease-out ${i * 0.1 + 0.05}s both` }} />
                           {m.expVND > 0 && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-red-300/60 tabular-nums opacity-0 group-hover/bar:opacity-100 transition-opacity">-{fmt(m.expVND)}</span>}
                         </div>
                       </div>
-                      <span className={`text-[10px] font-bold tabular-nums w-24 text-right flex-shrink-0 ${
-                        m.profitVND > 0 ? 'text-emerald-400' : m.profitVND < 0 ? 'text-red-400' : 'text-white/40'
-                      }`}>
-                        {m.profitVND !== 0 ? (m.profitVND > 0 ? '+' : '') + fmt(m.profitVND) : '—'}
-                      </span>
+                      <div className="w-24 text-right flex-shrink-0">
+                        <span className={`text-[10px] font-bold tabular-nums ${
+                          isCurrentMonth ? 'text-amber-400/70' : m.profitVND > 0 ? 'text-emerald-400' : m.profitVND < 0 ? 'text-red-400' : 'text-white/40'
+                        }`}>
+                          {m.profitVND !== 0 ? (m.profitVND > 0 ? '+' : '') + fmt(m.profitVND) : '—'}
+                        </span>
+                        {isCurrentMonth && <p className="text-[8px] text-amber-400/40 mt-0.5">partial</p>}
+                      </div>
                     </div>
                   </div>
                 );
@@ -313,7 +349,10 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
 
                 return (
                   <tr key={i} className={`border-b border-white/5 transition-colors ${isCurrentMonth ? 'bg-white/[0.03]' : ''} ${hasData ? '' : 'opacity-30'}`}>
-                    <td className={`py-3 px-2 font-bold tabular-nums ${isCurrentMonth ? 'text-primary' : 'text-white/70'}`}>{m.label}</td>
+                    <td className={`py-3 px-2 font-bold tabular-nums ${isCurrentMonth ? 'text-amber-400' : 'text-white/70'}`}>
+                      {m.label}
+                      {isCurrentMonth && <span className="ml-1.5 text-[8px] font-bold text-amber-400/50 border border-amber-500/20 px-1 py-0.5 rounded">~{monthProgress}%</span>}
+                    </td>
                     <td className="py-3 px-2 text-right tabular-nums text-emerald-400 font-bold">
                       {revTotal > 0 ? fmtVND(revTotal) : '—'}
                     </td>

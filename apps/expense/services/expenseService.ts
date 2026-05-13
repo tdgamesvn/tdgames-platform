@@ -133,6 +133,13 @@ export async function deleteBudget(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ── Invoice Revenue Sync ──────────────────────────────────────
+export async function syncInvoiceRevenue(): Promise<{ inserted: number; updated: number }> {
+  const { data, error } = await supabase.rpc('sync_invoice_revenue');
+  if (error) throw error;
+  return data as { inserted: number; updated: number };
+}
+
 // ── Export ─────────────────────────────────────────────────────
 export function exportToCSV(expenses: ExpenseRecord[], filename: string) {
   const headers = ['Date', 'Type', 'Source', 'Title', 'Amount', 'Currency', 'Category', 'Vendor', 'Status', 'Notes'];

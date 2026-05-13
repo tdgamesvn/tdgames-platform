@@ -94,6 +94,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
             categories={state.categories}
             isLoading={state.isLoading}
             onNavigateToList={() => state.setActiveTab('list')}
+            onRefresh={state.loadAll}
             vcbAvgRate={avgUsdVnd}
           />
         )}
