@@ -126,7 +126,7 @@ const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
       </main>
 
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
-        TD Consulting • Attendance System • v1.0
+        TD Games • Attendance System • v1.0
       </footer>
     </div>
   );

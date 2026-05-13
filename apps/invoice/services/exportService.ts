@@ -83,7 +83,7 @@ export const exportToExcel = (data: any, fileName: string) => {
   const total = subtotal + tax;
 
   const worksheetData = [
-    ["TD CONSULTING COMPANY LIMITED"],
+    ["TD GAMES COMPANY LIMITED"],
     ["INVOICE REPORT", ""],
     ["Invoice Number", data.invoiceNumber],
     ["Status", data.status.toUpperCase()],

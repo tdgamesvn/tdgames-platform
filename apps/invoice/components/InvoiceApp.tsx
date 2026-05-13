@@ -119,7 +119,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       </main>
 
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
-        TD Consulting • Enterprise Platform • v3.0
+        TD Games • Enterprise Platform • v3.0
       </footer>
 
       <EInvoiceModals

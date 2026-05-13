@@ -68,7 +68,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
       {/* Footer */}
       <footer className="relative z-10 py-8 text-center">
         <p className="text-white/10 text-[9px] font-black uppercase tracking-[0.5em]">
-          TD Consulting • Enterprise Platform • v3.0
+          TD Games • Enterprise Platform • v3.0
         </p>
       </footer>
     </div>

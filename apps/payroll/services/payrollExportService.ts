@@ -166,7 +166,7 @@ export function exportPaySlipToExcel(
 
   const rows: any[][] = [];
 
-  rows.push(['CÔNG TY TNHH TƯ VẤN TD (TD CONSULTING COMPANY LIMITED)']);
+  rows.push(['CÔNG TY TNHH TD GAMES (TD GAMES COMPANY LIMITED)']);
   rows.push([]);
   rows.push([`PHIẾU LƯƠNG THÁNG ${sheet.month}/${sheet.year}`]);
   rows.push([]);

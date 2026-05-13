@@ -13,10 +13,10 @@ export const DEFAULT_INVOICE: InvoiceData = {
   status: 'pending',
   payment_method: 'TM/CK',
   studioInfo: {
-    name: 'TD CONSULTING COMPANY LIMITED',
+    name: 'TD GAMES COMPANY LIMITED',
     address: 'Xom Ngoai, Dong Anh Commune, Hanoi City, Vietnam',
     email: 'tdgames.vn@gmail.com',
-    taxCode: '0109898663'
+    taxCode: '0111386856'
   },
   clientInfo: {
     name: '',
