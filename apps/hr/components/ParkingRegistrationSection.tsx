@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { HrEmployee, HrParkingRegistration, HrParkingVehicleType } from '@/types';
 import * as svc from '../services/hrService';
+import ParkingFormPrint from './ParkingFormPrint';
 
 const inputCls =
   'w-full bg-white/5 border border-primary/10 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-primary/40';
@@ -52,6 +53,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
   const [licensePlate, setLicensePlate] = useState('');
   const [color, setColor] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [printReg, setPrintReg] = useState<HrParkingRegistration | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -145,6 +147,7 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
   }
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-neutral-medium text-sm">
@@ -242,6 +245,14 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => setPrintReg(r)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
+                    style={{ background: 'linear-gradient(135deg, #34C759, #30D158)' }}
+                  >
+                    In form
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => startEdit(r)}
                     className="px-3 py-1.5 rounded-lg text-xs font-bold text-white"
                     style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)' }}
@@ -282,6 +293,15 @@ const ParkingRegistrationSection: React.FC<Props> = ({ employee, onListChange })
         )
       )}
     </div>
+
+    {printReg && (
+      <ParkingFormPrint
+        employee={employee}
+        registration={printReg}
+        onClose={() => setPrintReg(null)}
+      />
+    )}
+    </>
   );
 };
 
