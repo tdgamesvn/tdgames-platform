@@ -18,7 +18,7 @@ jobs:
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
             set -e
-            cd /opt/td-games-invoice-app
+            cd /opt/tdgames-platforms
 
             echo "💾 Backing up .env..."
             cp .env /tmp/.env.bak 2>/dev/null || true
