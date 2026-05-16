@@ -5,6 +5,7 @@ import {
   approveLeaveRequest,
   rejectLeaveRequest,
   deleteLeaveRequest,
+  submitLeaveRequest,
 } from '@/apps/portal/services/leaveService';
 
 interface LeaveApprovalProps {
@@ -33,6 +34,13 @@ const LeaveApproval: React.FC<LeaveApprovalProps> = ({ currentUser, onToast }) =
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    dateFrom: '',
+    dateTo: '',
+    leaveType: 'annual' as 'annual' | 'unpaid' | 'sick',
+    leaveDays: 1,
+    reason: '',
+  });
 
   useEffect(() => {
     loadRequests();
@@ -100,6 +108,51 @@ const LeaveApproval: React.FC<LeaveApprovalProps> = ({ currentUser, onToast }) =
     }
   };
 
+  const handleSubmitLeave = async () => {
+    if (!currentUser.employee_id) {
+      onToast('Tài khoản này chưa liên kết hồ sơ nhân viên', 'error');
+      return;
+    }
+    if (!form.dateFrom || !form.dateTo) {
+      onToast('Vui lòng chọn ngày bắt đầu và kết thúc', 'error');
+      return;
+    }
+    if (form.dateTo < form.dateFrom) {
+      onToast('Ngày kết thúc không được nhỏ hơn ngày bắt đầu', 'error');
+      return;
+    }
+    if (!form.reason.trim()) {
+      onToast('Vui lòng nhập lý do nghỉ phép', 'error');
+      return;
+    }
+
+    setProcessing('create');
+    try {
+      await submitLeaveRequest(
+        currentUser.employee_id,
+        form.dateFrom,
+        form.dateTo,
+        Number(form.leaveDays) || 1,
+        form.leaveType,
+        form.reason.trim(),
+      );
+      onToast('✅ Đã gửi đơn nghỉ phép', 'success');
+      setForm({
+        dateFrom: '',
+        dateTo: '',
+        leaveType: 'annual',
+        leaveDays: 1,
+        reason: '',
+      });
+      setFilter('pending');
+      await loadRequests();
+    } catch (err: any) {
+      onToast(err.message || 'Lỗi khi gửi đơn nghỉ phép', 'error');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
   const FILTERS: { key: FilterStatus; label: string }[] = [
@@ -119,6 +172,103 @@ const LeaveApproval: React.FC<LeaveApprovalProps> = ({ currentUser, onToast }) =
         <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>
           Duyệt đơn xin nghỉ phép của nhân viên
         </p>
+      </div>
+
+      {/* Create leave request */}
+      <div style={{
+        marginBottom: '20px', background: '#161616', border: '1px solid #222',
+        borderRadius: '16px', padding: '20px'
+      }}>
+        <div style={{ marginBottom: '14px' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#F5F5F5' }}>📝 Tạo đơn nghỉ phép</h3>
+          <p style={{ color: '#888', fontSize: '12px', marginTop: '4px' }}>
+            Gửi đơn trực tiếp từ Platforms
+          </p>
+        </div>
+
+        {!currentUser.employee_id ? (
+          <div style={{
+            padding: '12px 14px', borderRadius: '10px', background: 'rgba(255,59,48,0.08)',
+            border: '1px solid rgba(255,59,48,0.18)', color: '#FF8A80', fontSize: '12px', fontWeight: 700,
+          }}>
+            Tài khoản hiện tại chưa liên kết employee_id nên chưa thể gửi đơn nghỉ phép.
+          </div>
+        ) : (
+          <>
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '12px', marginBottom: '12px'
+            }}>
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '6px' }}>Từ ngày</p>
+                <input
+                  type="date"
+                  value={form.dateFrom}
+                  onChange={e => setForm(prev => ({ ...prev, dateFrom: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5', fontSize: '13px' }}
+                />
+              </div>
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '6px' }}>Đến ngày</p>
+                <input
+                  type="date"
+                  value={form.dateTo}
+                  onChange={e => setForm(prev => ({ ...prev, dateTo: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5', fontSize: '13px' }}
+                />
+              </div>
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '6px' }}>Loại nghỉ</p>
+                <select
+                  value={form.leaveType}
+                  onChange={e => setForm(prev => ({ ...prev, leaveType: e.target.value as 'annual' | 'unpaid' | 'sick' }))}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5', fontSize: '13px' }}
+                >
+                  <option value="annual">Phép năm</option>
+                  <option value="unpaid">Không lương</option>
+                  <option value="sick">Nghỉ ốm</option>
+                </select>
+              </div>
+              <div>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '6px' }}>Số ngày</p>
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  value={form.leaveDays}
+                  onChange={e => setForm(prev => ({ ...prev, leaveDays: Number(e.target.value) || 0 }))}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5', fontSize: '13px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '6px' }}>Lý do</p>
+              <textarea
+                value={form.reason}
+                onChange={e => setForm(prev => ({ ...prev, reason: e.target.value }))}
+                rows={3}
+                placeholder="Nhập lý do nghỉ phép..."
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5', fontSize: '13px', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleSubmitLeave}
+                disabled={processing === 'create'}
+                style={{
+                  padding: '10px 18px', borderRadius: '10px', border: 'none',
+                  background: 'linear-gradient(135deg, #FF6B35 0%, #F7C948 100%)',
+                  color: '#fff', fontSize: '13px', fontWeight: 800, cursor: 'pointer',
+                  opacity: processing === 'create' ? 0.5 : 1,
+                }}
+              >
+                {processing === 'create' ? 'Đang gửi...' : '📨 Gửi đơn nghỉ phép'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Filters */}

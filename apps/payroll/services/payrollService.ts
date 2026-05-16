@@ -26,6 +26,8 @@ interface PayrollInput {
   extraOtHours: number;
   dependentsCount: number;
   isProbation: boolean;
+  /** Tỷ lệ ngày thử việc trong tháng. 0 = full official, 1 = full probation, 0<x<1 = transition month (lên chính thức giữa tháng) */
+  probationRatio?: number;
 }
 
 interface PayrollOutput {
@@ -47,6 +49,10 @@ export function calculatePayroll(input: PayrollInput, formula: PayrollFormulaCon
   const hpd = formula.hoursPerDay;
 
   const ratio = input.workDays / std;
+  // probation_ratio: 0 = full official, 1 = full probation, 0<x<1 = tháng chuyển giao
+  // Fallback: nếu không cung cấp, suy ra từ isProbation (giữ tương thích ngược)
+  const probRatio = Math.max(0, Math.min(1, input.probationRatio ?? (input.isProbation ? 1 : 0)));
+  const officialRatio = 1 - probRatio;
 
   const baseSalaryActual = r(input.baseSalary * ratio);
   const lunchActual = r(input.lunchAllowance * ratio);
@@ -62,45 +68,41 @@ export function calculatePayroll(input: PayrollInput, formula: PayrollFormulaCon
   const grossRef = r(input.baseSalary + input.lunchAllowance + input.transportAllowance
     + input.phoneAllowance + input.clothingAllowance + input.kpiAllowance + input.defaultOt);
 
+  // Lương 100% — không phụ thuộc probation/official (per company policy)
   const grossActual = baseSalaryActual + lunchActual + transportActual
     + phoneActual + clothingActual + kpiActual + defaultOtActual + extraOt;
 
-  if (input.isProbation) {
-    const employeeBhxh = 0;
-    const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual;
-    const assessableIncome = taxableIncome;
-    const pit = r(taxableIncome * formula.probationPitRate);
-    const netSalary = grossActual - pit;
-    const companyBhxh = 0;
-    const totalCompanyCost = grossActual;
+  // BHXH: chỉ tính trên phần ngày chính thức trong tháng
+  const employeeBhxh = r(input.baseSalary * formula.bhEmployeeRate * officialRatio);
+  const companyBhxh = r(input.baseSalary * formula.bhCompanyRate * officialRatio);
 
-    return {
-      grossRef, grossActual, extraOt,
-      employeeBhxh, taxableIncome, assessableIncome,
-      pit, netSalary, companyBhxh, totalCompanyCost,
-    };
-  }
-
-  const employeeBhxh = r(input.baseSalary * formula.bhEmployeeRate);
+  // Thu nhập chịu thuế (không bao gồm lunch, clothing, OT)
   const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual;
 
-  let assessableIncome = taxableIncome - employeeBhxh
+  // PIT phần thử việc: 10% flat trên phần thu nhập tương ứng số ngày probation
+  const taxableProbation = r(taxableIncome * probRatio);
+  const pitProbation = r(taxableProbation * formula.probationPitRate);
+
+  // PIT phần chính thức: lũy tiến trên (phần thu nhập official - BHXH - giảm trừ)
+  // Giảm trừ gia cảnh full mức/tháng (TT 111/2013) dù chỉ có vài ngày official
+  const taxableOfficial = taxableIncome - taxableProbation;
+  let assessableIncome = taxableOfficial - employeeBhxh
     - formula.personalDeduction
     - (input.dependentsCount * formula.dependentDeduction);
   if (assessableIncome < 0) assessableIncome = 0;
 
-  let pit = 0;
+  let pitOfficial = 0;
   if (assessableIncome > 0) {
     for (const bracket of formula.taxBrackets) {
       if (assessableIncome <= bracket.limit) {
-        pit = r(assessableIncome * bracket.rate - bracket.deduction);
+        pitOfficial = r(assessableIncome * bracket.rate - bracket.deduction);
         break;
       }
     }
   }
 
+  const pit = pitProbation + pitOfficial;
   const netSalary = grossActual - employeeBhxh - pit;
-  const companyBhxh = r(input.baseSalary * formula.bhCompanyRate);
   const totalCompanyCost = grossActual + companyBhxh;
 
   return {
@@ -258,8 +260,10 @@ export async function createPayrollSheet(
   });
 
   // 6. Build records
-  // Determine last day of payroll month to check probation status
-  const payrollLastDay = new Date(year, month, 0); // last day of this month
+  // Determine month boundaries for probation_ratio computation
+  const payrollFirstDay = new Date(year, month - 1, 1); // first day of this month
+  const payrollLastDay = new Date(year, month, 0);      // last day of this month
+  const totalDaysInMonth = payrollLastDay.getDate();
 
   const rows = employees.map(emp => {
     // Salary components for this employee
@@ -276,10 +280,25 @@ export async function createPayrollSheet(
     const workDays = attRec?.work_days ?? formulaConfig.standardWorkDays;
     const extraOtHours = attRec?.ot_hours ?? 0;
 
-    // Probation check: NV thử việc nếu probation_end > ngày cuối tháng lương
-    const isProbation = emp.probation_end
-      ? new Date(emp.probation_end) > payrollLastDay
-      : false;
+    // ── Probation ratio computation ─────────────────────────
+    // Ưu tiên official_date (ngày lên chính thức). Fallback về probation_end + 1 nếu chưa có.
+    const officialRaw = (emp as any).official_date
+      || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
+    const officialDate = officialRaw ? new Date(officialRaw) : null;
+
+    let probationRatio = 0;
+    if (!officialDate || officialDate > payrollLastDay) {
+      // Cả tháng còn thử việc
+      probationRatio = 1;
+    } else if (officialDate <= payrollFirstDay) {
+      // Cả tháng đã chính thức
+      probationRatio = 0;
+    } else {
+      // Tháng chuyển giao: official_date rơi giữa tháng
+      const daysProbation = officialDate.getDate() - 1; // ngày 1 → ngày trước official_date
+      probationRatio = daysProbation / totalDaysInMonth;
+    }
+    const isProbation = probationRatio === 1;
 
     const input: PayrollInput = {
       workDays,
@@ -293,6 +312,7 @@ export async function createPayrollSheet(
       extraOtHours,
       dependentsCount: depCountMap[emp.id] || 0,
       isProbation,
+      probationRatio,
     };
 
     const output = calculatePayroll(input, formulaConfig);
@@ -312,6 +332,7 @@ export async function createPayrollSheet(
       extra_ot: output.extraOt,
       dependents_count: input.dependentsCount,
       is_probation: isProbation,
+      probation_ratio: probationRatio,
       gross_ref: output.grossRef,
       gross_actual: output.grossActual,
       employee_bhxh: output.employeeBhxh,
@@ -353,6 +374,7 @@ export function recalculateRecord(
     extraOtHours: rec.extra_ot_hours,
     dependentsCount: rec.dependents_count,
     isProbation: rec.is_probation ?? false,
+    probationRatio: rec.probation_ratio ?? (rec.is_probation ? 1 : 0),
   };
   const output = calculatePayroll(input, formula);
   return {

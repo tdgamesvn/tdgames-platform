@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrProjectHistory, AccountUser, WorkforceTask } from '@/types';
+import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrProjectHistory, AccountUser, WorkforceTask, HrEmployeeTimelineEvent } from '@/types';
 import * as svc from '../services/hrService';
 import { uploadFileToR2, toPublicUrl, updateContract, deleteContract, updateEmployeeRole, hardDeleteEmployee } from '../services/hrService';
 import { getDashboardData, FulltimeKPI } from '@/apps/workforce/services/dashboardService';
@@ -18,10 +18,18 @@ interface Props {
   onEdit: (e: HrEmployee) => void;
 }
 
-type DetailTab = 'info' | 'tasks' | 'contracts' | 'equipment' | 'parking' | 'evaluations' | 'projects' | 'documents';
+type DetailTab = 'info' | 'tasks' | 'contracts' | 'equipment' | 'parking' | 'evaluations' | 'projects' | 'documents' | 'timeline';
 
 const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, onBack, onEdit }) => {
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
+  const [timeline, setTimeline] = useState<HrEmployeeTimelineEvent[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
+  useEffect(() => {
+    if (activeTab !== 'timeline') return;
+    setLoadingTimeline(true);
+    supabase.from('hr_employee_timeline').select('*').eq('employee_id', employee.id).order('event_date', { ascending: false }).order('created_at', { ascending: false })
+      .then(({ data }) => { setTimeline((data as HrEmployeeTimelineEvent[]) || []); setLoadingTimeline(false); });
+  }, [activeTab, employee.id]);
   const [showContractGen, setShowContractGen] = useState(false);
   const [viewingContract, setViewingContract] = useState<HrContract | null>(null);
   const [editingContract, setEditingContract] = useState<HrContract | null>(null);
@@ -589,6 +597,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         <button className={tabCls('evaluations')} onClick={() => setActiveTab('evaluations')}>⭐ Đánh giá ({evaluations.length})</button>
         <button className={tabCls('projects')} onClick={() => setActiveTab('projects')}>📁 Dự án ({projectHistory.length})</button>
         <button className={tabCls('documents')} onClick={() => setActiveTab('documents')}>🗂️ Hồ sơ</button>
+        <button className={tabCls('timeline')} onClick={() => setActiveTab('timeline')}>📜 Lịch sử công tác</button>
       </div>
 
       {loading && (
@@ -1055,6 +1064,80 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       {/* Documents Tab */}
       {!loading && activeTab === 'documents' && (
         <DocumentManager employee={employee} />
+      )}
+
+      {/* Timeline Tab */}
+      {!loading && activeTab === 'timeline' && (
+        <div className="space-y-2">
+          {loadingTimeline && <p className="text-neutral-medium text-sm">Đang tải...</p>}
+          {!loadingTimeline && timeline.length === 0 && <p className="text-neutral-medium text-sm">Chưa có sự kiện nào.</p>}
+          {!loadingTimeline && timeline.map((ev, i) => {
+            const labels: Record<string, { icon: string; label: string; color: string }> = {
+              joined:           { icon: '🎉', label: 'Vào công ty',        color: '#34C759' },
+              become_official:  { icon: '⭐', label: 'Lên chính thức',      color: '#FFD60A' },
+              official_date:    { icon: '⭐', label: 'Đổi ngày chính thức', color: '#FFD60A' },
+              probation_end:    { icon: '⏰', label: 'Đổi ngày hết thử việc', color: '#FF9F0A' },
+              type:             { icon: '🔄', label: 'Đổi loại nhân viên', color: '#0A84FF' },
+              status:           { icon: '🚦', label: 'Đổi trạng thái',      color: '#FF453A' },
+              department:       { icon: '🏢', label: 'Đổi phòng ban',       color: '#5E5CE6' },
+              position:         { icon: '👤', label: 'Đổi chức danh',       color: '#5E5CE6' },
+              level:            { icon: '🎖️', label: 'Đổi level',           color: '#5E5CE6' },
+              salary:           { icon: '💰', label: 'Đổi lương',           color: '#34C759' },
+              evaluation:       { icon: '⭐', label: 'Đánh giá',             color: '#FFD60A' },
+            };
+            const meta = labels[ev.event_type] || (
+              ev.event_type.startsWith('salary_')   ? { icon: '💰', label: 'Phụ cấp / Lương', color: '#34C759' } :
+              ev.event_type.startsWith('contract_') ? { icon: '📄', label: 'Hợp đồng',         color: '#0A84FF' } :
+                                                     { icon: '•',  label: ev.event_type,     color: '#8E8E93' }
+            );
+            return (
+              <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+                <div className="text-xl" style={{ width: 32, textAlign: 'center' }}>{meta.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: meta.color }}>{meta.label}</span>
+                    <span className="text-[11px] text-neutral-medium">{ev.event_date}</span>
+                  </div>
+                  <p className="text-sm text-white mt-0.5 break-words">
+                    {ev.old_value && ev.new_value ? <><span className="text-neutral-medium line-through mr-1">{ev.old_value}</span>→ <span>{ev.new_value}</span></> : (ev.new_value || '')}
+                    {ev.amount != null && <span className="ml-2 text-[#34C759] font-bold">{Number(ev.amount).toLocaleString('vi-VN')} {ev.currency}</span>}
+                  </p>
+                  {ev.notes && <p className="text-[11px] text-neutral-medium/70 mt-0.5">{ev.notes}</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Timeline Tab — Lịch sử công tác */}
+      {activeTab === 'timeline' && (
+        <div className="space-y-2">
+          {loadingTimeline && <p className="text-neutral-medium text-sm">Đang tải lịch sử...</p>}
+          {!loadingTimeline && timeline.length === 0 && <p className="text-neutral-medium text-sm">Chưa có lịch sử cho nhân viên này.</p>}
+          {!loadingTimeline && timeline.map((ev, i) => {
+            const labelMap: Record<string, string> = {
+              joined: '🚪 Vào công ty', become_official: '⭐ Lên chính thức',
+              official_date: '⭐ Đổi ngày chính thức', probation_end: '🔄 Đổi ngày hết thử việc',
+              type: '🔁 Đổi loại nhân viên', status: '📌 Đổi trạng thái',
+              department: '🏢 Đổi phòng ban', position: '💼 Đổi chức danh',
+              level: '📈 Đổi cấp bậc', salary: '💰 Đổi lương cơ bản',
+              evaluation: '⭐ Đánh giá', leave_company: '👋 Nghỉ việc', return: '↩️ Quay lại',
+            };
+            const label = labelMap[ev.event_type] || (ev.event_type.startsWith('salary_') ? '💰 ' + ev.event_type.replace('salary_', '') : ev.event_type.startsWith('contract_') ? '📄 Hợp đồng' : ev.event_type);
+            return (
+              <div key={i} className="flex items-start gap-3 bg-white/5 rounded-xl p-3">
+                <div className="text-xs text-neutral-medium font-mono w-24 shrink-0 pt-0.5">{ev.event_date}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-white">{label}</div>
+                  {ev.old_value && ev.new_value && <div className="text-xs text-neutral-medium mt-0.5">{ev.old_value || '(trống)'} → <span className="text-white">{ev.new_value}</span></div>}
+                  {!ev.old_value && ev.new_value && <div className="text-xs text-neutral-medium mt-0.5">{ev.new_value}</div>}
+                  {ev.notes && <div className="text-[11px] text-neutral-medium/70 mt-1 italic">{ev.notes}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Contract Generator Modal - New contract */}

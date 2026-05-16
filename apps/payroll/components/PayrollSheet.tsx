@@ -172,6 +172,14 @@ const PayrollSheet: React.FC<Props> = ({
                           THỬ VIỆC
                         </span>
                       )}
+                      {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
+                        <span
+                          className="px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-400 text-[9px] font-bold uppercase tracking-wider"
+                          title={`${Math.round(rec.probation_ratio * 100)}% thử việc + ${Math.round((1 - rec.probation_ratio) * 100)}% chính thức`}
+                        >
+                          CHUYỂN GIAO
+                        </span>
+                      )}
                       <button
                         onClick={e => { e.stopPropagation(); setPaySlipRecord(rec); }}
                         className="ml-1 px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400 text-[9px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 transition-all"

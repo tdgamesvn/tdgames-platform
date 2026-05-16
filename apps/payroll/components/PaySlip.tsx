@@ -131,6 +131,13 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
                 </span>
               </div>
             )}
+            {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
+              <div style={{ gridColumn: '1 / -1', marginTop: '4px' }}>
+                <span style={{ background: '#FFEFD5', color: '#C2410C', padding: '2px 10px', borderRadius: '4px', fontSize: '9px', fontWeight: 900, letterSpacing: '0.08em' }}>
+                  🔄 THÁNG CHUYỂN GIAO – {Math.round(rec.probation_ratio * 100)}% thử việc (10% thuế phẳng) + {Math.round((1 - rec.probation_ratio) * 100)}% chính thức (BHXH + thuế lũy tiến)
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Divider */}

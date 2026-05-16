@@ -419,6 +419,7 @@ export interface HrEmployee {
   salary_currency: string;
   start_date: string | null;
   probation_end: string | null;
+  official_date: string | null;
 
   // Freelancer
   portfolio_url: string;
@@ -601,6 +602,21 @@ export interface HrEmployeeSalary {
   created_at: string;
   // joined
   component?: HrSalaryComponent;
+}
+
+// ── Employee Timeline (lịch sử công tác) ──────────────────
+
+export interface HrEmployeeTimelineEvent {
+  employee_id: string;
+  source: 'position_history' | 'salary' | 'contract' | 'evaluation';
+  event_type: string;
+  event_date: string;
+  old_value: string | null;
+  new_value: string | null;
+  notes: string | null;
+  amount: number | null;
+  currency: string | null;
+  created_at: string;
 }
 
 // ── Dependents (Người phụ thuộc) ──────────────────────────
@@ -813,6 +829,8 @@ export interface PayPayrollRecord {
   extra_ot: number;
   dependents_count: number;
   is_probation: boolean;
+  /** Tỷ lệ ngày thử việc trong tháng (0 = full official, 1 = full probation, 0<x<1 = tháng chuyển giao) */
+  probation_ratio: number;
   // OUTPUT
   gross_ref: number;
   gross_actual: number;

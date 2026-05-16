@@ -34,7 +34,7 @@ const emptyEmployee = {
   tax_code: '', insurance_number: '',
   department_id: null as string | null, position: '', level: '',
   salary: 0, salary_currency: 'VND',
-  start_date: null as string | null, probation_end: null as string | null,
+  start_date: null as string | null, probation_end: null as string | null, official_date: null as string | null,
   // FL
   portfolio_url: '', specializations: [] as string[], timezone: 'UTC+7',
   rate_type: '', rate_amount: 0, rate_currency: 'USD',
@@ -206,6 +206,7 @@ const EmployeeForm: React.FC<Props> = ({
         salary_currency: editingEmployee.salary_currency || 'VND',
         start_date: editingEmployee.start_date,
         probation_end: editingEmployee.probation_end,
+        official_date: editingEmployee.official_date,
         portfolio_url: editingEmployee.portfolio_url || '',
         specializations: editingEmployee.specializations || [],
         timezone: editingEmployee.timezone || 'UTC+7',
@@ -582,11 +583,14 @@ const EmployeeForm: React.FC<Props> = ({
                   const val = e.target.value || null;
                   setForm(f => {
                     const updated = { ...f, start_date: val };
-                    // Auto-calculate probation end = start_date + 2 months
+                    // Auto-calculate probation end = start_date + 2 months, official_date = probation_end + 1
                     if (val) {
                       const d = new Date(val);
                       d.setMonth(d.getMonth() + 2);
                       updated.probation_end = d.toISOString().split('T')[0];
+                      const o = new Date(d);
+                      o.setDate(o.getDate() + 1);
+                      updated.official_date = o.toISOString().split('T')[0];
                     }
                     return updated;
                   });
@@ -594,7 +598,23 @@ const EmployeeForm: React.FC<Props> = ({
               </div>
               <div>
                 <label className={labelCls}>Ngày hết thử việc</label>
-                <input type="date" className={inputCls} value={form.probation_end || ''} onChange={e => setForm(f => ({ ...f, probation_end: e.target.value || null }))} />
+                <input type="date" className={inputCls} value={form.probation_end || ''} onChange={e => {
+                  const val = e.target.value || null;
+                  setForm(f => {
+                    const updated = { ...f, probation_end: val };
+                    if (val) {
+                      const d = new Date(val);
+                      d.setDate(d.getDate() + 1);
+                      updated.official_date = d.toISOString().split('T')[0];
+                    }
+                    return updated;
+                  });
+                }} />
+              </div>
+              <div>
+                <label className={labelCls}>Ngày chính thức</label>
+                <input type="date" className={inputCls} value={form.official_date || ''} onChange={e => setForm(f => ({ ...f, official_date: e.target.value || null }))} />
+                <p className="text-[11px] text-neutral-medium/60 mt-1">Mặc định = ngày hết thử việc + 1. Sửa nếu lên chính thức sớm/muộn.</p>
               </div>
             </div>
           </div>

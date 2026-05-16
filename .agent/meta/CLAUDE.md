@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **tdgames-platforms** (4107 symbols, 6474 relationships, 203 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **tdgames-platform** (4100 symbols, 6473 relationships, 203 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -24,10 +24,10 @@ This project is indexed by GitNexus as **tdgames-platforms** (4107 symbols, 6474
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/tdgames-platforms/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/tdgames-platforms/clusters` | All functional areas |
-| `gitnexus://repo/tdgames-platforms/processes` | All execution flows |
-| `gitnexus://repo/tdgames-platforms/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/tdgames-platform/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/tdgames-platform/clusters` | All functional areas |
+| `gitnexus://repo/tdgames-platform/processes` | All execution flows |
+| `gitnexus://repo/tdgames-platform/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 
