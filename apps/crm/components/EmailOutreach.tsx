@@ -391,6 +391,9 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
+  // Ref for the polling interval so we can clear it on unmount (avoid memory leak / API spam)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ verified: number; valid: number; invalid: number; high_risk?: number } | null>(null);
   const [checkingBounces, setCheckingBounces] = useState(false);
@@ -404,6 +407,8 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
       return;
     }
+    // Idempotency: nếu đang gửi cùng lead này thì bỏ qua double-click
+    if (sendingId === leadId) return;
     setSendingId(leadId);
     try {
       const res = await outreachRequest('/api/email/send', {
@@ -425,13 +430,20 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
       return;
     }
+    // Idempotency: nếu đang gửi rồi thì bỏ qua
+    if (bulkSending) { alert('Đang gửi batch trước, vui lòng chờ.'); return; }
+
+    // Refresh quota TRƯỚC khi confirm — tránh trường hợp user cầm state cũ vài giờ
+    let liveQuota = quota;
+    try { liveQuota = await fetchQuota(); setQuota(liveQuota); } catch { /* fallback to cached */ }
+
     const pendingCount = leads.filter(l => l.outreach_status === 'pending').length;
-    const remaining = quota?.remaining || 30;
+    const remaining = liveQuota?.remaining ?? 30;
     const batchSize = Math.min(pendingCount, remaining);
     if (batchSize === 0) { alert(remaining <= 0 ? 'Đã hết quota hôm nay.' : 'Không có leads pending.'); return; }
     const estTime = Math.round(batchSize * 3.5); // avg 3.5 min per email
     if (!confirm(`Gửi email initial cho ${batchSize} leads?\n\n⏱ Ước tính: ~${estTime} phút (delay 2-5 phút giữa mỗi email)\n🔒 Server tự xử lý — bạn có thể đóng tab.`)) return;
-    
+
     // Trigger server-side batch
     try {
       const res = await outreachRequest('/api/email/batch', {
@@ -442,27 +454,36 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       const data = await res.json();
       if (data.error) { alert(data.error); return; }
       setBulkSending(true);
-      setBulkProgress({ current: 0, total: data.count, success: 0, failed: 0 });
-      
-      // Poll for status every 10 seconds
-      const pollInterval = setInterval(async () => {
+      setBulkProgress({ current: 0, total: data.count || batchSize, success: 0, failed: 0 });
+
+      // Clear any prior poll first (defensive — không nên có nhưng đề phòng)
+      if (pollRef.current) clearInterval(pollRef.current);
+
+      // Poll status every 10 seconds; pollRef cho phép cleanup khi unmount
+      pollRef.current = setInterval(async () => {
         try {
           const sr = await outreachRequest('/api/email/batch-status');
           if (!sr.ok) return;
           const st = await sr.json();
-          setBulkProgress({ current: st.current, total: st.total, success: st.success, failed: st.failed });
+          setBulkProgress({
+            current: st.current || 0,
+            total: st.total || data.count || batchSize,
+            success: st.success || 0,
+            failed: st.failed || 0,
+          });
           if (!st.running) {
-            clearInterval(pollInterval);
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
             setBulkSending(false);
-            alert(`✅ Batch hoàn thành!\nThành công: ${st.success}\nThất bại: ${st.failed}`);
+            alert(`✅ Batch hoàn thành!\nThành công: ${st.success || 0}\nThất bại: ${st.failed || 0}`);
             onRefresh();
             fetchQuota().then(setQuota);
           }
-        } catch { /* ignore poll errors */ }
+        } catch { /* ignore poll errors — sẽ retry tick sau */ }
       }, 10000);
-    } catch (err: any) { alert(`Lỗi kết nối: ${err.message}`); }
-    onRefresh();
-    fetchQuota().then(setQuota);
+    } catch (err: any) {
+      alert(`Lỗi kết nối: ${err.message}`);
+      setBulkSending(false);
+    }
   };
 
   // Verify pending emails before sending
@@ -516,12 +537,19 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
   const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     const text = await file.text();
-    const parsed = svc.parseCsvLeads(text);
-    if (parsed.length === 0) { alert('Không tìm thấy leads hợp lệ'); return; }
+    const { leads: parsed, skipped } = svc.parseCsvLeads(text);
+    if (parsed.length === 0) {
+      const skipMsg = skipped.length > 0
+        ? `\n\nBị skip ${skipped.length} dòng (lý do: ${skipped[0]?.reason || 'không rõ'}...)`
+        : '';
+      alert(`Không tìm thấy leads hợp lệ${skipMsg}`);
+      return;
+    }
     try {
       await svc.createLeadsBatch(parsed);
       onRefresh(); setShowImport(false);
-      alert(`Đã import ${parsed.length} leads!`);
+      const skipNote = skipped.length > 0 ? `\n⚠️ Đã bỏ qua ${skipped.length} dòng (email trống/không hợp lệ)` : '';
+      alert(`✅ Đã import ${parsed.length} leads!${skipNote}`);
     } catch (err: any) { alert('Error: ' + err.message); }
     if (fileRef.current) fileRef.current.value = '';
   };

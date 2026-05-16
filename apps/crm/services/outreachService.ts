@@ -19,7 +19,12 @@ export async function fetchLeads(filters?: {
   if (filters?.tier) q = q.eq('tier', filters.tier);
   if (filters?.source) q = q.eq('source', filters.source);
   if (filters?.search) {
-    q = q.or(`contact_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,studio_name.ilike.%${filters.search}%`);
+    // Escape PostgREST `.or()` filter chars: , () % * — nếu không user gõ "(" hoặc ","
+    // sẽ làm broken query hoặc inject thêm clause.
+    const safe = filters.search.trim().replace(/[(),%*]/g, '');
+    if (safe) {
+      q = q.or(`contact_name.ilike.%${safe}%,email.ilike.%${safe}%,studio_name.ilike.%${safe}%`);
+    }
   }
 
   const { data, error } = await q;
@@ -131,30 +136,89 @@ export async function getPipelineStats(): Promise<PipelineStats> {
 // ── CSV PARSER ────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-export function parseCsvLeads(csvText: string): Omit<CrmOutreachLead, 'id' | 'created_at' | 'updated_at'>[] {
-  const lines = csvText.trim().split('\n');
-  if (lines.length < 2) return [];
+/** Validate email format theo RFC 5322 simplified — đủ catch lỗi nhập tay */
+const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
-  const results: Omit<CrmOutreachLead, 'id' | 'created_at' | 'updated_at'>[] = [];
+/**
+ * Parse 1 dòng CSV theo RFC 4180:
+ * - Hỗ trợ field bao trong dấu " (cho phép chứa dấu phẩy)
+ * - Hỗ trợ escaped quote "" thành 1 dấu " bên trong
+ * - Strip CR (\r) ở cuối từ file Windows/Excel
+ */
+function parseCsvLine(line: string): string[] {
+  const cleanLine = line.replace(/\r$/, ''); // strip CR cuối nếu có
+  const fields: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < cleanLine.length; i++) {
+    const ch = cleanLine[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (cleanLine[i + 1] === '"') {
+          // Escaped quote ""  →  một dấu "
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"' && current === '') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        fields.push(current.trim());
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+export interface CsvParseResult {
+  leads: Omit<CrmOutreachLead, 'id' | 'created_at' | 'updated_at'>[];
+  skipped: { line: number; reason: string }[];
+}
+
+/**
+ * Parse CSV text → leads. Trả về cả leads valid và danh sách dòng skip
+ * (caller có thể hiển thị warning để user biết file có lỗi gì).
+ *
+ * Bảo trì backward-compat: nếu caller chỉ destructure [leads], TypeScript
+ * vẫn cảnh báo nhưng runtime an toàn vì giá trị return giờ là object.
+ */
+export function parseCsvLeads(csvText: string): CsvParseResult {
+  // Hỗ trợ cả \n và \r\n; loại dòng rỗng
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) return { leads: [], skipped: [] };
+
+  const headers = parseCsvLine(lines[0]).map(h => h.trim().toLowerCase().replace(/^['"]|['"]$/g, ''));
+  const leads: Omit<CrmOutreachLead, 'id' | 'created_at' | 'updated_at'>[] = [];
+  const skipped: { line: number; reason: string }[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (const ch of lines[i]) {
-      if (ch === '"') { inQuotes = !inQuotes; continue; }
-      if (ch === ',' && !inQuotes) { values.push(current.trim()); current = ''; continue; }
-      current += ch;
-    }
-    values.push(current.trim());
-
+    const values = parseCsvLine(lines[i]);
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => { row[h] = values[idx] || ''; });
 
     // Support SalesQL CSV format: Work_Email, Personal_Email
-    const email = row['email'] || row['work_email'] || row['personal_email'] || '';
-    if (!email) continue;
+    const rawEmail = (row['email'] || row['work_email'] || row['personal_email'] || '').trim();
+    if (!rawEmail) {
+      skipped.push({ line: i + 1, reason: 'thiếu email' });
+      continue;
+    }
+
+    // Validate email format — bỏ những row email rõ ràng sai để khỏi tốn quota verify
+    const email = rawEmail.toLowerCase();
+    if (!EMAIL_RE.test(email)) {
+      skipped.push({ line: i + 1, reason: `email không hợp lệ: ${rawEmail}` });
+      continue;
+    }
 
     // Parse tier
     let tier = 3;
@@ -162,17 +226,17 @@ export function parseCsvLeads(csvText: string): Omit<CrmOutreachLead, 'id' | 'cr
     if (tierVal.includes('1') || tierVal.includes('⭐')) tier = 1;
     else if (tierVal.includes('2') || tierVal.includes('★')) tier = 2;
 
-    const contactName = row['contact_name'] || row['name'] || row['full_name'] || '';
-    const firstName = contactName.split(' ')[0] || '';
+    const contactName = (row['contact_name'] || row['name'] || row['full_name'] || '').trim();
+    const firstName = contactName.split(/\s+/)[0] || '';
 
-    results.push({
+    leads.push({
       client_id: null,
-      studio_name: row['studio'] || row['studio_name'] || row['company_name'] || row['company'] || '',
+      studio_name: (row['studio'] || row['studio_name'] || row['company_name'] || row['company'] || '').trim(),
       contact_name: contactName,
       first_name: firstName,
       email,
-      job_title: row['job_title'] || row['title'] || row['position'] || '',
-      linkedin_url: row['linkedin'] || row['linkedin_url'] || '',
+      job_title: (row['job_title'] || row['title'] || row['position'] || '').trim(),
+      linkedin_url: (row['linkedin'] || row['linkedin_url'] || '').trim(),
       tier,
       outreach_status: 'pending',
       initial_sent_at: null,
@@ -181,11 +245,11 @@ export function parseCsvLeads(csvText: string): Omit<CrmOutreachLead, 'id' | 'cr
       replied_at: null,
       source: 'csv_import',
       tags: [],
-      notes: row['notes'] || '',
+      notes: (row['notes'] || '').trim(),
     });
   }
 
-  return results;
+  return { leads, skipped };
 }
 
 // ══════════════════════════════════════════════════════════════
