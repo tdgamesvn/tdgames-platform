@@ -265,6 +265,35 @@ export async function discoverContacts(company: string, domain: string): Promise
   return (await res.json()).contacts || [];
 }
 
+export async function discoverBatch(
+  companies: { company: string; domain: string }[],
+): Promise<{ job_id: string; total: number }> {
+  const res = await outreachRequest('/api/leads/discover-batch', {
+    method: 'POST',
+    body: JSON.stringify({ companies }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new Error(`Batch start failed: ${res.status}`);
+  return res.json();
+}
+
+export async function getDiscoverBatchStatus(jobId: string): Promise<{
+  job_id: string;
+  status: 'running' | 'done';
+  current: number;
+  total: number;
+  results?: any[];
+  errors?: { company: string; error: string }[];
+  error_count: number;
+}> {
+  const res = await outreachRequest(
+    `/api/leads/discover-batch-status?job_id=${encodeURIComponent(jobId)}`,
+    { signal: AbortSignal.timeout(10_000) },
+  );
+  if (!res.ok) throw new Error(`Batch status failed: ${res.status}`);
+  return res.json();
+}
+
 export async function sendOutreachEmail(leadId: string, templateName: string): Promise<any> {
   const res = await outreachRequest('/api/email/send', {
     method: 'POST',

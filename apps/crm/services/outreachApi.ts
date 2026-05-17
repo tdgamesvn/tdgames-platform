@@ -40,7 +40,9 @@ export async function outreachRequest(path: string, init: RequestInit = {}): Pro
   if (anon) {
     headers.set('apikey', anon);
   }
-  return fetch(url, { ...init, headers });
+  // Abort sau 45s nếu caller không truyền signal riêng
+  const signal = init.signal ?? AbortSignal.timeout(45_000);
+  return fetch(url, { ...init, headers, signal });
 }
 
 /** Gọi Edge Function Supabase (vd. outreach-auto-batch) kèm JWT. */

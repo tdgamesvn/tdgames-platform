@@ -896,6 +896,10 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
   const [batchResults, setBatchResults] = useState<any[]>([]);
   const [manualAdd, setManualAdd] = useState({ company: '', domain: '' });
   const importRef = useRef<HTMLInputElement>(null);
+  const batchPollRef = useRef<number | null>(null);
+
+  // Cleanup poll on unmount
+  useEffect(() => () => { if (batchPollRef.current) clearInterval(batchPollRef.current); }, []);
 
   const handleDiscover = async () => {
     if (!company.trim()) return;
@@ -972,40 +976,62 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
     setImportList(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // Run batch discovery
+  // Run batch discovery — background job on server, poll for status
   const handleBatchDiscovery = async () => {
     if (importList.length === 0) return;
-    if (!confirm(`Chạy Discovery cho ${importList.length} công ty?\n\nServer sẽ tự động tìm contacts qua Web Scraping + Google CSE + SalesQL.`)) return;
+    if (!confirm(`Chạy Discovery cho ${importList.length} công ty?\n\nServer sẽ tự động tìm contacts qua Web Scraping + Google CSE + SalesQL.\nBạn có thể tiếp tục dùng app trong lúc chờ.`)) return;
 
     setBatchRunning(true);
     setBatchProgress({ current: 0, total: importList.length, found: 0, failed: 0 });
     setBatchResults([]);
-    let totalFound = 0, totalFailed = 0;
 
-    for (let i = 0; i < importList.length; i++) {
-      const item = importList[i];
-      setBatchProgress(p => ({ ...p, current: i + 1 }));
-      try {
-        const contacts = await svc.discoverContacts(item.company, item.domain);
-        if (contacts && contacts.length > 0) {
-          totalFound += contacts.length;
-          setBatchResults(prev => [...prev, { company: item.company, contacts, status: 'ok' }]);
-        } else {
-          totalFailed++;
-          setBatchResults(prev => [...prev, { company: item.company, contacts: [], status: 'empty' }]);
-        }
-      } catch {
-        totalFailed++;
-        setBatchResults(prev => [...prev, { company: item.company, contacts: [], status: 'error' }]);
-      }
-      setBatchProgress(p => ({ ...p, found: totalFound, failed: totalFailed }));
-      // Small delay between API calls
-      if (i < importList.length - 1) await new Promise(r => setTimeout(r, 2000));
+    let jobId: string;
+    try {
+      const started = await svc.discoverBatch(importList);
+      jobId = started.job_id;
+    } catch (err: any) {
+      setBatchRunning(false);
+      alert('Không thể khởi động batch: ' + err.message);
+      return;
     }
 
-    setBatchRunning(false);
-    alert(`✅ Batch Discovery hoàn thành!\n\nĐã quét: ${importList.length} công ty\nTìm thấy: ${totalFound} contacts\nThất bại: ${totalFailed}`);
-    onRefresh();
+    // Poll every 3s until done
+    batchPollRef.current = window.setInterval(async () => {
+      try {
+        const status = await svc.getDiscoverBatchStatus(jobId);
+        setBatchProgress({
+          current: status.current,
+          total: status.total,
+          found: status.results?.length ?? 0,
+          failed: status.error_count,
+        });
+
+        if (status.status === 'done') {
+          clearInterval(batchPollRef.current!);
+          batchPollRef.current = null;
+          setBatchRunning(false);
+
+          // Group flat results by company for display
+          const grouped: Record<string, any[]> = {};
+          for (const c of status.results ?? []) {
+            const key = c.company || 'Unknown';
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(c);
+          }
+          const groupedArr = Object.entries(grouped).map(([company, contacts]) => ({
+            company, contacts, status: 'ok' as const,
+          }));
+          for (const e of status.errors ?? []) {
+            groupedArr.push({ company: e.company, contacts: [], status: 'error' as const });
+          }
+          setBatchResults(groupedArr);
+
+          const totalFound = status.results?.length ?? 0;
+          alert(`✅ Batch Discovery hoàn thành!\n\nĐã quét: ${status.total} công ty\nTìm thấy: ${totalFound} contacts\nThất bại: ${status.error_count}`);
+          onRefresh();
+        }
+      } catch { /* transient poll error, retry next interval */ }
+    }, 3000);
   };
 
   // Add all contacts from batch results to leads
