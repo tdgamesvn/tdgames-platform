@@ -34,7 +34,7 @@ const labelStyle: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
 };
 
-type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails';
+type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'settings';
 
 // ══════════════════════════════════════════════════════════════
 // ── Main Component ────────────────────────────────────────────
@@ -74,6 +74,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
     { key: 'leads',     icon: '👥', label: `Leads (${stats?.total || 0})` },
     { key: 'discovery', icon: '🔍', label: 'Discovery' },
     { key: 'emails',    icon: '📧', label: `Templates (${templates.length})` },
+    { key: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
 
   return (
@@ -119,6 +120,9 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
 
         {/* ── EMAILS/TEMPLATES ── */}
         {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} />}
+
+        {/* ── SETTINGS ── */}
+        {tab === 'settings' && <SettingsTab />}
       </div>
 
       {/* Preview Modal — rendered OUTSIDE animate-fadeInUp to avoid CSS transform breaking position:fixed */}
@@ -1440,6 +1444,221 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
       )}
 
 
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// ── SETTINGS TAB ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+const SettingsTab: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+  const [s, setS] = useState<svc.OutreachSettings | null>(null);
+  // Local draft (chỉ commit khi user bấm Save)
+  const [draft, setDraft] = useState<svc.OutreachSettings | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const data = await svc.fetchOutreachSettings();
+      setS(data); setDraft(data);
+    } catch (e: any) { setError(e.message || String(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const hasChange = !!s && !!draft && JSON.stringify(s) !== JSON.stringify(draft);
+
+  const handleSave = async () => {
+    if (!draft) return;
+    setSaving(true); setError(null); setOkMsg(null);
+    try {
+      const updated = await svc.updateOutreachSettings(
+        {
+          resend_from:         draft.resend_from,
+          resend_reply_to:     draft.resend_reply_to,
+          resend_tag_campaign: draft.resend_tag_campaign,
+          sending_paused:      draft.sending_paused,
+          daily_limit:         draft.daily_limit,
+        },
+        'crm-ui',
+      );
+      setS(updated); setDraft(updated);
+      setOkMsg('✅ Đã lưu — settings có hiệu lực trong tối đa 30 giây (cache).');
+    } catch (e: any) { setError(e.message || String(e)); }
+    finally { setSaving(false); }
+  };
+
+  const set = <K extends keyof svc.OutreachSettings>(k: K, v: svc.OutreachSettings[K]) =>
+    setDraft(prev => prev ? { ...prev, [k]: v } : prev);
+
+  if (loading) return (
+    <div style={{ textAlign: 'center', padding: '40px', color: '#888' }} className="animate-pulse">
+      Đang tải settings...
+    </div>
+  );
+
+  if (!draft) return (
+    <div style={{ padding: '20px', background: '#1A1A1A', border: '1px solid #FF453A40', borderRadius: '12px', color: '#FF453A' }}>
+      Lỗi tải settings: {error || 'unknown'}
+    </div>
+  );
+
+  const isEnvSource = s?.source === 'env';
+
+  return (
+    <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '720px' }}>
+      <div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#F5F5F5' }}>⚙️ Outreach Settings</h3>
+        <p style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>
+          Cấu hình runtime cho cold outreach. Thay đổi áp dụng trong vòng ~30s (cache TTL).
+        </p>
+      </div>
+
+      {isEnvSource && (
+        <div style={{ padding: '12px 16px', background: '#FF950015', border: '1px solid #FF950030', borderRadius: '8px', fontSize: '12px', color: '#FF9500' }}>
+          ⚠️ Đang đọc từ <b>ENV fallback</b> (DB chưa migrate). Lưu lần đầu sẽ tạo record vĩnh viễn.
+        </div>
+      )}
+
+      {/* From */}
+      <div>
+        <label style={labelStyle}>📤 Email gửi đi (From)</label>
+        <input
+          style={inputStyle} type="text"
+          placeholder='Tony Dang <tony@tdgamestudio.com>'
+          value={draft.resend_from}
+          onChange={e => set('resend_from', e.target.value)}
+        />
+        <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+          Định dạng: <code>"Display Name &lt;email@domain&gt;"</code>. Domain PHẢI đã verify trên Resend.
+        </p>
+      </div>
+
+      {/* Reply-To */}
+      <div>
+        <label style={labelStyle}>↩️ Email nhận reply (Reply-To)</label>
+        <input
+          style={inputStyle} type="email"
+          placeholder='toan.dang@tdgamestudio.com'
+          value={draft.resend_reply_to}
+          onChange={e => set('resend_reply_to', e.target.value)}
+        />
+        <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+          Khi recipient bấm Reply, mail sẽ về địa chỉ này. Nên là Gmail Workspace bạn check hàng ngày.
+        </p>
+      </div>
+
+      {/* Campaign tag */}
+      <div>
+        <label style={labelStyle}>🏷️ Campaign tag (Resend dashboard)</label>
+        <input
+          style={inputStyle} type="text"
+          placeholder='outreach'
+          value={draft.resend_tag_campaign}
+          onChange={e => set('resend_tag_campaign', e.target.value)}
+        />
+      </div>
+
+      {/* Daily limit */}
+      <div>
+        <label style={labelStyle}>📊 Giới hạn email/ngày</label>
+        <input
+          style={{ ...inputStyle, width: '140px' }} type="number" min={0} max={1000}
+          value={draft.daily_limit}
+          onChange={e => set('daily_limit', Number(e.target.value) || 0)}
+        />
+        <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
+          Warm-up: tuần 1 ≤10, tuần 2 ≤30, tăng dần. Resend free = 100/ngày tối đa.
+        </p>
+      </div>
+
+      {/* Pause toggle */}
+      <div style={{
+        padding: '14px 16px',
+        background: draft.sending_paused ? '#FF453A15' : '#34C75915',
+        border: `1px solid ${draft.sending_paused ? '#FF453A40' : '#34C75940'}`,
+        borderRadius: '10px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: draft.sending_paused ? '#FF453A' : '#34C759' }}>
+            {draft.sending_paused ? '⏸️ Sending PAUSED' : '▶️ Sending ACTIVE'}
+          </div>
+          <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+            {draft.sending_paused
+              ? 'Mọi /send và /batch bị chặn (503). Verify endpoints vẫn chạy.'
+              : 'Sẵn sàng gửi. Chỉ bật khi list đã verify và bounce rate < 5%.'}
+          </div>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={!draft.sending_paused}
+            onChange={e => set('sending_paused', !e.target.checked)}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#F5F5F5' }}>
+            {draft.sending_paused ? 'Bật gửi' : 'Đang gửi'}
+          </span>
+        </label>
+      </div>
+
+      {/* Errors / messages */}
+      {error && (
+        <div style={{ padding: '12px 16px', background: '#FF453A15', border: '1px solid #FF453A40', borderRadius: '8px', fontSize: '12px', color: '#FF453A' }}>
+          ❌ {error}
+        </div>
+      )}
+      {okMsg && !error && (
+        <div style={{ padding: '12px 16px', background: '#34C75915', border: '1px solid #34C75940', borderRadius: '8px', fontSize: '12px', color: '#34C759' }}>
+          {okMsg}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #222' }}>
+        <button
+          type="button" onClick={handleSave} disabled={!hasChange || saving}
+          style={{
+            padding: '10px 22px', borderRadius: '8px', border: 'none',
+            background: !hasChange || saving ? '#333' : 'linear-gradient(135deg, #34C759 0%, #30D158 100%)',
+            color: !hasChange || saving ? '#666' : '#fff',
+            fontSize: '13px', fontWeight: 800, cursor: !hasChange || saving ? 'not-allowed' : 'pointer',
+            textTransform: 'uppercase', letterSpacing: '0.05em',
+          }}
+        >
+          {saving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
+        </button>
+        <button
+          type="button" onClick={() => draft && s && setDraft(s)} disabled={!hasChange || saving}
+          style={{
+            padding: '10px 18px', borderRadius: '8px', border: '1px solid #333', background: 'transparent',
+            color: '#888', fontSize: '12px', fontWeight: 700, cursor: hasChange ? 'pointer' : 'not-allowed',
+          }}
+        >
+          Reset
+        </button>
+        <button
+          type="button" onClick={load} disabled={loading || saving}
+          style={{
+            padding: '10px 18px', borderRadius: '8px', border: '1px solid #333', background: 'transparent',
+            color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+          }}
+        >
+          🔄 Reload
+        </button>
+        <span style={{ fontSize: '11px', color: '#555', marginLeft: 'auto' }}>
+          Nguồn: <code>{s?.source || '?'}</code>
+          {s?.updated_at && ` • cập nhật ${new Date(s.updated_at).toLocaleString('vi-VN')}`}
+          {s?.updated_by && ` bởi ${s.updated_by}`}
+        </span>
+      </div>
     </div>
   );
 };

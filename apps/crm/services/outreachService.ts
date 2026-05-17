@@ -273,3 +273,51 @@ export async function sendOutreachEmail(leadId: string, templateName: string): P
   if (!res.ok) throw new Error(`Send failed: ${res.status}`);
   return res.json();
 }
+
+// ══════════════════════════════════════════════════════════════
+// ── OUTREACH SETTINGS (runtime config) ────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export interface OutreachSettings {
+  resend_from: string;
+  resend_reply_to: string;
+  resend_tag_campaign: string;
+  sending_paused: boolean;
+  daily_limit: number;
+  source?: 'db' | 'env' | 'unknown';
+  updated_at?: string | null;
+  updated_by?: string | null;
+}
+
+export async function fetchOutreachSettings(): Promise<OutreachSettings> {
+  const res = await outreachRequest('/api/settings');
+  if (!res.ok) throw new Error(`Load settings failed: ${res.status}`);
+  return res.json();
+}
+
+export async function updateOutreachSettings(
+  updates: Partial<OutreachSettings>,
+  actor: string,
+): Promise<OutreachSettings> {
+  const token = (import.meta.env.VITE_OUTREACH_ADMIN_TOKEN as string | undefined)?.trim() || '';
+  if (!token) throw new Error('VITE_OUTREACH_ADMIN_TOKEN chưa cấu hình trong .env — không thể ghi settings.');
+  // Chỉ gửi các field whitelist (tránh BE 422)
+  const allowed: (keyof OutreachSettings)[] = [
+    'resend_from', 'resend_reply_to', 'resend_tag_campaign', 'sending_paused', 'daily_limit',
+  ];
+  const body: Record<string, unknown> = {};
+  for (const k of allowed) {
+    if (k in updates && (updates as any)[k] !== undefined) body[k] = (updates as any)[k];
+  }
+  const res = await outreachRequest('/api/settings', {
+    method: 'PUT',
+    headers: { 'X-Admin-Token': token, 'X-Actor': actor || 'unknown' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Update failed: ${res.status}`);
+  }
+  const data = await res.json();
+  return data.settings || data;
+}

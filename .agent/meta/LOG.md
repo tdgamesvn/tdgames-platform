@@ -142,6 +142,102 @@ Fix payroll for "lên chính thức giữa tháng" — transition month proratio
 
 ## 2026-05-16
 ### Task
+CRM Outreach audit + fix CSV/polling/idempotency + deliverability finding
+
+### Work Done
+- Audit luồng outreach: 5 file (EmailOutreach.tsx, outreachApi.ts, outreachService.ts, useCrmState.ts, CrmApp.tsx)
+- Fix `outreachService.ts`: CSV parser RFC 4180 (CRLF + escaped quote), EMAIL_RE validation, return `{leads, skipped}`, escape PostgREST search filter
+- Fix `EmailOutreach.tsx`: `useRef` polling cleanup, refresh quota trước bulk send, idempotency guard `bulkSending`, fallback `total` tránh NaN%, skipped-row warning trong CSV import
+- Build pass ✅, commit `3aa2592`, auto-deploy success (22s), live trên VPS
+- Check FastAPI runtime: service active, không có exception/SMTP error
+- DNS records OK: SPF ✓ DKIM ✓ DMARC ✓ (tdgamestudio.com qua Gmail)
+
+### Validation
+- `/api/email/status` → 200 OK `{sent_today:0, daily_limit:30}`
+- `/api/email/health-check` → **CRITICAL** — bounce_rate 12.7%
+- `/api/email/preview` → HTML render OK
+- DNS: SPF Google ✓, DMARC quarantine ✓, DKIM google._domainkey ✓
+
+### Result
+- **Code phía Mac đã tốt** — đã fix toàn bộ bug critical (CSV, search, polling, idempotency)
+- **PROBLEM CHÍNH = deliverability**: bounce_rate 12.7% (>5% là Gmail flag spammer), 267 leads pending chưa verify
+- User action plan (đang thực hiện):
+  1. Tắt Auto Batch
+  2. Bấm "Verify emails" trên 267 pending leads
+  3. Bấm "Check bounces" để confirm 15 bounce hiện tại
+  4. Mở lại Auto Batch với `daily_limit = 5` (warm up reputation 1 tuần, tăng dần)
+
+---
+
+## 2026-05-17
+### Task
+FastAPI backend hardening: verify-before-send + Supabase quota + background verify + pluggable verifier + sending pause guard
+
+### Work Done (trên VPS6core, `/opt/td-mailer-api/`)
+- **Backup**: `/opt/td-mailer-api.bak-20260517-154335` (full snapshot trước khi sửa)
+- **NEW `services/quota.py`**: quota đếm từ `crm_email_log` table (`status='sent' AND sent_at >= today UTC`), cache 60s, fail-CLOSED (lỗi DB → remaining=0, không phải 30 như CSV version cũ → đã suýt ban Gmail account)
+- **NEW `services/verifier_provider.py`**: wrapper pluggable cho 3 provider qua ENV `EMAIL_VERIFIER_PROVIDER=local|neverbounce|zerobounce`. Skeleton NeverBounce + ZeroBounce sẵn sàng, chỉ cần cắm API key. Có `fast_pre_send_check()` (syntax + MX, ~50ms, free) dùng pre-flight cho /send.
+- **REWRITE `routes/email.py`**:
+  - `_send_one_lead`: gọi `fast_pre_send_check` trước, fail → mark `invalid_email` + log skipped, KHÔNG tốn quota Gmail
+  - `/verify-pending`: background-hoá (thread) — trả ngay `{started:true}`, frontend poll `/verify-pending-status`. Hết 504 nginx timeout
+  - try/except quanh từng iteration batch — 1 lead lỗi không phá batch
+  - `SENDING_PAUSED` env guard chặn `/send` + `/batch` (503), `/verify-*` + `/check-bounces` vẫn chạy
+- **PATCH `services/gmail_sender.py`**: 2 hàm `get_today_sent_count` + `get_quota_status` đổi sang re-export từ `services.quota` (backward compat cho cron_followup.py)
+- **systemd**: thêm `EMAIL_VERIFIER_PROVIDER=local`, `NEVERBOUNCE_API_KEY=`, `ZEROBOUNCE_API_KEY=`, `SENDING_PAUSED=true` vào unit file
+
+### Validation
+- `systemctl is-active td-mailer-api` → `active`
+- `/api/email/status` → `{source:"supabase", sent_today:0, remaining:30}` ✅ (đã đổi từ CSV)
+- `/api/email/send` → `503 {detail:"Sending paused..."}` ✅ (guard works)
+- `/api/email/verify-pending-status` → `200 OK` (endpoint exists)
+- `/api/email/health-check` → `{verifier_provider:"local", health:"critical", bounce_rate:40.0}`
+- Imports OK: `from routes import email; from services import gmail_sender, quota, verifier_provider`
+
+### Result
+- ✅ A done: verify-before-send + Supabase quota + background verify
+- ✅ B done: skeleton plug-in cho NeverBounce/ZeroBounce, cần API key của user
+- ✅ C done: soft pause qua `SENDING_PAUSED=true` (chỉ chặn send, verify/bounce vẫn chạy)
+- **Next step (user action)**:
+  1. Trong UI bấm "Verify Emails" → background quét 234 pending → mark invalid (giảm bounce rate)
+  2. Mua/đăng ký NeverBounce → set `NEVERBOUNCE_API_KEY` + đổi `EMAIL_VERIFIER_PROVIDER=neverbounce` trong systemd unit, reload
+  3. Khi pending sạch (~80% valid expected), `SENDING_PAUSED=false`, reload, resume
+  4. Daily limit tạm để 5-10 trong tuần đầu warm up
+
+### Bonus — Resend integration (cùng ngày)
+- **NEW `services/resend_sender.py`**: HTTP POST tới `api.resend.com/emails`, return `(msg_id, error)` đồng nhất Gmail signature
+- **NEW `services/sender_dispatch.py`**: dispatcher theo ENV `EMAIL_SENDER_PROVIDER=gmail|resend` (default gmail, rollback dễ)
+- **NEW `routes/webhook.py`**: endpoint `/api/webhook/resend` nhận event bounce/complaint/delivered/opened/clicked. Verify Svix signature bằng `RESEND_WEBHOOK_SECRET`. Tự update `crm_outreach_leads.outreach_status` real-time → thay thế `bounce_detector.py` scan Gmail inbox
+- **PATCH `routes/email.py`**: import `send_email` qua dispatcher (transparent, không sửa caller)
+- **PATCH `app.py`**: mount `webhook_router` tại `/api/webhook`
+- **systemd**: +6 env vars Resend (key/from/reply-to/tag/secret + provider switch)
+- Public webhook URL: `https://app.tdgamestudio.com/outreach-api/api/webhook/resend` (qua nginx reverse-proxy 8401)
+- Tested: webhook chặn unauth request (401), health endpoint 200, dispatcher fallback Gmail OK
+
+### Cutover plan để bật Resend (user action)
+1. Signup Resend → tạo API key + verify domain `mail.tdgamestudio.com`
+2. Thêm DNS records (SPF/DKIM 3 cnames/DMARC) — Resend hướng dẫn khi add domain
+3. Set systemd env:
+   ```
+   sed -i 's|RESEND_API_KEY=|RESEND_API_KEY=re_xxx|' /etc/systemd/system/td-mailer-api.service
+   sed -i 's|RESEND_FROM=|RESEND_FROM=Tony Dang <tony@mail.tdgamestudio.com>|' /etc/systemd/system/td-mailer-api.service
+   sed -i 's|EMAIL_SENDER_PROVIDER=gmail|EMAIL_SENDER_PROVIDER=resend|' /etc/systemd/system/td-mailer-api.service
+   systemctl daemon-reload && systemctl restart td-mailer-api
+   ```
+4. Tạo webhook trên Resend dashboard → URL `https://app.tdgamestudio.com/outreach-api/api/webhook/resend` → copy `whsec_xxx` vào `RESEND_WEBHOOK_SECRET`
+5. Test: `POST /api/email/send` 1 lead → check dashboard Resend + DB cập nhật status
+6. Rollback: chỉ đổi `EMAIL_SENDER_PROVIDER=gmail` + restart (mọi env Gmail vẫn còn)
+
+### Blockers
+- Đợi user thực hiện 4 bước action plan rồi đo lại bounce_rate
+
+### Next Step
+- Sau khi user verify xong: kiểm tra `health-check` còn `critical` không
+- Nếu vẫn cao: consider thêm UI alert badge cho `bounce_rate > 5%` để monitor sớm
+
+---
+
+## 2026-05-16
+### Task
 HR employment history tracking — official_date + employee timeline
 
 ### Work Done
