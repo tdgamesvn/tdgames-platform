@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog } from '@/types';
 import * as svc from '../services/outreachService';
 import type { PipelineStats } from '../services/outreachService';
@@ -116,7 +116,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
         )}
 
         {/* ── DISCOVERY ── */}
-        {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} />}
+        {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} leads={leads} />}
 
         {/* ── EMAILS/TEMPLATES ── */}
         {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} />}
@@ -881,12 +881,42 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 // ── DISCOVERY TAB ─────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
+/** Fuzzy match: check if query appears in target (normalized, word-order agnostic) */
+function fuzzyMatch(query: string, target: string): boolean {
+  const q = query.toLowerCase().trim();
+  const t = target.toLowerCase().trim();
+  if (!q || !t) return false;
+  if (t.includes(q) || q.includes(t)) return true;
+  // word-level: all words in query appear in target
+  const words = q.split(/\s+/).filter(w => w.length > 2);
+  return words.length > 0 && words.every(w => t.includes(w));
+}
+
+const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }> = ({ onRefresh, leads }) => {
   const [company, setCompany] = useState('');
   const [domain, setDomain] = useState('');
   const [discovering, setDiscovering] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
   const [error, setError] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Unique studio names from existing leads
+  const existingStudios = useMemo(() => {
+    const map = new Map<string, { studio: string; emails: number; status: string }>();
+    for (const l of leads) {
+      const key = (l.studio_name || '').trim();
+      if (!key) continue;
+      if (!map.has(key)) map.set(key, { studio: key, emails: 0, status: l.outreach_status });
+      map.get(key)!.emails++;
+    }
+    return Array.from(map.values());
+  }, [leads]);
+
+  // Fuzzy suggestions based on current company input
+  const suggestions = useMemo(() => {
+    if (!company.trim() || company.length < 2) return [];
+    return existingStudios.filter(s => fuzzyMatch(company, s.studio)).slice(0, 5);
+  }, [company, existingStudios]);
 
   // Batch import state
   const [showImport, setShowImport] = useState(false);
@@ -930,6 +960,30 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
       onRefresh();
       alert(`Đã thêm ${contact.name} vào leads!`);
     } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
+  // Add ALL contacts from single discovery result at once
+  const handleAddAllSingle = async () => {
+    if (!results || results.length === 0) return;
+    const eligible = results.filter(c => c.email);
+    if (!confirm(`Thêm ${eligible.length} contacts của "${company}" vào Leads?`)) return;
+    let added = 0;
+    for (const c of eligible) {
+      try {
+        await svc.createLead({
+          client_id: null, studio_name: company,
+          contact_name: c.name || '', first_name: (c.name || '').split(' ')[0],
+          email: c.email || '', job_title: c.title || '',
+          linkedin_url: c.linkedin_url || '', tier: c.tier_num || 3,
+          outreach_status: 'pending',
+          initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
+          source: 'discovery', tags: [], notes: '',
+        });
+        added++;
+      } catch { /* skip duplicate email */ }
+    }
+    alert(`✅ Đã thêm ${added}/${eligible.length} contacts vào Leads!`);
+    onRefresh();
   };
 
   // Parse CSV file for company list
@@ -1074,8 +1128,38 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr auto', gap: '12px', alignItems: 'end' }}>
-          <div><label style={labelStyle}>Company Name *</label>
-            <input style={inputStyle} value={company} onChange={e => setCompany(e.target.value)} placeholder="Supercell" /></div>
+          <div style={{ position: 'relative' }}>
+            <label style={labelStyle}>Company Name *</label>
+            <input
+              style={inputStyle} value={company}
+              onChange={e => { setCompany(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="Supercell"
+            />
+            {/* Fuzzy suggestion dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                background: '#1E1E1E', border: '1px solid #FF950060', borderRadius: '8px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)', marginTop: '4px', overflow: 'hidden',
+              }}>
+                <div style={{ padding: '6px 12px', fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase', borderBottom: '1px solid #333' }}>
+                  ⚠️ Công ty đã có trong Leads
+                </div>
+                {suggestions.map((s, i) => (
+                  <div key={i} onClick={() => { setCompany(s.studio); setShowSuggestions(false); }}
+                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #2A2A2A', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#FF950015')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ fontSize: '12px', color: '#F5F5F5', fontWeight: 600 }}>{s.studio}</span>
+                    <span style={{ fontSize: '10px', color: '#888' }}>{s.emails} leads · {s.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div><label style={labelStyle}>Domain (optional)</label>
             <input style={inputStyle} value={domain} onChange={e => setDomain(e.target.value)} placeholder="supercell.com" /></div>
           <button onClick={handleDiscover} disabled={discovering || !company.trim()} style={{
@@ -1268,8 +1352,12 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
       )}
       {results && results.length > 0 && (
         <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #222' }}>
-            <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>Kết quả: {results.length} contacts</h4>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>Kết quả: {results.length} contacts — <span style={{ color: '#888', fontWeight: 400 }}>{company}</span></h4>
+            <button onClick={handleAddAllSingle} style={{
+              padding: '6px 14px', border: 'none', borderRadius: '6px', background: '#34C759',
+              color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+            }}>＋ Thêm tất cả vào Leads</button>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
