@@ -1,5 +1,33 @@
 # LOG
 
+## 2026-05-17 (session 2)
+### Task
+Migrate outreach settings từ JSON file tạm trên VPS → Supabase DB (`crm_outreach_settings`)
+
+### Work Done
+- Tạo table `crm_outreach_settings` trên Supabase Workflow project (id=1, single-row constraint, RLS enabled)
+- Seed row mặc định: `sending_paused=true`, `daily_limit=30`, `resend_tag_campaign=outreach`
+- Fix RLS policies: ban đầu dùng `service_role` + `authenticated` → bị block vì VPS dùng anon key. Sửa lại khớp pattern các bảng CRM khác: `public ALL` + `authenticated ALL`
+- Viết lại `services/settings.py` trên VPS: JSON file-backed → DB-backed qua `supabase_client.get_client()`
+- Backup JSON version tại `/opt/td-mailer-api/services/settings.py.bak-jsonfile`
+- Restart `td-mailer-api.service` — `active` ngay
+- Xoá file JSON tạm `/opt/td-mailer-api/data/settings.json`
+- Verify GET `/api/settings` → `source: "db"` ✅
+- Verify PUT `/api/settings` ghi thành công vào Supabase và trả về row mới ✅
+
+### Validation
+- `GET /outreach-api/api/settings` → `source: "db"` live qua nginx
+- `PUT /outreach-api/api/settings` → `ok: true, updated_by: "test"` trong DB
+- Row trong Supabase: `updated_at: 2026-05-17T16:42:43`, `updated_by: "test"` ✅
+
+### Result
+Settings outreach giờ được persist trong Supabase thay vì JSON file. Thay đổi từ UI (Settings tab) được lưu vĩnh viễn và nhìn thấy ngay cả khi VPS restart.
+
+### Pending
+- `resend_from` vẫn trống — cần điền địa chỉ From hợp lệ từ Settings UI
+- `EMAIL_SENDER_PROVIDER` vẫn là `gmail` trong systemd — cần switch sang `resend` sau khi set `RESEND_API_KEY`
+- `SENDING_PAUSED=true` vẫn đang giữ — chờ verify 234 leads trước khi bật lại
+
 ## 2026-05-14
 ### Task
 Bootstrap project-agent structure
@@ -226,6 +254,14 @@ FastAPI backend hardening: verify-before-send + Supabase quota + background veri
 4. Tạo webhook trên Resend dashboard → URL `https://app.tdgamestudio.com/outreach-api/api/webhook/resend` → copy `whsec_xxx` vào `RESEND_WEBHOOK_SECRET`
 5. Test: `POST /api/email/send` 1 lead → check dashboard Resend + DB cập nhật status
 6. Rollback: chỉ đổi `EMAIL_SENDER_PROVIDER=gmail` + restart (mọi env Gmail vẫn còn)
+
+### Settings UI (cùng ngày, sau Resend)
+- **NEW backend `services/settings.py`**: JSON file backing tại `/opt/td-mailer-api/data/settings.json`, cache 30s, atomic write (fsync+rename), fallback ENV. Bỏ DB version vì Supabase Python SDK không exec DDL → cần SQL migration thủ công, không tự động hoá được
+- **NEW backend `routes/settings.py`**: GET (open) / PUT (X-Admin-Token) / GET effective. Whitelist 5 field: resend_from, resend_reply_to, resend_tag_campaign, sending_paused, daily_limit
+- **PATCH `resend_sender.py`** + `email.py`: đọc qua `get_setting()` thay vì os.environ → runtime-tunable không cần restart service
+- **NEW frontend `SettingsTab`** trong EmailOutreach: 5 field UI với dirty tracking, pause toggle lớn đổi màu đỏ/xanh, source/updated_at indicator
+- **ENV `OUTREACH_ADMIN_TOKEN`**: generated hex 24-byte, lưu trong systemd unit + .env frontend (`VITE_OUTREACH_ADMIN_TOKEN`)
+- Commit `189b59c`, auto-deploy triggered
 
 ### Blockers
 - Đợi user thực hiện 4 bước action plan rồi đo lại bounce_rate
