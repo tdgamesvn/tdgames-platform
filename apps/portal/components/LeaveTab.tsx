@@ -331,16 +331,67 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         </div>
       </div>
 
-      {/* Info */}
-      <div style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', fontSize: '12px', color: '#aaa', lineHeight: '1.7' }}>
-        💡 <strong style={{ color: '#8B5CF6' }}>Quy tắc:</strong> Mỗi tháng kể từ ngày chính thức = 1 ngày phép năm có lương.
-        Cuối năm nếu dư → chuyển sang Q1 năm sau. Hết Q1 mà không dùng → mất.
-        {isOfficial && workedMonths >= 6 && !birthdayUsedThisYear && (
-          <span style={{ color: '#FF375F' }}> · 🎂 Bạn có <strong>1 ngày nghỉ sinh nhật</strong> có lương năm nay!</span>
-        )}
-        {isOfficial && !remoteUsedThisWeek && (
-          <span style={{ color: '#34C759' }}> · 🏠 Bạn còn <strong>1 ngày remote</strong> tuần này.</span>
-        )}
+      {/* Info — Quy tắc phúc lợi */}
+      <div style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 800, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
+          💡 Quy tắc phúc lợi
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {[
+            {
+              icon: '📅',
+              title: 'Phép năm có lương',
+              desc: 'Mỗi tháng làm việc sau ngày chính thức = 1 ngày phép. Tích luỹ cả năm. Cuối năm nếu dư → chuyển sang Q1 năm sau, hết Q1 mà không dùng → mất.',
+            },
+            {
+              icon: '🤒',
+              title: 'Nghỉ ốm',
+              desc: 'Áp dụng cho nhân viên chính thức. Không trừ phép năm.',
+            },
+            {
+              icon: '🎂',
+              title: 'Nghỉ sinh nhật có lương',
+              desc: 'Áp dụng sau khi làm việc đủ 6 tháng kể từ ngày chính thức. Được nghỉ 1 ngày/năm vào dịp sinh nhật, hưởng lương đầy đủ.',
+              highlight: isOfficial && workedMonths >= 6 && !birthdayUsedThisYear
+                ? '✅ Bạn đang đủ điều kiện dùng năm nay!'
+                : isOfficial && workedMonths >= 6 && birthdayUsedThisYear
+                  ? '✔ Đã dùng năm nay'
+                  : isOfficial && workedMonths < 6
+                    ? `⏳ Cần thêm ${6 - workedMonths} tháng nữa`
+                    : undefined,
+              highlightColor: birthdayUsedThisYear ? '#555' : '#FF375F',
+            },
+            {
+              icon: '🏠',
+              title: 'Làm remote',
+              desc: 'Áp dụng sau khi chính thức. Được làm việc từ xa 1 ngày mỗi tuần làm việc.',
+              highlight: isOfficial
+                ? remoteUsedThisWeek
+                  ? '✔ Đã dùng tuần này'
+                  : '✅ Còn 1 ngày remote tuần này!'
+                : undefined,
+              highlightColor: remoteUsedThisWeek ? '#555' : '#34C759',
+            },
+            {
+              icon: '⏰',
+              title: 'Ca làm việc',
+              desc: '08:30 – 17:30, nghỉ trưa 12:00 – 13:00 (= 8 giờ/ngày). Xin nghỉ bán ca: chọn đúng giờ bắt đầu/kết thúc, hệ thống tự quy đổi.',
+            },
+          ].map(rule => (
+            <div key={rule.title} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>{rule.icon}</span>
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#ccc' }}>{rule.title}: </span>
+                <span style={{ fontSize: '12px', color: '#888' }}>{rule.desc}</span>
+                {rule.highlight && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: rule.highlightColor, marginLeft: '6px' }}>
+                    {rule.highlight}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* No options warning */}
