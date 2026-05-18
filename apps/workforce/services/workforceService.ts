@@ -219,13 +219,30 @@ export async function createSettlement(
   return settlement;
 }
 
+// ── Expense sync helpers ─────────────────────────────────────
+async function ensureFreelancerCategory(): Promise<string | null> {
+  const { data } = await supabase
+    .from('expense_categories')
+    .select('id')
+    .eq('name', 'Chi phí Freelancer')
+    .maybeSingle();
+  if (data) return data.id;
+  const { data: created } = await supabase
+    .from('expense_categories')
+    .insert({ name: 'Chi phí Freelancer', color: '#8B5CF6', icon: '🧑‍💻' })
+    .select('id')
+    .single();
+  return created?.id ?? null;
+}
+
 export async function updateSettlement(id: string, updates: Partial<Settlement>): Promise<void> {
   const { worker, tasks, ...clean } = updates as any;
   const { error } = await supabase.from('wf_settlements').update(clean).eq('id', id);
   if (error) throw error;
 
-  // When marking as 'paid', also mark all linked tasks as paid
+  // When marking as 'paid', also mark all linked tasks as paid + sync to expense
   if (updates.status === 'paid') {
+    // 1. Mark linked tasks as paid
     const { data: links } = await supabase.from('wf_settlement_tasks').select('task_id').eq('settlement_id', id);
     if (links && links.length > 0) {
       const taskIds = links.map((l: any) => l.task_id);
@@ -234,17 +251,63 @@ export async function updateSettlement(id: string, updates: Partial<Settlement>)
         .update({ payment_status: 'paid', updated_at: new Date().toISOString() })
         .in('id', taskIds);
     }
+
+    // 2. Auto-create expense record (skip if already linked)
+    const { data: existing } = await supabase
+      .from('wf_settlements')
+      .select('expense_id, net_amount, currency, period, account_type, worker:wf_workers(name)')
+      .eq('id', id)
+      .single();
+
+    if (existing && !existing.expense_id) {
+      const categoryId = await ensureFreelancerCategory();
+      const workerName = (existing.worker as any)?.name || 'Freelancer';
+      const { data: expenseRow } = await supabase
+        .from('expense_expenses')
+        .insert({
+          title: `Freelancer: ${workerName} — ${existing.period}`,
+          amount: existing.net_amount,
+          currency: existing.currency,
+          expense_date: new Date().toISOString().split('T')[0],
+          category_id: categoryId,
+          type: 'expense',
+          source_type: 'settlement',
+          source_id: id,
+          status: 'paid',
+          vendor: workerName,
+          project: '',
+          client_name: '',
+          payment_method: 'CK',
+          account_type: existing.account_type || 'company',
+          notes: `Tự động từ Settlement ${id}`,
+          receipt_url: '',
+          created_by: 'system',
+        })
+        .select('id')
+        .single();
+
+      if (expenseRow) {
+        await supabase.from('wf_settlements').update({ expense_id: expenseRow.id }).eq('id', id);
+      }
+    }
   }
 }
 
 export async function deleteSettlement(id: string): Promise<void> {
-  // 1. Get linked task IDs before deleting
+  // 1. Get settlement info (to clean up linked expense)
+  const { data: settlement } = await supabase
+    .from('wf_settlements')
+    .select('expense_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  // 2. Get linked task IDs before deleting
   const { data: links } = await supabase.from('wf_settlement_tasks').select('task_id').eq('settlement_id', id);
 
-  // 2. Delete link records
+  // 3. Delete link records
   await supabase.from('wf_settlement_tasks').delete().eq('settlement_id', id);
 
-  // 3. Rollback linked tasks to unpaid
+  // 4. Rollback linked tasks to unpaid
   if (links && links.length > 0) {
     const taskIds = links.map((l: any) => l.task_id);
     await supabase
@@ -253,7 +316,19 @@ export async function deleteSettlement(id: string): Promise<void> {
       .in('id', taskIds);
   }
 
-  // 4. Delete settlement
+  // 5. Delete auto-created expense (source_type = settlement only)
+  if (settlement?.expense_id) {
+    const { data: exp } = await supabase
+      .from('expense_expenses')
+      .select('id, source_type')
+      .eq('id', settlement.expense_id)
+      .maybeSingle();
+    if (exp?.source_type === 'settlement') {
+      await supabase.from('expense_expenses').delete().eq('id', settlement.expense_id);
+    }
+  }
+
+  // 6. Delete settlement
   const { error } = await supabase.from('wf_settlements').delete().eq('id', id);
   if (error) throw error;
 }
