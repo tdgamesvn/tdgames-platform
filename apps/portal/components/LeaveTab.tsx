@@ -18,7 +18,6 @@ interface LeaveTabProps {
 const LEAVE_LABELS: Record<string, string> = {
   annual:   'Phép năm',
   unpaid:   'Nghỉ không lương',
-  sick:     'Nghỉ ốm',
   birthday: '🎂 Nghỉ sinh nhật',
   remote:   '🏠 Làm remote',
 };
@@ -173,11 +172,6 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         : leaveInfo.totalAvailable <= 0
           ? 'Hết ngày phép năm'
           : undefined,
-    },
-    {
-      value: 'sick',
-      label: 'Nghỉ ốm',
-      why: !isOfficial ? 'Chỉ áp dụng sau khi chính thức' : undefined,
     },
     { value: 'unpaid', label: 'Nghỉ không lương' },
     {
@@ -342,11 +336,6 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
               icon: '📅',
               title: 'Phép năm có lương',
               desc: 'Mỗi tháng làm việc sau ngày chính thức = 1 ngày phép. Tích luỹ cả năm. Cuối năm nếu dư → chuyển sang Q1 năm sau, hết Q1 mà không dùng → mất.',
-            },
-            {
-              icon: '🤒',
-              title: 'Nghỉ ốm',
-              desc: 'Áp dụng cho nhân viên chính thức. Không trừ phép năm.',
             },
             {
               icon: '🎂',

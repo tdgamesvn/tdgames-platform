@@ -1,5 +1,154 @@
 # LOG
 
+## 2026-05-18 (session 6)
+### Task
+Leave eligibility rules + Nghỉ sinh nhật + Làm remote
+
+### Work Done
+- **`types.ts`**: Thêm `'birthday' | 'remote'` vào union `leave_type`
+- **`leaveService.ts`**: Cập nhật type signature `submitLeaveRequest`
+- **`LeaveTab.tsx`** (Portal): Logic eligibility động:
+  - "Phép năm": ẩn nếu đang thử việc HOẶC hết ngày phép
+  - "Nghỉ ốm": ẩn nếu đang thử việc
+  - "🎂 Nghỉ sinh nhật": hiện khi chính thức + đủ 6 tháng + chưa dùng năm nay
+  - "🏠 Làm remote": hiện khi chính thức + chưa dùng tuần này
+  - Info banner nhắc ngày sinh nhật / remote còn
+  - Warning nếu không đủ điều kiện bất kỳ loại nào
+  - Validate: birthday/remote chỉ được chọn 1 ngày
+- **`LeaveApproval.tsx`** (Admin): Thêm label 2 loại mới
+- Commit `fb91589` + push + deploy VPS ✅
+
+### Validation
+- `npm run build` ✅ (6.31s local, 8.95s VPS)
+- Deploy `https://app.tdgamestudio.com` ✅
+
+### Result
+- Form xin nghỉ chỉ hiện đúng loại nhân viên đó được phép dùng
+- 2 phúc lợi mới: Nghỉ sinh nhật (đủ 6 tháng, 1 lần/năm) và Làm remote (1 lần/tuần)
+
+---
+
+## 2026-05-18 (session 5)
+### Task
+Simplify leave form + quyết định về tích hợp ca làm việc
+
+### Work Done
+- **`LeaveTab.tsx`**: Bỏ toggle "Cả ngày / Theo giờ", gộp thành 1 form duy nhất
+  - Luôn có: date_from, date_to, time_from (08:30), time_to (17:30)
+  - Khi chọn date_from → date_to tự fill = date_from
+  - Logic tính: `effectiveHours()` trừ nghỉ trưa 12:00–13:00, multi-day tính từng ngày
+  - Hiển thị: cả ca → "X ngày", bán ca → "Xh = Y ngày"
+- **Quyết định**: Giữ ca làm việc hardcode (08:30–17:30, trưa 12:00–13:00)
+  - `att_shifts` chỉ có `break_minutes` (không có break_start/end)
+  - Công ty 1 ca cố định → hardcode đủ dùng, sẽ xét lại khi có nhiều ca
+- Commit `6c87a56` + push + deploy VPS ✅
+
+### Validation
+- `npm run build` ✅ (6.34s)
+- Deploy `https://app.tdgamestudio.com` ✅
+
+### Decision
+- Ca làm việc hardcode tạm thời: 08:30–17:30, nghỉ trưa 12:00–13:00 = 8h/ngày
+- Nếu sau này nhiều ca → cần thêm `break_start`/`break_end` vào `att_shifts` (hướng C)
+
+---
+
+## 2026-05-18 (session 4)
+### Task
+Add hourly leave request to Employee Portal
+
+### Work Done
+- **DB migration**: Thêm 3 cột vào `att_requests` — `leave_hours` (numeric), `time_from` (time), `time_to` (time)
+- **`types.ts`**: Thêm `leave_hours?`, `time_from?`, `time_to?` vào `AttRequest`
+- **`leaveService.ts`**: `submitLeaveRequest` nhận thêm `opts` (leaveHours, timeFrom, timeTo)
+- **`LeaveTab.tsx`** (Portal): Toggle "📅 Cả ngày / ⏱ Theo giờ", time picker, tự tính `leave_days = hours/8`, hiện quy đổi trong lịch sử đơn
+- **`LeaveApproval.tsx`** (Admin): Hiện giờ và quy đổi ngày trong chi tiết đơn
+- Commit `9d9ad52` + push + deploy VPS ✅
+
+### Validation
+- `npm run build` ✅ pass (6.33s local, 8.08s VPS)
+- Deploy `https://app.tdgamestudio.com` ✅
+
+### Result
+- Nhân viên có thể xin nghỉ theo giờ, hệ thống tự tính ra số ngày phép (VD: 2h = 0.25 ngày, 8h = 1 ngày)
+- Admin thấy chi tiết giờ nghỉ khi duyệt đơn
+
+---
+
+## 2026-05-18 (session 3)
+### Task
+Fix HR Reminder bugs: birthday/anniversary next-year + auto-scan
+
+### Work Done
+- **`hrService.ts` — Birthday fix**: Nếu sinh nhật đã qua năm nay thì dùng năm sau thay vì bỏ qua
+- **`hrService.ts` — Anniversary fix**: Tương tự, check năm sau nếu đã qua; tính số năm từ `anni.getFullYear()` (chính xác hơn)
+- **`useHrState.ts` — Auto-scan**: Thêm `useEffect` tự động gọi `generateReminders()` khi chuyển sang tab `reminders` (không cần bấm "Quét nhắc nhở")
+- Build + commit `5497ff2` + push + deploy VPS thành công
+
+### Validation
+- `npm run build` ✅ pass
+- Deploy `https://app.tdgamestudio.com` ✅
+
+### Result
+- Reminders sẽ không bỏ sót sinh nhật/kỷ niệm của nhân viên nữa
+- Tab Nhắc việc tự động quét khi mở, không cần thao tác thủ công
+
+---
+
+## 2026-05-18 (session 2)
+### Task
+Analytics tab + auto follow-up fix + quota bug fix
+
+### Work Done
+- **cron_followup.py**: Fix import từ `gmail_sender` → `sender_dispatch` (Resend) + `quota.py` cho `get_quota_status`
+- **quota.py**: Fix query đếm quota: `status='sent'` → `status IN (sent, delivered, opened, clicked)` — trước đây Resend webhook update `delivered` quá nhanh làm quota tưởng 0
+- **VPS `/api/email/analytics`**: Thêm endpoint mới tổng hợp: delivery rate, open/click rate, by_template, pipeline funnel, trend 7 ngày
+- **EmailOutreach.tsx**: Thêm tab `Analytics` (📈) với KPI cards, bar chart 7 ngày, bảng by_template, pipeline funnel
+- Deploy VPS service restart + build + nginx reload
+
+### Validation
+- `GET /api/email/analytics` → JSON đầy đủ: `total_sent=400, delivered=30, trend_7d` ✅
+- `GET /api/email/status` → `sent_today=31, remaining=0` (đúng sau quota fix) ✅
+- `npm run build` pass, deploy `https://app.tdgamestudio.com` ✅
+- `cron_followup.py --dry-run` pass: Quota=31/30, 0 leads due (followup_1 sau 3 ngày) ✅
+
+### Result
+- Analytics tab live tại CRM → tab 📈 Analytics
+- Quota counter chính xác từ giờ
+- Follow-up cron sẽ gửi Resend (không phải Gmail) từ ngày 21/05 trở đi
+
+---
+
+## 2026-05-18
+### Task
+Fix Lead Discovery Pipeline + Batch Email Send (30 leads)
+
+### Work Done
+- **Discovery fixes (VPS)**:
+  - `services/discovery.py`: Fix `salesql_enrich` vô hạn retry khi 429 → giờ retry tối đa 1 lần rồi bỏ qua
+  - `routes/leads.py`: Viết lại `POST /discover-batch` + `GET /discover-batch-status` dùng background thread + in-memory job store (tránh browser-blocking khi discover nhiều công ty)
+- **Frontend fixes (CRM)**:
+  - `outreachApi.ts`: Tăng default timeout từ 45s → 60s (discovery mất ~17-30s)
+  - `outreachService.ts`: Thêm `discoverBatch()` + `getDiscoverBatchStatus()` dùng polling mỗi 3s
+  - `EmailOutreach.tsx`: Thêm `fuzzyMatch()` + company suggestion dropdown (gợi ý studio đã có trong leads), thêm "Thêm tất cả vào Leads" button sau khi discover xong
+- **Email Outreach run**:
+  - Verify 230 pending leads: 162 valid, 68 invalid, 1 high_risk
+  - Gửi batch 30 emails (template `initial_outreach`) với delay ngẫu nhiên 2-5 phút/email
+  - Kết quả: **30/30 sent, 0 failed** (09:44 – 11:21)
+
+### Validation
+- Discovery `Supercell` trả về 5 contacts trong ~17s
+- Batch email send: 30/30 thành công qua Resend API, 0 lỗi
+- Build `npm run build` pass sau các thay đổi frontend
+
+### Result
+- Discovery pipeline hoạt động ổn định, không còn timeout/infinite retry
+- Batch discovery chạy nền, không block browser
+- Giao diện có gợi ý công ty khi nhập + nút add-all contacts
+- 30 emails outreach gửi thành công
+
+---
+
 ## 2026-05-17 (session 2)
 ### Task
 Migrate outreach settings từ JSON file tạm trên VPS → Supabase DB (`crm_outreach_settings`)
