@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { fetchExchangeRate, ExchangeRateData, avgRate } from './exchangeRateService';
+import { upsertFxRate } from '@/apps/expense/services/fxRateService';
 
 interface ExchangeRateContextValue {
   rate: ExchangeRateData | null;
@@ -22,6 +23,18 @@ export const ExchangeRateProvider: React.FC<{ children: ReactNode }> = ({ childr
     try {
       const data = await fetchExchangeRate();
       setRate(data);
+      // Auto-save today's VCB avg rate to DB for historical reporting
+      const today = new Date().toISOString().split('T')[0];
+      const avg = avgRate(data);
+      if (avg > 0) {
+        upsertFxRate({
+          rate_date: today,
+          from_currency: 'USD',
+          to_currency: 'VND',
+          rate: avg,
+          source: 'vcb',
+        }).catch(() => {}); // fire-and-forget, không block UI
+      }
     } catch (err) {
       console.warn('[ExchangeRate] Failed to fetch:', err);
     } finally {
