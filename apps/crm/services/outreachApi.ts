@@ -40,8 +40,8 @@ export async function outreachRequest(path: string, init: RequestInit = {}): Pro
   if (anon) {
     headers.set('apikey', anon);
   }
-  // Abort sau 45s nếu caller không truyền signal riêng
-  const signal = init.signal ?? AbortSignal.timeout(45_000);
+  // Abort sau 60s nếu caller không truyền signal riêng (discovery mất ~17-30s)
+  const signal = init.signal ?? AbortSignal.timeout(60_000);
   return fetch(url, { ...init, headers, signal });
 }
 
