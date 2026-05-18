@@ -28,29 +28,78 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   rejected: { label: 'Từ chối',     color: '#FF3B30', bg: 'rgba(255,59,48,0.1)' },
 };
 
-const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
-  const [requests, setRequests] = useState<AttRequest[]>([]);
-  const [yearlyBalance, setYearlyBalance] = useState<LeaveBalance | null>(null);
-  const [carryOverBalance, setCarryOverBalance] = useState<LeaveBalance | null>(null);
-  const [employee, setEmployee] = useState<HrEmployee | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+// ── Công ty: 08:30 → 17:30, nghỉ trưa 12:00–13:00 = 8h/ngày ──
+const WORK_START = 8 * 60 + 30;   // 510 phút
+const WORK_END   = 17 * 60 + 30;  // 1050 phút
+const LUNCH_START = 12 * 60;       // 720 phút
+const LUNCH_END   = 13 * 60;       // 780 phút
+const HOURS_PER_DAY = 8;
 
-  // Form states
+function toMins(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+/** Tính giờ thực giữa 2 thời điểm trong ngày, trừ nghỉ trưa */
+function effectiveHours(timeFrom: string, timeTo: string): number {
+  const from = Math.max(toMins(timeFrom), WORK_START);
+  const to   = Math.min(toMins(timeTo),   WORK_END);
+  if (from >= to) return 0;
+  const lunch = Math.max(0, Math.min(to, LUNCH_END) - Math.max(from, LUNCH_START));
+  return Math.round(((to - from - lunch) / 60) * 100) / 100;
+}
+
+/**
+ * Tính tổng giờ & ngày nghỉ có tính ca làm việc.
+ * - 1 ngày: tính theo timeFrom–timeTo trừ trưa
+ * - Nhiều ngày: ngày đầu (timeFrom → 17:30), ngày giữa (full), ngày cuối (08:30 → timeTo)
+ */
+function calcLeave(dateFrom: string, dateTo: string, timeFrom: string, timeTo: string) {
+  if (!dateFrom || !dateTo || !timeFrom || !timeTo) return { hours: 0, days: 0 };
+  const d1 = new Date(dateFrom);
+  const d2 = new Date(dateTo);
+  if (d2 < d1) return { hours: 0, days: 0 };
+
+  const dayCount = Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1;
+
+  let totalHours: number;
+  if (dayCount === 1) {
+    totalHours = effectiveHours(timeFrom, timeTo);
+  } else {
+    const firstH  = effectiveHours(timeFrom, '17:30');
+    const lastH   = effectiveHours('08:30', timeTo);
+    const middleH = (dayCount - 2) * HOURS_PER_DAY;
+    totalHours = firstH + middleH + lastH;
+  }
+
+  const hours = Math.round(totalHours * 100) / 100;
+  const days  = Math.round((totalHours / HOURS_PER_DAY) * 100) / 100;
+  return { hours, days };
+}
+
+// ────────────────────────────────────────────────────────────
+
+const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
+  const [requests, setRequests]             = useState<AttRequest[]>([]);
+  const [yearlyBalance, setYearlyBalance]   = useState<LeaveBalance | null>(null);
+  const [carryOverBalance, setCarryOverBalance] = useState<LeaveBalance | null>(null);
+  const [employee, setEmployee]             = useState<HrEmployee | null>(null);
+  const [isLoading, setIsLoading]           = useState(true);
+  const [showForm, setShowForm]             = useState(false);
+
+  // Form
   const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
+  const [timeFrom, setTimeFrom] = useState('08:30');
+  const [timeTo,   setTimeTo]   = useState('17:30');
   const [leaveType, setLeaveType] = useState<'annual' | 'unpaid' | 'sick'>('annual');
-  const [reason, setReason] = useState('');
+  const [reason,    setReason]   = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [leaveMode, setLeaveMode] = useState<'fullday' | 'hourly'>('fullday');
-  const [timeFrom, setTimeFrom] = useState('08:00');
-  const [timeTo, setTimeTo] = useState('17:00');
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentQ = getCurrentQuarter(now);
+  const currentQ    = getCurrentQuarter(now);
 
-  // Load data
   useEffect(() => {
     if (!currentUser.employee_id) return;
     loadData();
@@ -60,21 +109,15 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     if (!currentUser.employee_id) return;
     setIsLoading(true);
     try {
-      // Fetch employee details
       const { data: emp } = await supabase
-        .from('hr_employees')
-        .select('*')
-        .eq('id', currentUser.employee_id)
-        .single();
+        .from('hr_employees').select('*')
+        .eq('id', currentUser.employee_id).single();
       setEmployee(emp);
-
       if (emp) {
-        // Ensure balances exist & calculate
         const { yearlyBalance: yb, carryOverBalance: cob } = await ensureBalancesForYear(emp, currentYear);
         setYearlyBalance(yb);
         setCarryOverBalance(cob);
       }
-
       const reqs = await fetchMyLeaveRequests(currentUser.employee_id);
       setRequests(reqs);
     } catch (err: any) {
@@ -84,50 +127,31 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     }
   };
 
-  // Calculate available
-  const leaveInfo = useMemo(() => {
-    return getAvailableLeaveDays(yearlyBalance, carryOverBalance, currentQ);
-  }, [yearlyBalance, carryOverBalance, currentQ]);
+  const leaveInfo = useMemo(
+    () => getAvailableLeaveDays(yearlyBalance, carryOverBalance, currentQ),
+    [yearlyBalance, carryOverBalance, currentQ]
+  );
 
-  // Calculate leave_days from date range (full-day mode)
-  const calcLeaveDays = (from: string, to: string): number => {
-    if (!from || !to) return 0;
-    const d1 = new Date(from);
-    const d2 = new Date(to);
-    const diff = Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    return Math.max(0, diff);
-  };
+  const { hours: leaveHours, days: leaveDays } = useMemo(
+    () => calcLeave(dateFrom, dateTo, timeFrom, timeTo),
+    [dateFrom, dateTo, timeFrom, timeTo]
+  );
 
-  // Calculate hours from time range
-  const calcLeaveHours = (from: string, to: string): number => {
-    if (!from || !to) return 0;
-    const [fh, fm] = from.split(':').map(Number);
-    const [th, tm] = to.split(':').map(Number);
-    const mins = (th * 60 + tm) - (fh * 60 + fm);
-    return Math.max(0, Math.round(mins / 60 * 100) / 100);
-  };
-
-  const leaveHours = leaveMode === 'hourly' ? calcLeaveHours(timeFrom, timeTo) : 0;
-  // 8h = 1 ngày làm việc
-  const leaveDays = leaveMode === 'fullday'
-    ? calcLeaveDays(dateFrom, dateTo)
-    : Math.round((leaveHours / 8) * 100) / 100;
+  // Nếu cùng 1 ngày và giờ = cả ca → không lưu hours (để tránh hiện "8h = 1 ngày" dư thừa)
+  const isFullWorkday = leaveHours === HOURS_PER_DAY && dateFrom === dateTo;
 
   const handleSubmit = async () => {
     if (!currentUser.employee_id) return;
-    if (!dateFrom || !reason.trim()) {
+    if (!dateFrom || !dateTo || !reason.trim()) {
       onToast('Vui lòng điền đầy đủ thông tin', 'error');
       return;
     }
-    if (leaveMode === 'fullday') {
-      if (!dateTo) { onToast('Vui lòng chọn ngày kết thúc', 'error'); return; }
-      if (new Date(dateTo) < new Date(dateFrom)) {
-        onToast('Ngày kết thúc phải sau ngày bắt đầu', 'error');
-        return;
-      }
+    if (new Date(dateTo) < new Date(dateFrom)) {
+      onToast('Ngày kết thúc phải sau ngày bắt đầu', 'error');
+      return;
     }
-    if (leaveMode === 'hourly' && leaveHours <= 0) {
-      onToast('Giờ kết thúc phải sau giờ bắt đầu', 'error');
+    if (leaveDays <= 0) {
+      onToast('Thời gian nghỉ phải lớn hơn 0', 'error');
       return;
     }
     if (leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable) {
@@ -135,28 +159,21 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
       return;
     }
 
-    const effectiveDateTo = leaveMode === 'hourly' ? dateFrom : dateTo;
-
     setSubmitting(true);
     try {
       await submitLeaveRequest(
         currentUser.employee_id,
-        dateFrom,
-        effectiveDateTo,
+        dateFrom, dateTo,
         leaveDays,
         leaveType,
         reason,
-        leaveMode === 'hourly' ? { leaveHours, timeFrom, timeTo } : undefined
+        isFullWorkday ? undefined : { leaveHours, timeFrom, timeTo }
       );
       onToast('Đã gửi đơn xin nghỉ phép thành công!', 'success');
       setShowForm(false);
-      setDateFrom('');
-      setDateTo('');
-      setTimeFrom('08:00');
-      setTimeTo('17:00');
-      setReason('');
-      setLeaveType('annual');
-      setLeaveMode('fullday');
+      setDateFrom(''); setDateTo('');
+      setTimeFrom('08:30'); setTimeTo('17:30');
+      setReason(''); setLeaveType('annual');
       await loadData();
     } catch (err: any) {
       onToast(err.message || 'Lỗi khi gửi đơn', 'error');
@@ -192,6 +209,12 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     );
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 14px', borderRadius: '10px',
+    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
+    fontSize: '14px', outline: 'none',
+  };
+
   return (
     <div className="animate-fadeInUp">
       {/* Header */}
@@ -219,71 +242,34 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
 
       {/* Balance Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-        {/* Total Available */}
         <div style={{
           background: 'linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(8,145,178,0.08) 100%)',
           border: '1px solid rgba(6,182,212,0.2)', borderRadius: '16px', padding: '20px',
         }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-            Tổng khả dụng
-          </p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#06B6D4' }}>
-            {leaveInfo.totalAvailable}
-          </p>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Tổng khả dụng</p>
+          <p style={{ fontSize: '32px', fontWeight: 900, color: '#06B6D4' }}>{leaveInfo.totalAvailable}</p>
           <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>ngày phép có thể dùng</p>
         </div>
-
-        {/* Yearly Accrued */}
-        <div style={{
-          background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px',
-        }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#34C759', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-            Tích luỹ năm {currentYear}
-          </p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#34C759' }}>
-            {leaveInfo.yearlyAccrued}
-          </p>
+        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#34C759', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Tích luỹ năm {currentYear}</p>
+          <p style={{ fontSize: '32px', fontWeight: 900, color: '#34C759' }}>{leaveInfo.yearlyAccrued}</p>
+          <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>đã dùng: {leaveInfo.yearlyUsed} · còn: {leaveInfo.yearlyAvailable}</p>
+        </div>
+        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px', opacity: leaveInfo.carryOverExpired ? 0.4 : 1 }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Dư từ {currentYear - 1}</p>
+          <p style={{ fontSize: '32px', fontWeight: 900, color: '#8B5CF6' }}>{leaveInfo.carryOver > 0 ? leaveInfo.carryOverAvailable : 0}</p>
           <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-            đã dùng: {leaveInfo.yearlyUsed} · còn: {leaveInfo.yearlyAvailable}
+            {leaveInfo.carryOverExpired ? '⚠️ Đã hết hạn (chỉ dùng trong Q1)' : leaveInfo.carryOver > 0 ? `dùng trước 31/3/${currentYear}` : 'Không có ngày dư'}
           </p>
         </div>
-
-        {/* Carry-over from previous year */}
-        <div style={{
-          background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px',
-          opacity: leaveInfo.carryOverExpired ? 0.4 : 1,
-        }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-            Dư từ {currentYear - 1}
-          </p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#8B5CF6' }}>
-            {leaveInfo.carryOver > 0 ? leaveInfo.carryOverAvailable : 0}
-          </p>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-            {leaveInfo.carryOverExpired
-              ? '⚠️ Đã hết hạn (chỉ dùng trong Q1)'
-              : leaveInfo.carryOver > 0
-                ? `dùng trước 31/3/${currentYear}`
-                : 'Không có ngày dư'
-            }
-          </p>
-        </div>
-
-        {/* Used this year */}
-        <div style={{
-          background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px',
-        }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-            Đã dùng {currentYear}
-          </p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#FF9500' }}>
-            {leaveInfo.yearlyUsed + leaveInfo.carryOverUsed}
-          </p>
+        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Đã dùng {currentYear}</p>
+          <p style={{ fontSize: '32px', fontWeight: 900, color: '#FF9500' }}>{leaveInfo.yearlyUsed + leaveInfo.carryOverUsed}</p>
           <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>ngày</p>
         </div>
       </div>
 
-      {/* Info box about rules */}
+      {/* Rules */}
       <div style={{
         background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)',
         borderRadius: '12px', padding: '14px 18px', marginBottom: '24px',
@@ -291,133 +277,61 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
       }}>
         💡 <strong style={{ color: '#8B5CF6' }}>Quy tắc:</strong> Mỗi tháng kể từ ngày chính thức = 1 ngày phép có lương.
         Tích luỹ cả năm. Cuối năm nếu dư → chuyển sang Q1 năm sau. Hết Q1 mà không dùng → mất.
+        Ca làm việc: 08:30–17:30, nghỉ trưa 12:00–13:00 (= 8h/ngày).
       </div>
 
       {/* Request Form */}
       {showForm && (
-        <div style={{
-          background: '#161616', border: '1px solid #2a2a2a', borderRadius: '16px',
-          padding: '28px', marginBottom: '24px',
-        }}>
+        <div style={{ background: '#161616', border: '1px solid #2a2a2a', borderRadius: '16px', padding: '28px', marginBottom: '24px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5', marginBottom: '20px' }}>
             📝 Tạo đơn xin nghỉ phép
           </h3>
 
-          {/* Mode toggle */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-            {(['fullday', 'hourly'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setLeaveMode(mode)}
-                style={{
-                  padding: '8px 18px', borderRadius: '10px', border: '1px solid',
-                  borderColor: leaveMode === mode ? '#06B6D4' : '#333',
-                  background: leaveMode === mode ? 'rgba(6,182,212,0.12)' : 'transparent',
-                  color: leaveMode === mode ? '#06B6D4' : '#666',
-                  fontSize: '12px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
-                }}
-              >
-                {mode === 'fullday' ? '📅 Cả ngày' : '⏱ Theo giờ'}
-              </button>
-            ))}
-          </div>
-
-          {/* Date row */}
-          <div style={{ display: 'grid', gridTemplateColumns: leaveMode === 'fullday' ? '1fr 1fr' : '1fr', gap: '16px', marginBottom: '16px' }}>
+          {/* Row 1: Ngày */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>
-                {leaveMode === 'hourly' ? 'Ngày nghỉ' : 'Từ ngày'}
-              </label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={e => setDateFrom(e.target.value)}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                  fontSize: '14px', outline: 'none',
-                }}
-              />
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Từ ngày</label>
+              <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); if (!dateTo) setDateTo(e.target.value); }} style={inputStyle} />
             </div>
-            {leaveMode === 'fullday' && (
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Đến ngày</label>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={e => setDateTo(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: '10px',
-                    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                    fontSize: '14px', outline: 'none',
-                  }}
-                />
-              </div>
-            )}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Đến ngày</label>
+              <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inputStyle} />
+            </div>
           </div>
 
-          {/* Time row (hourly mode only) */}
-          {leaveMode === 'hourly' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Giờ bắt đầu</label>
-                <input
-                  type="time"
-                  value={timeFrom}
-                  onChange={e => setTimeFrom(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: '10px',
-                    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                    fontSize: '14px', outline: 'none',
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Giờ kết thúc</label>
-                <input
-                  type="time"
-                  value={timeTo}
-                  onChange={e => setTimeTo(e.target.value)}
-                  style={{
-                    width: '100%', padding: '10px 14px', borderRadius: '10px',
-                    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                    fontSize: '14px', outline: 'none',
-                  }}
-                />
-              </div>
+          {/* Row 2: Giờ */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Giờ bắt đầu</label>
+              <input type="time" value={timeFrom} onChange={e => setTimeFrom(e.target.value)} style={inputStyle} />
             </div>
-          )}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Giờ kết thúc</label>
+              <input type="time" value={timeTo} onChange={e => setTimeTo(e.target.value)} style={inputStyle} />
+            </div>
+          </div>
 
+          {/* Row 3: Loại + Quy đổi */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Loại nghỉ</label>
-              <select
-                value={leaveType}
-                onChange={e => setLeaveType(e.target.value as any)}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                  fontSize: '14px', outline: 'none',
-                }}
-              >
+              <select value={leaveType} onChange={e => setLeaveType(e.target.value as any)} style={inputStyle}>
                 <option value="annual">Phép năm</option>
                 <option value="sick">Nghỉ ốm</option>
                 <option value="unpaid">Nghỉ không lương</option>
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>
-                {leaveMode === 'hourly' ? 'Quy đổi' : 'Số ngày nghỉ'}
-              </label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Quy đổi</label>
               <div style={{
                 padding: '10px 14px', borderRadius: '10px', border: '1px solid #333',
-                background: '#0F0F0F', color: leaveDays > 0 ? '#06B6D4' : '#555',
-                fontSize: '14px', fontWeight: 800,
+                background: '#0F0F0F', fontSize: '14px', fontWeight: 800,
+                color: leaveDays > 0 ? '#06B6D4' : '#555',
               }}>
                 {leaveDays > 0
-                  ? leaveMode === 'hourly'
-                    ? `${leaveHours}h = ${leaveDays} ngày`
-                    : `${leaveDays} ngày`
+                  ? isFullWorkday
+                    ? `${leaveDays} ngày`
+                    : `${leaveHours}h = ${leaveDays} ngày`
                   : '—'}
                 {leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable && (
                   <span style={{ color: '#FF3B30', fontSize: '11px', marginLeft: '8px' }}>
@@ -428,19 +342,13 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             </div>
           </div>
 
+          {/* Reason */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Lý do</label>
             <textarea
-              value={reason}
-              onChange={e => setReason(e.target.value)}
-              placeholder="Nhập lý do xin nghỉ..."
-              rows={3}
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px',
-                border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                fontSize: '14px', outline: 'none', resize: 'vertical',
-                fontFamily: 'inherit',
-              }}
+              value={reason} onChange={e => setReason(e.target.value)}
+              placeholder="Nhập lý do xin nghỉ..." rows={3}
+              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
             />
           </div>
 
@@ -451,7 +359,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
               padding: '12px 32px', borderRadius: '12px', border: 'none', fontWeight: 800,
               fontSize: '14px', cursor: submitting ? 'wait' : 'pointer',
               background: submitting ? '#333' : 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-              color: '#fff', opacity: (!dateFrom || (leaveMode === 'fullday' && !dateTo) || !reason.trim()) ? 0.5 : 1,
+              color: '#fff', opacity: (!dateFrom || !dateTo || !reason.trim()) ? 0.5 : 1,
               transition: 'all 0.2s',
             }}
           >
@@ -465,50 +373,34 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5', marginBottom: '16px' }}>
           📋 Lịch sử đơn nghỉ phép
         </h3>
-
         {requests.length === 0 ? (
-          <div style={{
-            textAlign: 'center', padding: '48px', background: '#161616',
-            borderRadius: '16px', border: '1px solid #222',
-          }}>
+          <div style={{ textAlign: 'center', padding: '48px', background: '#161616', borderRadius: '16px', border: '1px solid #222' }}>
             <p style={{ fontSize: '40px', marginBottom: '12px' }}>🏖️</p>
-            <p style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>
-              Chưa có đơn xin nghỉ phép nào
-            </p>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>Chưa có đơn xin nghỉ phép nào</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {requests.map(req => {
               const st = STATUS_MAP[req.status] || STATUS_MAP.pending;
+              const isSameDay = req.date_from === req.date_to;
               return (
-                <div key={req.id} style={{
-                  background: '#161616', border: '1px solid #222', borderRadius: '12px',
-                  padding: '18px 22px', transition: 'border-color 0.2s',
-                }}>
+                <div key={req.id} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '18px 22px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                        <span style={{
-                          fontSize: '10px', fontWeight: 800, padding: '3px 10px', borderRadius: '6px',
-                          background: st.bg, color: st.color, textTransform: 'uppercase', letterSpacing: '0.05em',
-                        }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, padding: '3px 10px', borderRadius: '6px', background: st.bg, color: st.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           {st.label}
                         </span>
-                        <span style={{
-                          fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px',
-                          background: 'rgba(139,92,246,0.1)', color: '#8B5CF6',
-                        }}>
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
                           {LEAVE_TYPES[req.leave_type] || req.leave_type}
                         </span>
                       </div>
                       <p style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5', marginBottom: '4px' }}>
                         {new Date(req.date_from).toLocaleDateString('vi-VN')}
-                        {req.leave_hours
-                          ? <span style={{ color: '#888', fontWeight: 400 }}> · {req.time_from?.slice(0, 5)}–{req.time_to?.slice(0, 5)}</span>
-                          : req.date_to !== req.date_from
-                            ? <span> → {new Date(req.date_to).toLocaleDateString('vi-VN')}</span>
-                            : null
-                        }
+                        {!isSameDay && <span> → {new Date(req.date_to).toLocaleDateString('vi-VN')}</span>}
+                        {req.time_from && req.time_to && (
+                          <span style={{ color: '#888', fontWeight: 400 }}> · {req.time_from.slice(0,5)}–{req.time_to.slice(0,5)}</span>
+                        )}
                         <span style={{ color: '#06B6D4', marginLeft: '8px', fontSize: '12px' }}>
                           {req.leave_hours
                             ? `(${req.leave_hours}h = ${req.leave_days} ngày)`
@@ -523,14 +415,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
                       )}
                     </div>
                     {req.status === 'pending' && (
-                      <button
-                        onClick={() => handleDelete(req.id)}
-                        style={{
-                          padding: '6px 12px', borderRadius: '8px', border: '1px solid #333',
-                          background: 'transparent', color: '#FF3B30', fontSize: '11px',
-                          fontWeight: 700, cursor: 'pointer',
-                        }}
-                      >
+                      <button onClick={() => handleDelete(req.id)} style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #333', background: 'transparent', color: '#FF3B30', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
                         Huỷ
                       </button>
                     )}
