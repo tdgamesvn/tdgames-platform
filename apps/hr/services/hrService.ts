@@ -641,16 +641,17 @@ export async function generateReminders(): Promise<number> {
   for (const emp of employees) {
     if (emp.status !== 'active') continue;
 
-    // Birthday
+    // Birthday — nếu ngày đã qua năm nay thì dùng năm sau
     if (emp.date_of_birth) {
       const dob = new Date(emp.date_of_birth);
-      const thisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
-      const diff = Math.ceil((thisYear.getTime() - today.getTime()) / 86400000);
+      let bday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+      if (bday < today) bday = new Date(today.getFullYear() + 1, dob.getMonth(), dob.getDate());
+      const diff = Math.ceil((bday.getTime() - today.getTime()) / 86400000);
       if (diff >= 0 && diff <= 7) {
         addIfNew({
           employee_id: emp.id, type: 'birthday',
           title: `🎂 Sinh nhật ${emp.full_name}`,
-          due_date: fmt(thisYear), status: 'pending', notes: '',
+          due_date: fmt(bday), status: 'pending', notes: '',
         });
       }
     }
@@ -668,13 +669,14 @@ export async function generateReminders(): Promise<number> {
       }
     }
 
-    // Work anniversary
+    // Work anniversary — nếu ngày đã qua năm nay thì dùng năm sau
     if (emp.start_date) {
       const start = new Date(emp.start_date);
-      const anni = new Date(today.getFullYear(), start.getMonth(), start.getDate());
+      let anni = new Date(today.getFullYear(), start.getMonth(), start.getDate());
+      if (anni < today) anni = new Date(today.getFullYear() + 1, start.getMonth(), start.getDate());
       const diff = Math.ceil((anni.getTime() - today.getTime()) / 86400000);
       if (diff >= 0 && diff <= 7) {
-        const years = today.getFullYear() - start.getFullYear();
+        const years = anni.getFullYear() - start.getFullYear();
         if (years > 0) {
           addIfNew({
             employee_id: emp.id, type: 'anniversary',

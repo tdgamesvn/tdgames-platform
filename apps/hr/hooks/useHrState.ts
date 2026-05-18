@@ -196,17 +196,23 @@ export function useHrState(initialTab?: string | null) {
   const handleGenerateReminders = async () => {
     try {
       const count = await svc.generateReminders();
-      if (count > 0) {
-        const updated = await svc.fetchReminders();
-        setReminders(updated.filter(r => r.status !== 'dismissed'));
-        setToast({ message: `Đã tạo ${count} nhắc nhở mới`, type: 'success' });
-      } else {
-        setToast({ message: 'Không có nhắc nhở mới', type: 'success' });
-      }
+      const updated = await svc.fetchReminders();
+      setReminders(updated.filter(r => r.status !== 'dismissed'));
+      if (count > 0) setToast({ message: `Đã tạo ${count} nhắc nhở mới`, type: 'success' });
     } catch (e: any) {
       setToast({ message: e.message, type: 'error' });
     }
   };
+
+  // Auto-scan khi chuyển sang tab reminders
+  useEffect(() => {
+    if (activeTab === 'reminders') {
+      svc.generateReminders()
+        .then(() => svc.fetchReminders())
+        .then(data => setReminders(data.filter(r => r.status !== 'dismissed')))
+        .catch(() => {}); // silent — không show toast khi auto-scan
+    }
+  }, [activeTab]);
 
   const handleDismissReminder = async (id: string) => {
     try {
