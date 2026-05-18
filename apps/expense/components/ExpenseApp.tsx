@@ -11,6 +11,7 @@ import ExpenseRecurring from './ExpenseRecurring';
 import ExpenseCategoryManager from './ExpenseCategoryManager';
 import ExpenseDashboard from './ExpenseDashboard';
 import ExpenseReports from './ExpenseReports';
+import FxRateManager from './FxRateManager';
 
 interface ExpenseAppProps {
   currentUser: AccountUser;
@@ -25,6 +26,7 @@ const TAB_MAP: Record<ExpenseTab, string> = {
   recurring: 'recurring',
   categories: 'activity',
   reports: 'reports',
+  fxrates: 'fxrates',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -33,6 +35,7 @@ const TAB_LABELS: Record<string, string> = {
   recurring: 'Định kỳ',
   activity: 'Danh mục',
   reports: 'Báo cáo',
+  fxrates: '💱 Tỷ giá',
 };
 
 const REVERSE_TAB: Record<string, ExpenseTab> = {
@@ -41,6 +44,7 @@ const REVERSE_TAB: Record<string, ExpenseTab> = {
   recurring: 'recurring',
   activity: 'categories',
   reports: 'reports',
+  fxrates: 'fxrates',
 };
 
 const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab }) => {
@@ -51,7 +55,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
   const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const accessibleTabs = (['overview', 'history', 'recurring', 'activity', 'reports'] as const).map(t => t);
+  const accessibleTabs = (['overview', 'history', 'recurring', 'activity', 'reports', 'fxrates'] as const).map(t => t);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -154,6 +158,9 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
             expenses={state.expenses}
             categories={state.categories}
           />
+        )}
+        {state.activeTab === 'fxrates' && (
+          <FxRateManager />
         )}
       </main>
 

@@ -16,9 +16,9 @@ import {
 } from '../services/expenseService';
 import { setHashTab } from '@/App';
 
-export type ExpenseTab = 'dashboard' | 'list' | 'add' | 'recurring' | 'categories' | 'reports';
+export type ExpenseTab = 'dashboard' | 'list' | 'add' | 'recurring' | 'categories' | 'reports' | 'fxrates';
 
-const VALID_TABS: ExpenseTab[] = ['dashboard', 'list', 'add', 'recurring', 'categories', 'reports'];
+const VALID_TABS: ExpenseTab[] = ['dashboard', 'list', 'add', 'recurring', 'categories', 'reports', 'fxrates'];
 
 export function useExpenseState(currentUser: string, initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<ExpenseTab>(() => {
