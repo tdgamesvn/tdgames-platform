@@ -369,16 +369,19 @@ const LeaveApproval: React.FC<LeaveApprovalProps> = ({ currentUser, onToast }) =
                     <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Thời gian</p>
                     <p style={{ fontSize: '13px', fontWeight: 700, color: '#F5F5F5' }}>
                       {new Date(req.date_from).toLocaleDateString('vi-VN')}
-                      {req.leave_hours
-                        ? <span style={{ color: '#aaa', fontWeight: 400 }}> · {req.time_from?.slice(0,5)}–{req.time_to?.slice(0,5)}</span>
-                        : req.date_to !== req.date_from ? <span> → {new Date(req.date_to).toLocaleDateString('vi-VN')}</span> : null
+                      {req.date_to !== req.date_from
+                        ? <span> → {new Date(req.date_to).toLocaleDateString('vi-VN')}</span>
+                        : null
                       }
+                    </p>
+                    <p style={{ fontSize: '12px', color: '#aaa', marginTop: '2px' }}>
+                      {req.time_from?.slice(0,5) || '08:30'} – {req.time_to?.slice(0,5) || '17:30'}
                     </p>
                   </div>
                   <div>
-                    <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Số ngày</p>
+                    <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '4px' }}>Số giờ / ngày</p>
                     <p style={{ fontSize: '13px', fontWeight: 800, color: '#06B6D4' }}>
-                      {req.leave_hours ? `${req.leave_hours}h = ` : ''}{req.leave_days} ngày
+                      {req.leave_hours ?? Number(req.leave_days) * 8}h = {req.leave_days} ngày
                     </p>
                   </div>
                   <div>
