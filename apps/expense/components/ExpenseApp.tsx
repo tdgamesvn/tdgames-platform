@@ -117,6 +117,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
                 expenses={state.filteredExpenses}
                 categories={state.categories}
                 isLoading={state.isLoading}
+                currentUser={currentUser}
                 filterCategory={state.filterCategory} setFilterCategory={state.setFilterCategory}
                 filterDateFrom={state.filterDateFrom} setFilterDateFrom={state.setFilterDateFrom}
                 filterDateTo={state.filterDateTo} setFilterDateTo={state.setFilterDateTo}
@@ -129,6 +130,8 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
                 onEdit={(exp) => { state.setEditingExpense(exp); }}
                 onDelete={state.handleDeleteExpense}
                 onToggleStatus={state.handleToggleStatus}
+                onApprove={state.handleApproveExpense}
+                onReject={state.handleRejectExpense}
                 onRefresh={state.loadAll}
                 onAdd={() => { state.setEditingExpense(null); setShowForm(true); }}
                 vcbAvgRate={avgUsdVnd}

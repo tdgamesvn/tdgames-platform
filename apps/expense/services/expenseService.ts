@@ -65,6 +65,34 @@ export async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function approveExpense(id: string, approverId: string, note?: string): Promise<void> {
+  const { error } = await supabase
+    .from('expense_expenses')
+    .update({
+      status: 'approved',
+      approver_id: approverId,
+      approved_at: new Date().toISOString(),
+      approval_note: note ?? '',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function rejectExpense(id: string, approverId: string, note: string): Promise<void> {
+  const { error } = await supabase
+    .from('expense_expenses')
+    .update({
+      status: 'pending',
+      approver_id: approverId,
+      approved_at: new Date().toISOString(),
+      approval_note: note,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 // ── Recurring ─────────────────────────────────────────────────
 export async function fetchRecurringExpenses(): Promise<RecurringExpense[]> {
   const { data, error } = await supabase

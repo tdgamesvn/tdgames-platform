@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { ExpenseRecord, ExpenseCategory } from '@/types';
+import { ExpenseRecord, ExpenseCategory, AccountUser } from '@/types';
 import { Button } from '@/components/Button';
 
 interface Props {
   expenses: ExpenseRecord[];
   categories: ExpenseCategory[];
   isLoading: boolean;
+  currentUser: AccountUser;
   filterCategory: string; setFilterCategory: (v: string) => void;
   filterDateFrom: string; setFilterDateFrom: (v: string) => void;
   filterDateTo: string; setFilterDateTo: (v: string) => void;
@@ -18,6 +19,8 @@ interface Props {
   onEdit: (exp: ExpenseRecord) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (exp: ExpenseRecord) => void;
+  onApprove: (id: string, note?: string) => void;
+  onReject: (id: string, note: string) => void;
   onRefresh: () => void;
   onAdd: () => void;
   vcbAvgRate: number;
@@ -56,7 +59,7 @@ const SOURCE_OPTIONS = [
 ];
 
 const ExpenseList: React.FC<Props> = ({
-  expenses, categories, isLoading,
+  expenses, categories, isLoading, currentUser,
   filterCategory, setFilterCategory,
   filterDateFrom, setFilterDateFrom,
   filterDateTo, setFilterDateTo,
@@ -65,10 +68,12 @@ const ExpenseList: React.FC<Props> = ({
   filterSource, setFilterSource,
   totalVND, totalUSD,
   revenueVND, revenueUSD, expenseVND, expenseUSD,
-  onEdit, onDelete, onToggleStatus, onRefresh, onAdd,
+  onEdit, onDelete, onToggleStatus, onApprove, onReject, onRefresh, onAdd,
   vcbAvgRate,
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [rejectModal, setRejectModal] = useState<{ id: string; note: string } | null>(null);
+  const canApprove = currentUser.role === 'admin' || currentUser.role === 'ke_toan';
   const toVND = (amount: number, currency: string) => currency === 'USD' ? amount * vcbAvgRate : amount;
   const fmtVND = (n: number) => Math.round(n).toLocaleString('vi-VN') + ' ₫';
 
@@ -269,6 +274,32 @@ const ExpenseList: React.FC<Props> = ({
                     </p>
                   </div>
 
+                  {/* Approval info */}
+                  {exp.approved_at && (
+                    <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                      <p className="text-[9px] text-white/40 font-bold uppercase tracking-wider">
+                        {exp.status === 'approved' ? '✅' : '❌'} {exp.approver_id} · {new Date(exp.approved_at).toLocaleDateString('vi-VN')}
+                        {exp.approval_note ? ` — ${exp.approval_note}` : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Approval buttons — chỉ hiện cho admin/ke_toan với expense pending */}
+                  {canApprove && exp.status === 'pending' && !isRevenue && (
+                    <div className="flex items-center gap-2 mt-3">
+                      <button
+                        onClick={() => onApprove(exp.id!)}
+                        className="flex-1 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500/25 transition-colors">
+                        ✅ Duyệt
+                      </button>
+                      <button
+                        onClick={() => setRejectModal({ id: exp.id!, note: '' })}
+                        className="flex-1 py-1.5 rounded-lg bg-red-500/15 text-red-400 text-[10px] font-black uppercase tracking-wider hover:bg-red-500/25 transition-colors">
+                        ❌ Từ chối
+                      </button>
+                    </div>
+                  )}
+
                   {/* Action bar — visible on hover */}
                   <div className="flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-primary/5 opacity-40 group-hover:opacity-100 transition-opacity">
                     {!isAutoSynced && (
@@ -297,6 +328,36 @@ const ExpenseList: React.FC<Props> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── Modal từ chối ── */}
+      {rejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-[#161616] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-base font-black text-white mb-1">❌ Từ chối chi phí</h3>
+            <p className="text-[11px] text-white/50 mb-4">Vui lòng nhập lý do từ chối để thông báo cho người tạo.</p>
+            <textarea
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white outline-none focus:border-white/25 resize-none"
+              rows={3}
+              placeholder="Lý do từ chối..."
+              value={rejectModal.note}
+              onChange={e => setRejectModal({ ...rejectModal, note: e.target.value })}
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => { onReject(rejectModal.id, rejectModal.note); setRejectModal(null); }}
+                disabled={!rejectModal.note.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-400 text-xs font-black uppercase tracking-wider hover:bg-red-500/30 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                Xác nhận từ chối
+              </button>
+              <button
+                onClick={() => setRejectModal(null)}
+                className="flex-1 py-2.5 rounded-xl bg-white/5 text-white/60 text-xs font-black uppercase tracking-wider hover:bg-white/10 transition-colors">
+                Huỷ
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

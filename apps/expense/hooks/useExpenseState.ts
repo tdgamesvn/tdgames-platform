@@ -6,6 +6,8 @@ import {
   saveExpense,
   updateExpense,
   deleteExpense,
+  approveExpense,
+  rejectExpense,
   fetchRecurringExpenses,
   saveRecurringExpense,
   updateRecurringExpense,
@@ -106,6 +108,22 @@ export function useExpenseState(currentUser: string, initialTab?: string | null)
     await handleUpdateExpense(exp.id!, { status: next });
   };
 
+  const handleApproveExpense = async (id: string, note?: string) => {
+    try {
+      await approveExpense(id, currentUser, note);
+      await loadAll();
+      notify('✅ Đã duyệt chi phí');
+    } catch (err: any) { notify(err.message, 'error'); }
+  };
+
+  const handleRejectExpense = async (id: string, note: string) => {
+    try {
+      await rejectExpense(id, currentUser, note);
+      await loadAll();
+      notify('❌ Đã từ chối chi phí');
+    } catch (err: any) { notify(err.message, 'error'); }
+  };
+
   // ── Recurring CRUD ──
   const handleSaveRecurring = async (data: Omit<RecurringExpense, 'id' | 'created_at' | 'category'>) => {
     try {
@@ -192,6 +210,7 @@ export function useExpenseState(currentUser: string, initialTab?: string | null)
     totalVND, totalUSD,
     revenueVND, revenueUSD, expenseVND, expenseUSD,
     handleSaveExpense, handleUpdateExpense, handleDeleteExpense, handleToggleStatus,
+    handleApproveExpense, handleRejectExpense,
     handleSaveRecurring, handleUpdateRecurring, handleDeleteRecurring,
     handleSaveCategory, handleUpdateCategory, handleDeleteCategory,
     notify, loadAll,
