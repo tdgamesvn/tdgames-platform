@@ -215,7 +215,8 @@ export async function submitLeaveRequest(
   dateTo: string,
   leaveDays: number,
   leaveType: 'annual' | 'unpaid' | 'sick',
-  reason: string
+  reason: string,
+  opts?: { leaveHours?: number; timeFrom?: string; timeTo?: string }
 ): Promise<AttRequest> {
   const { data, error } = await supabase
     .from('att_requests')
@@ -225,6 +226,9 @@ export async function submitLeaveRequest(
       date_from: dateFrom,
       date_to: dateTo,
       leave_days: leaveDays,
+      leave_hours: opts?.leaveHours ?? null,
+      time_from: opts?.timeFrom ?? null,
+      time_to: opts?.timeTo ?? null,
       leave_type: leaveType,
       reason,
       status: 'pending',

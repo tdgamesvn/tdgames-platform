@@ -712,6 +712,9 @@ export interface AttRequest {
   reviewer_note: string;
   leave_type: 'annual' | 'unpaid' | 'sick';
   leave_days: number;
+  leave_hours?: number | null;
+  time_from?: string | null;
+  time_to?: string | null;
   created_at: string;
   // joined
   employee?: HrEmployee;

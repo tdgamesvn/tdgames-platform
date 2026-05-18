@@ -42,6 +42,9 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   const [leaveType, setLeaveType] = useState<'annual' | 'unpaid' | 'sick'>('annual');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [leaveMode, setLeaveMode] = useState<'fullday' | 'hourly'>('fullday');
+  const [timeFrom, setTimeFrom] = useState('08:00');
+  const [timeTo, setTimeTo] = useState('17:00');
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -86,7 +89,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     return getAvailableLeaveDays(yearlyBalance, carryOverBalance, currentQ);
   }, [yearlyBalance, carryOverBalance, currentQ]);
 
-  // Calculate leave_days from date range
+  // Calculate leave_days from date range (full-day mode)
   const calcLeaveDays = (from: string, to: string): number => {
     if (!from || !to) return 0;
     const d1 = new Date(from);
@@ -95,16 +98,36 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     return Math.max(0, diff);
   };
 
-  const leaveDays = calcLeaveDays(dateFrom, dateTo);
+  // Calculate hours from time range
+  const calcLeaveHours = (from: string, to: string): number => {
+    if (!from || !to) return 0;
+    const [fh, fm] = from.split(':').map(Number);
+    const [th, tm] = to.split(':').map(Number);
+    const mins = (th * 60 + tm) - (fh * 60 + fm);
+    return Math.max(0, Math.round(mins / 60 * 100) / 100);
+  };
+
+  const leaveHours = leaveMode === 'hourly' ? calcLeaveHours(timeFrom, timeTo) : 0;
+  // 8h = 1 ngày làm việc
+  const leaveDays = leaveMode === 'fullday'
+    ? calcLeaveDays(dateFrom, dateTo)
+    : Math.round((leaveHours / 8) * 100) / 100;
 
   const handleSubmit = async () => {
     if (!currentUser.employee_id) return;
-    if (!dateFrom || !dateTo || !reason.trim()) {
+    if (!dateFrom || !reason.trim()) {
       onToast('Vui lòng điền đầy đủ thông tin', 'error');
       return;
     }
-    if (new Date(dateTo) < new Date(dateFrom)) {
-      onToast('Ngày kết thúc phải sau ngày bắt đầu', 'error');
+    if (leaveMode === 'fullday') {
+      if (!dateTo) { onToast('Vui lòng chọn ngày kết thúc', 'error'); return; }
+      if (new Date(dateTo) < new Date(dateFrom)) {
+        onToast('Ngày kết thúc phải sau ngày bắt đầu', 'error');
+        return;
+      }
+    }
+    if (leaveMode === 'hourly' && leaveHours <= 0) {
+      onToast('Giờ kết thúc phải sau giờ bắt đầu', 'error');
       return;
     }
     if (leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable) {
@@ -112,22 +135,28 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
       return;
     }
 
+    const effectiveDateTo = leaveMode === 'hourly' ? dateFrom : dateTo;
+
     setSubmitting(true);
     try {
       await submitLeaveRequest(
         currentUser.employee_id,
         dateFrom,
-        dateTo,
+        effectiveDateTo,
         leaveDays,
         leaveType,
-        reason
+        reason,
+        leaveMode === 'hourly' ? { leaveHours, timeFrom, timeTo } : undefined
       );
       onToast('Đã gửi đơn xin nghỉ phép thành công!', 'success');
       setShowForm(false);
       setDateFrom('');
       setDateTo('');
+      setTimeFrom('08:00');
+      setTimeTo('17:00');
       setReason('');
       setLeaveType('annual');
+      setLeaveMode('fullday');
       await loadData();
     } catch (err: any) {
       onToast(err.message || 'Lỗi khi gửi đơn', 'error');
@@ -274,9 +303,31 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             📝 Tạo đơn xin nghỉ phép
           </h3>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          {/* Mode toggle */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+            {(['fullday', 'hourly'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setLeaveMode(mode)}
+                style={{
+                  padding: '8px 18px', borderRadius: '10px', border: '1px solid',
+                  borderColor: leaveMode === mode ? '#06B6D4' : '#333',
+                  background: leaveMode === mode ? 'rgba(6,182,212,0.12)' : 'transparent',
+                  color: leaveMode === mode ? '#06B6D4' : '#666',
+                  fontSize: '12px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
+                }}
+              >
+                {mode === 'fullday' ? '📅 Cả ngày' : '⏱ Theo giờ'}
+              </button>
+            ))}
+          </div>
+
+          {/* Date row */}
+          <div style={{ display: 'grid', gridTemplateColumns: leaveMode === 'fullday' ? '1fr 1fr' : '1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Từ ngày</label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>
+                {leaveMode === 'hourly' ? 'Ngày nghỉ' : 'Từ ngày'}
+              </label>
               <input
                 type="date"
                 value={dateFrom}
@@ -288,20 +339,54 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
                 }}
               />
             </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Đến ngày</label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={e => setDateTo(e.target.value)}
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: '10px',
-                  border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
-                  fontSize: '14px', outline: 'none',
-                }}
-              />
-            </div>
+            {leaveMode === 'fullday' && (
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Đến ngày</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: '10px',
+                    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
+                    fontSize: '14px', outline: 'none',
+                  }}
+                />
+              </div>
+            )}
           </div>
+
+          {/* Time row (hourly mode only) */}
+          {leaveMode === 'hourly' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Giờ bắt đầu</label>
+                <input
+                  type="time"
+                  value={timeFrom}
+                  onChange={e => setTimeFrom(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: '10px',
+                    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
+                    fontSize: '14px', outline: 'none',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Giờ kết thúc</label>
+                <input
+                  type="time"
+                  value={timeTo}
+                  onChange={e => setTimeTo(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 14px', borderRadius: '10px',
+                    border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5',
+                    fontSize: '14px', outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
@@ -321,16 +406,22 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Số ngày nghỉ</label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>
+                {leaveMode === 'hourly' ? 'Quy đổi' : 'Số ngày nghỉ'}
+              </label>
               <div style={{
                 padding: '10px 14px', borderRadius: '10px', border: '1px solid #333',
                 background: '#0F0F0F', color: leaveDays > 0 ? '#06B6D4' : '#555',
                 fontSize: '14px', fontWeight: 800,
               }}>
-                {leaveDays > 0 ? `${leaveDays} ngày` : '—'}
+                {leaveDays > 0
+                  ? leaveMode === 'hourly'
+                    ? `${leaveHours}h = ${leaveDays} ngày`
+                    : `${leaveDays} ngày`
+                  : '—'}
                 {leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable && (
                   <span style={{ color: '#FF3B30', fontSize: '11px', marginLeft: '8px' }}>
-                    (vượt {leaveDays - leaveInfo.totalAvailable} ngày)
+                    (vượt {+(leaveDays - leaveInfo.totalAvailable).toFixed(2)} ngày)
                   </span>
                 )}
               </div>
@@ -360,7 +451,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
               padding: '12px 32px', borderRadius: '12px', border: 'none', fontWeight: 800,
               fontSize: '14px', cursor: submitting ? 'wait' : 'pointer',
               background: submitting ? '#333' : 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-              color: '#fff', opacity: (!dateFrom || !dateTo || !reason.trim()) ? 0.5 : 1,
+              color: '#fff', opacity: (!dateFrom || (leaveMode === 'fullday' && !dateTo) || !reason.trim()) ? 0.5 : 1,
               transition: 'all 0.2s',
             }}
           >
@@ -411,9 +502,17 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
                         </span>
                       </div>
                       <p style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5', marginBottom: '4px' }}>
-                        {new Date(req.date_from).toLocaleDateString('vi-VN')} → {new Date(req.date_to).toLocaleDateString('vi-VN')}
+                        {new Date(req.date_from).toLocaleDateString('vi-VN')}
+                        {req.leave_hours
+                          ? <span style={{ color: '#888', fontWeight: 400 }}> · {req.time_from?.slice(0, 5)}–{req.time_to?.slice(0, 5)}</span>
+                          : req.date_to !== req.date_from
+                            ? <span> → {new Date(req.date_to).toLocaleDateString('vi-VN')}</span>
+                            : null
+                        }
                         <span style={{ color: '#06B6D4', marginLeft: '8px', fontSize: '12px' }}>
-                          ({req.leave_days} ngày)
+                          {req.leave_hours
+                            ? `(${req.leave_hours}h = ${req.leave_days} ngày)`
+                            : `(${req.leave_days} ngày)`}
                         </span>
                       </p>
                       <p style={{ fontSize: '12px', color: '#888' }}>{req.reason}</p>
