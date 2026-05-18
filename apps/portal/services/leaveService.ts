@@ -214,7 +214,7 @@ export async function submitLeaveRequest(
   dateFrom: string,
   dateTo: string,
   leaveDays: number,
-  leaveType: 'annual' | 'unpaid' | 'sick',
+  leaveType: 'annual' | 'unpaid' | 'sick' | 'birthday' | 'remote',
   reason: string,
   opts?: { leaveHours?: number; timeFrom?: string; timeTo?: string }
 ): Promise<AttRequest> {

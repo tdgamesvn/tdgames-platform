@@ -14,9 +14,11 @@ interface LeaveApprovalProps {
 }
 
 const LEAVE_TYPES: Record<string, string> = {
-  annual: 'Phép năm',
-  unpaid: 'Không lương',
-  sick: 'Nghỉ ốm',
+  annual:   'Phép năm',
+  unpaid:   'Không lương',
+  sick:     'Nghỉ ốm',
+  birthday: '🎂 Nghỉ sinh nhật',
+  remote:   '🏠 Làm remote',
 };
 
 const STATUS_STYLES: Record<string, { label: string; color: string; bg: string }> = {

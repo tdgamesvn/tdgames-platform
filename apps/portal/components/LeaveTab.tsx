@@ -4,7 +4,6 @@ import {
   fetchMyLeaveRequests,
   submitLeaveRequest,
   deleteLeaveRequest,
-  fetchLeaveBalances,
   ensureBalancesForYear,
   getAvailableLeaveDays,
   getCurrentQuarter,
@@ -16,65 +15,69 @@ interface LeaveTabProps {
   onToast: (msg: string, type: 'success' | 'error') => void;
 }
 
-const LEAVE_TYPES: Record<string, string> = {
-  annual: 'Phép năm',
-  unpaid: 'Nghỉ không lương',
-  sick: 'Nghỉ ốm',
+const LEAVE_LABELS: Record<string, string> = {
+  annual:   'Phép năm',
+  unpaid:   'Nghỉ không lương',
+  sick:     'Nghỉ ốm',
+  birthday: '🎂 Nghỉ sinh nhật',
+  remote:   '🏠 Làm remote',
 };
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  pending:  { label: 'Chờ duyệt',  color: '#FF9500', bg: 'rgba(255,149,0,0.1)' },
-  approved: { label: 'Đã duyệt',   color: '#34C759', bg: 'rgba(52,199,89,0.1)' },
-  rejected: { label: 'Từ chối',     color: '#FF3B30', bg: 'rgba(255,59,48,0.1)' },
+  pending:  { label: 'Chờ duyệt', color: '#FF9500', bg: 'rgba(255,149,0,0.1)' },
+  approved: { label: 'Đã duyệt',  color: '#34C759', bg: 'rgba(52,199,89,0.1)' },
+  rejected: { label: 'Từ chối',   color: '#FF3B30', bg: 'rgba(255,59,48,0.1)' },
 };
 
-// ── Công ty: 08:30 → 17:30, nghỉ trưa 12:00–13:00 = 8h/ngày ──
-const WORK_START = 8 * 60 + 30;   // 510 phút
-const WORK_END   = 17 * 60 + 30;  // 1050 phút
-const LUNCH_START = 12 * 60;       // 720 phút
-const LUNCH_END   = 13 * 60;       // 780 phút
+// ── Ca làm việc cố định: 08:30–17:30, nghỉ trưa 12:00–13:00 = 8h/ngày ──
+const WORK_START  = 8 * 60 + 30;
+const WORK_END    = 17 * 60 + 30;
+const LUNCH_START = 12 * 60;
+const LUNCH_END   = 13 * 60;
 const HOURS_PER_DAY = 8;
 
-function toMins(t: string): number {
+function toMins(t: string) {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
 }
-
-/** Tính giờ thực giữa 2 thời điểm trong ngày, trừ nghỉ trưa */
-function effectiveHours(timeFrom: string, timeTo: string): number {
-  const from = Math.max(toMins(timeFrom), WORK_START);
-  const to   = Math.min(toMins(timeTo),   WORK_END);
+function effectiveHours(tf: string, tt: string) {
+  const from  = Math.max(toMins(tf), WORK_START);
+  const to    = Math.min(toMins(tt), WORK_END);
   if (from >= to) return 0;
   const lunch = Math.max(0, Math.min(to, LUNCH_END) - Math.max(from, LUNCH_START));
   return Math.round(((to - from - lunch) / 60) * 100) / 100;
 }
-
-/**
- * Tính tổng giờ & ngày nghỉ có tính ca làm việc.
- * - 1 ngày: tính theo timeFrom–timeTo trừ trưa
- * - Nhiều ngày: ngày đầu (timeFrom → 17:30), ngày giữa (full), ngày cuối (08:30 → timeTo)
- */
-function calcLeave(dateFrom: string, dateTo: string, timeFrom: string, timeTo: string) {
-  if (!dateFrom || !dateTo || !timeFrom || !timeTo) return { hours: 0, days: 0 };
-  const d1 = new Date(dateFrom);
-  const d2 = new Date(dateTo);
+function calcLeave(df: string, dt: string, tf: string, tt: string) {
+  if (!df || !dt || !tf || !tt) return { hours: 0, days: 0 };
+  const d1 = new Date(df), d2 = new Date(dt);
   if (d2 < d1) return { hours: 0, days: 0 };
-
   const dayCount = Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1;
-
-  let totalHours: number;
+  let totalH: number;
   if (dayCount === 1) {
-    totalHours = effectiveHours(timeFrom, timeTo);
+    totalH = effectiveHours(tf, tt);
   } else {
-    const firstH  = effectiveHours(timeFrom, '17:30');
-    const lastH   = effectiveHours('08:30', timeTo);
-    const middleH = (dayCount - 2) * HOURS_PER_DAY;
-    totalHours = firstH + middleH + lastH;
+    totalH = effectiveHours(tf, '17:30') + (dayCount - 2) * HOURS_PER_DAY + effectiveHours('08:30', tt);
   }
-
-  const hours = Math.round(totalHours * 100) / 100;
-  const days  = Math.round((totalHours / HOURS_PER_DAY) * 100) / 100;
+  const hours = Math.round(totalH * 100) / 100;
+  const days  = Math.round((totalH / HOURS_PER_DAY) * 100) / 100;
   return { hours, days };
+}
+
+// ── Eligibility helpers ──
+function getOfficialDate(emp: HrEmployee): Date | null {
+  const d = emp.official_date || emp.probation_end;
+  return d ? new Date(d) : null;
+}
+function monthsSince(d: Date): number {
+  const now = new Date();
+  return (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+}
+function startOfWeek(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay() || 7; // make Sunday = 7
+  d.setDate(d.getDate() - day + 1); // Monday
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 // ────────────────────────────────────────────────────────────
@@ -88,12 +91,12 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   const [showForm, setShowForm]             = useState(false);
 
   // Form
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo,   setDateTo]   = useState('');
-  const [timeFrom, setTimeFrom] = useState('08:30');
-  const [timeTo,   setTimeTo]   = useState('17:30');
-  const [leaveType, setLeaveType] = useState<'annual' | 'unpaid' | 'sick'>('annual');
-  const [reason,    setReason]   = useState('');
+  const [dateFrom,  setDateFrom]  = useState('');
+  const [dateTo,    setDateTo]    = useState('');
+  const [timeFrom,  setTimeFrom]  = useState('08:30');
+  const [timeTo,    setTimeTo]    = useState('17:30');
+  const [leaveType, setLeaveType] = useState<AttRequest['leave_type']>('annual');
+  const [reason,    setReason]    = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const now = new Date();
@@ -136,44 +139,106 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     () => calcLeave(dateFrom, dateTo, timeFrom, timeTo),
     [dateFrom, dateTo, timeFrom, timeTo]
   );
-
-  // Nếu cùng 1 ngày và giờ = cả ca → không lưu hours (để tránh hiện "8h = 1 ngày" dư thừa)
   const isFullWorkday = leaveHours === HOURS_PER_DAY && dateFrom === dateTo;
+
+  // ── Eligibility ──
+  const officialDate   = employee ? getOfficialDate(employee) : null;
+  const isOfficial     = officialDate != null && officialDate <= now;
+  const workedMonths   = officialDate ? monthsSince(officialDate) : 0;
+
+  const birthdayUsedThisYear = useMemo(() =>
+    requests.some(r =>
+      r.leave_type === 'birthday' &&
+      new Date(r.date_from).getFullYear() === currentYear &&
+      r.status !== 'rejected'
+    ), [requests, currentYear]);
+
+  const remoteUsedThisWeek = useMemo(() => {
+    const weekStart = startOfWeek(now);
+    const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+    return requests.some(r => {
+      if (r.leave_type !== 'remote' || r.status === 'rejected') return false;
+      const d = new Date(r.date_from);
+      return d >= weekStart && d <= weekEnd;
+    });
+  }, [requests]);
+
+  // ── Available leave type options ──
+  const leaveTypeOptions: { value: AttRequest['leave_type']; label: string; why?: string }[] = [
+    {
+      value: 'annual',
+      label: 'Phép năm',
+      why: !isOfficial
+        ? 'Chỉ áp dụng sau khi chính thức'
+        : leaveInfo.totalAvailable <= 0
+          ? 'Hết ngày phép năm'
+          : undefined,
+    },
+    {
+      value: 'sick',
+      label: 'Nghỉ ốm',
+      why: !isOfficial ? 'Chỉ áp dụng sau khi chính thức' : undefined,
+    },
+    { value: 'unpaid', label: 'Nghỉ không lương' },
+    {
+      value: 'birthday',
+      label: '🎂 Nghỉ sinh nhật',
+      why: !isOfficial
+        ? 'Chỉ áp dụng sau khi chính thức'
+        : workedMonths < 6
+          ? `Cần đủ 6 tháng (còn ${6 - workedMonths} tháng)`
+          : birthdayUsedThisYear
+            ? 'Đã dùng năm nay'
+            : undefined,
+    },
+    {
+      value: 'remote',
+      label: '🏠 Làm remote',
+      why: !isOfficial
+        ? 'Chỉ áp dụng sau khi chính thức'
+        : remoteUsedThisWeek
+          ? 'Đã dùng 1 ngày remote tuần này'
+          : undefined,
+    },
+  ].filter(o => !o.why); // ẩn những loại không đủ điều kiện
+
+  // Ensure selected type stays valid
+  useEffect(() => {
+    if (leaveTypeOptions.length > 0 && !leaveTypeOptions.find(o => o.value === leaveType)) {
+      setLeaveType(leaveTypeOptions[0].value);
+    }
+  }, [leaveTypeOptions.map(o => o.value).join(',')]);
 
   const handleSubmit = async () => {
     if (!currentUser.employee_id) return;
     if (!dateFrom || !dateTo || !reason.trim()) {
-      onToast('Vui lòng điền đầy đủ thông tin', 'error');
-      return;
+      onToast('Vui lòng điền đầy đủ thông tin', 'error'); return;
     }
     if (new Date(dateTo) < new Date(dateFrom)) {
-      onToast('Ngày kết thúc phải sau ngày bắt đầu', 'error');
-      return;
+      onToast('Ngày kết thúc phải sau ngày bắt đầu', 'error'); return;
     }
     if (leaveDays <= 0) {
-      onToast('Thời gian nghỉ phải lớn hơn 0', 'error');
-      return;
+      onToast('Thời gian nghỉ phải lớn hơn 0', 'error'); return;
     }
     if (leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable) {
-      onToast(`Bạn chỉ còn ${leaveInfo.totalAvailable} ngày phép khả dụng`, 'error');
-      return;
+      onToast(`Bạn chỉ còn ${leaveInfo.totalAvailable} ngày phép khả dụng`, 'error'); return;
+    }
+    if ((leaveType === 'birthday' || leaveType === 'remote') && dateFrom !== dateTo) {
+      onToast(`${LEAVE_LABELS[leaveType]} chỉ được chọn 1 ngày`, 'error'); return;
     }
 
     setSubmitting(true);
     try {
       await submitLeaveRequest(
         currentUser.employee_id,
-        dateFrom, dateTo,
-        leaveDays,
-        leaveType,
-        reason,
+        dateFrom, dateTo, leaveDays, leaveType, reason,
         isFullWorkday ? undefined : { leaveHours, timeFrom, timeTo }
       );
-      onToast('Đã gửi đơn xin nghỉ phép thành công!', 'success');
+      onToast('Đã gửi đơn thành công!', 'success');
       setShowForm(false);
       setDateFrom(''); setDateTo('');
       setTimeFrom('08:30'); setTimeTo('17:30');
-      setReason(''); setLeaveType('annual');
+      setReason('');
       await loadData();
     } catch (err: any) {
       onToast(err.message || 'Lỗi khi gửi đơn', 'error');
@@ -242,10 +307,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
 
       {/* Balance Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(8,145,178,0.08) 100%)',
-          border: '1px solid rgba(6,182,212,0.2)', borderRadius: '16px', padding: '20px',
-        }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(8,145,178,0.08) 100%)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: '16px', padding: '20px' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Tổng khả dụng</p>
           <p style={{ fontSize: '32px', fontWeight: 900, color: '#06B6D4' }}>{leaveInfo.totalAvailable}</p>
           <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>ngày phép có thể dùng</p>
@@ -269,22 +331,30 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         </div>
       </div>
 
-      {/* Rules */}
-      <div style={{
-        background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)',
-        borderRadius: '12px', padding: '14px 18px', marginBottom: '24px',
-        fontSize: '12px', color: '#aaa', lineHeight: '1.6',
-      }}>
-        💡 <strong style={{ color: '#8B5CF6' }}>Quy tắc:</strong> Mỗi tháng kể từ ngày chính thức = 1 ngày phép có lương.
-        Tích luỹ cả năm. Cuối năm nếu dư → chuyển sang Q1 năm sau. Hết Q1 mà không dùng → mất.
-        Ca làm việc: 08:30–17:30, nghỉ trưa 12:00–13:00 (= 8h/ngày).
+      {/* Info */}
+      <div style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', fontSize: '12px', color: '#aaa', lineHeight: '1.7' }}>
+        💡 <strong style={{ color: '#8B5CF6' }}>Quy tắc:</strong> Mỗi tháng kể từ ngày chính thức = 1 ngày phép năm có lương.
+        Cuối năm nếu dư → chuyển sang Q1 năm sau. Hết Q1 mà không dùng → mất.
+        {isOfficial && workedMonths >= 6 && !birthdayUsedThisYear && (
+          <span style={{ color: '#FF375F' }}> · 🎂 Bạn có <strong>1 ngày nghỉ sinh nhật</strong> có lương năm nay!</span>
+        )}
+        {isOfficial && !remoteUsedThisWeek && (
+          <span style={{ color: '#34C759' }}> · 🏠 Bạn còn <strong>1 ngày remote</strong> tuần này.</span>
+        )}
       </div>
 
+      {/* No options warning */}
+      {leaveTypeOptions.length === 0 && (
+        <div style={{ background: 'rgba(255,149,0,0.05)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', fontSize: '13px', color: '#FF9500' }}>
+          ⚠️ Bạn chưa đủ điều kiện xin nghỉ (đang trong thời gian thử việc hoặc hết ngày phép).
+        </div>
+      )}
+
       {/* Request Form */}
-      {showForm && (
+      {showForm && leaveTypeOptions.length > 0 && (
         <div style={{ background: '#161616', border: '1px solid #2a2a2a', borderRadius: '16px', padding: '28px', marginBottom: '24px' }}>
           <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5', marginBottom: '20px' }}>
-            📝 Tạo đơn xin nghỉ phép
+            📝 Tạo đơn xin nghỉ
           </h3>
 
           {/* Row 1: Ngày */}
@@ -315,23 +385,17 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Loại nghỉ</label>
-              <select value={leaveType} onChange={e => setLeaveType(e.target.value as any)} style={inputStyle}>
-                <option value="annual">Phép năm</option>
-                <option value="sick">Nghỉ ốm</option>
-                <option value="unpaid">Nghỉ không lương</option>
+              <select value={leaveType} onChange={e => setLeaveType(e.target.value as AttRequest['leave_type'])} style={inputStyle}>
+                {leaveTypeOptions.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
             <div>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Quy đổi</label>
-              <div style={{
-                padding: '10px 14px', borderRadius: '10px', border: '1px solid #333',
-                background: '#0F0F0F', fontSize: '14px', fontWeight: 800,
-                color: leaveDays > 0 ? '#06B6D4' : '#555',
-              }}>
+              <div style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', fontSize: '14px', fontWeight: 800, color: leaveDays > 0 ? '#06B6D4' : '#555' }}>
                 {leaveDays > 0
-                  ? isFullWorkday
-                    ? `${leaveDays} ngày`
-                    : `${leaveHours}h = ${leaveDays} ngày`
+                  ? isFullWorkday ? `${leaveDays} ngày` : `${leaveHours}h = ${leaveDays} ngày`
                   : '—'}
                 {leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable && (
                   <span style={{ color: '#FF3B30', fontSize: '11px', marginLeft: '8px' }}>
@@ -342,14 +406,18 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             </div>
           </div>
 
+          {/* Hint cho remote/birthday */}
+          {(leaveType === 'remote' || leaveType === 'birthday') && (
+            <div style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '12px', color: '#06B6D4' }}>
+              ℹ️ {leaveType === 'remote' ? 'Làm remote chỉ 1 ngày/tuần.' : 'Nghỉ sinh nhật chỉ 1 ngày/năm, có lương.'} Vui lòng chọn đúng 1 ngày.
+            </div>
+          )}
+
           {/* Reason */}
           <div style={{ marginBottom: '20px' }}>
             <label style={{ fontSize: '12px', fontWeight: 700, color: '#888', display: 'block', marginBottom: '6px' }}>Lý do</label>
-            <textarea
-              value={reason} onChange={e => setReason(e.target.value)}
-              placeholder="Nhập lý do xin nghỉ..." rows={3}
-              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
-            />
+            <textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Nhập lý do..." rows={3}
+              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
           </div>
 
           <button
@@ -359,8 +427,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
               padding: '12px 32px', borderRadius: '12px', border: 'none', fontWeight: 800,
               fontSize: '14px', cursor: submitting ? 'wait' : 'pointer',
               background: submitting ? '#333' : 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-              color: '#fff', opacity: (!dateFrom || !dateTo || !reason.trim()) ? 0.5 : 1,
-              transition: 'all 0.2s',
+              color: '#fff', opacity: (!dateFrom || !dateTo || !reason.trim()) ? 0.5 : 1, transition: 'all 0.2s',
             }}
           >
             {submitting ? 'Đang gửi...' : '📨 Gửi đơn'}
@@ -370,13 +437,11 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
 
       {/* Request History */}
       <div>
-        <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5', marginBottom: '16px' }}>
-          📋 Lịch sử đơn nghỉ phép
-        </h3>
+        <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5', marginBottom: '16px' }}>📋 Lịch sử đơn</h3>
         {requests.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px', background: '#161616', borderRadius: '16px', border: '1px solid #222' }}>
             <p style={{ fontSize: '40px', marginBottom: '12px' }}>🏖️</p>
-            <p style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>Chưa có đơn xin nghỉ phép nào</p>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: 'rgba(255,255,255,0.3)' }}>Chưa có đơn nào</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -392,7 +457,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
                           {st.label}
                         </span>
                         <span style={{ fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
-                          {LEAVE_TYPES[req.leave_type] || req.leave_type}
+                          {LEAVE_LABELS[req.leave_type] || req.leave_type}
                         </span>
                       </div>
                       <p style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5', marginBottom: '4px' }}>
@@ -402,9 +467,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
                           <span style={{ color: '#888', fontWeight: 400 }}> · {req.time_from.slice(0,5)}–{req.time_to.slice(0,5)}</span>
                         )}
                         <span style={{ color: '#06B6D4', marginLeft: '8px', fontSize: '12px' }}>
-                          {req.leave_hours
-                            ? `(${req.leave_hours}h = ${req.leave_days} ngày)`
-                            : `(${req.leave_days} ngày)`}
+                          {req.leave_hours ? `(${req.leave_hours}h = ${req.leave_days} ngày)` : `(${req.leave_days} ngày)`}
                         </span>
                       </p>
                       <p style={{ fontSize: '12px', color: '#888' }}>{req.reason}</p>
