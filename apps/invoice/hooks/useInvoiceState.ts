@@ -19,8 +19,8 @@ import { setHashTab } from '@/App';
 import { useBankManager } from './useBankManager';
 import { useStudioManager } from './useStudioManager';
 
-type InvoiceTab = 'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring';
-const VALID_TABS: InvoiceTab[] = ['edit', 'preview', 'history', 'dashboard', 'activity', 'recurring'];
+type InvoiceTab = 'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring' | 'aging';
+const VALID_TABS: InvoiceTab[] = ['edit', 'preview', 'history', 'dashboard', 'activity', 'recurring', 'aging'];
 
 export function useInvoiceState(initialTab?: string | null) {
   // ── Core State ──
@@ -40,9 +40,9 @@ export function useInvoiceState(initialTab?: string | null) {
     setHashTab(tab);
   }, []);
 
-  const accessibleTabs: Array<'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring'> =
+  const accessibleTabs: Array<'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring' | 'aging'> =
     currentUser?.role === 'admin' || currentUser?.role === 'ke_toan'
-      ? ['edit', 'preview', 'history', 'dashboard', 'activity', 'recurring']
+      ? ['edit', 'preview', 'history', 'dashboard', 'aging', 'activity', 'recurring']
       : ['edit', 'preview'];
 
   // ── Data State ──
@@ -119,7 +119,7 @@ export function useInvoiceState(initialTab?: string | null) {
         }
       }
     });
-    if (activeTab === 'history' || activeTab === 'dashboard') loadHistory();
+    if (activeTab === 'history' || activeTab === 'dashboard' || activeTab === 'aging') loadHistory();
   }, [activeTab]);
 
   // ── Realtime Subscription (P3-1) ──

@@ -14,6 +14,7 @@ import { EInvoiceModals } from './EInvoiceModals';
 import { ActivityLogTab } from './ActivityLogTab';
 import { RecurringTab } from './RecurringTab';
 import { EmailModal } from './EmailModal';
+import ARAgingTab from './ARAgingTab';
 
 interface InvoiceAppProps {
   currentUser: AccountUser;
@@ -47,6 +48,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
         vcbRateLoading={state.vcbRateLoading}
         onBack={onBack}
         appName="Invoice"
+        tabLabels={{ aging: 'AR Aging' }}
       />
 
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
@@ -78,6 +80,8 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
             formatCurrencySimple={state.formatCurrencySimple}
             onRefresh={state.loadHistory} onToggleStatus={state.toggleStatus}
           />
+        ) : state.activeTab === 'aging' ? (
+          <ARAgingTab theme={state.invoice.theme} history={state.history} />
         ) : state.activeTab === 'activity' ? (
           <ActivityLogTab theme={state.invoice.theme} />
         ) : state.activeTab === 'recurring' ? (
