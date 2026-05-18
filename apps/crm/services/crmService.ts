@@ -154,17 +154,33 @@ export interface InvoiceRecord {
   currency: string;
   items: { id: string; description: string; quantity: number; unitPrice: number }[];
   created_at: string;
+  crm_project_id?: string | null;
 }
 
 export async function fetchInvoicesByClient(clientName?: string): Promise<InvoiceRecord[]> {
   let q = supabase
     .from('invoice_invoices')
-    .select('id, invoice_number, client_name, status, paid_date, currency, items, created_at')
+    .select('id, invoice_number, client_name, status, paid_date, currency, items, created_at, crm_project_id')
     .order('created_at', { ascending: false });
   if (clientName) q = q.eq('client_name', clientName);
   const { data, error } = await q;
   if (error) throw error;
   return data || [];
+}
+
+export async function fetchInvoicesByProject(projectId: string): Promise<InvoiceRecord[]> {
+  const { data, error } = await supabase
+    .from('invoice_invoices')
+    .select('id, invoice_number, client_name, status, paid_date, currency, items, created_at, crm_project_id')
+    .eq('crm_project_id', projectId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/** Tính tổng giá trị hoá đơn từ items */
+export function calcInvoiceTotal(inv: InvoiceRecord): number {
+  return (inv.items || []).reduce((s, item) => s + (item.quantity || 0) * (item.unitPrice || 0), 0);
 }
 
 // ══════════════════════════════════════════════════════════════

@@ -89,6 +89,7 @@ export const saveInvoiceToCloud = async (data: InvoiceData): Promise<SaveRespons
         einvoice_reference_code: data.einvoice_reference_code || '',
         einvoice_tracking_code: data.einvoice_tracking_code || '',
         einvoice_pdf_url: data.einvoice_pdf_url || '',
+        crm_project_id: data.crm_project_id || null,
     };
 
     const { data: created, error } = await supabase
@@ -124,6 +125,7 @@ const parseInvoice = (row: any): InvoiceData => ({
     einvoice_invoice_number: row.einvoice_invoice_number || '',
     amount_received: row.amount_received ?? undefined,
     transfer_fee: row.transfer_fee ?? undefined,
+    crm_project_id: row.crm_project_id ?? null,
     createdAt: row.created_at,
 });
 

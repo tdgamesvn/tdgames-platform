@@ -95,7 +95,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
         ) : (
           <InvoiceEditor
             invoice={state.invoice} activeTab={state.activeTab}
-            studios={state.studios} banks={state.banks} clients={state.clients}
+            studios={state.studios} banks={state.banks} clients={state.clients} crmProjects={state.crmProjects}
             isLoading={state.isLoading} isExporting={state.isExporting}
             showBankManager={state.showBankManager} showStudioManager={state.showStudioManager}
             editingBankId={state.editingBankId} editingBankData={state.editingBankData}

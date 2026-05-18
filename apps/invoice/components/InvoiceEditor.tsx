@@ -11,6 +11,7 @@ interface InvoiceEditorProps {
   studios: StudioRecord[];
   banks: (BankingInfo & { id: string; isDefault: boolean })[];
   clients: ClientRecord[];
+  crmProjects: { id: string; name: string; client_id: string }[];
   // State
   isLoading: boolean;
   isExporting: string | null;
@@ -61,7 +62,7 @@ interface InvoiceEditorProps {
 
 export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
   invoice, activeTab,
-  studios, banks, clients,
+  studios, banks, clients, crmProjects,
   isLoading, isExporting, showBankManager, showStudioManager,
   editingBankId, editingBankData, editingStudioId, editingStudioData,
   newStudio, newBank, clientSuggestions, showSuggestions, eInvoiceProgress,
@@ -138,6 +139,18 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
             <Input label="Issue Date" type="date" value={invoice.issueDate} onChange={(e) => updateInvoice('issueDate', e.target.value)} />
             <Input label="Due Date" type="date" value={invoice.dueDate} onChange={(e) => updateInvoice('dueDate', e.target.value)} />
           </div>
+          {crmProjects.length > 0 && (
+            <Select
+              label="🔗 Dự án CRM (tuỳ chọn)"
+              value={invoice.crm_project_id || ''}
+              onChange={(e) => updateInvoice('crm_project_id', e.target.value || null)}
+            >
+              <option value="">-- Không liên kết --</option>
+              {crmProjects.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </Select>
+          )}
         </div>
       </section>
 

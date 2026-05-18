@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { CrmClient, CrmProject, CrmProjectFile } from '@/types';
 import * as svc from '../services/crmService';
+import type { InvoiceRecord } from '../services/crmService';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_URL || '';
@@ -64,6 +65,20 @@ const ProjectList: React.FC<Props> = ({ clients }) => {
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
+
+  // ── Billing panel: invoices linked per project ──
+  const [billingMap, setBillingMap] = useState<Record<string, InvoiceRecord[]>>({});
+  const [billingLoading, setBillingLoading] = useState<string | null>(null);
+
+  const loadBilling = async (projectId: string) => {
+    if (billingMap[projectId] !== undefined) return; // already loaded
+    setBillingLoading(projectId);
+    try {
+      const invs = await svc.fetchInvoicesByProject(projectId);
+      setBillingMap(prev => ({ ...prev, [projectId]: invs }));
+    } catch { setBillingMap(prev => ({ ...prev, [projectId]: [] })); }
+    finally { setBillingLoading(null); }
+  };
 
   const emptyForm = {
     client_id: '', name: '', description: '', status: 'active', start_date: '', end_date: '',
@@ -322,7 +337,7 @@ const ProjectList: React.FC<Props> = ({ clients }) => {
           return (
             <div key={proj.id} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                onClick={() => setExpandedId(isExpanded ? null : proj.id)}>
+                onClick={() => { const next = isExpanded ? null : proj.id; setExpandedId(next); if (next) loadBilling(next); }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                     <span style={{ fontSize: '15px', fontWeight: 800, color: '#F5F5F5' }}>{proj.name}</span>
@@ -390,6 +405,92 @@ const ProjectList: React.FC<Props> = ({ clients }) => {
               {isExpanded && (
                 <div style={{ borderTop: '1px solid #222', padding: '20px', background: '#111' }}>
                   {proj.description && <p style={{ color: '#aaa', fontSize: '13px', marginBottom: '16px' }}>{proj.description}</p>}
+
+                  {/* ── Billing Progress Panel ── */}
+                  {(() => {
+                    const invs = billingMap[proj.id] || [];
+                    const isLoadingBilling = billingLoading === proj.id;
+                    const budget = proj.budget || 0;
+                    const currency = proj.currency || 'USD';
+                    const fmt = (n: number) => currency === 'VND'
+                      ? n.toLocaleString('vi-VN') + ' ₫'
+                      : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                    const totalInvoiced = invs.reduce((s, inv) => s + svc.calcInvoiceTotal(inv), 0);
+                    const totalPaid = invs.filter(i => i.status === 'paid').reduce((s, inv) => s + svc.calcInvoiceTotal(inv), 0);
+                    const pct = budget > 0 ? Math.min(100, Math.round(totalInvoiced / budget * 100)) : 0;
+                    const pctPaid = budget > 0 ? Math.min(100, Math.round(totalPaid / budget * 100)) : 0;
+                    const INV_STATUS: Record<string, { label: string; color: string }> = {
+                      pending: { label: 'Chờ TT', color: '#FF9500' },
+                      paid:    { label: 'Đã TT',  color: '#34C759' },
+                      cancelled: { label: 'Huỷ',  color: '#FF3B30' },
+                    };
+                    return (
+                      <div style={{ marginBottom: '20px', background: '#0F0F0F', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', marginBottom: '12px' }}>
+                          📊 Billing Progress {invs.length > 0 && <span style={{ color: '#555' }}>· {invs.length} hoá đơn</span>}
+                        </h4>
+                        {isLoadingBilling ? (
+                          <p style={{ color: '#555', fontSize: '12px' }}>Đang tải...</p>
+                        ) : (
+                          <>
+                            {/* Summary row */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '12px' }}>
+                              {[
+                                { label: 'Hợp đồng', value: budget > 0 ? fmt(budget) : '—', color: '#888' },
+                                { label: 'Đã xuất HĐ', value: invs.length > 0 ? fmt(totalInvoiced) : '—', color: '#0A84FF' },
+                                { label: 'Đã thu', value: invs.length > 0 ? fmt(totalPaid) : '—', color: '#34C759' },
+                              ].map(({ label, value, color }) => (
+                                <div key={label} style={{ background: '#161616', borderRadius: '8px', padding: '10px 12px' }}>
+                                  <p style={{ fontSize: '10px', fontWeight: 700, color: '#555', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>{label}</p>
+                                  <p style={{ fontSize: '14px', fontWeight: 900, color }}>{value}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Progress bar */}
+                            {budget > 0 && (
+                              <div style={{ marginBottom: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                  <span style={{ fontSize: '10px', color: '#555' }}>Đã xuất / Hợp đồng</span>
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: pct >= 100 ? '#34C759' : '#0A84FF' }}>{pct}%</span>
+                                </div>
+                                <div style={{ height: '6px', background: '#222', borderRadius: '99px', overflow: 'hidden', position: 'relative' }}>
+                                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: '#0A84FF', borderRadius: '99px', transition: 'width 0.4s ease' }} />
+                                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pctPaid}%`, background: '#34C759', borderRadius: '99px', transition: 'width 0.4s ease' }} />
+                                </div>
+                                <p style={{ fontSize: '9px', color: '#444', marginTop: '3px' }}>Xanh lá = đã thu · Xanh dương = đã xuất HĐ</p>
+                              </div>
+                            )}
+                            {/* Invoice list */}
+                            {invs.length === 0 ? (
+                              <p style={{ fontSize: '12px', color: '#444', textAlign: 'center', padding: '12px 0' }}>Chưa có hoá đơn liên kết</p>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {invs.map(inv => {
+                                  const st = INV_STATUS[inv.status] || INV_STATUS.pending;
+                                  const total = svc.calcInvoiceTotal(inv);
+                                  const fmtCur = (n: number) => inv.currency === 'VND'
+                                    ? n.toLocaleString('vi-VN') + ' ₫'
+                                    : '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 });
+                                  return (
+                                    <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#161616', borderRadius: '8px', border: '1px solid #1e1e1e' }}>
+                                      <div>
+                                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#F5F5F5' }}>{inv.invoice_number}</span>
+                                        <span style={{ fontSize: '10px', color: '#555', marginLeft: '8px' }}>{new Date(inv.created_at).toLocaleDateString('vi-VN')}</span>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '12px', fontWeight: 800, color: st.color }}>{fmtCur(total)}</span>
+                                        <span style={{ fontSize: '9px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: st.color + '15', color: st.color }}>{st.label}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>

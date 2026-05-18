@@ -69,6 +69,7 @@ export interface InvoiceData {
   einvoice_invoice_number?: string;
   amount_received?: number;
   transfer_fee?: number;
+  crm_project_id?: string | null;
 }
 
 export interface AccountUser {

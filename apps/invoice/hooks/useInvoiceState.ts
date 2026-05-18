@@ -48,6 +48,7 @@ export function useInvoiceState(initialTab?: string | null) {
   // ── Data State ──
   const [history, setHistory] = useState<InvoiceData[]>([]);
   const [clients, setClients] = useState<ClientRecord[]>([]);
+  const [crmProjects, setCrmProjects] = useState<{ id: string; name: string; client_id: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState<{ text: string, type: 'success' | 'warning' | 'error' } | null>(null);
@@ -190,6 +191,18 @@ export function useInvoiceState(initialTab?: string | null) {
     const data = await fetchClientsFromCloud();
     setClients(data);
   };
+
+  const loadCrmProjects = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('crm_projects')
+        .select('id, name, client_id')
+        .order('name');
+      setCrmProjects(data || []);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => { loadCrmProjects(); }, [loadCrmProjects]);
 
   // ── Invoice Helpers ──
   const updateInvoice = (path: string, value: any) => {
@@ -538,7 +551,7 @@ export function useInvoiceState(initialTab?: string | null) {
     // Core
     currentUser, setCurrentUser, invoice, setInvoice, activeTab, setActiveTab, accessibleTabs,
     // Data
-    history, clients, isLoading, isExporting, lastMessage, setLastMessage,
+    history, clients, crmProjects, isLoading, isExporting, lastMessage, setLastMessage,
     filteredHistory, formatCurrencySimple,
     // Bank manager (sub-hook)
     banks: bankMgr.banks,
