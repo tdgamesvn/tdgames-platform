@@ -12,6 +12,7 @@ import ExpenseCategoryManager from './ExpenseCategoryManager';
 import ExpenseDashboard from './ExpenseDashboard';
 import ExpenseReports from './ExpenseReports';
 import FxRateManager from './FxRateManager';
+import CashFlowView from './CashFlowView';
 
 interface ExpenseAppProps {
   currentUser: AccountUser;
@@ -27,6 +28,7 @@ const TAB_MAP: Record<ExpenseTab, string> = {
   categories: 'activity',
   reports: 'reports',
   fxrates: 'fxrates',
+  cashflow: 'cashflow',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -36,6 +38,7 @@ const TAB_LABELS: Record<string, string> = {
   activity: 'Danh mục',
   reports: 'Báo cáo',
   fxrates: '💱 Tỷ giá',
+  cashflow: '💵 Dòng tiền',
 };
 
 const REVERSE_TAB: Record<string, ExpenseTab> = {
@@ -45,6 +48,7 @@ const REVERSE_TAB: Record<string, ExpenseTab> = {
   activity: 'categories',
   reports: 'reports',
   fxrates: 'fxrates',
+  cashflow: 'cashflow',
 };
 
 const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab }) => {
@@ -55,7 +59,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
   const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const accessibleTabs = (['overview', 'history', 'recurring', 'activity', 'reports', 'fxrates'] as const).map(t => t);
+  const accessibleTabs = (['overview', 'history', 'recurring', 'activity', 'reports', 'fxrates', 'cashflow'] as const).map(t => t);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -164,6 +168,12 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
         )}
         {state.activeTab === 'fxrates' && (
           <FxRateManager />
+        )}
+        {state.activeTab === 'cashflow' && (
+          <CashFlowView
+            expenses={state.expenses}
+            vcbAvgRate={avgUsdVnd}
+          />
         )}
       </main>
 
