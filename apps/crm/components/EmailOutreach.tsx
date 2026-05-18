@@ -34,7 +34,7 @@ const labelStyle: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
 };
 
-type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'settings';
+type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'settings';
 
 // ══════════════════════════════════════════════════════════════
 // ── Main Component ────────────────────────────────────────────
@@ -74,6 +74,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
     { key: 'leads',     icon: '👥', label: `Leads (${stats?.total || 0})` },
     { key: 'discovery', icon: '🔍', label: 'Discovery' },
     { key: 'emails',    icon: '📧', label: `Templates (${templates.length})` },
+    { key: 'analytics', icon: '📈', label: 'Analytics' },
     { key: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
 
@@ -120,6 +121,9 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
 
         {/* ── EMAILS/TEMPLATES ── */}
         {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} />}
+
+        {/* ── ANALYTICS ── */}
+        {tab === 'analytics' && <AnalyticsTab />}
 
         {/* ── SETTINGS ── */}
         {tab === 'settings' && <SettingsTab />}
@@ -1558,6 +1562,130 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
       )}
 
 
+    </div>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════
+// ── ANALYTICS TAB ─────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+const AnalyticsTab: React.FC = () => {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    outreachRequest('/api/email/analytics')
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, []);
+
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#888' }}>⏳ Đang tải analytics...</div>;
+  if (error || !data) return <div style={{ padding: '40px', color: '#FF453A' }}>❌ Lỗi: {error || 'Không có dữ liệu'}</div>;
+
+  const statCard = (icon: string, label: string, value: string | number, sub?: string, color = '#F5F5F5') => (
+    <div style={{ background: '#1A1A1A', borderRadius: '12px', padding: '20px', flex: 1, minWidth: '140px', border: '1px solid #2A2A2A' }}>
+      <div style={{ fontSize: '22px', marginBottom: '6px' }}>{icon}</div>
+      <div style={{ fontSize: '28px', fontWeight: 800, color, marginBottom: '2px' }}>{value}</div>
+      <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+      {sub && <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>{sub}</div>}
+    </div>
+  );
+
+  const tplOrder = ['initial_outreach', 'followup_1', 'followup_2'];
+  const tplLabels: Record<string, string> = { initial_outreach: 'Initial', followup_1: 'Follow-up 1', followup_2: 'Follow-up 2' };
+
+  const trend = data.trend_7d as Record<string, number>;
+  const trendMax = Math.max(...Object.values(trend), 1);
+
+  return (
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* ── KPI Cards ── */}
+      <div>
+        <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#666', marginBottom: '12px', letterSpacing: '0.1em' }}>📊 Tổng quan</p>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {statCard('📤', 'Đã gửi', data.total_sent)}
+          {statCard('✅', 'Delivered', `${data.delivered} (${data.delivery_rate}%)`, undefined, '#34C759')}
+          {statCard('👁', 'Opened', `${data.opened} (${data.open_rate}%)`, undefined, '#0A84FF')}
+          {statCard('🖱', 'Clicked', `${data.clicked} (${data.click_rate}%)`, undefined, '#BF5AF2')}
+          {statCard('💬', 'Replied', `${data.replied} (${data.reply_rate}%)`, undefined, '#FF9500')}
+          {statCard('⚠️', 'Bounced', data.bounced_leads, undefined, '#FF453A')}
+        </div>
+      </div>
+
+      {/* ── Trend 7 ngày ── */}
+      <div style={{ background: '#1A1A1A', borderRadius: '12px', padding: '20px', border: '1px solid #2A2A2A' }}>
+        <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#666', marginBottom: '16px', letterSpacing: '0.1em' }}>📅 Trend 7 ngày gần nhất</p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '80px' }}>
+          {Object.entries(trend).map(([day, count]) => (
+            <div key={day} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontSize: '10px', color: '#888' }}>{count > 0 ? count : ''}</div>
+              <div style={{
+                width: '100%', background: count > 0 ? '#FF9500' : '#2A2A2A',
+                borderRadius: '4px 4px 0 0',
+                height: `${Math.max(4, (count / trendMax) * 60)}px`,
+                transition: 'height 0.3s',
+              }} />
+              <div style={{ fontSize: '9px', color: '#555', whiteSpace: 'nowrap' }}>{day.slice(5)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── By Template ── */}
+      <div style={{ background: '#1A1A1A', borderRadius: '12px', padding: '20px', border: '1px solid #2A2A2A' }}>
+        <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#666', marginBottom: '12px', letterSpacing: '0.1em' }}>📧 Theo template</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {tplOrder.map(tpl => {
+            const t = data.by_template[tpl];
+            if (!t) return null;
+            const delivRate = t.sent > 0 ? Math.round(t.delivered / t.sent * 100) : 0;
+            return (
+              <div key={tpl} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: '#111', borderRadius: '8px' }}>
+                <span style={{ minWidth: '100px', fontSize: '13px', fontWeight: 600, color: '#F5F5F5' }}>{tplLabels[tpl] || tpl}</span>
+                <span style={{ fontSize: '12px', color: '#888' }}>Gửi: <b style={{ color: '#F5F5F5' }}>{t.sent}</b></span>
+                <span style={{ fontSize: '12px', color: '#888' }}>Delivered: <b style={{ color: '#34C759' }}>{t.delivered} ({delivRate}%)</b></span>
+                <span style={{ fontSize: '12px', color: '#888' }}>Fail: <b style={{ color: t.failed > 0 ? '#FF453A' : '#555' }}>{t.failed}</b></span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Pipeline funnel ── */}
+      <div style={{ background: '#1A1A1A', borderRadius: '12px', padding: '20px', border: '1px solid #2A2A2A' }}>
+        <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#666', marginBottom: '12px', letterSpacing: '0.1em' }}>🏃 Pipeline leads</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {Object.entries(data.pipeline as Record<string, number>)
+            .sort((a, b) => b[1] - a[1])
+            .map(([status, count]) => {
+              const cfg: Record<string, { color: string; label: string }> = {
+                pending:        { color: '#888',    label: 'Chờ gửi' },
+                initial_sent:   { color: '#0A84FF', label: 'Đã gửi' },
+                followup1_sent: { color: '#FF9500', label: 'Follow-up 1' },
+                followup2_sent: { color: '#BF5AF2', label: 'Follow-up 2' },
+                replied:        { color: '#34C759', label: 'Đã phản hồi' },
+                bounced:        { color: '#FF453A', label: 'Bounced' },
+                invalid_email:  { color: '#FF3B30', label: 'Email lỗi' },
+              };
+              const c = cfg[status] || { color: '#555', label: status };
+              return (
+                <div key={status} style={{ background: '#111', border: `1px solid ${c.color}33`, borderRadius: '8px', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: c.color, display: 'inline-block' }} />
+                  <span style={{ fontSize: '12px', color: '#888' }}>{c.label}</span>
+                  <span style={{ fontSize: '18px', fontWeight: 800, color: c.color }}>{count}</span>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      <p style={{ fontSize: '11px', color: '#555', textAlign: 'right' }}>
+        💡 Open/Click tracking qua Resend webhook. Replied được cập nhật thủ công.
+      </p>
     </div>
   );
 };
