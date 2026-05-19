@@ -53,7 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
                 </span>
               </div>
               <span className={`text-[8px] font-bold uppercase tracking-wider ${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-400'}`}>
-                VCB • {(() => {
+                {vcbRate.source || 'TCB'} • {(() => {
                   try {
                     const d = new Date(vcbRate.updated_at);
                     if (isNaN(d.getTime())) return vcbRate.updated_at;
