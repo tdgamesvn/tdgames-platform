@@ -83,6 +83,16 @@ export async function fetchDocuments(clientId?: string): Promise<CrmDocument[]> 
   return data || [];
 }
 
+export async function fetchDocumentsByProject(projectId: string): Promise<CrmDocument[]> {
+  const { data, error } = await supabase
+    .from('crm_documents')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function createDocument(doc: Omit<CrmDocument, 'id' | 'created_at'>): Promise<CrmDocument> {
   const { data, error } = await supabase.from('crm_documents').insert(doc).select().single();
   if (error) throw error;

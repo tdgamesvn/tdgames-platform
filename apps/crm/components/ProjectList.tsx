@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { CrmClient, CrmProject, CrmProjectFile } from '@/types';
+import { CrmClient, CrmProject, CrmProjectFile, CrmDocument } from '@/types';
 import * as svc from '../services/crmService';
 import type { InvoiceRecord } from '../services/crmService';
 
@@ -78,6 +78,17 @@ const ProjectList: React.FC<Props> = ({ clients }) => {
       setBillingMap(prev => ({ ...prev, [projectId]: invs }));
     } catch { setBillingMap(prev => ({ ...prev, [projectId]: [] })); }
     finally { setBillingLoading(null); }
+  };
+
+  // ── CRM Documents linked per project ──
+  const [docsMap, setDocsMap] = useState<Record<string, CrmDocument[]>>({});
+
+  const loadProjectDocs = async (projectId: string) => {
+    if (docsMap[projectId] !== undefined) return; // already loaded
+    try {
+      const docs = await svc.fetchDocumentsByProject(projectId);
+      setDocsMap(prev => ({ ...prev, [projectId]: docs }));
+    } catch { setDocsMap(prev => ({ ...prev, [projectId]: [] })); }
   };
 
   const emptyForm = {
@@ -337,7 +348,7 @@ const ProjectList: React.FC<Props> = ({ clients }) => {
           return (
             <div key={proj.id} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
               <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-                onClick={() => { const next = isExpanded ? null : proj.id; setExpandedId(next); if (next) loadBilling(next); }}>
+                onClick={() => { const next = isExpanded ? null : proj.id; setExpandedId(next); if (next) { loadBilling(next); loadProjectDocs(next); } }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                     <span style={{ fontSize: '15px', fontWeight: 800, color: '#F5F5F5' }}>{proj.name}</span>
@@ -488,6 +499,72 @@ const ProjectList: React.FC<Props> = ({ clients }) => {
                             )}
                           </>
                         )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* ── CRM Documents linked to this project ── */}
+                  {(() => {
+                    const crmDocs = docsMap[proj.id] || [];
+                    if (crmDocs.length === 0) return null;
+                    const DOC_TYPE_ICON: Record<string, string> = {
+                      contract: '📋', nda: '🔒', invoice: '🧾', proposal: '📝', other: '📎',
+                    };
+                    const DOC_TYPE_LABEL: Record<string, string> = {
+                      contract: 'Hợp đồng', nda: 'NDA', invoice: 'Invoice', proposal: 'Proposal', other: 'Khác',
+                    };
+                    const DOC_TYPE_COLOR: Record<string, string> = {
+                      contract: '#34C759', nda: '#FF9500', invoice: '#0A84FF', proposal: '#AF52DE', other: '#888',
+                    };
+                    return (
+                      <div style={{ marginBottom: '20px' }}>
+                        <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', marginBottom: '10px' }}>
+                          📋 Tài liệu CRM ({crmDocs.length})
+                        </h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {crmDocs.map(doc => {
+                            const icon = DOC_TYPE_ICON[doc.doc_type] || '📎';
+                            const label = DOC_TYPE_LABEL[doc.doc_type] || 'Khác';
+                            const color = DOC_TYPE_COLOR[doc.doc_type] || '#888';
+                            const canPrev = doc.file_url && isPreviewable(doc.file_url);
+                            const pubUrl = doc.file_url ? toPublicUrl(doc.file_url) : '';
+                            return (
+                              <div key={doc.id} style={{
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                padding: '10px 14px', background: '#1A1A1A', borderRadius: '8px',
+                                border: `1px solid ${color}20`,
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+                                  <span style={{ fontSize: '16px' }}>{icon}</span>
+                                  <div>
+                                    <span style={{ color: '#F5F5F5', fontSize: '13px', fontWeight: 600 }}>{doc.title}</span>
+                                    <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '8px', padding: '1px 6px', borderRadius: '4px', background: color + '20', color }}>{label}</span>
+                                    {doc.file_name && <span style={{ fontSize: '10px', color: '#34C759', fontWeight: 600, marginLeft: '8px' }}>{doc.file_name}</span>}
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                                  {canPrev ? (
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewUrl(pubUrl); setPreviewTitle(doc.file_name || doc.title); }}
+                                      style={{ padding: '4px 8px', border: 'none', borderRadius: '4px', background: 'rgba(10,132,255,0.12)', color: '#0A84FF', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+                                      👁️ Xem
+                                    </button>
+                                  ) : pubUrl ? (
+                                    <a href={pubUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                                      style={{ padding: '4px 8px', border: 'none', borderRadius: '4px', background: 'rgba(10,132,255,0.12)', color: '#0A84FF', fontSize: '11px', fontWeight: 700, textDecoration: 'none' }}>
+                                      🔗 Mở
+                                    </a>
+                                  ) : null}
+                                  {pubUrl && (
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDownload(pubUrl, doc.file_name || doc.title); }}
+                                      style={{ padding: '4px 8px', border: 'none', borderRadius: '4px', background: 'rgba(52,199,89,0.12)', color: '#34C759', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>
+                                      ⬇️
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     );
                   })()}
