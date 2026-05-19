@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { CrmClient, CrmDocument } from '@/types';
+import { CrmClient, CrmDocument, CrmProject } from '@/types';
 import * as svc from '../services/crmService';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
@@ -11,7 +11,6 @@ const ACCEPTED_TYPES = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.w
 // Convert S3 API URL to public R2 URL for preview/download
 const toPublicUrl = (url: string): string => {
   if (!url || !R2_PUBLIC_BASE) return url;
-  // Match R2 S3 API URLs: https://{account_id}.r2.cloudflarestorage.com/{path}
   const r2Match = url.match(/https:\/\/[a-f0-9]+\.r2\.cloudflarestorage\.com\/(.+)/);
   if (r2Match) return `${R2_PUBLIC_BASE}/${r2Match[1]}`;
   return url;
@@ -48,10 +47,14 @@ const formatSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const emptyForm = { client_id: '', project_id: '' as string | null, doc_type: 'contract', title: '', file_url: '', file_name: '', file_size: 0, notes: '' };
+
 const DocumentList: React.FC<Props> = ({ clients }) => {
   const [docs, setDocs] = useState<CrmDocument[]>([]);
+  const [allProjects, setAllProjects] = useState<CrmProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filterClient, setFilterClient] = useState('');
+  const [filterProject, setFilterProject] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingDoc, setEditingDoc] = useState<CrmDocument | null>(null);
@@ -63,8 +66,12 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
-  const emptyForm = { client_id: '', doc_type: 'contract', title: '', file_url: '', file_name: '', file_size: 0, notes: '' };
   const [form, setForm] = useState(emptyForm);
+
+  // Load all projects once for lookup
+  useEffect(() => {
+    svc.fetchProjects().then(setAllProjects).catch(() => {});
+  }, []);
 
   const load = async () => {
     setIsLoading(true);
@@ -74,6 +81,9 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
     } catch { } finally { setIsLoading(false); }
   };
   useEffect(() => { load(); }, [filterClient]);
+
+  // Projects available for the selected client in the form
+  const formProjects = allProjects.filter(p => !form.client_id || p.client_id === form.client_id);
 
   // ── Upload a file to R2 ──
   const uploadFile = async (file: File) => {
@@ -103,7 +113,6 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
     }
   };
 
-  // Keep a ref to the latest uploadFile so drag-drop always calls the latest version
   const uploadRef = useRef(uploadFile);
   uploadRef.current = uploadFile;
 
@@ -112,20 +121,12 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
     if (file) uploadFile(file);
   };
 
-  // ── Drag & Drop handlers (no stale closures) ──
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    setIsDragging(true);
-  };
+  const handleDragEnter = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
-    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
+    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) setIsDragging(false);
   };
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation();
     setIsDragging(false);
@@ -136,18 +137,20 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
   const handleSave = async () => {
     if (!form.client_id || !form.title.trim()) return;
     try {
+      const payload = {
+        client_id: form.client_id,
+        project_id: form.project_id || null,
+        doc_type: form.doc_type as any,
+        title: form.title,
+        file_url: form.file_url,
+        file_name: form.file_name,
+        file_size: form.file_size,
+        notes: form.notes,
+      };
       if (editingDoc) {
-        await svc.updateDocument(editingDoc.id, {
-          client_id: form.client_id,
-          doc_type: form.doc_type as any,
-          title: form.title,
-          file_url: form.file_url,
-          file_name: form.file_name,
-          file_size: form.file_size,
-          notes: form.notes,
-        });
+        await svc.updateDocument(editingDoc.id, payload);
       } else {
-        await svc.createDocument(form as any);
+        await svc.createDocument(payload as any);
       }
       setShowForm(false);
       setEditingDoc(null);
@@ -162,6 +165,7 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
     setEditingDoc(doc);
     setForm({
       client_id: doc.client_id,
+      project_id: doc.project_id || null,
       doc_type: doc.doc_type,
       title: doc.title,
       file_url: doc.file_url || '',
@@ -190,8 +194,17 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const filtered = docs.filter(d => !filterType || d.doc_type === filterType);
+  // Projects for filter bar (based on filterClient)
+  const filterBarProjects = allProjects.filter(p => !filterClient || p.client_id === filterClient);
+
+  const filtered = docs.filter(d => {
+    if (filterType && d.doc_type !== filterType) return false;
+    if (filterProject && d.project_id !== filterProject) return false;
+    return true;
+  });
+
   const clientName = (id: string) => clients.find(c => c.id === id)?.name || '—';
+  const projectName = (id?: string | null) => id ? (allProjects.find(p => p.id === id)?.name || null) : null;
 
   const typeCounts = Object.keys(DOC_TYPES).map(k => ({
     key: k, ...DOC_TYPES[k], count: docs.filter(d => d.doc_type === k).length,
@@ -203,10 +216,8 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
       {previewUrl && ReactDOM.createPortal(
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999,
-          background: 'rgba(0,0,0,0.97)', display: 'flex', flexDirection: 'column',
-          overflow: 'hidden',
+          background: 'rgba(0,0,0,0.97)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }} onClick={() => setPreviewUrl(null)}>
-          {/* Action bar — 50px fixed */}
           <div onClick={e => e.stopPropagation()} style={{
             display: 'flex', alignItems: 'center', gap: '12px', padding: '0 20px',
             background: '#111', borderBottom: '1px solid #333',
@@ -226,18 +237,11 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
               color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
             }}>✕ Đóng</button>
           </div>
-          {/* Preview content — fills remaining viewport */}
-          <div onClick={e => e.stopPropagation()} style={{
-            width: '100%', height: 'calc(100vh - 50px)', overflow: 'hidden',
-          }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', height: 'calc(100vh - 50px)', overflow: 'hidden' }}>
             {isImageUrl(previewUrl) ? (
-              <img src={previewUrl} alt={previewTitle} style={{
-                width: '100%', height: '100%', objectFit: 'contain', background: '#000',
-              }} />
+              <img src={previewUrl} alt={previewTitle} style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
             ) : (
-              <iframe src={previewUrl} title={previewTitle} style={{
-                width: '100%', height: '100%', border: 'none', background: '#fff',
-              }} />
+              <iframe src={previewUrl} title={previewTitle} style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }} />
             )}
           </div>
         </div>,
@@ -268,39 +272,62 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
         ))}
       </div>
 
-      {/* Filter */}
-      <div style={{ marginBottom: '20px' }}>
-        <select style={{ ...inputStyle, width: '300px' }} value={filterClient} onChange={e => setFilterClient(e.target.value)}>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <select style={{ ...inputStyle, width: '260px' }} value={filterClient} onChange={e => {
+          setFilterClient(e.target.value);
+          setFilterProject('');
+        }}>
           <option value="">Tất cả khách hàng</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        <select style={{ ...inputStyle, width: '260px' }} value={filterProject} onChange={e => setFilterProject(e.target.value)}
+          disabled={filterBarProjects.length === 0}>
+          <option value="">Tất cả dự án</option>
+          {filterBarProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
       </div>
 
-      {/* New doc form */}
+      {/* New / Edit doc form */}
       {showForm && (
         <div style={{ background: '#161616', border: `1px solid ${editingDoc ? '#0A84FF' : '#FF9500'}`, borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 800, color: editingDoc ? '#0A84FF' : '#FF9500', marginBottom: '16px', textTransform: 'uppercase' }}>
             {editingDoc ? '✏️ Chỉnh sửa tài liệu' : '＋ Tạo tài liệu mới'}
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-            <div><label style={labelStyle}>Khách hàng *</label>
-              <select style={inputStyle} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}>
+
+          {/* Row 1: client / project / type / title */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+            <div>
+              <label style={labelStyle}>Khách hàng *</label>
+              <select style={inputStyle} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value, project_id: null })}>
                 <option value="">-- Chọn --</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select></div>
-            <div><label style={labelStyle}>Loại tài liệu</label>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Dự án</label>
+              <select style={inputStyle} value={form.project_id || ''} onChange={e => setForm({ ...form, project_id: e.target.value || null })}
+                disabled={formProjects.length === 0}>
+                <option value="">— Không gắn dự án —</option>
+                {formProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Loại tài liệu</label>
               <select style={inputStyle} value={form.doc_type} onChange={e => setForm({ ...form, doc_type: e.target.value })}>
                 {Object.entries(DOC_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
-              </select></div>
-            <div><label style={labelStyle}>Tiêu đề *</label>
-              <input style={inputStyle} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Hợp đồng dịch vụ 2026..." /></div>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Tiêu đề *</label>
+              <input style={inputStyle} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Hợp đồng dịch vụ 2026..." />
+            </div>
           </div>
 
           {/* Drag & Drop Upload Area */}
           <div style={{ marginBottom: '14px' }}>
             <label style={labelStyle}>Upload file hoặc dán link</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              {/* Drop zone */}
               <div ref={dropZoneRef}
                 onDragEnter={handleDragEnter} onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver} onDrop={handleDrop}>
@@ -345,7 +372,6 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
                   </button>
                 )}
               </div>
-              {/* Or link */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <input style={{ ...inputStyle, flex: 1 }}
                   value={!form.file_name ? form.file_url : ''}
@@ -362,8 +388,12 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
             <input style={inputStyle} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú..." />
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => { setShowForm(false); setEditingDoc(null); setForm(emptyForm); }} style={{ padding: '8px 16px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
-            <button type="button" onClick={handleSave} disabled={uploading} style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', background: editingDoc ? '#0A84FF' : '#FF9500', color: editingDoc ? '#fff' : '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer', opacity: uploading ? 0.5 : 1 }}>{editingDoc ? 'Cập nhật' : 'Lưu tài liệu'}</button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingDoc(null); setForm(emptyForm); }}
+              style={{ padding: '8px 16px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
+            <button type="button" onClick={handleSave} disabled={uploading}
+              style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', background: editingDoc ? '#0A84FF' : '#FF9500', color: editingDoc ? '#fff' : '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer', opacity: uploading ? 0.5 : 1 }}>
+              {editingDoc ? 'Cập nhật' : 'Lưu tài liệu'}
+            </button>
           </div>
         </div>
       )}
@@ -376,11 +406,11 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
           const dt = DOC_TYPES[doc.doc_type] || DOC_TYPES.other;
           const hasFile = !!doc.file_url;
           const canPreview = hasFile && isPreviewable(doc.file_url);
+          const pName = projectName(doc.project_id);
           return (
             <div key={doc.id} style={{
               background: '#161616', border: '1px solid #222', borderRadius: '10px', padding: '16px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              transition: 'border-color 0.2s',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.2s',
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = dt.color; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#222'; }}>
@@ -393,8 +423,9 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
                     {doc.file_name && <span style={{ fontSize: '10px', color: '#34C759', fontWeight: 600 }}>📄 {doc.file_name}</span>}
                     {doc.file_size > 0 && <span style={{ fontSize: '10px', color: '#555' }}>{formatSize(doc.file_size)}</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: '#666' }}>
+                  <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: '#666', flexWrap: 'wrap' }}>
                     <span>🏢 {clientName(doc.client_id)}</span>
+                    {pName && <span style={{ color: '#AF52DE' }}>📁 {pName}</span>}
                     <span>📅 {new Date(doc.created_at).toLocaleDateString('vi-VN')}</span>
                     {doc.notes && <span>📝 {doc.notes}</span>}
                   </div>
@@ -402,60 +433,33 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
               </div>
               {/* Actions */}
               <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '12px', position: 'relative', zIndex: 10 }}>
-                {/* Edit */}
                 <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(doc); }} title="Sửa"
-                  style={{
-                    padding: '7px 12px', border: '1px solid #FF950030', borderRadius: '6px',
-                    background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                  }}>✏️ Sửa</button>
-                {/* View / Preview */}
+                  style={{ padding: '7px 12px', border: '1px solid #FF950030', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✏️ Sửa</button>
                 {hasFile && canPreview && (
                   <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewUrl(toPublicUrl(doc.file_url)); setPreviewTitle(doc.file_name || doc.title); }} title="Xem trước"
-                    style={{
-                      padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px',
-                      background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                    }}>👁️ Xem</button>
+                    style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>👁️ Xem</button>
                 )}
                 {hasFile && !canPreview && (
-                  <a href={toPublicUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" title="Mở trong tab mới"
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', textDecoration: 'none',
-                      background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                    }}>🔗 Mở</a>
+                  <a href={toPublicUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                    style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', textDecoration: 'none', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🔗 Mở</a>
                 )}
-                {/* Download */}
                 {hasFile && (
                   <button type="button" onClick={(e) => { e.stopPropagation(); handleDownload(toPublicUrl(doc.file_url), doc.file_name || doc.title); }} title="Tải về"
-                    style={{
-                      padding: '7px 12px', border: '1px solid #34C75930', borderRadius: '6px',
-                      background: 'rgba(52,199,89,0.1)', color: '#34C759', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                    }}>⬇️ Tải</button>
+                    style={{ padding: '7px 12px', border: '1px solid #34C75930', borderRadius: '6px', background: 'rgba(52,199,89,0.1)', color: '#34C759', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⬇️ Tải</button>
                 )}
-                {/* Delete — inline confirm */}
                 {deleteConfirmId === doc.id ? (
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', color: '#FF453A', fontWeight: 700, marginRight: '2px' }}>Xoá?</span>
-                    <button type="button" disabled={deleting}
-                      onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
-                      style={{
-                        padding: '7px 12px', border: 'none', borderRadius: '6px',
-                        background: '#FF453A', color: '#fff', fontSize: '12px', fontWeight: 800,
-                        cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1,
-                      }}>{deleting ? '...' : '✓ Xác nhận'}</button>
-                    <button type="button"
-                      onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                      style={{
-                        padding: '7px 10px', border: '1px solid #333', borderRadius: '6px',
-                        background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                      }}>✕</button>
+                    <button type="button" disabled={deleting} onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
+                      style={{ padding: '7px 12px', border: 'none', borderRadius: '6px', background: '#FF453A', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
+                      {deleting ? '...' : '✓ Xác nhận'}
+                    </button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
+                      style={{ padding: '7px 10px', border: '1px solid #333', borderRadius: '6px', background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✕</button>
                   </div>
                 ) : (
                   <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(doc.id); }} title="Xoá"
-                    style={{
-                      padding: '7px 12px', border: '1px solid #FF453A30', borderRadius: '6px',
-                      background: 'rgba(255,69,58,0.1)', color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                    }}>🗑️</button>
+                    style={{ padding: '7px 12px', border: '1px solid #FF453A30', borderRadius: '6px', background: 'rgba(255,69,58,0.1)', color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🗑️</button>
                 )}
               </div>
             </div>
@@ -470,7 +474,6 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
         </div>
       )}
 
-      {/* Spinner animation */}
       <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   );

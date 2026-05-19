@@ -286,6 +286,7 @@ export interface CrmClient {
 export interface CrmDocument {
   id: string;
   client_id: string;
+  project_id?: string | null;
   doc_type: 'contract' | 'nda' | 'invoice' | 'proposal' | 'other';
   title: string;
   file_url: string;
