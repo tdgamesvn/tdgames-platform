@@ -3,6 +3,7 @@ import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog } from '@/typ
 import * as svc from '../services/outreachService';
 import type { PipelineStats } from '../services/outreachService';
 import { getOutreachApiBase, outreachRequest, supabaseEdgeFunctionPost } from '../services/outreachApi';
+import { AutoTab } from './AutoTab';
 
 // ══════════════════════════════════════════════════════════════
 // ── Constants ─────────────────────────────────────────────────
@@ -34,7 +35,7 @@ const labelStyle: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
 };
 
-type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'settings';
+type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'auto' | 'settings';
 
 // ══════════════════════════════════════════════════════════════
 // ── Main Component ────────────────────────────────────────────
@@ -75,6 +76,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
     { key: 'discovery', icon: '🔍', label: 'Discovery' },
     { key: 'emails',    icon: '📧', label: `Templates (${templates.length})` },
     { key: 'analytics', icon: '📈', label: 'Analytics' },
+    { key: 'auto',      icon: '🤖', label: 'Auto' },
     { key: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
 
@@ -103,7 +105,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
         </div>
 
         {/* ── DASHBOARD ── */}
-        {tab === 'dashboard' && stats && <DashboardTab stats={stats} />}
+        {tab === 'dashboard' && stats && <DashboardTab stats={stats} onSwitchTab={setTab} />}
 
         {/* ── LEADS ── */}
         {tab === 'leads' && (
@@ -124,6 +126,9 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
 
         {/* ── ANALYTICS ── */}
         {tab === 'analytics' && <AnalyticsTab />}
+
+        {/* ── AUTO ── */}
+        {tab === 'auto' && <AutoTab />}
 
         {/* ── SETTINGS ── */}
         {tab === 'settings' && <SettingsTab />}
@@ -158,103 +163,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
 // ── DASHBOARD TAB ─────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
-  const [autoBatchConfig, setAutoBatchConfig] = useState<any>(null);
-  const [batchLogs, setBatchLogs] = useState<any[]>([]);
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [triggeringBatch, setTriggeringBatch] = useState(false);
-  const [batchProgress, setBatchProgress] = useState<{
-    current: number; total: number; success: number; failed: number; startedAt?: string;
-  } | null>(null);
-  const batchPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const startBatchPoll = useCallback((total: number) => {
-    if (batchPollRef.current) clearInterval(batchPollRef.current);
-    batchPollRef.current = setInterval(async () => {
-      try {
-        const sr = await outreachRequest('/api/email/batch-status');
-        if (!sr.ok) return;
-        const st = await sr.json();
-        setBatchProgress(prev => ({
-          current: st.current || 0,
-          total: st.total || prev?.total || total,
-          success: st.success || 0,
-          failed: st.failed || 0,
-          startedAt: prev?.startedAt,
-        }));
-        if (!st.running) {
-          clearInterval(batchPollRef.current!); batchPollRef.current = null;
-          setTriggeringBatch(false);
-          setBatchProgress(null);
-          const { supabase } = await import('@/services/supabaseClient');
-          const { data: logs } = await supabase.from('crm_outreach_batch_log').select('*').order('created_at', { ascending: false }).limit(10);
-          if (logs) setBatchLogs(logs);
-        }
-      } catch { /* ignore, retry next tick */ }
-    }, 10_000);
-  }, []);
-
-  useEffect(() => {
-    // Load config + batch logs
-    import('@/services/supabaseClient').then(({ supabase }) => {
-      supabase.from('crm_outreach_config').select('value').eq('key', 'auto_batch').single()
-        .then(({ data }) => { if (data) setAutoBatchConfig(data.value); });
-      supabase.from('crm_outreach_batch_log').select('*').order('created_at', { ascending: false }).limit(10)
-        .then(({ data }) => { if (data) setBatchLogs(data); });
-    });
-    // Detect if a batch is already running (e.g. after tab switch / page refresh)
-    outreachRequest('/api/email/batch-status').then(async r => {
-      if (!r.ok) return;
-      const st = await r.json();
-      if (st.running) {
-        setTriggeringBatch(true);
-        setBatchProgress({
-          current: st.current || 0, total: st.total || 30,
-          success: st.success || 0, failed: st.failed || 0,
-          startedAt: st.started_at ? new Date(st.started_at).toLocaleTimeString('vi-VN') : undefined,
-        });
-        startBatchPoll(st.total || 30);
-      }
-    }).catch(() => {});
-    return () => { if (batchPollRef.current) clearInterval(batchPollRef.current); };
-  }, [startBatchPoll]);
-
-  const handleToggleAutoBatch = async () => {
-    const { supabase } = await import('@/services/supabaseClient');
-    const newConfig = { ...autoBatchConfig, enabled: !autoBatchConfig.enabled };
-    await supabase.from('crm_outreach_config').update({ value: newConfig, updated_at: new Date().toISOString() }).eq('key', 'auto_batch');
-    setAutoBatchConfig(newConfig);
-  };
-
-  const handleSaveConfig = async () => {
-    setSavingConfig(true);
-    const { supabase } = await import('@/services/supabaseClient');
-    await supabase.from('crm_outreach_config').update({ value: autoBatchConfig, updated_at: new Date().toISOString() }).eq('key', 'auto_batch');
-    setSavingConfig(false);
-    alert('✅ Đã lưu cấu hình!');
-  };
-
-  const handleTriggerBatch = async () => {
-    if (triggeringBatch) { alert('Batch đang chạy, vui lòng chờ.'); return; }
-    if (!confirm('Chạy auto batch ngay bây giờ?')) return;
-    setTriggeringBatch(true);
-    try {
-      const res = await supabaseEdgeFunctionPost('outreach-auto-batch', {});
-      if (!res.ok) {
-        const errText = await res.text();
-        alert(`Lỗi batch (${res.status}): ${errText.slice(0, 200)}`);
-        setTriggeringBatch(false);
-        return;
-      }
-      const data = await res.json();
-      const total = data.count || 30;
-      setBatchProgress({ current: 0, total, success: 0, failed: 0, startedAt: new Date().toLocaleTimeString('vi-VN') });
-      startBatchPoll(total);
-    } catch (err: any) {
-      alert(`Lỗi: ${err.message}`);
-      setTriggeringBatch(false);
-    }
-  };
+const DashboardTab: React.FC<{ stats: PipelineStats; onSwitchTab: (t: SubTab) => void }> = ({ stats, onSwitchTab }) => {
 
   const pipelineSteps = [
     { label: 'Pending', count: stats.pending, color: '#888', pct: stats.total > 0 ? (stats.pending / stats.total) * 100 : 0 },
@@ -336,107 +245,26 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
         ))}
       </div>
 
-      {/* ═══ AUTO BATCH CONFIG ═══ */}
-      {autoBatchConfig && (
-        <div style={{ background: '#161616', border: `1px solid ${autoBatchConfig.enabled ? '#34C75930' : '#33333380'}`, borderRadius: '12px', padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                🤖 Auto Daily Batch
-              </h3>
-              <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>Tự động gửi email hàng ngày theo lịch</p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button onClick={handleTriggerBatch} disabled={triggeringBatch} style={{
-                padding: '8px 14px', border: 'none', borderRadius: '8px',
-                background: triggeringBatch ? '#333' : '#FF950020', color: triggeringBatch ? '#888' : '#FF9500',
-                fontSize: '11px', fontWeight: 700, cursor: triggeringBatch ? 'wait' : 'pointer',
-              }}>{triggeringBatch ? '⏳ Đang gửi...' : '▶ Chạy ngay'}</button>
-              <button onClick={handleToggleAutoBatch} style={{
-                padding: '8px 20px', border: 'none', borderRadius: '20px',
-                background: autoBatchConfig.enabled ? '#34C759' : '#555',
-                color: '#fff', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
-                transition: 'background 0.3s',
-              }}>{autoBatchConfig.enabled ? '✓ BẬT' : '✗ TẮT'}</button>
-            </div>
-          </div>
-
-          {/* ── Batch progress panel (shown while running) ── */}
-          {triggeringBatch && batchProgress && (
-            <div style={{ marginBottom: '16px', background: '#0F0F0F', border: '1px solid #FF950060', borderRadius: '10px', padding: '14px 16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#FF9500' }}>
-                  ⏳ Đang gửi {batchProgress.current}/{batchProgress.total} emails
-                  {batchProgress.startedAt && (
-                    <span style={{ color: '#666', fontWeight: 400, fontSize: '11px' }}> · bắt đầu lúc {batchProgress.startedAt}</span>
-                  )}
-                </span>
-                <span style={{ fontSize: '11px', color: '#888' }}>
-                  ~{Math.round((batchProgress.total - batchProgress.current) * 3.5)} phút còn lại
-                </span>
-              </div>
-              <div style={{ height: '6px', background: '#222', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px' }}>
-                <div style={{
-                  height: '100%', borderRadius: '3px', transition: 'width 1s ease',
-                  background: 'linear-gradient(90deg, #FF9500, #FFD60A)',
-                  width: `${batchProgress.total > 0 ? Math.round((batchProgress.current / batchProgress.total) * 100) : 0}%`,
-                }} />
-              </div>
-              <div style={{ display: 'flex', gap: '16px', fontSize: '11px' }}>
-                <span style={{ color: '#34C759' }}>✅ Thành công: {batchProgress.success}</span>
-                <span style={{ color: '#FF453A' }}>❌ Thất bại: {batchProgress.failed}</span>
-                <span style={{ color: '#555', marginLeft: 'auto' }}>Cập nhật mỗi 10s</span>
-              </div>
-            </div>
-          )}
-
-          {/* Config fields */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
-            <div>
-              <label style={labelStyle}>Batch size (mỗi lần)</label>
-              <input type="number" style={inputStyle} value={autoBatchConfig.batch_size || 15}
-                onChange={e => setAutoBatchConfig({ ...autoBatchConfig, batch_size: +e.target.value })} />
-            </div>
-            <div>
-              <label style={labelStyle}>Daily limit</label>
-              <input type="number" style={inputStyle} value={autoBatchConfig.daily_limit || 30}
-                onChange={e => setAutoBatchConfig({ ...autoBatchConfig, daily_limit: +e.target.value })} />
-            </div>
-            <div>
-              <label style={labelStyle}>Min delay giữa follow-up (giờ)</label>
-              <input type="number" style={inputStyle} value={autoBatchConfig.min_delay_hours || 72}
-                onChange={e => setAutoBatchConfig({ ...autoBatchConfig, min_delay_hours: +e.target.value })} />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '11px', color: '#888', fontWeight: 700 }}>⏰ Lịch gửi: 7:00 sáng & 14:00 chiều (VN)</span>
-            <button onClick={handleSaveConfig} disabled={savingConfig} style={{
-              padding: '6px 14px', border: 'none', borderRadius: '6px', marginLeft: 'auto',
-              background: '#0A84FF', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-            }}>{savingConfig ? '⏳...' : '💾 Lưu cấu hình'}</button>
-          </div>
-
-          {/* Batch Log */}
-          {batchLogs.length > 0 && (
-            <div style={{ borderTop: '1px solid #222', paddingTop: '14px' }}>
-              <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#666', marginBottom: '8px' }}>Lịch sử batch gần đây</p>
-              <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
-                {batchLogs.map(log => (
-                  <div key={log.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #1A1A1A', fontSize: '12px' }}>
-                    <span style={{ color: '#555', width: '130px', flexShrink: 0 }}>{new Date(log.created_at).toLocaleString('vi-VN')}</span>
-                    <span style={{ color: log.batch_type === 'auto' ? '#BF5AF2' : '#0A84FF', fontWeight: 700, width: '50px' }}>{log.batch_type === 'auto' ? '🤖 Auto' : '👤 Manual'}</span>
-                    <span style={{ color: log.status === 'completed' ? '#34C759' : log.status === 'running' ? '#FF9500' : '#FF453A', fontWeight: 700 }}>
-                      {log.status === 'completed' ? '✅' : log.status === 'running' ? '⏳' : '❌'} {log.status}
-                    </span>
-                    <span style={{ color: '#888' }}>Sent: {log.total_sent || 0} | Failed: {log.total_failed || 0}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* ── Auto summary ── */}
+      <div
+        onClick={() => onSwitchTab('auto')}
+        style={{
+          background: '#161616', border: '1px solid #2A2A2A', borderRadius: '12px',
+          padding: '16px 20px', cursor: 'pointer', display: 'flex',
+          justifyContent: 'space-between', alignItems: 'center',
+          transition: 'border-color 0.2s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = '#FF950040')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = '#2A2A2A')}
+      >
+        <div>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>🤖 Automation</span>
+          <p style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>
+            Auto Discovery · Auto Batch Email
+          </p>
         </div>
-      )}
+        <span style={{ fontSize: '12px', color: '#FF9500', fontWeight: 700 }}>Xem cấu hình →</span>
+      </div>
     </div>
   );
 };
@@ -1037,7 +865,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
 
   // Country search state
   const [importMode, setImportMode] = useState<'manual' | 'country'>('manual');
-  const [selectedCountry, setSelectedCountry] = useState('Canada');
+  const [selectedCountry, setSelectedCountry] = useState('United States');
   const [countrySearching, setCountrySearching] = useState(false);
   const [countryResults, setCountryResults] = useState<any[]>([]);
   const [countryTotal, setCountryTotal] = useState(0);
@@ -1079,6 +907,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
   const handleAddToLeads = async (contact: any, emailOverride?: string, studioName?: string) => {
     const emailToUse = emailOverride || contact.email || '';
     if (!emailToUse) { alert('Không có email để thêm.'); return; }
+    const isInvalid = contact.email_valid === false;
     try {
       await svc.createLead({
         client_id: null,
@@ -1089,12 +918,14 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
         job_title: contact.title || '',
         linkedin_url: contact.linkedin_url || '',
         tier: contact.tier_num || 3,
-        outreach_status: 'pending',
+        outreach_status: isInvalid ? 'invalid_email' : 'pending',
         initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
-        source: 'discovery', tags: [], notes: '',
+        source: 'discovery', tags: [], notes: contact.email_status ? `ZB: ${contact.email_status}` : '',
       });
       onRefresh();
-      alert(`✅ Đã thêm ${contact.name} vào leads!`);
+      alert(isInvalid
+        ? `⚠️ Đã thêm ${contact.name} — email bị đánh dấu "Email lỗi" (ZB: ${contact.email_status})`
+        : `✅ Đã thêm ${contact.name} vào leads!`);
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
@@ -1267,11 +1098,24 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
     }, 3000);
   };
 
+  // ZeroBounce badge helper
+  const zbBadge = (c: any) => {
+    if (c.email_valid === undefined) return null;
+    if (c.email_valid === false) return <span style={{ fontSize: '9px', fontWeight: 700, color: '#FF453A', background: '#FF453A20', borderRadius: '3px', padding: '1px 4px', marginLeft: '4px' }}>❌ invalid</span>;
+    const st = c.email_status || '';
+    if (st === 'valid') return <span style={{ fontSize: '9px', fontWeight: 700, color: '#34C759', background: '#34C75920', borderRadius: '3px', padding: '1px 4px', marginLeft: '4px' }}>✅ valid</span>;
+    return <span style={{ fontSize: '9px', fontWeight: 700, color: '#FF9500', background: '#FF950020', borderRadius: '3px', padding: '1px 4px', marginLeft: '4px' }}>⚠️ {st || 'unknown'}</span>;
+  };
+
   // Add all contacts from batch results to leads
   const handleAddAllToLeads = async () => {
     const allContacts = batchResults.flatMap(r => r.contacts.map((c: any) => ({ ...c, _studio: r.company })));
     if (allContacts.length === 0) { alert('Không có contacts để thêm.'); return; }
-    if (!confirm(`Thêm ${allContacts.length} contacts vào Leads?`)) return;
+    const invalidCount = allContacts.filter(c => c.email_valid === false).length;
+    const msg = invalidCount > 0
+      ? `Thêm ${allContacts.length} contacts vào Leads?\n⚠️ ${invalidCount} email invalid sẽ được đánh dấu "Email lỗi" thay vì "Chờ gửi".`
+      : `Thêm ${allContacts.length} contacts vào Leads?`;
+    if (!confirm(msg)) return;
 
     let added = 0;
     for (const c of allContacts) {
@@ -1285,9 +1129,9 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
           job_title: c.title || '',
           linkedin_url: c.linkedin_url || '',
           tier: c.tier_num || 3,
-          outreach_status: 'pending',
+          outreach_status: c.email_valid === false ? 'invalid_email' : 'pending',
           initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
-          source: 'batch_discovery', tags: [], notes: '',
+          source: 'batch_discovery', tags: [], notes: c.email_status ? `ZB: ${c.email_status}` : '',
         });
         added++;
       } catch { /* skip duplicate */ }
@@ -1384,9 +1228,18 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
                 <label style={labelStyle}>Quốc gia</label>
                 <select value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)} style={{ ...inputStyle }}>
                   {[
-                    'Canada','United States','United Kingdom','France','Germany','Sweden','Finland',
-                    'Poland','Netherlands','Australia','Japan','South Korea','Brazil','India',
-                    'Spain','Italy','Czech Republic','Ukraine','Singapore','Denmark','Norway',
+                    // High-cost markets — prime outsource clients for Vietnam studios
+                    'United States','Canada','United Kingdom','Australia',
+                    'Germany','France','Sweden','Norway','Denmark','Finland','Netherlands',
+                    'Switzerland','Austria','Belgium',
+                    // Mid-tier EU markets
+                    'Poland','Spain','Italy','Czech Republic','Portugal','Romania',
+                    // Asia-Pacific (non-SEA)
+                    'Japan','South Korea','New Zealand',
+                    // Americas
+                    'Brazil','Mexico','Argentina',
+                    // Other
+                    'Singapore',
                   ].map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -1589,7 +1442,20 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
         <div style={{ background: '#161616', border: '1px solid #34C75930', borderRadius: '12px', overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>
-              📊 Kết quả Batch: {batchResults.reduce((sum, r) => sum + r.contacts.length, 0)} contacts từ {batchResults.filter(r => r.status === 'ok').length}/{batchResults.length} công ty
+              {(() => {
+                const allC = batchResults.flatMap(r => r.contacts);
+                const total = allC.length;
+                const validCount = allC.filter((c: any) => c.email_valid === true).length;
+                const invalidCount = allC.filter((c: any) => c.email_valid === false).length;
+                const zbDone = allC.some((c: any) => c.email_valid !== undefined);
+                return <>
+                  📊 Kết quả Batch: {total} contacts từ {batchResults.filter(r => r.status === 'ok').length}/{batchResults.length} công ty
+                  {zbDone && <span style={{ fontWeight: 400, fontSize: '11px', marginLeft: '10px' }}>
+                    <span style={{ color: '#34C759' }}>✅ {validCount} valid</span>
+                    {invalidCount > 0 && <span style={{ color: '#FF453A', marginLeft: '8px' }}>❌ {invalidCount} invalid</span>}
+                  </span>}
+                </>;
+              })()}
             </h4>
             {batchResults.some(r => r.contacts.length > 0) && (
               <button onClick={handleAddAllToLeads} style={{
@@ -1612,16 +1478,22 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
                     <tbody>
                       {r.contacts.map((c: any, ci: number) => {
                         const tc = TIER_CFG[c.tier_num] || TIER_CFG[3];
+                        const isInvalid = c.email_valid === false;
                         return (
-                          <tr key={ci} style={{ borderBottom: '1px solid #161616' }}>
+                          <tr key={ci} style={{ borderBottom: '1px solid #161616', opacity: isInvalid ? 0.55 : 1 }}>
                             <td style={{ padding: '6px 12px 6px 32px', width: '80px' }}><span style={{ fontSize: '10px', color: tc.color, fontWeight: 700 }}>{tc.icon} T{c.tier_num}</span></td>
                             <td style={{ padding: '6px 12px', color: '#F5F5F5', fontWeight: 600 }}>{c.name}</td>
                             <td style={{ padding: '6px 12px', color: '#888', fontSize: '11px' }}>{c.title}</td>
-                            <td style={{ padding: '6px 12px', color: '#0A84FF', fontSize: '11px' }}>{c.email}</td>
+                            <td style={{ padding: '6px 12px', fontSize: '11px' }}>
+                              <span style={{ color: isInvalid ? '#FF453A80' : '#0A84FF' }}>{c.email}</span>
+                              {zbBadge(c)}
+                            </td>
                             <td style={{ padding: '6px 8px', width: '60px' }}>
                               <button onClick={() => handleAddToLeads(c, r.company)} style={{
-                                padding: '3px 8px', border: 'none', borderRadius: '4px', background: '#34C75920',
-                                color: '#34C759', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                                padding: '3px 8px', border: 'none', borderRadius: '4px',
+                                background: isInvalid ? '#FF453A20' : '#34C75920',
+                                color: isInvalid ? '#FF453A' : '#34C759',
+                                fontSize: '10px', fontWeight: 700, cursor: 'pointer',
                               }}>＋ Add</button>
                             </td>
                           </tr>
