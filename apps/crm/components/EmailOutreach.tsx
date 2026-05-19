@@ -1027,7 +1027,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
 
   // Batch import state
   const [showImport, setShowImport] = useState(false);
-  const [importList, setImportList] = useState<{ company: string; domain: string }[]>([]);
+  const [importList, setImportList] = useState<{ company: string; domain: string; existingCount?: number }[]>([]);
   const [batchRunning, setBatchRunning] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0, found: 0, failed: 0 });
   const [batchResults, setBatchResults] = useState<any[]>([]);
@@ -1113,17 +1113,13 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
       }
       setImportList(prev => {
         const existingInList = new Set(prev.map(p => p.company.toLowerCase()));
-        const existingInLeads = new Set(existingStudios.map(s => s.studio.toLowerCase()));
-        // Filter out already-in-list duplicates
+        // Only skip exact duplicates already in this import list
         const notInList = parsed.filter(p => !existingInList.has(p.company.toLowerCase()));
-        // Split: new vs already in leads DB
-        const toAdd = notInList.filter(p => !existingInLeads.has(p.company.toLowerCase()));
-        const alreadyInLeads = notInList.filter(p => existingInLeads.has(p.company.toLowerCase()));
-        if (alreadyInLeads.length > 0) {
-          const names = alreadyInLeads.slice(0, 5).map(p => `• ${p.company}`).join('\n');
-          const more = alreadyInLeads.length > 5 ? `\n...và ${alreadyInLeads.length - 5} công ty khác` : '';
-          alert(`⚠️ Đã bỏ qua ${alreadyInLeads.length} công ty đã có leads trong DB:\n${names}${more}`);
-        }
+        // Annotate with existing lead count from DB (informational only — does NOT block)
+        const toAdd = notInList.map(p => {
+          const found = existingStudios.find(s => s.studio.toLowerCase() === p.company.toLowerCase());
+          return { ...p, existingCount: found ? found.emails : 0 };
+        });
         return [...prev, ...toAdd];
       });
       if (importRef.current) importRef.current.value = '';
@@ -1135,13 +1131,10 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
   const handleManualAdd = () => {
     if (!manualAdd.company.trim()) return;
     const name = manualAdd.company.trim();
-    const existingEntry = existingStudios.find(s => s.studio.toLowerCase() === name.toLowerCase());
-    if (existingEntry) {
-      if (!confirm(`"${name}" đã có ${existingEntry.emails} lead(s) trong DB (status: ${existingEntry.status}).\nVẫn chạy Discovery thêm?`)) return;
-    }
     setImportList(prev => {
       if (prev.some(p => p.company.toLowerCase() === name.toLowerCase())) return prev;
-      return [...prev, { company: name, domain: manualAdd.domain.trim() }];
+      const found = existingStudios.find(s => s.studio.toLowerCase() === name.toLowerCase());
+      return [...prev, { company: name, domain: manualAdd.domain.trim(), existingCount: found ? found.emails : 0 }];
     });
     setManualAdd({ company: '', domain: '' });
   };
@@ -1342,6 +1335,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
                       <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>#</th>
                       <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Company</th>
                       <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Domain</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Leads có sẵn</th>
                       <th style={{ padding: '8px 12px', width: '40px' }}></th>
                     </tr>
                   </thead>
@@ -1351,6 +1345,14 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
                         <td style={{ padding: '6px 12px', color: '#555' }}>{idx + 1}</td>
                         <td style={{ padding: '6px 12px', color: '#F5F5F5', fontWeight: 600 }}>{item.company}</td>
                         <td style={{ padding: '6px 12px', color: '#0A84FF', fontSize: '11px' }}>{item.domain || '—'}</td>
+                        <td style={{ padding: '6px 12px' }}>
+                          {(item.existingCount ?? 0) > 0
+                            ? <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#FF950020', color: '#FF9500' }}>
+                                {item.existingCount} contacts — tìm thêm mới
+                              </span>
+                            : <span style={{ fontSize: '10px', color: '#444' }}>—</span>
+                          }
+                        </td>
                         <td style={{ padding: '6px 12px' }}>
                           <button onClick={() => handleRemove(idx)} style={{
                             border: 'none', background: 'none', color: '#FF453A', cursor: 'pointer', fontSize: '14px',
