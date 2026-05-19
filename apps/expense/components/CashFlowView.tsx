@@ -3,9 +3,12 @@ import { ExpenseRecord } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { FxRate, fetchFxRates } from '@/apps/expense/services/fxRateService';
 
+type Stream = 'TD GAMES' | 'TD CONSULTING' | 'Cá nhân';
+
 interface Props {
   expenses: ExpenseRecord[];
   vcbAvgRate: number; // live rate — fallback khi không có lịch sử
+  currentUserRole: string; // để kiểm tra quyền xem luồng Cá nhân
 }
 
 interface PaidInvoice {
@@ -15,6 +18,7 @@ interface PaidInvoice {
   paid_date: string;
   currency: string;
   items: { quantity: number; unitPrice: number }[];
+  billing_entity: string | null;
 }
 
 interface MonthData {
@@ -52,7 +56,6 @@ function calcInvoiceTotal(inv: PaidInvoice): number {
  * Fallback về `defaultRate` nếu không có lịch sử.
  */
 function getRateForMonth(year: number, month: number, fxRates: FxRate[], defaultRate: number): number {
-  // Lấy ngày cuối tháng làm mốc
   const lastDay = new Date(year, month + 1, 0).toISOString().split('T')[0];
   const match = fxRates
     .filter(r => r.from_currency === 'USD' && r.to_currency === 'VND' && r.rate_date <= lastDay)
@@ -62,13 +65,23 @@ function getRateForMonth(year: number, month: number, fxRates: FxRate[], default
 
 const MONTH_NAMES = ['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12'];
 
+const STREAM_LABELS: Record<Stream, string> = {
+  'TD GAMES':      '🏢 TD Games',
+  'TD CONSULTING': '🏛 TD Consulting',
+  'Cá nhân':       '👤 Cá nhân',
+};
+
 // ── Component ────────────────────────────────────────────────
-const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
+const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate, currentUserRole }) => {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [paidInvoices, setPaidInvoices] = useState<PaidInvoice[]>([]);
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [loading, setLoading] = useState(false);
+  const [stream, setStream] = useState<Stream>('TD GAMES');
+
+  const canSeePersonal = currentUserRole === 'admin' || currentUserRole === 'ke_toan';
+  const availableStreams: Stream[] = ['TD GAMES', 'TD CONSULTING', ...(canSeePersonal ? ['Cá nhân' as Stream] : [])];
 
   // ── Fetch paid invoices khi đổi năm ──
   useEffect(() => {
@@ -77,7 +90,7 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
       try {
         const { data, error } = await supabase
           .from('invoice_invoices')
-          .select('id, invoice_number, client_name, paid_date, currency, items')
+          .select('id, invoice_number, client_name, paid_date, currency, items, billing_entity')
           .eq('status', 'paid')
           .gte('paid_date', `${selectedYear}-01-01`)
           .lte('paid_date', `${selectedYear}-12-31`)
@@ -98,19 +111,26 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
     fetchFxRates().then(setFxRates).catch(console.error);
   }, []);
 
+  // ── Filter invoices theo stream hiện tại ──
+  const filteredInvoices = useMemo(() =>
+    paidInvoices.filter(inv => (inv.billing_entity || 'TD GAMES') === stream),
+    [paidInvoices, stream]
+  );
+
   // ── Build monthly data với tỷ giá theo từng tháng ──
   const monthlyData: MonthData[] = useMemo(() => {
+    // Chi phí chỉ áp dụng vào luồng TD GAMES (công ty chính)
+    const includeExpenses = stream === 'TD GAMES';
     let cumulative = 0;
     return Array.from({ length: 12 }, (_, i) => {
-      // Tỷ giá lịch sử cho tháng này (cuối tháng), fallback live rate
       const monthRate = getRateForMonth(selectedYear, i, fxRates, vcbAvgRate);
       const toVND = (amount: number, currency: string) =>
         currency === 'USD' ? amount * monthRate : amount;
 
-      // Cash IN: hoá đơn paid trong tháng này
+      // Cash IN: hoá đơn paid trong tháng này (theo stream)
       let cashIn = 0;
       let invoiceCount = 0;
-      paidInvoices.forEach(inv => {
+      filteredInvoices.forEach(inv => {
         if (!inv.paid_date) return;
         const d = new Date(inv.paid_date);
         if (d.getFullYear() !== selectedYear || d.getMonth() !== i) return;
@@ -118,16 +138,18 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
         invoiceCount++;
       });
 
-      // Cash OUT: chi phí trong tháng (trừ revenue)
+      // Cash OUT: chi phí (chỉ cho luồng TD GAMES)
       let cashOut = 0;
       let expenseCount = 0;
-      expenses.forEach(exp => {
-        if (exp.type === 'revenue') return;
-        const d = new Date(exp.expense_date);
-        if (d.getFullYear() !== selectedYear || d.getMonth() !== i) return;
-        cashOut += toVND(exp.amount, exp.currency);
-        expenseCount++;
-      });
+      if (includeExpenses) {
+        expenses.forEach(exp => {
+          if (exp.type === 'revenue') return;
+          const d = new Date(exp.expense_date);
+          if (d.getFullYear() !== selectedYear || d.getMonth() !== i) return;
+          cashOut += toVND(exp.amount, exp.currency);
+          expenseCount++;
+        });
+      }
 
       const net = cashIn - cashOut;
       cumulative += net;
@@ -139,7 +161,7 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
         rateUsed: monthRate,
       };
     });
-  }, [paidInvoices, expenses, selectedYear, fxRates, vcbAvgRate]);
+  }, [filteredInvoices, expenses, selectedYear, fxRates, vcbAvgRate, stream]);
 
   // ── Totals ──
   const totalCashIn = monthlyData.reduce((s, m) => s + m.cashIn, 0);
@@ -153,20 +175,46 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
   const years = Array.from({ length: 4 }, (_, i) => now.getFullYear() - i);
   const currentMonthIdx = now.getFullYear() === selectedYear ? now.getMonth() : -1;
 
-  // Kiểm tra có dữ liệu lịch sử tỷ giá không
   const hasHistoricalRates = fxRates.some(r => r.from_currency === 'USD' && r.to_currency === 'VND');
 
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">💵 Dòng tiền</h2>
           <p className="text-gray-400 text-sm mt-1">
             Tiền vào (hoá đơn đã thu) vs Tiền ra (chi phí) — quy đổi VND theo tỷ giá từng tháng
           </p>
+          {/* Stream selector */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {availableStreams.map(s => (
+              <button
+                key={s}
+                onClick={() => setStream(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all border ${
+                  stream === s
+                    ? s === 'Cá nhân'
+                      ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                      : 'bg-primary/20 text-primary border-primary/30'
+                    : 'text-gray-500 hover:text-white border-white/10'
+                }`}
+              >
+                {STREAM_LABELS[s]}
+              </button>
+            ))}
+            {stream !== 'TD GAMES' && (
+              <span className={`text-[10px] px-2 py-1 rounded-md ${
+                stream === 'Cá nhân'
+                  ? 'bg-purple-500/10 text-purple-400/70'
+                  : 'bg-blue-500/10 text-blue-400/70'
+              }`}>
+                {stream === 'Cá nhân' ? 'Không tính chi phí' : 'Chỉ doanh thu'}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           {loading && <span className="text-gray-400 text-sm animate-pulse">Đang tải...</span>}
           {!hasHistoricalRates && (
             <span className="text-yellow-500/80 text-xs bg-yellow-500/10 border border-yellow-500/20 px-2 py-1 rounded-lg">
@@ -188,13 +236,15 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
         <div className="rounded-xl p-5" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)' }}>
           <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">💚 Tổng thu</div>
           <div className="text-2xl font-bold text-emerald-300">{fmt(totalCashIn)}</div>
-          <div className="text-emerald-400/60 text-xs mt-1">{paidInvoices.length} hoá đơn đã thu</div>
+          <div className="text-emerald-400/60 text-xs mt-1">{filteredInvoices.length} hoá đơn · {STREAM_LABELS[stream]}</div>
         </div>
         <div className="rounded-xl p-5" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)' }}>
           <div className="text-red-400 text-xs font-semibold uppercase tracking-wider mb-1">❤️ Tổng chi</div>
           <div className="text-2xl font-bold text-red-300">{fmt(totalCashOut)}</div>
           <div className="text-red-400/60 text-xs mt-1">
-            {expenses.filter(e => e.type !== 'revenue' && new Date(e.expense_date).getFullYear() === selectedYear).length} khoản chi
+            {stream === 'TD GAMES'
+              ? `${expenses.filter(e => e.type !== 'revenue' && new Date(e.expense_date).getFullYear() === selectedYear).length} khoản chi`
+              : 'Chi phí chỉ tính ở TD Games'}
           </div>
         </div>
         <div
@@ -218,7 +268,7 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
 
       {/* ── Bar Chart ── */}
       <div className="rounded-xl p-5" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <h3 className="text-white font-semibold mb-4 text-sm">📊 Biểu đồ theo tháng</h3>
+        <h3 className="text-white font-semibold mb-4 text-sm">📊 Biểu đồ theo tháng — {STREAM_LABELS[stream]}</h3>
         <div className="flex items-end gap-1 h-40">
           {monthlyData.map((m, i) => {
             const inH = maxBar > 0 ? (m.cashIn / maxBar) * 100 : 0;
@@ -256,7 +306,7 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
                   <div className="bg-gray-900 border border-white/20 rounded-lg p-2 text-xs whitespace-nowrap shadow-xl">
                     <div className="font-bold text-white mb-1">{m.label}</div>
                     <div className="text-emerald-400">↑ {fmtFull(m.cashIn)}</div>
-                    <div className="text-red-400">↓ {fmtFull(m.cashOut)}</div>
+                    {m.cashOut > 0 && <div className="text-red-400">↓ {fmtFull(m.cashOut)}</div>}
                     <div className={`font-semibold mt-1 ${m.net >= 0 ? 'text-orange-400' : 'text-purple-400'}`}>
                       Net: {m.net >= 0 ? '+' : ''}{fmtFull(m.net)}
                     </div>
@@ -276,10 +326,12 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
             <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(16,185,129,0.6)' }} />
             <span className="text-gray-400 text-xs">Thu (hoá đơn)</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(239,68,68,0.6)' }} />
-            <span className="text-gray-400 text-xs">Chi (expense)</span>
-          </div>
+          {stream === 'TD GAMES' && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(239,68,68,0.6)' }} />
+              <span className="text-gray-400 text-xs">Chi (expense)</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -291,10 +343,12 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
               <tr style={{ background: 'rgba(255,255,255,0.06)' }}>
                 <th className="text-left py-3 px-4 text-gray-400 font-medium">Tháng</th>
                 <th className="text-right py-3 px-4 text-emerald-400 font-medium">💚 Tiền vào</th>
-                <th className="text-right py-3 px-4 text-red-400 font-medium">❤️ Tiền ra</th>
+                {stream === 'TD GAMES' && (
+                  <th className="text-right py-3 px-4 text-red-400 font-medium">❤️ Tiền ra</th>
+                )}
                 <th className="text-right py-3 px-4 text-white font-medium">Net</th>
                 <th className="text-right py-3 px-4 text-gray-400 font-medium">Luỹ kế</th>
-                <th className="text-right py-3 px-4 text-gray-400 font-medium hidden sm:table-cell">HĐ / CP</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium hidden sm:table-cell">HĐ{stream === 'TD GAMES' ? ' / CP' : ''}</th>
               </tr>
             </thead>
             <tbody>
@@ -326,9 +380,11 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
                     <td className="py-3 px-4 text-right text-emerald-300 font-mono text-xs">
                       {m.cashIn > 0 ? fmt(m.cashIn) : '—'}
                     </td>
-                    <td className="py-3 px-4 text-right text-red-300 font-mono text-xs">
-                      {m.cashOut > 0 ? fmt(m.cashOut) : '—'}
-                    </td>
+                    {stream === 'TD GAMES' && (
+                      <td className="py-3 px-4 text-right text-red-300 font-mono text-xs">
+                        {m.cashOut > 0 ? fmt(m.cashOut) : '—'}
+                      </td>
+                    )}
                     <td className="py-3 px-4 text-right font-mono text-xs font-semibold">
                       {isEmpty ? (
                         <span className="text-gray-600">—</span>
@@ -356,7 +412,9 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
                     </td>
                     <td className="py-3 px-4 text-right text-gray-500 text-xs hidden sm:table-cell">
                       {m.invoiceCount > 0 || m.expenseCount > 0
-                        ? `${m.invoiceCount} HĐ / ${m.expenseCount} CP`
+                        ? stream === 'TD GAMES'
+                          ? `${m.invoiceCount} HĐ / ${m.expenseCount} CP`
+                          : `${m.invoiceCount} HĐ`
                         : '—'}
                     </td>
                   </tr>
@@ -367,7 +425,9 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
               <tr style={{ background: 'rgba(255,255,255,0.06)', borderTop: '2px solid rgba(255,255,255,0.15)' }}>
                 <td className="py-3 px-4 text-white font-bold text-xs uppercase tracking-wider">Cả năm</td>
                 <td className="py-3 px-4 text-right text-emerald-300 font-bold font-mono text-xs">{fmt(totalCashIn)}</td>
-                <td className="py-3 px-4 text-right text-red-300 font-bold font-mono text-xs">{fmt(totalCashOut)}</td>
+                {stream === 'TD GAMES' && (
+                  <td className="py-3 px-4 text-right text-red-300 font-bold font-mono text-xs">{fmt(totalCashOut)}</td>
+                )}
                 <td className="py-3 px-4 text-right font-bold font-mono text-xs">
                   <span className={totalNet >= 0 ? 'text-orange-400' : 'text-purple-400'}>
                     {totalNet >= 0 ? '+' : ''}{fmt(totalNet)}
@@ -379,7 +439,9 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
                   </span>
                 </td>
                 <td className="py-3 px-4 text-right text-gray-500 text-xs hidden sm:table-cell">
-                  {paidInvoices.length} HĐ / {expenses.filter(e => e.type !== 'revenue' && new Date(e.expense_date).getFullYear() === selectedYear).length} CP
+                  {stream === 'TD GAMES'
+                    ? `${filteredInvoices.length} HĐ / ${expenses.filter(e => e.type !== 'revenue' && new Date(e.expense_date).getFullYear() === selectedYear).length} CP`
+                    : `${filteredInvoices.length} HĐ`}
                 </td>
               </tr>
             </tfoot>
@@ -389,8 +451,8 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate }) => {
 
       {/* ── Ghi chú tỷ giá ── */}
       <div className="text-xs text-gray-600 text-center pb-2">
-        Tiền vào = hoá đơn <em>paid</em> theo ngày thu · Tiền ra = chi phí đã ghi nhận ·
-        USD quy đổi theo tỷ giá VCB cuối tháng (tích lũy tự động) ·
+        Tiền vào = hoá đơn <em>paid</em> theo ngày thu · Luồng: {STREAM_LABELS[stream]} ·
+        USD quy đổi theo tỷ giá TCB cuối tháng (tích lũy tự động) ·
         {hasHistoricalRates
           ? ` ${fxRates.filter(r => r.from_currency === 'USD').length} điểm tỷ giá lịch sử`
           : ` fallback live rate: ${vcbAvgRate.toLocaleString('vi-VN')} ₫/USD`}

@@ -173,6 +173,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
           <CashFlowView
             expenses={state.expenses}
             vcbAvgRate={avgUsdVnd}
+            currentUserRole={currentUser.role}
           />
         )}
       </main>

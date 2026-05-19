@@ -70,6 +70,8 @@ export interface InvoiceData {
   amount_received?: number;
   transfer_fee?: number;
   crm_project_id?: string | null;
+  billing_entity?: 'TD GAMES' | 'TD CONSULTING' | 'Cá nhân';
+  receiving_account_id?: string | null;
 }
 
 export interface AccountUser {

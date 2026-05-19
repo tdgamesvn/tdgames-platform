@@ -3,6 +3,7 @@ import AppBackground from '@/components/AppBackground';
 import { useInvoiceState } from '../hooks/useInvoiceState';
 import { avgRate } from '../services/exchangeRateService';
 import { AccountUser } from '@/types';
+import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
 
 // Invoice‑specific components
 import { ToastNotification } from '@/components/ToastNotification';
@@ -24,6 +25,7 @@ interface InvoiceAppProps {
 
 const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useInvoiceState(initialTab);
+  const [bankAccounts, setBankAccounts] = React.useState<BankAccount[]>([]);
 
   // Sync the currentUser from parent
   React.useEffect(() => {
@@ -31,6 +33,11 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       state.setCurrentUser(currentUser);
     }
   }, [currentUser]);
+
+  // Fetch bank accounts once on mount
+  React.useEffect(() => {
+    fetchBankAccounts().then(setBankAccounts).catch(console.error);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: state.invoice.theme === 'dark' ? '#0F0F0F' : '#F5F5F5' }}>
@@ -118,6 +125,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
             onSetDefaultStudio={state.handleSetDefaultStudio} onEditStudio={state.handleEditStudio}
             onUpdateStudio={state.handleUpdateStudio}
             setEditingStudioId={state.setEditingStudioId} setEditingStudioData={state.setEditingStudioData}
+            bankAccounts={bankAccounts}
           />
         )}
       </main>

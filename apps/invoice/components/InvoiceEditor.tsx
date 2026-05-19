@@ -2,6 +2,7 @@ import React from 'react';
 import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioRecord, StudioInfo } from '@/types';
 import { Button } from '@/components/Button';
 import { Input, TextArea, Select } from '@/components/FormElements';
+import { BankAccount } from '@/apps/expense/services/bankAccountService';
 import { InvoicePreview } from './InvoicePreview';
 
 interface InvoiceEditorProps {
@@ -58,6 +59,7 @@ interface InvoiceEditorProps {
   onUpdateStudio: () => void;
   setEditingStudioId: (v: string | null) => void;
   setEditingStudioData: (v: StudioInfo | null) => void;
+  bankAccounts: BankAccount[];
 }
 
 export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
@@ -71,6 +73,7 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
   setShowSuggestions, setClientSuggestions,
   setShowBankManager, setNewBank, onAddBank, onDeleteBank, onSetDefaultBank, onEditBank, onCancelEditBank, onUpdateBank, setEditingBankData,
   setShowStudioManager, setNewStudio, onAddStudio, onDeleteStudio, onSetDefaultStudio, onEditStudio, onUpdateStudio, setEditingStudioId, setEditingStudioData,
+  bankAccounts,
 }) => (
   <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
     {/* ── LEFT SIDEBAR ── */}
@@ -149,6 +152,38 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
               {crmProjects.map(p => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
+            </Select>
+          )}
+
+          {/* ── Pháp nhân & TK nhận tiền ── */}
+          <Select
+            label="🏢 Pháp nhân phát hành"
+            value={invoice.billing_entity || 'TD GAMES'}
+            onChange={(e) => updateInvoice('billing_entity', e.target.value)}
+          >
+            <option value="TD GAMES">TD GAMES</option>
+            <option value="TD CONSULTING">TD CONSULTING</option>
+            <option value="Cá nhân">Cá nhân (không xuất HĐ)</option>
+          </Select>
+          {bankAccounts.length > 0 && (
+            <Select
+              label="🏦 TK ngân hàng nhận tiền"
+              value={invoice.receiving_account_id || ''}
+              onChange={(e) => updateInvoice('receiving_account_id', e.target.value || null)}
+            >
+              <option value="">— Chưa chọn —</option>
+              {bankAccounts
+                .filter(a => {
+                  const entity = invoice.billing_entity || 'TD GAMES';
+                  if (entity === 'Cá nhân') return a.account_type === 'personal';
+                  return a.entity === entity;
+                })
+                .map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.currency})
+                  </option>
+                ))
+              }
             </Select>
           )}
         </div>
