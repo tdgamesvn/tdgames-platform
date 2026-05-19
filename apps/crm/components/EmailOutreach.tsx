@@ -1112,10 +1112,19 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
         }
       }
       setImportList(prev => {
-        // Deduplicate
-        const existing = new Set(prev.map(p => p.company.toLowerCase()));
-        const newOnes = parsed.filter(p => !existing.has(p.company.toLowerCase()));
-        return [...prev, ...newOnes];
+        const existingInList = new Set(prev.map(p => p.company.toLowerCase()));
+        const existingInLeads = new Set(existingStudios.map(s => s.studio.toLowerCase()));
+        // Filter out already-in-list duplicates
+        const notInList = parsed.filter(p => !existingInList.has(p.company.toLowerCase()));
+        // Split: new vs already in leads DB
+        const toAdd = notInList.filter(p => !existingInLeads.has(p.company.toLowerCase()));
+        const alreadyInLeads = notInList.filter(p => existingInLeads.has(p.company.toLowerCase()));
+        if (alreadyInLeads.length > 0) {
+          const names = alreadyInLeads.slice(0, 5).map(p => `• ${p.company}`).join('\n');
+          const more = alreadyInLeads.length > 5 ? `\n...và ${alreadyInLeads.length - 5} công ty khác` : '';
+          alert(`⚠️ Đã bỏ qua ${alreadyInLeads.length} công ty đã có leads trong DB:\n${names}${more}`);
+        }
+        return [...prev, ...toAdd];
       });
       if (importRef.current) importRef.current.value = '';
     };
@@ -1125,9 +1134,14 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
   // Add single company manually
   const handleManualAdd = () => {
     if (!manualAdd.company.trim()) return;
+    const name = manualAdd.company.trim();
+    const existingEntry = existingStudios.find(s => s.studio.toLowerCase() === name.toLowerCase());
+    if (existingEntry) {
+      if (!confirm(`"${name}" đã có ${existingEntry.emails} lead(s) trong DB (status: ${existingEntry.status}).\nVẫn chạy Discovery thêm?`)) return;
+    }
     setImportList(prev => {
-      if (prev.some(p => p.company.toLowerCase() === manualAdd.company.toLowerCase())) return prev;
-      return [...prev, { company: manualAdd.company.trim(), domain: manualAdd.domain.trim() }];
+      if (prev.some(p => p.company.toLowerCase() === name.toLowerCase())) return prev;
+      return [...prev, { company: name, domain: manualAdd.domain.trim() }];
     });
     setManualAdd({ company: '', domain: '' });
   };
