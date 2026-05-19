@@ -163,16 +163,61 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
   const [batchLogs, setBatchLogs] = useState<any[]>([]);
   const [savingConfig, setSavingConfig] = useState(false);
   const [triggeringBatch, setTriggeringBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{
+    current: number; total: number; success: number; failed: number; startedAt?: string;
+  } | null>(null);
+  const batchPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startBatchPoll = useCallback((total: number) => {
+    if (batchPollRef.current) clearInterval(batchPollRef.current);
+    batchPollRef.current = setInterval(async () => {
+      try {
+        const sr = await outreachRequest('/api/email/batch-status');
+        if (!sr.ok) return;
+        const st = await sr.json();
+        setBatchProgress(prev => ({
+          current: st.current || 0,
+          total: st.total || prev?.total || total,
+          success: st.success || 0,
+          failed: st.failed || 0,
+          startedAt: prev?.startedAt,
+        }));
+        if (!st.running) {
+          clearInterval(batchPollRef.current!); batchPollRef.current = null;
+          setTriggeringBatch(false);
+          setBatchProgress(null);
+          const { supabase } = await import('@/services/supabaseClient');
+          const { data: logs } = await supabase.from('crm_outreach_batch_log').select('*').order('created_at', { ascending: false }).limit(10);
+          if (logs) setBatchLogs(logs);
+        }
+      } catch { /* ignore, retry next tick */ }
+    }, 10_000);
+  }, []);
 
   useEffect(() => {
-    // Load config
+    // Load config + batch logs
     import('@/services/supabaseClient').then(({ supabase }) => {
       supabase.from('crm_outreach_config').select('value').eq('key', 'auto_batch').single()
         .then(({ data }) => { if (data) setAutoBatchConfig(data.value); });
       supabase.from('crm_outreach_batch_log').select('*').order('created_at', { ascending: false }).limit(10)
         .then(({ data }) => { if (data) setBatchLogs(data); });
     });
-  }, []);
+    // Detect if a batch is already running (e.g. after tab switch / page refresh)
+    outreachRequest('/api/email/batch-status').then(async r => {
+      if (!r.ok) return;
+      const st = await r.json();
+      if (st.running) {
+        setTriggeringBatch(true);
+        setBatchProgress({
+          current: st.current || 0, total: st.total || 30,
+          success: st.success || 0, failed: st.failed || 0,
+          startedAt: st.started_at ? new Date(st.started_at).toLocaleTimeString('vi-VN') : undefined,
+        });
+        startBatchPoll(st.total || 30);
+      }
+    }).catch(() => {});
+    return () => { if (batchPollRef.current) clearInterval(batchPollRef.current); };
+  }, [startBatchPoll]);
 
   const handleToggleAutoBatch = async () => {
     const { supabase } = await import('@/services/supabaseClient');
@@ -190,6 +235,7 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
   };
 
   const handleTriggerBatch = async () => {
+    if (triggeringBatch) { alert('Batch đang chạy, vui lòng chờ.'); return; }
     if (!confirm('Chạy auto batch ngay bây giờ?')) return;
     setTriggeringBatch(true);
     try {
@@ -197,16 +243,17 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
       if (!res.ok) {
         const errText = await res.text();
         alert(`Lỗi batch (${res.status}): ${errText.slice(0, 200)}`);
+        setTriggeringBatch(false);
         return;
       }
       const data = await res.json();
-      alert(`Batch hoàn thành!\n\nĐã gửi: ${data.total_sent || 0}\nThất bại: ${data.total_failed || 0}`);
-      // Reload logs
-      const { supabase } = await import('@/services/supabaseClient');
-      const { data: logs } = await supabase.from('crm_outreach_batch_log').select('*').order('created_at', { ascending: false }).limit(10);
-      if (logs) setBatchLogs(logs);
-    } catch (err: any) { alert(`Lỗi: ${err.message}`); }
-    setTriggeringBatch(false);
+      const total = data.count || 30;
+      setBatchProgress({ current: 0, total, success: 0, failed: 0, startedAt: new Date().toLocaleTimeString('vi-VN') });
+      startBatchPoll(total);
+    } catch (err: any) {
+      alert(`Lỗi: ${err.message}`);
+      setTriggeringBatch(false);
+    }
   };
 
   const pipelineSteps = [
@@ -314,6 +361,35 @@ const DashboardTab: React.FC<{ stats: PipelineStats }> = ({ stats }) => {
             </div>
           </div>
 
+          {/* ── Batch progress panel (shown while running) ── */}
+          {triggeringBatch && batchProgress && (
+            <div style={{ marginBottom: '16px', background: '#0F0F0F', border: '1px solid #FF950060', borderRadius: '10px', padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#FF9500' }}>
+                  ⏳ Đang gửi {batchProgress.current}/{batchProgress.total} emails
+                  {batchProgress.startedAt && (
+                    <span style={{ color: '#666', fontWeight: 400, fontSize: '11px' }}> · bắt đầu lúc {batchProgress.startedAt}</span>
+                  )}
+                </span>
+                <span style={{ fontSize: '11px', color: '#888' }}>
+                  ~{Math.round((batchProgress.total - batchProgress.current) * 3.5)} phút còn lại
+                </span>
+              </div>
+              <div style={{ height: '6px', background: '#222', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px' }}>
+                <div style={{
+                  height: '100%', borderRadius: '3px', transition: 'width 1s ease',
+                  background: 'linear-gradient(90deg, #FF9500, #FFD60A)',
+                  width: `${batchProgress.total > 0 ? Math.round((batchProgress.current / batchProgress.total) * 100) : 0}%`,
+                }} />
+              </div>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '11px' }}>
+                <span style={{ color: '#34C759' }}>✅ Thành công: {batchProgress.success}</span>
+                <span style={{ color: '#FF453A' }}>❌ Thất bại: {batchProgress.failed}</span>
+                <span style={{ color: '#555', marginLeft: 'auto' }}>Cập nhật mỗi 10s</span>
+              </div>
+            </div>
+          )}
+
           {/* Config fields */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
             <div>
@@ -408,6 +484,33 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
   const [bounceResult, setBounceResult] = useState<{ bounces_found: number; leads_updated: number; bounces?: any[] } | null>(null);
 
   useEffect(() => { fetchQuota().then(setQuota); }, []);
+
+  // Re-attach batch polling if a batch was already running (e.g. after tab switch / page refresh)
+  useEffect(() => {
+    outreachRequest('/api/email/batch-status').then(async r => {
+      if (!r.ok) return;
+      const st = await r.json();
+      if (st.running) {
+        setBulkSending(true);
+        setBulkProgress({ current: st.current || 0, total: st.total || 30, success: st.success || 0, failed: st.failed || 0 });
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = setInterval(async () => {
+          try {
+            const sr = await outreachRequest('/api/email/batch-status');
+            if (!sr.ok) return;
+            const st2 = await sr.json();
+            setBulkProgress({ current: st2.current || 0, total: st2.total || 30, success: st2.success || 0, failed: st2.failed || 0 });
+            if (!st2.running) {
+              if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+              setBulkSending(false);
+              onRefresh();
+              fetchQuota().then(setQuota);
+            }
+          } catch { }
+        }, 10_000);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Send email to a single lead
   const handleSendEmail = async (leadId: string, templateName: string = 'initial_outreach') => {
