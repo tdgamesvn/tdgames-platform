@@ -1049,14 +1049,33 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
     } finally { setDiscovering(false); }
   };
 
-  const handleAddToLeads = async (contact: any, studioName?: string) => {
+  // Per-contact email selection state (index → chosen email)
+  const [selectedEmails, setSelectedEmails] = useState<Record<number, string>>({});
+
+  // Parse all unique email options from a contact (work_email may be comma-separated)
+  const parseWorkEmails = (c: any): string[] => {
+    const raw = [c.work_email, c.email, c.personal_email].filter(Boolean).join(',');
+    return [...new Set(raw.split(',').map((e: string) => e.trim()).filter(Boolean))];
+  };
+
+  // Check if email domain matches the target domain entered by user
+  const isDomainMatch = (email: string, targetDomain: string): boolean => {
+    if (!targetDomain || !email.includes('@')) return true;
+    const emailDomain = email.split('@')[1]?.toLowerCase() || '';
+    const td = targetDomain.toLowerCase().replace(/^www\./, '').replace(/\/$/, '');
+    return emailDomain === td || emailDomain.endsWith('.' + td);
+  };
+
+  const handleAddToLeads = async (contact: any, emailOverride?: string, studioName?: string) => {
+    const emailToUse = emailOverride || contact.email || '';
+    if (!emailToUse) { alert('Không có email để thêm.'); return; }
     try {
       await svc.createLead({
         client_id: null,
         studio_name: studioName || company,
         contact_name: contact.name || '',
         first_name: (contact.name || '').split(' ')[0],
-        email: contact.email || '',
+        email: emailToUse,
         job_title: contact.title || '',
         linkedin_url: contact.linkedin_url || '',
         tier: contact.tier_num || 3,
@@ -1065,22 +1084,28 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
         source: 'discovery', tags: [], notes: '',
       });
       onRefresh();
-      alert(`Đã thêm ${contact.name} vào leads!`);
+      alert(`✅ Đã thêm ${contact.name} vào leads!`);
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
-  // Add ALL contacts from single discovery result at once
+  // Add ALL contacts — use selectedEmails overrides, only contacts with domain-matched email
   const handleAddAllSingle = async () => {
     if (!results || results.length === 0) return;
-    const eligible = results.filter(c => c.email);
-    if (!confirm(`Thêm ${eligible.length} contacts của "${company}" vào Leads?`)) return;
+    const eligible = results.filter((_: any, i: number) => {
+      const email = selectedEmails[i] || results[i].email;
+      return !!email;
+    });
+    if (!confirm(`Thêm ${eligible.length} contacts của "${company}" vào Leads?\n\nChỉ contacts có email được chọn sẽ được thêm.`)) return;
     let added = 0;
-    for (const c of eligible) {
+    for (let i = 0; i < results.length; i++) {
+      const c = results[i];
+      const emailToUse = selectedEmails[i] || c.email;
+      if (!emailToUse) continue;
       try {
         await svc.createLead({
           client_id: null, studio_name: company,
           contact_name: c.name || '', first_name: (c.name || '').split(' ')[0],
-          email: c.email || '', job_title: c.title || '',
+          email: emailToUse, job_title: c.title || '',
           linkedin_url: c.linkedin_url || '', tier: c.tier_num || 3,
           outreach_status: 'pending',
           initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
@@ -1485,7 +1510,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #333' }}>
-                {['Tier', 'Name', 'Title', 'Email', 'LinkedIn', ''].map((h, i) => (
+                {['Tier', 'Name / Company', 'Title', 'Email', 'LinkedIn', ''].map((h, i) => (
                   <th key={i} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -1493,19 +1518,58 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
             <tbody>
               {results.map((c: any, i: number) => {
                 const tc = TIER_CFG[c.tier_num] || TIER_CFG[3];
+                const emailOptions = parseWorkEmails(c);
+                const chosenEmail = selectedEmails[i] || emailOptions[0] || '';
+                const domainOk = isDomainMatch(chosenEmail, domain);
+                // Company mismatch: contact's company ≠ searched company
+                const contactCompany = (c.company || '').trim();
+                const companyMismatch = contactCompany && contactCompany.toLowerCase() !== company.toLowerCase();
                 return (
-                  <tr key={i} style={{ borderBottom: '1px solid #1A1A1A' }}>
-                    <td style={{ padding: '8px 12px' }}><span style={{ fontSize: '11px', fontWeight: 700, color: tc.color }}>{tc.icon} {tc.label}</span></td>
-                    <td style={{ padding: '8px 12px', color: '#F5F5F5', fontWeight: 600 }}>{c.name}</td>
-                    <td style={{ padding: '8px 12px', color: '#888', fontSize: '12px' }}>{c.title}</td>
-                    <td style={{ padding: '8px 12px', color: '#0A84FF', fontSize: '12px' }}>{c.email}</td>
+                  <tr key={i} style={{ borderBottom: '1px solid #1A1A1A', background: domainOk ? 'transparent' : '#FF453A08' }}>
+                    <td style={{ padding: '8px 12px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: tc.color }}>{tc.icon} {tc.label}</span>
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <div style={{ fontWeight: 600, color: '#F5F5F5', fontSize: '12px' }}>{c.name}</div>
+                      {companyMismatch && (
+                        <div style={{ fontSize: '10px', color: '#FF9500', marginTop: '2px' }}>
+                          📍 {contactCompany}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: '8px 12px', color: '#888', fontSize: '11px', maxWidth: '180px' }}>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                    </td>
+                    <td style={{ padding: '8px 12px', minWidth: '220px' }}>
+                      {emailOptions.length > 1 ? (
+                        <select
+                          value={chosenEmail}
+                          onChange={e => setSelectedEmails(prev => ({ ...prev, [i]: e.target.value }))}
+                          style={{ background: '#1A1A1A', border: `1px solid ${domainOk ? '#333' : '#FF9500'}`, borderRadius: '6px', color: domainOk ? '#0A84FF' : '#FF9500', fontSize: '11px', padding: '3px 6px', width: '100%', cursor: 'pointer' }}
+                        >
+                          {emailOptions.map((em, ei) => {
+                            const ok = isDomainMatch(em, domain);
+                            return <option key={ei} value={em}>{ok ? '✓' : '⚠'} {em}</option>;
+                          })}
+                        </select>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: domainOk ? '#0A84FF' : '#FF9500' }}>{chosenEmail}</span>
+                      )}
+                      {!domainOk && chosenEmail && (
+                        <div style={{ fontSize: '10px', color: '#FF9500', marginTop: '3px' }}>
+                          ⚠️ Domain khác — email có thể sai công ty
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: '8px 12px' }}>
                       {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0A84FF' }}>↗</a>}
                     </td>
                     <td style={{ padding: '8px 12px' }}>
-                      <button onClick={() => handleAddToLeads(c)} style={{
-                        padding: '4px 10px', border: 'none', borderRadius: '6px', background: '#34C75920',
-                        color: '#34C759', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                      <button onClick={() => handleAddToLeads(c, chosenEmail)} style={{
+                        padding: '4px 10px', border: 'none', borderRadius: '6px',
+                        background: domainOk ? '#34C75920' : '#FF950020',
+                        color: domainOk ? '#34C759' : '#FF9500',
+                        fontSize: '11px', fontWeight: 700, cursor: 'pointer',
                       }}>＋ Add</button>
                     </td>
                   </tr>
