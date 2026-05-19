@@ -1035,6 +1035,16 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
   const importRef = useRef<HTMLInputElement>(null);
   const batchPollRef = useRef<number | null>(null);
 
+  // Country search state
+  const [importMode, setImportMode] = useState<'manual' | 'country'>('manual');
+  const [selectedCountry, setSelectedCountry] = useState('Canada');
+  const [countrySearching, setCountrySearching] = useState(false);
+  const [countryResults, setCountryResults] = useState<any[]>([]);
+  const [countryTotal, setCountryTotal] = useState(0);
+  const [countryPage, setCountryPage] = useState(1);
+  const [countryError, setCountryError] = useState('');
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
+
   // Cleanup poll on unmount
   useEffect(() => () => { if (batchPollRef.current) clearInterval(batchPollRef.current); }, []);
 
@@ -1167,6 +1177,36 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
   // Remove from list
   const handleRemove = (idx: number) => {
     setImportList(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Country search handler
+  const handleCountrySearch = async (page = 1) => {
+    setCountrySearching(true); setCountryError(''); if (page === 1) setCountryResults([]);
+    try {
+      const data = await svc.searchCompaniesByCountry(selectedCountry, page, 25);
+      if (data.error && !data.companies?.length) { setCountryError(data.error); return; }
+      setCountryResults(prev => page === 1 ? data.companies : [...prev, ...data.companies]);
+      setCountryTotal(data.total || 0);
+      setCountryPage(page);
+    } catch (e: any) { setCountryError(e.message); }
+    finally { setCountrySearching(false); }
+  };
+
+  const handleAddCountryToImport = () => {
+    const toAdd = countryResults.filter(c => selectedCompanyIds.has(c.apollo_id));
+    if (!toAdd.length) { alert('Chưa chọn công ty nào.'); return; }
+    setImportList(prev => {
+      const existing = new Set(prev.map(p => p.company.toLowerCase()));
+      const fresh = toAdd.filter(c => !existing.has(c.name.toLowerCase())).map(c => {
+        const found = existingStudios.find(s => s.studio.toLowerCase() === c.name.toLowerCase());
+        return { company: c.name, domain: c.domain || '', existingCount: found ? found.emails : 0 };
+      });
+      return [...prev, ...fresh];
+    });
+    setSelectedCompanyIds(new Set());
+    setImportMode('manual');
+    setShowImport(true);
+    alert(`✅ Đã thêm ${toAdd.length} công ty vào danh sách Discovery.`);
   };
 
   // Run batch discovery — background job on server, poll for status
@@ -1312,14 +1352,129 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
 
       {/* ── Batch Import Section ── */}
       <div style={{ background: '#161616', border: '1px solid #0A84FF30', borderRadius: '12px', padding: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5' }}>📋 Batch Discovery — Import danh sách công ty</h4>
-          <button onClick={() => setShowImport(!showImport)} style={{
-            padding: '6px 14px', border: '1px solid #0A84FF50', borderRadius: '8px',
-            background: showImport ? '#0A84FF20' : 'transparent', color: '#0A84FF',
-            fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-          }}>{showImport ? '▲ Thu gọn' : '▼ Mở rộng'}</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5' }}>
+            {importMode === 'country' ? '🌍 Tìm studio theo quốc gia' : '📋 Batch Discovery — Import danh sách công ty'}
+          </h4>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => setImportMode('manual')} style={{
+              padding: '6px 14px', border: '1px solid #0A84FF50', borderRadius: '8px',
+              background: importMode === 'manual' ? '#0A84FF30' : 'transparent', color: '#0A84FF',
+              fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+            }}>📋 Nhập thủ công</button>
+            <button onClick={() => setImportMode('country')} style={{
+              padding: '6px 14px', border: '1px solid #34C75950', borderRadius: '8px',
+              background: importMode === 'country' ? '#34C75930' : 'transparent', color: '#34C759',
+              fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+            }}>🌍 Tìm theo quốc gia</button>
+            {importMode === 'manual' && (
+              <button onClick={() => setShowImport(!showImport)} style={{
+                padding: '6px 14px', border: '1px solid #33330', borderRadius: '8px',
+                background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+              }}>{showImport ? '▲ Thu gọn' : '▼ Mở rộng'}</button>
+            )}
+          </div>
         </div>
+
+        {/* Country search panel */}
+        {importMode === 'country' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'end', flexWrap: 'wrap' }}>
+              <div style={{ flex: '0 0 220px' }}>
+                <label style={labelStyle}>Quốc gia</label>
+                <select value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)} style={{ ...inputStyle }}>
+                  {[
+                    'Canada','United States','United Kingdom','France','Germany','Sweden','Finland',
+                    'Poland','Netherlands','Australia','Japan','South Korea','Brazil','India',
+                    'Spain','Italy','Czech Republic','Ukraine','Singapore','Denmark','Norway',
+                  ].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <button onClick={() => handleCountrySearch(1)} disabled={countrySearching} style={{
+                padding: '10px 24px', border: 'none', borderRadius: '8px', height: '42px',
+                background: countrySearching ? '#333' : '#34C759', color: countrySearching ? '#888' : '#fff',
+                fontSize: '12px', fontWeight: 800, cursor: countrySearching ? 'wait' : 'pointer',
+              }}>{countrySearching ? '⏳ Đang tìm...' : '🔍 Tìm studio'}</button>
+              {countryResults.length > 0 && selectedCompanyIds.size > 0 && (
+                <button onClick={handleAddCountryToImport} style={{
+                  padding: '10px 20px', border: 'none', borderRadius: '8px', height: '42px',
+                  background: '#FF9500', color: '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer',
+                }}>＋ Thêm {selectedCompanyIds.size} công ty vào batch</button>
+              )}
+            </div>
+
+            {countryError && <p style={{ color: '#FF453A', fontSize: '12px' }}>⚠️ {countryError}</p>}
+
+            {countryResults.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', color: '#888' }}>
+                    Tìm thấy <b style={{ color: '#F5F5F5' }}>{countryTotal.toLocaleString()}</b> studio tại {selectedCountry} — hiển thị {countryResults.length}
+                  </span>
+                  <label style={{ fontSize: '12px', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input type="checkbox"
+                      checked={selectedCompanyIds.size === countryResults.length}
+                      onChange={e => setSelectedCompanyIds(e.target.checked ? new Set(countryResults.map(c => c.apollo_id)) : new Set())}
+                    /> Chọn tất cả
+                  </label>
+                </div>
+                <div style={{ maxHeight: '360px', overflowY: 'auto', border: '1px solid #333', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #333', position: 'sticky', top: 0, background: '#1A1A1A' }}>
+                        <th style={{ padding: '8px', width: '32px' }}></th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Tên công ty</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Domain</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Nhân viên</th>
+                        <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>Thành phố</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {countryResults.map((co, idx) => {
+                        const inBatch = importList.some(p => p.company.toLowerCase() === co.name.toLowerCase());
+                        const isSelected = selectedCompanyIds.has(co.apollo_id);
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #1E1E1E', background: isSelected ? '#34C75910' : inBatch ? '#FF950008' : 'transparent' }}>
+                            <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                              {inBatch
+                                ? <span style={{ fontSize: '10px', color: '#FF9500' }}>✓</span>
+                                : <input type="checkbox" checked={isSelected}
+                                    onChange={e => setSelectedCompanyIds(prev => {
+                                      const next = new Set(prev);
+                                      e.target.checked ? next.add(co.apollo_id) : next.delete(co.apollo_id);
+                                      return next;
+                                    })} />
+                              }
+                            </td>
+                            <td style={{ padding: '6px 12px', color: inBatch ? '#FF9500' : '#F5F5F5', fontWeight: 600 }}>
+                              {co.name}
+                              {inBatch && <span style={{ marginLeft: '6px', fontSize: '10px', color: '#FF9500' }}>· đã trong batch</span>}
+                            </td>
+                            <td style={{ padding: '6px 12px', color: co.domain ? '#0A84FF' : '#444', fontSize: '11px' }}>
+                              {co.domain || '—'}
+                            </td>
+                            <td style={{ padding: '6px 12px', color: '#888', fontSize: '11px' }}>
+                              {co.employee_count ? co.employee_count.toLocaleString() : '—'}
+                            </td>
+                            <td style={{ padding: '6px 12px', color: '#666', fontSize: '11px' }}>{co.city || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {countryResults.length < countryTotal && (
+                  <button onClick={() => handleCountrySearch(countryPage + 1)} disabled={countrySearching} style={{
+                    marginTop: '10px', padding: '8px 20px', border: '1px solid #333', borderRadius: '8px',
+                    background: 'transparent', color: '#888', fontSize: '12px', cursor: 'pointer', width: '100%',
+                  }}>{countrySearching ? '⏳ Đang tải...' : `Tải thêm (còn ${(countryTotal - countryResults.length).toLocaleString()})`}</button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {importMode === 'manual' && (<>
 
         {showImport && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -1426,6 +1581,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
             )}
           </div>
         )}
+        </>)}
       </div>
 
       {/* Batch Results */}

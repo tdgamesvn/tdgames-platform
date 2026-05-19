@@ -1,5 +1,32 @@
 # LOG
 
+## 2026-05-19 (session 7)
+### Task
+Multi-bank / multi-entity accounting architecture (#7 in CFO roadmap)
+
+### Work Done
+- Supabase migration: tạo bảng `finance_bank_accounts` (RLS: is_admin_or_ke_toan)
+- Seed 6 tài khoản ngân hàng: BIDV VND/USD (TD GAMES), TCB VND/USD (TD GAMES), TCB VND (Cá nhân), BIDV USD (TD CONSULTING)
+- Supabase migration: thêm `billing_entity TEXT` + `receiving_account_id UUID FK` vào `invoice_invoices`
+- Tạo `apps/expense/services/bankAccountService.ts` — fetchBankAccounts()
+- Cập nhật `InvoiceData` type: thêm billing_entity + receiving_account_id
+- Cập nhật `supabaseService.ts`: save + parse 2 field mới
+- Cập nhật `InvoiceEditor.tsx`: 2 dropdown chọn pháp nhân + TK ngân hàng nhận (lọc theo entity)
+- Cập nhật `InvoiceApp.tsx`: fetch bankAccounts, pass vào InvoiceEditor
+- Nâng cấp `CashFlowView.tsx`: 3-stream tabs (TD GAMES / TD CONSULTING / Cá nhân), luồng Cá nhân chỉ hiện với admin+ke_toan, chi phí chỉ tính ở TD GAMES stream
+
+### Validation
+- `npm run build` passed ✅ (no TypeScript errors)
+- commit: c70d788
+
+### Result
+- Invoice Editor giờ có dropdown chọn pháp nhân phát hành + TK ngân hàng nhận tiền
+- Cash Flow View tách 3 luồng rõ ràng, bảo vệ dữ liệu cá nhân theo role
+
+### Next Step (Task 6 — blocked chờ user)
+- Cần thêm 4 invoice còn thiếu của TD CONSULTING (Jan–Apr 2026): user cung cấp client name, amount, currency, issue_date, paid_date
+- Deploy lên VPS production
+
 ## 2026-05-18 (session 6)
 ### Task
 Leave eligibility rules + Nghỉ sinh nhật + Làm remote

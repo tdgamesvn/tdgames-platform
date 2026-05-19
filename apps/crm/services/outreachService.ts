@@ -256,6 +256,26 @@ export function parseCsvLeads(csvText: string): CsvParseResult {
 // ── FASTAPI INTEGRATION (Phase 2) ─────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
+export async function searchCompaniesByCountry(
+  country: string,
+  page: number = 1,
+  perPage: number = 25,
+): Promise<{ companies: any[]; total: number; page: number; per_page: number; error?: string }> {
+  const params = new URLSearchParams({ country, page: String(page), per_page: String(perPage) });
+  const res = await outreachRequest(`/api/leads/companies/search?${params}`);
+  if (!res.ok) throw new Error(`Company search failed: ${res.status}`);
+  return res.json();
+}
+
+export async function discoverContactsApollo(company: string, domain: string): Promise<{ contacts: any[]; source: string }> {
+  const res = await outreachRequest('/api/leads/discover-apollo', {
+    method: 'POST',
+    body: JSON.stringify({ company, domain }),
+  });
+  if (!res.ok) throw new Error(`Apollo discovery failed: ${res.status}`);
+  return res.json();
+}
+
 export async function discoverContacts(company: string, domain: string): Promise<any[]> {
   const res = await outreachRequest('/api/leads/discover', {
     method: 'POST',
