@@ -3,7 +3,7 @@ import { ExpenseRecord } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { FxRate, fetchFxRates } from '@/apps/expense/services/fxRateService';
 
-type Stream = 'TD GAMES' | 'TD CONSULTING' | 'Cá nhân';
+type Stream = 'Tất cả' | 'TD GAMES' | 'TD CONSULTING' | 'Cá nhân';
 
 interface Props {
   expenses: ExpenseRecord[];
@@ -66,6 +66,7 @@ function getRateForMonth(year: number, month: number, fxRates: FxRate[], default
 const MONTH_NAMES = ['Th1', 'Th2', 'Th3', 'Th4', 'Th5', 'Th6', 'Th7', 'Th8', 'Th9', 'Th10', 'Th11', 'Th12'];
 
 const STREAM_LABELS: Record<Stream, string> = {
+  'Tất cả':        '🌐 Tất cả',
   'TD GAMES':      '🏢 TD Games',
   'TD CONSULTING': '🏛 TD Consulting',
   'Cá nhân':       '👤 Cá nhân',
@@ -78,10 +79,10 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate, currentUserRole }
   const [paidInvoices, setPaidInvoices] = useState<PaidInvoice[]>([]);
   const [fxRates, setFxRates] = useState<FxRate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stream, setStream] = useState<Stream>('TD GAMES');
+  const [stream, setStream] = useState<Stream>('Tất cả');
 
   const canSeePersonal = currentUserRole === 'admin' || currentUserRole === 'ke_toan';
-  const availableStreams: Stream[] = ['TD GAMES', 'TD CONSULTING', ...(canSeePersonal ? ['Cá nhân' as Stream] : [])];
+  const availableStreams: Stream[] = ['Tất cả', 'TD GAMES', 'TD CONSULTING', ...(canSeePersonal ? ['Cá nhân' as Stream] : [])];
 
   // ── Fetch paid invoices khi đổi năm ──
   useEffect(() => {
@@ -112,15 +113,21 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate, currentUserRole }
   }, []);
 
   // ── Filter invoices theo stream hiện tại ──
-  const filteredInvoices = useMemo(() =>
-    paidInvoices.filter(inv => (inv.billing_entity || 'TD GAMES') === stream),
-    [paidInvoices, stream]
-  );
+  const filteredInvoices = useMemo(() => {
+    if (stream === 'Tất cả') {
+      return paidInvoices.filter(inv => {
+        const entity = inv.billing_entity || 'TD GAMES';
+        if (entity === 'Cá nhân' && !canSeePersonal) return false;
+        return true;
+      });
+    }
+    return paidInvoices.filter(inv => (inv.billing_entity || 'TD GAMES') === stream);
+  }, [paidInvoices, stream, canSeePersonal]);
 
   // ── Build monthly data với tỷ giá theo từng tháng ──
   const monthlyData: MonthData[] = useMemo(() => {
-    // Chi phí chỉ áp dụng vào luồng TD GAMES (công ty chính)
-    const includeExpenses = stream === 'TD GAMES';
+    // Chi phí áp dụng cho TD GAMES và Tất cả
+    const includeExpenses = stream === 'TD GAMES' || stream === 'Tất cả';
     let cumulative = 0;
     return Array.from({ length: 12 }, (_, i) => {
       const monthRate = getRateForMonth(selectedYear, i, fxRates, vcbAvgRate);
