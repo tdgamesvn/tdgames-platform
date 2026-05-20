@@ -1,6 +1,7 @@
 import React from 'react';
 import { AccountUser } from '@/types';
 import { ExchangeRateData } from '@/services/exchangeRateService';
+import { NotificationBell } from './NotificationBell';
 
 interface NavbarProps {
   theme: string;
@@ -81,6 +82,9 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
           </button>
         ))}
       </div>
+
+      {/* Notification Bell */}
+      <NotificationBell userId={currentUser.id} theme={theme} />
 
       {/* User info + Logout */}
       <div className="flex items-center gap-2 ml-2">
