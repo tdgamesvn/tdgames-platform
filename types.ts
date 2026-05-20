@@ -581,6 +581,54 @@ export interface HrReminder {
   created_at: string;
 }
 
+// ── Accounting Phase 1 ────────────────────────────────────
+
+export type AssetType = 'equipment' | 'furniture' | 'vehicle' | 'software' | 'other';
+export type AssetStatus = 'active' | 'disposed' | 'written_off';
+
+export interface FixedAsset {
+  id: string;
+  name: string;
+  asset_type: AssetType;
+  purchase_date: string;
+  cost: number;
+  useful_life_months: number;
+  residual_value: number;
+  description?: string;
+  serial_number?: string;
+  location?: string;
+  assigned_to?: string;
+  status: AssetStatus;
+  disposal_date?: string;
+  disposal_amount?: number;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AdvanceStatus = 'open' | 'settled' | 'cancelled';
+
+export interface Advance {
+  id: string;
+  recipient_name: string;
+  recipient_user_id?: string;
+  amount: number;
+  purpose: string;
+  advance_date: string;
+  expected_settlement_date?: string;
+  status: AdvanceStatus;
+  settled_amount?: number;
+  returned_amount?: number;
+  settlement_date?: string;
+  settlement_notes?: string;
+  approved_by?: string;
+  notes?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Salary Components ─────────────────────────────────────
 
 export interface HrSalaryComponent {

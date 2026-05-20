@@ -100,4 +100,13 @@ export const APPS: AppConfig[] = [
     gradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
     roles: ['freelancer'],
   },
+  {
+    id: 'accounting',
+    name: 'Kế toán',
+    icon: '🧾',
+    description: 'Tài sản cố định & tạm ứng',
+    color: '#6366F1',
+    gradient: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
+    roles: ['admin', 'ke_toan'],
+  },
 ];
