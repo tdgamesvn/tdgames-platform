@@ -5,6 +5,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const ADMIN_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1506536432347516929/N74vGob7FrHrlK1wgxmoz0NOxOCK4WY4x2VQCZiafpRC4hHja8YcwcoqGL3CZuydjpML";
+
+async function discordAdminEvent(
+  action: string,
+  email: string,
+  extra: Record<string, string> = {},
+) {
+  const CONFIG: Record<string, { icon: string; color: number; title: string }> = {
+    invite:      { icon: "🆕", color: 0x4CAF50, title: "Tài khoản mới được tạo" },
+    delete_user: { icon: "🗑️", color: 0xF44336, title: "Tài khoản bị xoá vĩnh viễn" },
+    disable:     { icon: "🚫", color: 0xFF9500, title: "Tài khoản bị vô hiệu hoá" },
+    enable:      { icon: "✅", color: 0x4CAF50, title: "Tài khoản được kích hoạt lại" },
+    update_role: { icon: "🔄", color: 0x2196F3, title: "Quyền tài khoản đã thay đổi" },
+  };
+
+  const cfg = CONFIG[action] ?? { icon: "ℹ️", color: 0x9D9C9D, title: action };
+  const vnTime = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+
+  const fields = [
+    { name: "📧 Email", value: email, inline: true },
+    ...Object.entries(extra).map(([k, v]) => ({ name: k, value: v, inline: true })),
+  ];
+
+  await fetch(ADMIN_DISCORD_WEBHOOK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      embeds: [{
+        title: `${cfg.icon} ${cfg.title}`,
+        color: cfg.color,
+        fields,
+        footer: { text: `TD Games Admin • ${vnTime}` },
+      }],
+    }),
+  }).catch(() => { /* never block main flow */ });
+}
+
 // Helper: find auth user by email using RPC (reliable, no pagination issues)
 async function findAuthUserByEmail(supabaseAdmin: any, email: string) {
   const { data, error } = await supabaseAdmin.rpc('find_auth_user_by_email', {
@@ -57,6 +94,7 @@ Deno.serve(async (req: Request) => {
       const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(user.id);
       if (delErr) throw delErr;
 
+      await discordAdminEvent("delete_user", email);
       return new Response(
         JSON.stringify({ success: true, deleted: true, message: `Auth user ${email} permanently deleted` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -87,6 +125,7 @@ Deno.serve(async (req: Request) => {
       );
       if (banErr) throw banErr;
 
+      await discordAdminEvent("disable", email);
       return new Response(
         JSON.stringify({ success: true, disabled: true, message: `Auth user ${email} disabled` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -117,6 +156,7 @@ Deno.serve(async (req: Request) => {
       );
       if (unbanErr) throw unbanErr;
 
+      await discordAdminEvent("enable", email);
       return new Response(
         JSON.stringify({ success: true, enabled: true, message: `Auth user ${email} re-enabled` }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -165,6 +205,10 @@ Deno.serve(async (req: Request) => {
       );
       if (updateErr) throw updateErr;
 
+      await discordAdminEvent("update_role", email, {
+        "🔙 Trước": user.user_metadata?.role || "member",
+        "🔜 Sau": role,
+      });
       return new Response(
         JSON.stringify({ success: true, updated: true, message: `Role updated to '${role}' for ${email}`, previous_role: user.user_metadata?.role || "member" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -218,6 +262,10 @@ Deno.serve(async (req: Request) => {
 
     if (error) throw error;
 
+    await discordAdminEvent("invite", email, {
+      "👤 Tên": full_name,
+      "🏷️ Role": role || "member",
+    });
     return new Response(
       JSON.stringify({ success: true, invited: true, user_id: data.user?.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
