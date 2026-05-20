@@ -1,5 +1,35 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1506534440392982608/0jJN3a-2bngg4CNZBVPwPM2xh6Ruq7bw5vTf4fE_Na79PQ_iv3LV22zVwF2Ysd979AD6";
+
+async function discordReport(ok: boolean, data: Record<string, unknown>, err?: string) {
+  const color = ok ? 0x2196F3 : 0xF44336;
+  const icon = ok ? "🔍" : "❌";
+  const title = ok ? `${icon} Auto Discovery — Kết quả` : `${icon} Auto Discovery — Lỗi`;
+  const vnTime = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+
+  const fields = ok
+    ? Object.entries(data).map(([k, v]) => ({
+        name: k,
+        value: String(v ?? "—"),
+        inline: true,
+      }))
+    : [{ name: "Error", value: err || "Unknown", inline: false }];
+
+  await fetch(DISCORD_WEBHOOK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      embeds: [{
+        title,
+        color,
+        fields,
+        footer: { text: `TD Games Outreach • ${vnTime}` },
+      }],
+    }),
+  }).catch(() => { /* never block main flow */ });
+}
+
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -230,6 +260,19 @@ Deno.serve(async (req: Request) => {
     },
     updated_at: new Date().toISOString(),
   }).eq("key", "auto_discovery");
+
+  const summary = {
+    "🌏 Country": resolvedCountry,
+    "📄 Page": String(resolvedPage),
+    "🏢 Studios tìm": String(result.studios_searched),
+    "⏭ Studios bỏ qua": String(result.studios_skipped),
+    "👤 Contacts thêm": String(result.contacts_found),
+    "🔄 Country exhausted": result.country_exhausted ? "Có → chuyển nước" : "Không",
+    "➡ Next": result.country_exhausted
+      ? `${countries[(newIdx) % countries.length]} (page 1)`
+      : `${resolvedCountry} (page ${newPage})`,
+  };
+  await discordReport(true, summary);
 
   return new Response(JSON.stringify({
     ok: true,

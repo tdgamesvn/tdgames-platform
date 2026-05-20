@@ -1,5 +1,35 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1506534440392982608/0jJN3a-2bngg4CNZBVPwPM2xh6Ruq7bw5vTf4fE_Na79PQ_iv3LV22zVwF2Ysd979AD6";
+
+async function discordReport(ok: boolean, data: Record<string, unknown>, err?: string) {
+  const color = ok ? 0x4CAF50 : 0xF44336;
+  const icon = ok ? "📧" : "❌";
+  const title = ok ? `${icon} Auto Batch — Email đã gửi` : `${icon} Auto Batch — Lỗi`;
+  const vnTime = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+
+  const fields = ok
+    ? Object.entries(data).map(([k, v]) => ({
+        name: k,
+        value: String(v ?? "—"),
+        inline: true,
+      }))
+    : [{ name: "Error", value: err || "Unknown", inline: false }];
+
+  await fetch(DISCORD_WEBHOOK, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      embeds: [{
+        title,
+        color,
+        fields,
+        footer: { text: `TD Games Outreach • ${vnTime}` },
+      }],
+    }),
+  }).catch(() => { /* never block main flow */ });
+}
+
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
@@ -102,18 +132,26 @@ Deno.serve(async (req: Request) => {
   try {
     res = await fetch(target, { method: "POST", headers: forwardHeaders, body: bodyText || "{}" });
   } catch (e) {
+    await discordReport(false, {}, String(e));
     return new Response(JSON.stringify({ detail: String(e) }), {
       status: 502,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
+  // Buffer response để parse stats rồi gửi Discord
+  const resText = await res.text();
+  let resData: Record<string, unknown> = {};
+  try { resData = JSON.parse(resText); } catch { resData = { raw: resText.slice(0, 200) }; }
+
+  if (res.ok) {
+    await discordReport(true, resData);
+  } else {
+    await discordReport(false, {}, `HTTP ${res.status}: ${resText.slice(0, 300)}`);
+  }
+
   const out = new Headers();
   for (const [k, v] of Object.entries(corsHeaders)) out.set(k, v);
-  res.headers.forEach((v, k) => {
-    const kl = k.toLowerCase();
-    if (["content-encoding", "transfer-encoding", "connection"].includes(kl)) return;
-    out.set(k, v);
-  });
-  return new Response(res.body, { status: res.status, headers: out });
+  out.set("Content-Type", "application/json");
+  return new Response(resText, { status: res.status, headers: out });
 });
