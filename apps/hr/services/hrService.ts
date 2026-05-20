@@ -660,7 +660,7 @@ export async function generateReminders(): Promise<number> {
     if (emp.probation_end) {
       const probEnd = new Date(emp.probation_end);
       const diff = Math.ceil((probEnd.getTime() - today.getTime()) / 86400000);
-      if (diff >= 0 && diff <= 15) {
+      if (diff >= 0 && diff <= 30) {
         addIfNew({
           employee_id: emp.id, type: 'probation_end',
           title: `📋 Hết thử việc: ${emp.full_name}`,
