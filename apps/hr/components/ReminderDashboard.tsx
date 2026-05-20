@@ -15,6 +15,7 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   freelancer_payment: { icon: '💳', label: 'Thanh toán freelancer', color: '#34C759' },
   probation_end: { icon: '📋', label: 'Hết thử việc', color: '#FF6B00' },
   anniversary: { icon: '🎉', label: 'Kỷ niệm', color: '#5856D6' },
+  performance_review: { icon: '🔄', label: 'Review định kỳ', color: '#30D158' },
 };
 
 const ReminderDashboard: React.FC<Props> = ({ reminders, onGenerate, onDismiss }) => {

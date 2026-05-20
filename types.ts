@@ -573,7 +573,7 @@ export interface HrDocument {
 export interface HrReminder {
   id: string;
   employee_id: string | null;
-  type: 'contract_expiry' | 'birthday' | 'evaluation' | 'work_permit' | 'freelancer_payment' | 'probation_end' | 'anniversary';
+  type: 'contract_expiry' | 'birthday' | 'evaluation' | 'work_permit' | 'freelancer_payment' | 'probation_end' | 'anniversary' | 'performance_review';
   title: string;
   due_date: string;
   status: 'pending' | 'notified' | 'dismissed';

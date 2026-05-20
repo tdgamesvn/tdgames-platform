@@ -667,6 +667,28 @@ export async function generateReminders(): Promise<number> {
           due_date: emp.probation_end, status: 'pending', notes: '',
         });
       }
+
+      // 6-month performance review (chỉ áp dụng sau khi hết thử việc → lên chính thức)
+      if (probEnd < today) {
+        // Tính số chu kỳ 6 tháng đã qua, lấy chu kỳ tiếp theo
+        const probEndMs = probEnd.getTime();
+        const sixMonthMs = 6 * 30.4375 * 86400000; // ~6 tháng tính theo ngày bình quân
+        const elapsed = today.getTime() - probEndMs;
+        const nextCycle = Math.ceil(elapsed / sixMonthMs) || 1;
+
+        const nextReview = new Date(probEnd);
+        nextReview.setMonth(nextReview.getMonth() + nextCycle * 6);
+
+        const reviewDiff = Math.ceil((nextReview.getTime() - today.getTime()) / 86400000);
+        if (reviewDiff >= 0 && reviewDiff <= 30) {
+          addIfNew({
+            employee_id: emp.id, type: 'performance_review',
+            title: `🔄 Review ${nextCycle * 6} tháng: ${emp.full_name}`,
+            due_date: fmt(nextReview), status: 'pending',
+            notes: `Review định kỳ ${nextCycle * 6} tháng kể từ ngày lên chính thức`,
+          });
+        }
+      }
     }
 
     // Work anniversary — nếu ngày đã qua năm nay thì dùng năm sau
