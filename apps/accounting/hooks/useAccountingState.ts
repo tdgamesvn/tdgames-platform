@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FixedAsset, Advance, BankStatement, BankStatementRow,
-  InvoiceData, ExpenseRecord, HrEmployee,
+  InvoiceData, ExpenseRecord, HrEmployee, Settlement,
 } from '@/types';
 import * as svc from '../services/accountingService';
 import type { PayrollRecordWithMeta } from '../services/accountingService';
@@ -29,6 +29,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecordWithMeta[]>([]);
   const [employees, setEmployees] = useState<HrEmployee[]>([]);
+  const [freelancerSettlements, setFreelancerSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +37,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setLoading(true);
     setError(null);
     try {
-      const [a, adv, stmts, invs, exps, payroll, emps] = await Promise.all([
+      const [a, adv, stmts, invs, exps, payroll, emps, settlements] = await Promise.all([
         svc.fetchFixedAssets(),
         svc.fetchAdvances(),
         svc.fetchBankStatements(),
@@ -44,6 +45,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
         svc.fetchExpensesForAccounting(),
         svc.fetchPayrollForTncn(),
         svc.fetchEmployeesForAccounting(),
+        svc.fetchSettlementsForTncn(),
       ]);
       setAssets(a);
       setAdvances(adv);
@@ -52,6 +54,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
       setExpenses(exps);
       setPayrollRecords(payroll);
       setEmployees(emps);
+      setFreelancerSettlements(settlements);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -133,7 +136,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
 
   return {
     activeTab, setActiveTab,
-    assets, advances, statements, invoices, expenses, payrollRecords, employees,
+    assets, advances, statements, invoices, expenses, payrollRecords, employees, freelancerSettlements,
     loading, error, reload: loadAll,
     addAsset, editAsset, removeAsset,
     addAdvance, settle, cancel, removeAdvance,

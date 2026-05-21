@@ -276,3 +276,19 @@ export async function fetchEmployeesForAccounting(): Promise<HrEmployee[]> {
   if (error) throw error;
   return (data || []) as HrEmployee[];
 }
+
+// ══════════════════════════════════════════════════
+// Freelancer Settlements (for TNCN tab)
+// ══════════════════════════════════════════════════
+
+import { Settlement } from '@/types';
+
+export async function fetchSettlementsForTncn(): Promise<Settlement[]> {
+  const { data, error } = await supabase
+    .from('wf_settlements')
+    .select('*, worker:wf_workers(id, full_name)')
+    .in('status', ['paid', 'accepted'])
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as Settlement[];
+}

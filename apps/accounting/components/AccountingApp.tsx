@@ -155,6 +155,8 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
               <TncnTab
                 records={state.payrollRecords}
                 employees={state.employees}
+                freelancerSettlements={state.freelancerSettlements}
+                vcbAvgRate={avgUsdVnd}
               />
             )}
           </>
