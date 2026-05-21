@@ -60,10 +60,13 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedQ, setSelectedQ] = useState<number | 'all'>('all');
 
-  // Chỉ lấy invoices đã phát hành (pending + paid, trừ cancelled)
+  // Chỉ lấy invoices pháp nhân TD GAMES, đã phát hành (pending + paid, trừ cancelled + draft)
   const filtered = useMemo(() => {
     return invoices.filter(inv => {
-      if (inv.status === 'cancelled') return false;
+      // Chỉ kê khai TD GAMES — loại bỏ TD Consulting, Cá nhân, etc.
+      const entity = inv.billing_entity || 'TD GAMES';
+      if (entity !== 'TD GAMES') return false;
+      if (inv.status === 'cancelled' || inv.status === 'draft') return false;
       const d = inv.issueDate;
       if (!d) return false;
       const date = new Date(d);
@@ -121,7 +124,7 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-white font-black text-lg uppercase tracking-wider">🧾 Bảng kê VAT (Thuế GTGT)</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">{label} • Tỷ giá quy đổi: {fmt(rate)} VND/USD</p>
+          <p className="text-neutral-500 text-xs mt-0.5">{label} • Pháp nhân: TD GAMES • Tỷ giá: {fmt(rate)} VND/USD</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           {/* Year */}
@@ -188,7 +191,6 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
                 <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Số HĐ</th>
                 <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngày xuất</th>
                 <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Khách hàng</th>
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Pháp nhân</th>
                 <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Doanh thu</th>
                 <th className="text-center px-4 py-3 text-neutral-500 uppercase tracking-wider">Thuế suất</th>
                 <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">VAT</th>
@@ -200,12 +202,7 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
                 <tr key={i} className="border-b border-white/3 hover:bg-white/2">
                   <td className="px-4 py-2.5 text-neutral-300 font-mono">{r.invoiceNumber}</td>
                   <td className="px-4 py-2.5 text-neutral-500">{r.issueDate}</td>
-                  <td className="px-4 py-2.5 text-white font-semibold truncate max-w-[160px]">{r.client}</td>
-                  <td className="px-4 py-2.5">
-                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-white/5 text-neutral-400">
-                      {r.entity === 'TD CONSULTING' ? 'CONSULTING' : r.entity === 'Cá nhân' ? 'CÁ NHÂN' : 'TD GAMES'}
-                    </span>
-                  </td>
+                  <td className="px-4 py-2.5 text-white font-semibold truncate max-w-[200px]">{r.client}</td>
                   <td className="px-4 py-2.5 text-right text-neutral-300">{fmt(r.subtotal)}</td>
                   <td className="px-4 py-2.5 text-center">
                     {r.taxRate > 0 ? (
@@ -220,8 +217,8 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
               ))}
               {/* Total row */}
               <tr className="border-t border-white/10 bg-white/2">
-                <td colSpan={4} className="px-4 py-3 text-neutral-400 font-black uppercase text-xs tracking-wider">
-                  Tổng {rows.length} hoá đơn
+                <td colSpan={3} className="px-4 py-3 text-neutral-400 font-black uppercase text-xs tracking-wider">
+                  Tổng {rows.length} hoá đơn — TD GAMES
                 </td>
                 <td className="px-4 py-3 text-right text-white font-black">{fmt(totSubtotal)}</td>
                 <td />
