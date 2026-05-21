@@ -13,6 +13,8 @@ import ExpenseDashboard from './ExpenseDashboard';
 import ExpenseReports from './ExpenseReports';
 import FxRateManager from './FxRateManager';
 import CashFlowView from './CashFlowView';
+import HelpPanel from '@/components/HelpPanel';
+import { EXPENSE_HELP } from '../helpContent';
 
 interface ExpenseAppProps {
   currentUser: AccountUser;
@@ -54,6 +56,7 @@ const REVERSE_TAB: Record<string, ExpenseTab> = {
 const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useExpenseState(currentUser.username, initialTab);
   const [showForm, setShowForm] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // ── Live VCB Exchange Rate (shared via Context) ──
   const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
@@ -92,6 +95,7 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
         onBack={onBack}
         appName="Expense"
         tabLabels={TAB_LABELS}
+        onHelp={() => setHelpOpen(true)}
       />
 
       {/* Main Content */}
@@ -181,6 +185,15 @@ const ExpenseApp: React.FC<ExpenseAppProps> = ({ currentUser, onBack, initialTab
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
+
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="Expense"
+        appIcon="💸"
+        contents={EXPENSE_HELP}
+        activeTabId={navbarTab}
+      />
     </div>
   );
 };
