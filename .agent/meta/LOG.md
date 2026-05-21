@@ -1,5 +1,50 @@
 # LOG
 
+## 2026-05-21 (session — Verify Accounting VAT + TNCN)
+### Task
+Verify dữ liệu thực tế cho VatTab và TncnTab; đóng task invoice TD CONSULTING
+
+### Work Done
+- User xác nhận 4 invoice TD CONSULTING đã được nhập (Jan–Apr 2026) → đóng task
+- Query Supabase `invoice_invoices`: 11 invoices, issue_date ✅, billing_entity ✅, tax_rate=0% (export services — đúng)
+- Query `pay_payroll_sheets` + `pay_payroll_records`: 2 sheets paid (T3/2026: 1 NV, PIT 544,500₫; T4/2026: 4 NV, PIT 1,241,408₫)
+
+### Result
+- VatTab: hoạt động đúng, VAT=0% là business rule cho dịch vụ xuất khẩu phần mềm
+- TncnTab: pivot T3+T4/2026 hiển thị đúng; các tháng chưa có sheet hiện `·` — đúng logic
+- Tất cả tasks trong backlog đã Done
+
+### Next Step
+- Tạo bảng lương T1, T2/2026 nếu cần (user action)
+- Nhận yêu cầu feature mới
+
+---
+
+## 2026-05-21 (session — HelpPanel all modules)
+### Task
+Thêm HelpPanel cho Attendance, Payroll, Workforce, CRM
+
+### Work Done
+- Xác nhận `helpContent.ts` đã tồn tại cho tất cả 4 module (được tạo sẵn từ trước)
+- Wire HelpPanel vào `AttendanceApp.tsx`: import + useState + onHelp + `<HelpPanel>`
+- Wire HelpPanel vào `PayrollApp.tsx`: import + useState + onHelp + `<HelpPanel>`
+- Wire HelpPanel vào `WorkforceApp.tsx`: import + useState + onHelp + `<HelpPanel>`
+- Wire HelpPanel vào `CrmApp.tsx`: import + useState + onHelp + `<HelpPanel>`
+
+### Validation
+- `npm run build` ✅ (6.78s, no TypeScript errors)
+- commit 7f40aec, pushed to origin/main ✅
+
+### Result
+- Tất cả 8 module chính đều có HelpPanel: Invoice, HR, Expense, Accounting, Attendance, Payroll, Workforce, CRM
+- Nút ❓ trên Navbar mở panel contextual theo tab đang active
+
+### Next Step
+- VPS auto-deploy qua GitHub Actions (~25s)
+- Verify live tại app.tdgamestudio.com
+
+---
+
 ## 2026-05-21 (session — TASKS cleanup)
 ### Task
 Dọn dẹp TASKS.md — đóng discovery task cũ, ghi lại đúng trạng thái thực

@@ -6,21 +6,17 @@ _Cập nhật: 2026-05-21_
 
 ## To Do
 
-- [ ] Thêm HelpPanel cho các module còn thiếu (Attendance, CRM, Payroll, Portal)
-  - Priority: Low
-  - Type: UX polish
-  - Done when: mỗi module có HelpPanel giống Invoice/HR/Expense/Accounting
+- [x] Thêm HelpPanel cho các module còn thiếu (Attendance, CRM, Payroll, Workforce)
+  - Done: 2026-05-21
+  - Result: 4 module wired; tất cả 8 app chính đều có HelpPanel. Commit 7f40aec.
 
-- [ ] Nhập 4 invoice còn thiếu của TD CONSULTING (Jan–Apr 2026)
-  - Priority: Medium
-  - Type: data entry
-  - Blocker: cần user cung cấp: client name, amount, currency, issue_date, paid_date
-  - Done when: 4 invoice tồn tại trong `invoice_invoices` với đúng billing_entity
+- [x] Nhập 4 invoice còn thiếu của TD CONSULTING (Jan–Apr 2026)
+  - Done: 2026-05-21 (confirmed by user — đã triển khai)
+  - Result: TC-202601-001, TC-202602-001, TC-202604-002, TC-202605-003 tồn tại trong invoice_invoices với billing_entity = 'TD CONSULTING' ✅
 
-- [ ] Verify dữ liệu thực tế cho Accounting Phase 3 (VAT + TNCN)
-  - Priority: Medium
-  - Type: validation
-  - Done when: VatTab và TncnTab hiển thị đúng số liệu từ dữ liệu thực
+- [x] Verify dữ liệu thực tế cho Accounting Phase 3 (VAT + TNCN)
+  - Done: 2026-05-21
+  - Result: VatTab — 11 invoices có issue_date + billing_entity đúng; tax_rate=0% toàn bộ (đúng với export services). TncnTab — 2 sheets paid (T3: 544,500₫ PIT / T4: 1,241,408₫ PIT), pivot hiển thị đúng năm 2026.
 
 ---
 
