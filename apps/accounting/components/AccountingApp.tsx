@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { AccountUser } from '@/types';
 import { useAccountingState, AccountingTab } from '../hooks/useAccountingState';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
+import AppBackground from '@/components/AppBackground';
+import { Navbar } from '@/components/Navbar';
+import { ToastNotification } from '@/components/ToastNotification';
 import FixedAssetTab from './FixedAssetTab';
 import AdvanceTab from './AdvanceTab';
 import PayablesTab from './PayablesTab';
@@ -18,24 +21,26 @@ interface Props {
   initialTab?: string | null;
 }
 
-const TABS: { id: AccountingTab; label: string; icon: string }[] = [
-  { id: 'assets',   label: 'Tài sản',   icon: '🏢' },
-  { id: 'advances', label: 'Tạm ứng',   icon: '💳' },
-  { id: 'payables', label: 'Công nợ',   icon: '📋' },
-  { id: 'pnl',      label: 'Lãi / Lỗ', icon: '📈' },
-  { id: 'bank',     label: 'Ngân hàng', icon: '🏦' },
-  { id: 'vat',      label: 'VAT',       icon: '🧾' },
-  { id: 'tncn',     label: 'TNCN',      icon: '💼' },
-];
+const TAB_LABELS: Record<string, string> = {
+  assets:   '🏢 Tài sản',
+  advances: '💳 Tạm ứng',
+  payables: '📋 Công nợ',
+  pnl:      '📈 Lãi / Lỗ',
+  bank:     '🏦 Ngân hàng',
+  vat:      '🧾 VAT',
+  tncn:     '💼 TNCN',
+};
+
+const ACCESSIBLE_TABS = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn'] as const;
 
 const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const state = useAccountingState(currentUser.username, initialTab);
-  const { avgUsdVnd } = useExchangeRate();
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
-    setToast({ msg, type });
+    setToast({ message: msg, type });
     setTimeout(() => setToast(null), 3500);
   };
 
@@ -49,51 +54,32 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#0F0F0F' }}>
-      {/* Top bar */}
-      <div className="sticky top-0 z-30 border-b border-white/5" style={{ backgroundColor: '#0F0F0F' }}>
-        <div className="flex items-center gap-4 px-6 h-14 overflow-x-auto">
-          <button onClick={onBack}
-            className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-all shrink-0">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xl">🧾</span>
-            <span className="text-white font-black uppercase tracking-widest text-sm">Kế toán</span>
-          </div>
-          {/* Tab bar — scrollable */}
-          <div className="flex gap-1 ml-2 flex-nowrap overflow-x-auto flex-1">
-            {TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => state.setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
-                  state.activeTab === t.id
-                    ? 'text-white'
-                    : 'text-neutral-400 hover:text-white hover:bg-white/5'
-                }`}
-                style={state.activeTab === t.id ? { background: '#FF9500' } : {}}>
-                <span>{t.icon}</span>
-                <span>{t.label}</span>
-              </button>
-            ))}
-          </div>
+    <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
+      <AppBackground />
 
-          {/* Help button */}
-          <button
-            onClick={() => setHelpOpen(true)}
-            title="Hướng dẫn sử dụng"
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 hover:text-white hover:bg-white/5 transition-all border border-white/10 hover:border-white/20">
-            <span>?</span>
-            <span className="hidden sm:inline">Trợ giúp</span>
-          </button>
-        </div>
-      </div>
+      {toast && (
+        <ToastNotification
+          message={{ text: toast.message, type: toast.type }}
+          onDismiss={() => setToast(null)}
+        />
+      )}
 
-      {/* Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <Navbar
+        theme="dark"
+        currentUser={currentUser}
+        activeTab={state.activeTab}
+        accessibleTabs={ACCESSIBLE_TABS as any}
+        onTabChange={tab => state.setActiveTab(tab as AccountingTab)}
+        onLogout={onBack}
+        onBack={onBack}
+        vcbRate={vcbRate}
+        vcbRateLoading={vcbRateLoading}
+        appName="Kế toán"
+        tabLabels={TAB_LABELS}
+        onHelp={() => setHelpOpen(true)}
+      />
+
+      <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
         {state.loading ? (
           <div className="flex items-center justify-center py-32">
             <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
@@ -173,9 +159,12 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
             )}
           </>
         )}
-      </div>
+      </main>
 
-      {/* Help Panel */}
+      <footer className="py-12 border-t border-white/5 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
+        TD Games • Enterprise Platform • v3.0
+      </footer>
+
       <HelpPanel
         open={helpOpen}
         onClose={() => setHelpOpen(false)}
@@ -184,15 +173,6 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
         contents={ACCOUNTING_HELP}
         activeTabId={state.activeTab}
       />
-
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-xl transition-all ${
-          toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-500'
-        }`}>
-          {toast.type === 'error' ? '❌' : '✅'} {toast.msg}
-        </div>
-      )}
     </div>
   );
 };

@@ -96,7 +96,7 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
         onHelp={() => setHelpOpen(true)}
       />
 
-      <main className="flex-1 p-6 md:p-12 max-w-[1200px] mx-auto w-full">
+      <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
         {loading ? (
           <div className="flex items-center justify-center py-32 text-neutral-600 text-sm">Đang tải...</div>
         ) : !selectedCompany ? (

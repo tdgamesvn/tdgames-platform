@@ -1,5 +1,56 @@
 # LOG
 
+## 2026-05-21 (session — UI/UX layout fixes)
+### Task
+Chuẩn hoá layout AccountingApp và CompanyApp theo standard app shell
+
+### Work Done
+- `apps/company/components/CompanyApp.tsx`: sửa `max-w-[1200px]` → `max-w-[1400px]` trong `<main>`
+- `apps/accounting/components/AccountingApp.tsx`: refactor hoàn toàn
+  - Xoá custom sticky top bar + inline tab buttons
+  - Thêm `<AppBackground />`, `<Navbar>` (với vcbRate/vcbRateLoading, TAB_LABELS 7 tabs, onHelp)
+  - Thêm `<ToastNotification>` thay thế inline toast div
+  - Đổi content wrapper thành `<main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">`
+  - Thêm `<footer>` chuẩn
+
+### Validation
+- `npm run build` ✅ passed (7.02s, không có lỗi TypeScript)
+
+### Result
+- Cả 2 app giờ dùng chung Navbar component, AppBackground, cùng max-width 1400px, cùng footer — UI/UX nhất quán với toàn bộ platform
+
+## 2026-05-21 (session — Company module)
+### Task
+Build module Hồ sơ Công ty (Company app mới)
+
+### Work Done
+- Supabase migration `create_company_module`: tạo `company_profiles` + `company_documents` tables, RLS policies (authenticated read / admin-ke_toan write), seed TD GAMES profile (MST 0111386856)
+- `apps/company/services/companyService.ts`: fetchCompanyProfiles, updateCompanyProfile, fetchCompanyDocuments, uploadCompanyDocument (Supabase Storage bucket `company-documents`), getDocumentUrl (signed URL 1h), deleteCompanyDocument
+- `apps/company/components/InfoTab.tsx`: view/edit legal info (MST, địa chỉ, người đại diện, ngày hoạt động...), inline form với auto-save
+- `apps/company/components/DocumentsTab.tsx`: upload PDF/ảnh/doc, list với type badge + file size + date, signed URL viewer, delete confirm
+- `apps/company/components/BankTab.tsx`: display `finance_bank_accounts` filtered by entity_short
+- `apps/company/components/CompanyApp.tsx`: shell với Navbar 3 tab + entity switcher (nếu nhiều pháp nhân) + HelpPanel
+- `apps/company/helpContent.ts`: 3 sections help
+- `config/apps.ts`: thêm entry `company` (admin + ke_toan, icon 🏢)
+- `App.tsx`: import CompanyApp + route `activeApp === 'company'` + VALID_APPS
+
+### Validation
+- `npm run build` ✅ (6.92s, no TypeScript errors)
+- commit 6d8e756, pushed to origin/main ✅
+- VPS auto-deploy triggered via GitHub Actions
+
+### Result
+- App "🏢 Công ty" xuất hiện trên HomeScreen cho admin/ke_toan
+- TD GAMES profile seeded sẵn với đầy đủ thông tin pháp lý
+- Upload giấy tờ vào Supabase Storage, xem qua signed URL
+
+### Next Step
+- Tạo Storage bucket `company-documents` trên Supabase nếu chưa tự tạo (auto-create khi upload đầu tiên)
+- Upload GPKD, đăng ký thuế, CCCD đại diện vào DocumentsTab
+- Điền thêm phone number cho TD GAMES profile
+
+---
+
 ## 2026-05-21 (session — Verify Accounting VAT + TNCN)
 ### Task
 Verify dữ liệu thực tế cho VatTab và TncnTab; đóng task invoice TD CONSULTING
