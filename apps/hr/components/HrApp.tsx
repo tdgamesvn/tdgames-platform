@@ -10,6 +10,8 @@ import EmployeeDetail from './EmployeeDetail';
 import DepartmentManager from './DepartmentManager';
 import ReminderDashboard from './ReminderDashboard';
 import QuickAddEmployee from './QuickAddEmployee';
+import HelpPanel from '@/components/HelpPanel';
+import { HR_HELP } from '../helpContent';
 
 interface HrAppProps {
   currentUser: AccountUser;
@@ -43,8 +45,7 @@ const REVERSE_TAB: Record<string, HrTab> = {
 
 const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useHrState(initialTab);
-
-
+  const [helpOpen, setHelpOpen] = React.useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
   const accessibleTabs = ['history', 'activity', 'dashboard'];
@@ -76,6 +77,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
         onBack={onBack}
         appName="HR"
         tabLabels={TAB_LABELS}
+        onHelp={() => setHelpOpen(true)}
       />
 
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
@@ -160,6 +162,15 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
+
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="HR"
+        appIcon="👥"
+        contents={HR_HELP}
+        activeTabId={navbarTab}
+      />
     </div>
   );
 };
