@@ -4,14 +4,14 @@ import { supabase } from '@/services/supabaseClient';
 
 interface BankAccount {
   id: string;
+  name: string;
   bank_name: string;
   account_number: string;
-  account_name: string;
   currency: string;
   account_type: string;
   entity: string;
-  branch: string | null;
-  is_primary: boolean;
+  is_active: boolean;
+  sort_order: number;
 }
 
 interface Props {
@@ -31,7 +31,8 @@ export default function BankTab({ company }: Props) {
         .from('finance_bank_accounts')
         .select('*')
         .eq('entity', company.entity_short)
-        .order('is_primary', { ascending: false });
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
       setAccounts((data || []) as BankAccount[]);
       setLoading(false);
     })();
@@ -58,8 +59,8 @@ export default function BankTab({ company }: Props) {
             <div key={acc.id}
               className="flex items-center gap-4 p-5 rounded-2xl border transition-all"
               style={{
-                background: acc.is_primary ? 'rgba(255,149,0,0.04)' : 'rgba(255,255,255,0.02)',
-                borderColor: acc.is_primary ? 'rgba(255,149,0,0.15)' : 'rgba(255,255,255,0.05)',
+                background: acc.sort_order === 1 ? 'rgba(255,149,0,0.04)' : 'rgba(255,255,255,0.02)',
+                borderColor: acc.sort_order === 1 ? 'rgba(255,149,0,0.15)' : 'rgba(255,255,255,0.05)',
               }}>
               {/* Bank icon */}
               <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
@@ -70,7 +71,7 @@ export default function BankTab({ company }: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-white font-black text-sm">{acc.bank_name}</span>
-                  {acc.is_primary && (
+                  {acc.sort_order === 1 && (
                     <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg bg-orange-500/20 text-orange-400">Chính</span>
                   )}
                   <span className="text-[10px] font-black px-2 py-0.5 rounded-lg"
@@ -79,8 +80,7 @@ export default function BankTab({ company }: Props) {
                   </span>
                 </div>
                 <p className="text-neutral-300 font-mono text-sm mt-0.5 tracking-wider">{acc.account_number}</p>
-                <p className="text-neutral-500 text-xs mt-0.5">{acc.account_name}</p>
-                {acc.branch && <p className="text-neutral-700 text-[10px] mt-0.5">{acc.branch}</p>}
+                <p className="text-neutral-500 text-xs mt-0.5">{acc.name}</p>
               </div>
             </div>
           ))}
