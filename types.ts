@@ -629,6 +629,32 @@ export interface Advance {
   updated_at: string;
 }
 
+// ── Accounting — Bank Reconciliation Types ────────────────────
+export type BankName = 'techcombank' | 'bidv';
+export type BankMatchType = 'invoice' | 'expense' | 'advance';
+
+export interface BankStatement {
+  id: string;
+  bank_name: BankName;
+  account_number?: string;
+  transaction_date: string;       // YYYY-MM-DD
+  description: string;
+  amount: number;                 // always positive
+  transaction_type: 'debit' | 'credit';
+  reference_code?: string;
+  matched_type?: BankMatchType | null;
+  matched_id?: string | null;
+  created_at: string;
+}
+
+export interface BankStatementRow {
+  transaction_date: string;
+  description: string;
+  amount: number;
+  transaction_type: 'debit' | 'credit';
+  reference_code?: string;
+}
+
 // ── Salary Components ─────────────────────────────────────
 
 export interface HrSalaryComponent {
