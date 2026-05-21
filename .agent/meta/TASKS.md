@@ -38,6 +38,10 @@
 ## Review
 
 ## Done
+- [x] Add Auto Discovery Tab to CRM Email Outreach + backend endpoint
+  - Done: 2026-05-19
+  - Result: New 🤖 Auto sub-tab with country-rotation discovery scheduler + Auto Batch moved from DashboardTab. Supabase migration (crm_discovered_studios + auto_discovery config), edge function outreach-auto-discovery deployed, FastAPI /api/discovery/auto-run endpoint on VPS, full chain verified end-to-end. Commit 926c463.
+
 - [x] Fix payroll for "lên chính thức giữa tháng" (transition month)
   - Done: 2026-05-16
   - Result: Added `probation_ratio` column; rewrote `calculatePayroll` to handle 3 cases (full probation, full official, transition); BHXH prorated, PIT split (10% flat for probation portion + lũy tiến for official portion); UI shows "CHUYỂN GIAO" badge in PayrollSheet + PaySlip with explainer

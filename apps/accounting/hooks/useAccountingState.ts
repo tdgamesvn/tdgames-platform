@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FixedAsset, Advance } from '@/types';
+import { FixedAsset, Advance, BankStatement, BankStatementRow, InvoiceData, ExpenseRecord } from '@/types';
 import * as svc from '../services/accountingService';
 import { setHashTab } from '@/App';
 
-export type AccountingTab = 'assets' | 'advances';
-const VALID_TABS: AccountingTab[] = ['assets', 'advances'];
+export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank';
+const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank'];
 
 export function useAccountingState(currentUser: string, initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<AccountingTab>(() => {
@@ -20,6 +20,9 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
 
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [advances, setAdvances] = useState<Advance[]>([]);
+  const [statements, setStatements] = useState<BankStatement[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceData[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,9 +30,18 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setLoading(true);
     setError(null);
     try {
-      const [a, adv] = await Promise.all([svc.fetchFixedAssets(), svc.fetchAdvances()]);
+      const [a, adv, stmts, invs, exps] = await Promise.all([
+        svc.fetchFixedAssets(),
+        svc.fetchAdvances(),
+        svc.fetchBankStatements(),
+        svc.fetchInvoicesForAccounting(),
+        svc.fetchExpensesForAccounting(),
+      ]);
       setAssets(a);
       setAdvances(adv);
+      setStatements(stmts);
+      setInvoices(invs);
+      setExpenses(exps);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -81,6 +93,32 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setAdvances(prev => prev.filter(a => a.id !== id));
   }, []);
 
+  // ── Bank Reconciliation actions ──
+  const importStatements = useCallback(async (bank: string, rows: BankStatementRow[]) => {
+    await svc.importBankStatements(bank, rows);
+    // Reload statements after import
+    const fresh = await svc.fetchBankStatements();
+    setStatements(fresh);
+  }, []);
+
+  const matchStatement = useCallback(async (
+    id: string,
+    matchedType: 'invoice' | 'expense' | 'advance',
+    matchedId: string
+  ) => {
+    await svc.matchBankStatement(id, matchedType, matchedId);
+    setStatements(prev => prev.map(s =>
+      s.id === id ? { ...s, matched_type: matchedType, matched_id: matchedId } : s
+    ));
+  }, []);
+
+  const unmatchStatement = useCallback(async (id: string) => {
+    await svc.unmatchBankStatement(id);
+    setStatements(prev => prev.map(s =>
+      s.id === id ? { ...s, matched_type: undefined, matched_id: undefined } : s
+    ));
+  }, []);
+
   // Summaries
   const openAdvancesTotal = advances
     .filter(a => a.status === 'open')
@@ -91,10 +129,15 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
 
   return {
     activeTab, setActiveTab,
-    assets, advances,
+    assets, advances, statements, invoices, expenses,
     loading, error, reload: loadAll,
+    // Assets
     addAsset, editAsset, removeAsset,
+    // Advances
     addAdvance, settle, cancel, removeAdvance,
+    // Bank
+    importStatements, matchStatement, unmatchStatement,
+    // Summaries
     openAdvancesTotal, monthlyDepTotal, activeAssets,
   };
 }

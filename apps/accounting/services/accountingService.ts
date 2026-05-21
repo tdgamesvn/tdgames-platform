@@ -146,3 +146,107 @@ export async function deleteAdvance(id: string): Promise<void> {
   const { error } = await supabase.from('acc_advances').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ══════════════════════════════════════════════════
+// Bank Statements (Sao kê ngân hàng)
+// ══════════════════════════════════════════════════
+
+import { BankStatement, BankStatementRow, InvoiceData } from '@/types';
+
+export async function fetchBankStatements(): Promise<BankStatement[]> {
+  const { data, error } = await supabase
+    .from('acc_bank_statements')
+    .select('*')
+    .order('transaction_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function importBankStatements(
+  bank: string,
+  rows: BankStatementRow[]
+): Promise<void> {
+  if (rows.length === 0) return;
+  const records = rows.map(r => ({
+    bank_name: bank,
+    transaction_date: r.transaction_date,
+    description: r.description,
+    amount: r.amount,
+    transaction_type: r.transaction_type,
+    reference_code: r.reference_code || null,
+  }));
+  const { error } = await supabase.from('acc_bank_statements').insert(records);
+  if (error) throw error;
+}
+
+export async function matchBankStatement(
+  id: string,
+  matchedType: 'invoice' | 'expense' | 'advance',
+  matchedId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('acc_bank_statements')
+    .update({ matched_type: matchedType, matched_id: matchedId })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function unmatchBankStatement(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('acc_bank_statements')
+    .update({ matched_type: null, matched_id: null })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// ══════════════════════════════════════════════════
+// Invoices (lightweight fetch for P&L / reconciliation)
+// ══════════════════════════════════════════════════
+
+function parseInvoiceRow(row: any): InvoiceData {
+  return {
+    id: row.id,
+    invoiceNumber: row.invoice_number,
+    issueDate: row.issue_date || '',
+    dueDate: row.due_date || '',
+    currency: row.currency || 'USD',
+    taxRate: row.tax_rate ?? 0,
+    discountType: row.discount_type || 'percentage',
+    discountValue: row.discount_value ?? 0,
+    theme: row.theme || 'dark',
+    status: row.status || 'pending',
+    paidDate: row.paid_date || undefined,
+    payment_method: row.payment_method || '',
+    clientInfo: row.client_info || { name: '', address: '', contactPerson: '', email: '' },
+    studioInfo: row.studio_info || { name: '', address: '', email: '', taxCode: '' },
+    bankingInfo: row.banking_info || { accountName: '', accountNumber: '', bankName: '', branchName: '', bankAddress: '', citadCode: '', swiftCode: '' },
+    items: row.items || [],
+    billing_entity: row.billing_entity || 'TD GAMES',
+    crm_project_id: row.crm_project_id ?? null,
+    receiving_account_id: row.receiving_account_id ?? null,
+  };
+}
+
+export async function fetchInvoicesForAccounting(): Promise<InvoiceData[]> {
+  const { data, error } = await supabase
+    .from('invoice_invoices')
+    .select('id, invoice_number, issue_date, due_date, currency, tax_rate, discount_type, discount_value, theme, status, paid_date, payment_method, client_info, studio_info, banking_info, items, billing_entity, crm_project_id, receiving_account_id')
+    .order('issue_date', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(parseInvoiceRow);
+}
+
+// ══════════════════════════════════════════════════
+// Expenses (lightweight fetch for Payables / P&L)
+// ══════════════════════════════════════════════════
+
+import { ExpenseRecord } from '@/types';
+
+export async function fetchExpensesForAccounting(): Promise<ExpenseRecord[]> {
+  const { data, error } = await supabase
+    .from('expense_expenses')
+    .select('*, category:expense_categories(id, name, color, icon)')
+    .order('expense_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}

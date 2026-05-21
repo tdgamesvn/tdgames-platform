@@ -1,5 +1,134 @@
 # LOG
 
+## 2026-05-21 (session — Kế toán Phase 2)
+### Task
+Build Phase 2 Accounting: Công nợ AP, P&L, Đối chiếu ngân hàng
+
+### Work Done
+- `PayablesTab.tsx`: group expense_expenses by vendor, period filter (tháng/quý/năm/all), summary cards, expandable vendor rows
+- `PnlTab.tsx`: 3 views (Tổng quan / Theo danh mục / Theo client), period picker, CSS-only bar chart, invoice + expense data
+- `BankReconcTab.tsx`: CSV import với auto-detect Techcombank/BIDV format, auto-match (±1% amount + ±3 ngày), manual match dropdown, unmatch
+- `accountingService.ts`: thêm `fetchBankStatements`, `importBankStatements`, `matchBankStatement`, `unmatchBankStatement`, `fetchInvoicesForAccounting`, `fetchExpensesForAccounting`
+- `useAccountingState.ts`: mở rộng từ 2 tabs → 5 tabs (assets/advances/payables/pnl/bank), load invoices + expenses + statements
+- `AccountingApp.tsx`: redesign tab bar compact scrollable, thêm 3 tab mới, wire toàn bộ props
+
+### Validation
+- `npm run build` ✅ (6.75s, no TypeScript errors)
+
+### Result
+- AccountingApp giờ có đủ 5 tab Phase 1 + Phase 2
+- Bank reconciliation hỗ trợ import CSV Techcombank & BIDV, auto/manual match
+- P&L tính toán từ dữ liệu invoice + expense thực tế, quy đổi VND qua ExchangeRateContext
+
+### Next Step
+- Commit + push → auto-deploy VPS
+- Phase 3: VAT tổng hợp theo quý, TNCN tự động
+
+---
+
+## 2026-05-19 (session — pg_cron real automation)
+### Task
+Fix pg_cron → Edge Function auth để cron thật sự tự chạy
+
+### Root Cause
+- `outreach-auto-batch`: cron gửi `x-cron-secret` nhưng function code check `Authorization: Bearer JWT` → mọi cron call **fail 401 im lặng** từ trước
+- `outreach-auto-discovery`: `verify_jwt: true` → Supabase gateway reject cron call trước khi function chạy; chưa có pg_cron job; không tự đọc country từ config
+
+### Work Done
+- Rewrote `outreach-auto-batch/index.ts`: chấp nhận `x-cron-secret` → dùng `SUPABASE_SERVICE_ROLE_KEY`, vẫn giữ Bearer JWT path cho UI manual
+- Rewrote `outreach-auto-discovery/index.ts`: tương tự + tự đọc country từ `auto_discovery.countries[current_country_index]` khi cron không truyền body; check `enabled` flag (skip nếu false)
+- Deployed cả 2 functions với `verify_jwt: false` (version 6 và 2)
+- Thêm pg_cron job #7 `outreach-auto-discovery-daily` schedule `0 2 * * *` (9:00 VN hàng ngày)
+- Enable `auto_discovery.enabled = true` trong `crm_outreach_config`
+
+### Validation
+- 7 cron jobs active: clickup×2, outreach-batch×2, leave×2, **discovery×1** ✅
+- auto_discovery: enabled=true, countries=[US, CA, UK, AU], idx=0, page=1 ✅
+- Both edge functions deployed ACTIVE ✅
+
+### Result
+- `outreach-auto-batch` cron (7:00 VN + 14:00 VN) giờ thật sự gọi được FastAPI
+- `outreach-auto-discovery` tự chạy 9:00 VN mỗi ngày, tự rotate country/page
+
+### Additional Fix (same session)
+- Phát hiện FastAPI `/api/automation/daily-send` yêu cầu `X-Admin-Token`
+- VPS có 2 giá trị OUTREACH_ADMIN_TOKEN khác nhau (.env vs systemd) — lấy đúng token runtime từ systemd
+- Lưu runtime token vào `crm_outreach_config.admin_token`, edge function đọc và forward
+- **Live test request #108: 200 OK — 25 leads queued, 87.5 phút estimated** ✅
+
+---
+
+## 2026-05-19 (session — Auto Discovery backend)
+### Task
+Implement FastAPI `/api/discovery/auto-run` endpoint on VPS
+
+### Work Done
+- Created `/opt/td-mailer-api/routes/discovery.py` with `POST /auto-run` endpoint: searches Apollo by country/page, filters excluded apollo_ids, discovers contacts, filters excluded emails, returns rotation hints (`country_exhausted`)
+- Registered `discovery_router` in `/opt/td-mailer-api/app.py` at prefix `/api/discovery`
+- Restarted `td-mailer-api.service` via systemctl
+- Verified endpoint locally: `POST localhost:8401/api/discovery/auto-run` ✅
+- Verified end-to-end through nginx: `https://app.tdgamestudio.com/outreach-api/api/discovery/auto-run` ✅
+
+### Validation
+- Local test: `studios_searched: 2, country_exhausted: false` ✅
+- Nginx proxy test: `1 searched, 0 contacts, exhausted: False` ✅
+- OUTREACH_API_URL in Supabase secrets already correct (`https://app.tdgamestudio.com/outreach-api`) from previous auto-batch setup
+
+### Result
+- Auto Discovery chain complete: UI → Supabase Edge Fn → nginx → FastAPI → Apollo
+- `contacts_found: 0` expected on studios without Apollo email credits — structure is correct
+
+---
+
+## 2026-05-19 (session — Auto Discovery Tab)
+### Task
+Add 🤖 Auto sub-tab to CRM Email Outreach with country-rotation discovery scheduling
+
+### Work Done
+- Supabase migration: created `crm_discovered_studios` table (apollo_id PK, studio_name, country, contacts_found, discovered_at) + seeded `auto_discovery` config row in `crm_outreach_config`
+- New edge function `outreach-auto-discovery`: deployed to Supabase, proxy pattern matching `outreach-auto-batch`, builds exclusion lists (existing apollo_ids + emails) before forwarding to FastAPI `/api/discovery/auto-run`, updates rotation state after run
+- New `apps/crm/components/AutoTab.tsx`: Auto Discovery section (country pills, rotation state display, credit config, Run Now, result banner) + Auto Batch section (lifted from DashboardTab with identical logic)
+- Updated `apps/crm/components/EmailOutreach.tsx`: added `'auto'` to SubTab type, added 🤖 Auto tab entry, render `<AutoTab />`, updated DashboardTab to accept `onSwitchTab` prop, replaced Auto Batch config card with compact summary card linking to Auto tab
+- Wrote implementation plan at `docs/superpowers/plans/2026-05-19-auto-discovery-tab.md`
+
+### Validation
+- `npm run build` ✅ (6.41s, no TypeScript errors)
+- commit: 926c463
+- pushed to origin/main ✅
+
+### Result
+- CRM now has dedicated Auto tab with scheduled discovery + batch in one place
+- Dashboard is cleaner with a single "🤖 Automation → Xem cấu hình" card
+- Backend endpoint `/api/discovery/auto-run` is out-of-scope (FastAPI side) — UI shows error state if not yet implemented
+
+### Next Step
+- Implement FastAPI `/api/discovery/auto-run` on VPS to complete the Auto Discovery loop
+- Verify VPS auto-deploy completed via GitHub Actions
+
+## 2026-05-19 (session — CRM Discovery v2)
+### Task
+Apollo.io + ZeroBounce integration, country-based studio discovery, country dropdown UX refinement
+
+### Work Done
+- Created `/opt/td-mailer-api/services/apollo.py`: Apollo.io v1 API integration with `X-Api-Key` header auth, game-focused keywords (game studio, indie game, publisher, etc.), no employee filter (small studios in high-cost countries are prime outsource targets)
+- Created `/opt/td-mailer-api/services/email_validator.py`: ZeroBounce validation wrapper
+- Extended `/opt/td-mailer-api/routes/leads.py` with 3 endpoints: `GET /companies/search`, `GET /cooldown-check`, `POST /discover-apollo`
+- Appended unsubscribe handler to `/opt/td-mailer-api/routes/webhook.py`: `GET /unsubscribe`
+- Added APOLLO_API_KEY, ZEROBOUNCE_API_KEY, RESEND_WEBHOOK_SECRET to VPS `.env`
+- Added `searchCompaniesByCountry()` and `discoverContactsApollo()` to `outreachService.ts`
+- Added "Tìm theo quốc gia" sub-tab in `EmailOutreach.tsx` DiscoveryTab: mode switcher, 21-country dropdown, checkbox results table, pagination, batch import button
+- Updated country dropdown: removed Vietnam/SEA/India, reordered by outsourcing priority (USA, Canada, UK, Australia first); changed default to "United States"
+
+### Validation
+- `npm run build` passed ✅
+- Apollo API 422 fix: switched from body `api_key` to `X-Api-Key` header (Apollo API change)
+- Canada search returns 1,938 companies after removing employee filter ✅
+- Deployed to VPS `/var/www/tdgames-platforms/` ✅
+
+### Result
+- CRM Discovery now supports Apollo.io company search by country + people discovery per studio
+- Country list scoped to high-value outsourcing markets only (no SEA/India)
+
 ## 2026-05-19 (session 7)
 ### Task
 Multi-bank / multi-entity accounting architecture (#7 in CFO roadmap)
