@@ -143,7 +143,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
       <div className="flex gap-1 border-b border-white/8 pb-4">
         {VIEWS.map(v => (
           <button key={v.id} onClick={() => setView(v.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${view === v.id ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}>
+            className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${view === v.id ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}>
             {v.label}
           </button>
         ))}
@@ -161,8 +161,8 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
               { label: 'Biên lợi nhuận', value: margin, color: margin >= 0 ? 'text-sky-400' : 'text-red-400', suffix: '%', isPercent: true },
             ].map(c => (
               <div key={c.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">{c.label}</p>
-                <p className={`text-xl font-black ${c.color}`}>
+                <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-neutral-600">{c.label}</p>
+                <p className={`text-2xl font-black ${c.color}`}>
                   {(c as any).isPercent ? `${margin.toFixed(1)}%` : fmtB(c.value)}
                 </p>
                 {!(c as any).isPercent && <p className="text-neutral-600 text-[10px] mt-0.5">{fmt(c.value)} VND</p>}
@@ -172,7 +172,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
 
           {/* Visual bar chart (CSS only) */}
           <div className="rounded-2xl border border-white/8 p-6 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
-            <p className="text-neutral-400 text-xs uppercase tracking-wider font-bold">Biểu đồ so sánh</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Biểu đồ so sánh</p>
             {[
               { label: 'Doanh thu', value: totalRevenue, color: '#10b981' },
               { label: 'Chi phí', value: totalExpense, color: '#f97316' },
@@ -182,7 +182,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
                 <span className="text-neutral-400 text-xs w-24 shrink-0">{row.label}</span>
                 <div className="flex-1 bg-white/5 rounded-full h-6 overflow-hidden">
                   <div
-                    className="h-full rounded-full flex items-center px-3 transition-all duration-700"
+                    className="h-full rounded-full flex items-center px-3 transition-all"
                     style={{ width: `${barPct(row.value)}%`, background: row.color, minWidth: row.value > 0 ? '8px' : 0 }}>
                     {barPct(row.value) > 15 && (
                       <span className="text-white text-[10px] font-bold">{fmtB(row.value)}</span>
@@ -197,7 +197,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
           {/* Invoice list */}
           <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
             <div className="px-5 py-3 border-b border-white/5">
-              <p className="text-neutral-400 text-xs uppercase tracking-wider font-bold">Hoá đơn thu tiền trong kỳ ({revenueRows.length})</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Hoá đơn thu tiền trong kỳ ({revenueRows.length})</p>
             </div>
             {revenueRows.length === 0 ? (
               <p className="text-center py-8 text-neutral-600 text-sm">Không có hoá đơn trong kỳ</p>
@@ -234,7 +234,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
       {view === 'byCategory' && (
         <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
           <div className="px-5 py-3 border-b border-white/5">
-            <p className="text-neutral-400 text-xs uppercase tracking-wider font-bold">Chi phí theo danh mục</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Chi phí theo danh mục</p>
           </div>
           {byCat.length === 0 ? (
             <p className="text-center py-8 text-neutral-600 text-sm">Không có chi phí trong kỳ</p>
@@ -265,7 +265,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
       {view === 'byClient' && (
         <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
           <div className="px-5 py-3 border-b border-white/5">
-            <p className="text-neutral-400 text-xs uppercase tracking-wider font-bold">Theo client / dự án</p>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Theo client / dự án</p>
           </div>
           {byClient.length === 0 ? (
             <p className="text-center py-8 text-neutral-600 text-sm">Không có dữ liệu</p>

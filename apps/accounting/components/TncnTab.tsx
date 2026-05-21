@@ -139,8 +139,8 @@ export default function TncnTab({ records, employees }: Props) {
           { label: 'Tổng TNCN phải nộp', value: fmt(grandTotalPit), unit: 'VND', color: 'text-orange-400' },
         ].map(c => (
           <div key={c.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">{c.label}</p>
-            <p className={`text-lg font-black ${c.color}`}>{c.value} <span className="text-xs font-normal text-neutral-600">{c.unit}</span></p>
+            <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-neutral-600">{c.label}</p>
+            <p className={`text-2xl font-black ${c.color}`}>{c.value} <span className="text-xs font-normal text-neutral-600">{c.unit}</span></p>
           </div>
         ))}
       </div>

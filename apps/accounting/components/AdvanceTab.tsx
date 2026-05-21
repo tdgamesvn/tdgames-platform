@@ -114,12 +114,14 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tạm ứng</h2>
-          <p className="text-neutral-400 text-sm mt-1">Phiếu tạm ứng & quyết toán</p>
+          <h2 className="text-white font-black text-lg uppercase tracking-wider">💳 Tạm ứng</h2>
+          <p className="text-neutral-500 text-xs mt-0.5">Phiếu tạm ứng & quyết toán</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #FF9500, #FF5E3A)' }}>
+        <button onClick={() => setShowForm(true)}
+          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"
+          style={{ background: '#FF9500' }}>
           + Tạo phiếu
         </button>
       </div>
@@ -131,10 +133,10 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
           { label: 'Đã quyết toán', value: `${advances.filter(a => a.status === 'settled').length} phiếu`, sub: '', color: '#30D158' },
           { label: 'Tổng phiếu', value: `${advances.length}`, sub: '', color: '#0A84FF' },
         ].map(c => (
-          <div key={c.label} className="p-5 rounded-[20px] border border-white/5 bg-white/3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">{c.label}</p>
+          <div key={c.label} className="rounded-2xl border border-white/8 p-5 space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
             <p className="text-2xl font-black" style={{ color: c.color }}>{c.value}</p>
-            {c.sub && <p className="text-neutral-500 text-xs mt-1">{c.sub}</p>}
+            {c.sub && <p className="text-neutral-500 text-xs">{c.sub}</p>}
           </div>
         ))}
       </div>
@@ -152,7 +154,13 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
 
       {/* List */}
       <div className="space-y-2">
-        {filtered.length === 0 && <div className="text-center py-16 text-neutral-500">Chưa có phiếu tạm ứng nào.</div>}
+        {filtered.length === 0 && (
+          <div className="text-center py-16 text-neutral-700 text-sm">
+            <p className="text-3xl mb-3">💳</p>
+            <p className="text-neutral-600 text-sm">Chưa có phiếu tạm ứng nào</p>
+            <p className="text-xs mt-1 text-neutral-700">Nhấn "+ Tạo phiếu" để bắt đầu</p>
+          </div>
+        )}
         {filtered.map(a => {
           const st = STATUS_STYLES[a.status];
           const returned = a.returned_amount ?? 0;
@@ -187,7 +195,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
                   <button onClick={() => openSettle(a)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white hover:opacity-90 transition-all" style={{ background: '#30D158' }}>
                     Quyết toán
                   </button>
-                  <button onClick={() => handleCancel(a.id)} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 text-xs font-bold transition-all">Huỷ</button>
+                  <button onClick={() => handleCancel(a.id)} className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">Huỷ</button>
                 </div>
               )}
               {a.status !== 'open' && (
@@ -201,55 +209,69 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       {/* Add form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#1A1A1A] rounded-[24px] border border-white/10 p-6">
-            <h3 className="text-xl font-black text-white mb-6">Tạo phiếu tạm ứng</h3>
+          <div className="w-full max-w-md rounded-2xl border border-white/10 p-6" style={{ background: '#1A1A1A' }}>
+            <h3 className="text-base font-black uppercase tracking-wider text-white mb-6">Tạo phiếu tạm ứng</h3>
             <form onSubmit={handleAdd} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Người tạm ứng *</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Người tạm ứng *</label>
                 <input value={form.recipient_name} onChange={e => setForm(f => ({ ...f, recipient_name: e.target.value }))}
                   placeholder="VD: Kế toán Lan" required
-                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a' }} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Số tiền (₫) *</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Số tiền (₫) *</label>
                   <input type="number" min="0" value={form.amount || ''} onChange={e => setForm(f => ({ ...f, amount: +e.target.value }))}
-                    placeholder="0" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    placeholder="0"
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }} />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ngày tạm ứng *</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ngày tạm ứng *</label>
                   <input type="date" value={form.advance_date} onChange={e => setForm(f => ({ ...f, advance_date: e.target.value }))}
-                    className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }} />
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Mục đích *</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Mục đích *</label>
                 <input value={form.purpose} onChange={e => setForm(f => ({ ...f, purpose: e.target.value }))}
                   placeholder="VD: Chi phí vận hành tháng 5" required
-                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a' }} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Hạn quyết toán</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Hạn quyết toán</label>
                   <input type="date" value={form.expected_settlement_date} onChange={e => setForm(f => ({ ...f, expected_settlement_date: e.target.value }))}
-                    className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }} />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Người duyệt</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Người duyệt</label>
                   <input value={form.approved_by} onChange={e => setForm(f => ({ ...f, approved_by: e.target.value }))}
-                    placeholder="VD: Giám đốc" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    placeholder="VD: Giám đốc"
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }} />
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ghi chú</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ghi chú</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50 resize-none" />
+                  className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none"
+                  style={{ background: '#1a1a1a' }} />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={saving} className="flex-1 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #FF9500, #FF5E3A)' }}>
+                <button type="submit" disabled={saving}
+                  className="flex-1 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)' }}>
                   {saving ? 'Đang lưu...' : 'Tạo phiếu'}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-black text-xs uppercase tracking-widest transition-all">Huỷ</button>
+                <button type="button" onClick={() => setShowForm(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+                  Huỷ
+                </button>
               </div>
             </form>
           </div>
@@ -259,41 +281,49 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       {/* Settle modal */}
       {settleId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-[#1A1A1A] rounded-[24px] border border-white/10 p-6">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 p-6" style={{ background: '#1A1A1A' }}>
             {(() => {
               const adv = advances.find(a => a.id === settleId)!;
               return (
                 <>
-                  <h3 className="text-xl font-black text-white mb-2">Quyết toán tạm ứng</h3>
-                  <p className="text-neutral-400 text-sm mb-6">Tạm ứng: <span className="text-white font-bold">{fmt(adv.amount)} ₫</span> — {adv.recipient_name}</p>
+                  <h3 className="text-base font-black uppercase tracking-wider text-white mb-2">Quyết toán tạm ứng</h3>
+                  <p className="text-neutral-500 text-xs mb-6">Tạm ứng: <span className="text-white font-semibold">{fmt(adv.amount)} ₫</span> — {adv.recipient_name}</p>
                   <form onSubmit={handleSettle} className="space-y-4">
-                    <div>
-                      <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Thực tế đã chi (₫) *</label>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Thực tế đã chi (₫) *</label>
                       <input type="number" min="0" max={adv.amount} value={settleForm.settled_amount || ''}
                         onChange={e => setSettleForm(f => ({ ...f, settled_amount: +e.target.value, returned_amount: Math.max(0, adv.amount - +e.target.value) }))}
-                        className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                        className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                        style={{ background: '#1a1a1a' }} />
                     </div>
                     <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                      <p className="text-yellow-400 text-sm font-bold">
+                      <p className="text-yellow-400 text-sm font-semibold">
                         Hoàn lại: {fmt(Math.max(0, adv.amount - settleForm.settled_amount))} ₫
                       </p>
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ngày quyết toán *</label>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ngày quyết toán *</label>
                       <input type="date" value={settleForm.settlement_date}
                         onChange={e => setSettleForm(f => ({ ...f, settlement_date: e.target.value }))}
-                        className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                        className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                        style={{ background: '#1a1a1a' }} />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ghi chú quyết toán</label>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ghi chú quyết toán</label>
                       <textarea value={settleForm.settlement_notes} onChange={e => setSettleForm(f => ({ ...f, settlement_notes: e.target.value }))} rows={2}
-                        className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50 resize-none" />
+                        className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none"
+                        style={{ background: '#1a1a1a' }} />
                     </div>
                     <div className="flex gap-3 pt-2">
-                      <button type="submit" disabled={saving} className="flex-1 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50" style={{ background: '#30D158' }}>
+                      <button type="submit" disabled={saving}
+                        className="flex-1 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                        style={{ background: '#30D158' }}>
                         {saving ? 'Đang lưu...' : 'Xác nhận quyết toán'}
                       </button>
-                      <button type="button" onClick={() => setSettleId(null)} className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-black text-xs uppercase tracking-widest transition-all">Huỷ</button>
+                      <button type="button" onClick={() => setSettleId(null)}
+                        className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+                        Huỷ
+                      </button>
                     </div>
                   </form>
                 </>

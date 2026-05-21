@@ -256,8 +256,8 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
           { label: 'Chưa khớp', value: String(unmatched), color: unmatched > 0 ? 'text-yellow-400' : 'text-neutral-500' },
         ].map(c => (
           <div key={c.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
-            <p className="text-neutral-500 text-xs uppercase tracking-wider mb-1">{c.label}</p>
-            <p className={`text-xl font-black ${c.color}`}>{c.value}</p>
+            <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-neutral-600">{c.label}</p>
+            <p className={`text-2xl font-black ${c.color}`}>{c.value}</p>
           </div>
         ))}
       </div>
@@ -272,7 +272,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
         </select>
         {(['all', 'matched', 'unmatched'] as const).map(f => (
           <button key={f} onClick={() => setFilterMatch(f)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${filterMatch === f ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}>
+            className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all ${filterMatch === f ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}>
             {f === 'all' ? 'Tất cả' : f === 'matched' ? '✓ Đã khớp' : '? Chưa khớp'}
           </button>
         ))}
@@ -329,7 +329,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {stmt.matched_id ? (
                           <button onClick={() => onUnmatch(stmt.id)}
-                            className="px-2 py-1 rounded-lg text-[10px] font-bold text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                            className="px-2 py-1 rounded-lg text-[10px] font-black text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
                             Bỏ khớp
                           </button>
                         ) : (
