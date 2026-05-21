@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FixedAsset, Advance, BankStatement, BankStatementRow, InvoiceData, ExpenseRecord } from '@/types';
+import {
+  FixedAsset, Advance, BankStatement, BankStatementRow,
+  InvoiceData, ExpenseRecord, HrEmployee,
+} from '@/types';
 import * as svc from '../services/accountingService';
+import type { PayrollRecordWithMeta } from '../services/accountingService';
 import { setHashTab } from '@/App';
 
-export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank';
-const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank'];
+export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' | 'vat' | 'tncn';
+const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn'];
 
 export function useAccountingState(currentUser: string, initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<AccountingTab>(() => {
@@ -23,6 +27,8 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
   const [statements, setStatements] = useState<BankStatement[]>([]);
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [payrollRecords, setPayrollRecords] = useState<PayrollRecordWithMeta[]>([]);
+  const [employees, setEmployees] = useState<HrEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,18 +36,22 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setLoading(true);
     setError(null);
     try {
-      const [a, adv, stmts, invs, exps] = await Promise.all([
+      const [a, adv, stmts, invs, exps, payroll, emps] = await Promise.all([
         svc.fetchFixedAssets(),
         svc.fetchAdvances(),
         svc.fetchBankStatements(),
         svc.fetchInvoicesForAccounting(),
         svc.fetchExpensesForAccounting(),
+        svc.fetchPayrollForTncn(),
+        svc.fetchEmployeesForAccounting(),
       ]);
       setAssets(a);
       setAdvances(adv);
       setStatements(stmts);
       setInvoices(invs);
       setExpenses(exps);
+      setPayrollRecords(payroll);
+      setEmployees(emps);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -51,7 +61,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // ── Fixed Assets actions ──
+  // ── Fixed Assets ──
   const addAsset = useCallback(async (asset: Omit<FixedAsset, 'id' | 'created_at' | 'updated_at'>) => {
     const saved = await svc.saveFixedAsset({ ...asset, created_by: currentUser });
     setAssets(prev => [saved, ...prev]);
@@ -68,7 +78,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setAssets(prev => prev.filter(a => a.id !== id));
   }, []);
 
-  // ── Advances actions ──
+  // ── Advances ──
   const addAdvance = useCallback(async (adv: Omit<Advance, 'id' | 'created_at' | 'updated_at'>) => {
     const saved = await svc.saveAdvance({ ...adv, created_by: currentUser });
     setAdvances(prev => [saved, ...prev]);
@@ -93,18 +103,15 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setAdvances(prev => prev.filter(a => a.id !== id));
   }, []);
 
-  // ── Bank Reconciliation actions ──
+  // ── Bank Reconciliation ──
   const importStatements = useCallback(async (bank: string, rows: BankStatementRow[]) => {
     await svc.importBankStatements(bank, rows);
-    // Reload statements after import
     const fresh = await svc.fetchBankStatements();
     setStatements(fresh);
   }, []);
 
   const matchStatement = useCallback(async (
-    id: string,
-    matchedType: 'invoice' | 'expense' | 'advance',
-    matchedId: string
+    id: string, matchedType: 'invoice' | 'expense' | 'advance', matchedId: string
   ) => {
     await svc.matchBankStatement(id, matchedType, matchedId);
     setStatements(prev => prev.map(s =>
@@ -120,24 +127,17 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
   }, []);
 
   // Summaries
-  const openAdvancesTotal = advances
-    .filter(a => a.status === 'open')
-    .reduce((s, a) => s + a.amount, 0);
-
+  const openAdvancesTotal = advances.filter(a => a.status === 'open').reduce((s, a) => s + a.amount, 0);
   const activeAssets = assets.filter(a => a.status === 'active');
   const monthlyDepTotal = svc.sumMonthlyDepreciation(activeAssets);
 
   return {
     activeTab, setActiveTab,
-    assets, advances, statements, invoices, expenses,
+    assets, advances, statements, invoices, expenses, payrollRecords, employees,
     loading, error, reload: loadAll,
-    // Assets
     addAsset, editAsset, removeAsset,
-    // Advances
     addAdvance, settle, cancel, removeAdvance,
-    // Bank
     importStatements, matchStatement, unmatchStatement,
-    // Summaries
     openAdvancesTotal, monthlyDepTotal, activeAssets,
   };
 }

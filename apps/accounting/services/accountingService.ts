@@ -240,7 +240,7 @@ export async function fetchInvoicesForAccounting(): Promise<InvoiceData[]> {
 // Expenses (lightweight fetch for Payables / P&L)
 // ══════════════════════════════════════════════════
 
-import { ExpenseRecord } from '@/types';
+import { ExpenseRecord, PayPayrollRecord, PayPayrollSheet, HrEmployee } from '@/types';
 
 export async function fetchExpensesForAccounting(): Promise<ExpenseRecord[]> {
   const { data, error } = await supabase
@@ -249,4 +249,30 @@ export async function fetchExpensesForAccounting(): Promise<ExpenseRecord[]> {
     .order('expense_date', { ascending: false });
   if (error) throw error;
   return data || [];
+}
+
+// ══════════════════════════════════════════════════
+// Payroll (for TNCN tab)
+// ══════════════════════════════════════════════════
+
+export interface PayrollRecordWithMeta extends PayPayrollRecord {
+  sheet?: PayPayrollSheet;
+}
+
+export async function fetchPayrollForTncn(): Promise<PayrollRecordWithMeta[]> {
+  const { data, error } = await supabase
+    .from('pay_payroll_records')
+    .select('*, sheet:pay_payroll_sheets(id, month, year, title, status)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as PayrollRecordWithMeta[];
+}
+
+export async function fetchEmployeesForAccounting(): Promise<HrEmployee[]> {
+  const { data, error } = await supabase
+    .from('hr_employees')
+    .select('id, full_name, tax_code, employee_code, status')
+    .order('full_name');
+  if (error) throw error;
+  return (data || []) as HrEmployee[];
 }

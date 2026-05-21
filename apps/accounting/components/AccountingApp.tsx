@@ -7,6 +7,8 @@ import AdvanceTab from './AdvanceTab';
 import PayablesTab from './PayablesTab';
 import PnlTab from './PnlTab';
 import BankReconcTab from './BankReconcTab';
+import VatTab from './VatTab';
+import TncnTab from './TncnTab';
 
 interface Props {
   currentUser: AccountUser;
@@ -15,11 +17,13 @@ interface Props {
 }
 
 const TABS: { id: AccountingTab; label: string; icon: string }[] = [
-  { id: 'assets',    label: 'Tài sản',   icon: '🏢' },
-  { id: 'advances',  label: 'Tạm ứng',   icon: '💳' },
-  { id: 'payables',  label: 'Công nợ',   icon: '📋' },
-  { id: 'pnl',       label: 'Lãi / Lỗ', icon: '📈' },
-  { id: 'bank',      label: 'Ngân hàng', icon: '🏦' },
+  { id: 'assets',   label: 'Tài sản',   icon: '🏢' },
+  { id: 'advances', label: 'Tạm ứng',   icon: '💳' },
+  { id: 'payables', label: 'Công nợ',   icon: '📋' },
+  { id: 'pnl',      label: 'Lãi / Lỗ', icon: '📈' },
+  { id: 'bank',     label: 'Ngân hàng', icon: '🏦' },
+  { id: 'vat',      label: 'VAT',       icon: '🧾' },
+  { id: 'tncn',     label: 'TNCN',      icon: '💼' },
 ];
 
 const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
@@ -46,7 +50,8 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
       {/* Top bar */}
       <div className="sticky top-0 z-30 border-b border-white/5" style={{ backgroundColor: '#0F0F0F' }}>
         <div className="flex items-center gap-4 px-6 h-14 overflow-x-auto">
-          <button onClick={onBack} className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-all shrink-0">
+          <button onClick={onBack}
+            className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-all shrink-0">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -56,7 +61,7 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
             <span className="text-white font-black uppercase tracking-widest text-sm">Kế toán</span>
           </div>
           {/* Tab bar — scrollable */}
-          <div className="flex gap-1 ml-2 flex-nowrap">
+          <div className="flex gap-1 ml-2 flex-nowrap overflow-x-auto">
             {TABS.map(t => (
               <button
                 key={t.id}
@@ -139,6 +144,18 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
                     'Đã bỏ khớp'
                   );
                 }}
+              />
+            )}
+            {state.activeTab === 'vat' && (
+              <VatTab
+                invoices={state.invoices}
+                vcbAvgRate={avgUsdVnd}
+              />
+            )}
+            {state.activeTab === 'tncn' && (
+              <TncnTab
+                records={state.payrollRecords}
+                employees={state.employees}
               />
             )}
           </>
