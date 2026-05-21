@@ -38,7 +38,7 @@ export default function BankTab({ company }: Props) {
   }, [company.entity_short]);
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="w-full space-y-6">
       <div>
         <h2 className="text-white font-black text-base uppercase tracking-wider">🏦 Tài khoản ngân hàng</h2>
         <p className="text-neutral-500 text-xs mt-0.5">{company.entity_short} • {accounts.length} tài khoản</p>
@@ -53,7 +53,7 @@ export default function BankTab({ company }: Props) {
           <p className="text-xs mt-1 text-neutral-600">Thêm trong Expense → Tỷ giá hoặc liên hệ admin</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {accounts.map(acc => (
             <div key={acc.id}
               className="flex items-center gap-4 p-5 rounded-2xl border transition-all"

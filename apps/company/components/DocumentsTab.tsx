@@ -90,7 +90,7 @@ export default function DocumentsTab({ company, canEdit, username }: Props) {
   };
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-white font-black text-base uppercase tracking-wider">📁 Giấy tờ & Hồ sơ</h2>
@@ -113,7 +113,7 @@ export default function DocumentsTab({ company, canEdit, username }: Props) {
             <div className="flex flex-col gap-1">
               <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Loại tài liệu *</label>
               <select value={docType} onChange={e => setDocType(e.target.value)}
-                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none"
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
                 style={{ background: '#1a1a1a' }}>
                 {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -121,13 +121,13 @@ export default function DocumentsTab({ company, canEdit, username }: Props) {
             <div className="flex flex-col gap-1">
               <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên tài liệu</label>
               <input value={docName} onChange={e => setDocName(e.target.value)} placeholder="Tự động từ tên file nếu để trống"
-                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none placeholder:text-neutral-700"
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors placeholder:text-neutral-700"
                 style={{ background: '#1a1a1a' }} />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ghi chú</label>
               <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Ví dụ: Bản scan màu, cấp ngày 11/02/2026..."
-                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none placeholder:text-neutral-700"
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors placeholder:text-neutral-700"
                 style={{ background: '#1a1a1a' }} />
             </div>
           </div>
