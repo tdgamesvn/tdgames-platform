@@ -12,6 +12,8 @@ import DocumentList from './DocumentList';
 import PaymentTracker from './PaymentTracker';
 import ActivityTimeline from './ActivityTimeline';
 import { fetchActivities } from '../services/crmService';
+import HelpPanel from '@/components/HelpPanel';
+import { CRM_HELP } from '../helpContent';
 
 interface CrmAppProps {
   currentUser: AccountUser;
@@ -170,6 +172,7 @@ const GlobalActivityFeed: React.FC<{ clients: any[]; actor: string }> = ({ clien
 const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useCrmState(initialTab);
   const [showForm, setShowForm] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
   const accessibleTabs = ['history', 'tasks', 'settings', 'activity', 'board', 'outreach'];
@@ -203,6 +206,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
         onBack={onBack}
         appName="CRM"
         tabLabels={TAB_LABELS}
+        onHelp={() => setHelpOpen(true)}
       />
 
       {/* Main Content */}
@@ -269,6 +273,15 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
+
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="CRM"
+        appIcon="🤝"
+        contents={CRM_HELP}
+        activeTabId={navbarTab}
+      />
     </div>
   );
 };

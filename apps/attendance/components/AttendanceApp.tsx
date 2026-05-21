@@ -11,6 +11,8 @@ import MonthlySheet from './MonthlySheet';
 
 import AttendanceReport from './AttendanceReport';
 import LeaveApproval from './LeaveApproval';
+import HelpPanel from '@/components/HelpPanel';
+import { ATTENDANCE_HELP } from '../helpContent';
 
 interface Props {
   currentUser: AccountUser;
@@ -46,6 +48,7 @@ const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
   const state = useAttendanceState(initialTab);
 
   const navbarTab = TAB_MAP[state.activeTab];
+  const [helpOpen, setHelpOpen] = React.useState(false);
   const accessibleTabs = ['dashboard', 'history', 'activity', 'recurring', 'tasks'];
 
   return (
@@ -71,6 +74,7 @@ const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
         onBack={onBack}
         appName="CHẤM CÔNG"
         tabLabels={TAB_LABELS}
+        onHelp={() => setHelpOpen(true)}
       />
 
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
@@ -128,6 +132,14 @@ const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Attendance System • v1.0
       </footer>
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="Attendance"
+        appIcon="📅"
+        contents={ATTENDANCE_HELP}
+        activeTabId={navbarTab}
+      />
     </div>
   );
 };

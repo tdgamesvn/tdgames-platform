@@ -1,5 +1,47 @@
 # LOG
 
+## 2026-05-21 (session — TASKS cleanup)
+### Task
+Dọn dẹp TASKS.md — đóng discovery task cũ, ghi lại đúng trạng thái thực
+
+### Work Done
+- Đọc toàn bộ LOG.md và TASKS.md để so chiếu
+- Đóng 5 discovery/planning task cũ từ 2026-05-14 (superseded bởi thực tế)
+- Di chuyển "Analyze repository" sang Done
+- Thêm 15 Done item mới phản ánh toàn bộ work từ 2026-05-16 → 2026-05-21
+- To Do còn lại: HelpPanel (Attendance/CRM/Payroll/Portal), 4 invoice TD CONSULTING, verify Accounting Phase 3 data
+
+### Result
+- TASKS.md phản ánh đúng trạng thái thực tế tính đến 2026-05-21
+- Đã ghi nhận 20+ tasks Done, 3 tasks To Do actionable còn lại
+
+---
+
+## 2026-05-21 (session — Kế toán Phase 3)
+### Task
+Build Phase 3 Accounting: VAT theo quý & Quyết toán TNCN
+
+### Work Done
+- `VatTab.tsx`: bảng kê thuế GTGT từ invoice_invoices, filter theo năm + quý, tổng DT/VAT/tổng, click quý → drill-down, export CSV
+- `TncnTab.tsx`: pivot PIT × nhân viên × tháng 1–12, tổng cả năm mỗi người, tổng từng tháng, export CSV quyết toán
+- `accountingService.ts`: `fetchPayrollForTncn()` join pay_payroll_records + pay_payroll_sheets, `fetchEmployeesForAccounting()`
+- `useAccountingState.ts`: 7 tabs (+ vat + tncn), load payrollRecords + employees
+- `AccountingApp.tsx`: 7 tabs hoàn chỉnh Phase 1+2+3
+
+### Validation
+- `npm run build` ✅ (6.72s, no TypeScript errors)
+- commit b4025fa, pushed to origin/main ✅
+
+### Result
+- Accounting module hoàn chỉnh 7 tabs: Tài sản | Tạm ứng | Công nợ | Lãi/Lỗ | Ngân hàng | VAT | TNCN
+- CFO roadmap Phase 1+2+3 hoàn tất
+
+### Next Step
+- Verify VPS auto-deploy thành công
+- Nhập dữ liệu thực tế để test các tab mới
+
+---
+
 ## 2026-05-21 (session — Kế toán Phase 2)
 ### Task
 Build Phase 2 Accounting: Công nợ AP, P&L, Đối chiếu ngân hàng

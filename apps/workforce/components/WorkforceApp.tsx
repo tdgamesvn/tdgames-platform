@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
@@ -12,6 +12,8 @@ import SettlementManager from './SettlementManager';
 import ProjectAcceptanceManager from './ProjectAcceptanceManager';
 import ClickUpConfig from './ClickUpConfig';
 import { FinancialDashboard } from './FinancialDashboard';
+import HelpPanel from '@/components/HelpPanel';
+import { WORKFORCE_HELP } from '../helpContent';
 
 interface WorkforceAppProps {
   currentUser: AccountUser;
@@ -51,6 +53,7 @@ const REVERSE_TAB: Record<string, WorkforceTab> = {
 
 const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useWorkforceState(currentUser.username, initialTab);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // ── Live VCB Exchange Rate (shared via Context) ──
   const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
@@ -90,6 +93,7 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
         onBack={onBack}
         appName="Workforce"
         tabLabels={TAB_LABELS}
+        onHelp={() => setHelpOpen(true)}
       />
 
       {/* Main Content */}
@@ -170,6 +174,15 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
+
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="Workforce"
+        appIcon="👷"
+        contents={WORKFORCE_HELP}
+        activeTabId={navbarTab}
+      />
     </div>
   );
 };

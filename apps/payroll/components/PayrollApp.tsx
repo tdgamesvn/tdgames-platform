@@ -7,6 +7,8 @@ import { usePayrollState } from '../hooks/usePayrollState';
 import { FALLBACK_PAYROLL_FORMULA } from '../services/payrollFormulaService';
 import PayrollSheet from './PayrollSheet';
 import PayrollFormulaPanel from './PayrollFormulaPanel';
+import HelpPanel from '@/components/HelpPanel';
+import { PAYROLL_HELP } from '../helpContent';
 
 interface PayrollAppProps {
   currentUser: AccountUser;
@@ -22,6 +24,7 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
     updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, backToSheets,
   } = state;
 
+  const [helpOpen, setHelpOpen] = useState(false);
   const [listTab, setListTab] = useState<'history' | 'formula'>(() =>
     initialTab === 'formula' ? 'formula' : 'history',
   );
@@ -69,6 +72,7 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
         onBack={onBack}
         appName="Payroll"
         tabLabels={{ history: 'Bảng lương', formula: 'Công thức' }}
+        onHelp={() => setHelpOpen(true)}
       />
       {toast && <ToastNotification message={{ text: toast.message, type: toast.type }} onDismiss={() => setToast(null)} />}
 
@@ -180,6 +184,14 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
         )}
       </main>
       )}
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="Payroll"
+        appIcon="💰"
+        contents={PAYROLL_HELP}
+        activeTabId={listTab}
+      />
     </div>
   );
 };
