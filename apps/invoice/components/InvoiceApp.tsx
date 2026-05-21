@@ -4,6 +4,8 @@ import { useInvoiceState } from '../hooks/useInvoiceState';
 import { avgRate } from '../services/exchangeRateService';
 import { AccountUser } from '@/types';
 import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
+import HelpPanel from '@/components/HelpPanel';
+import { INVOICE_HELP } from '../helpContent';
 
 // Invoice‑specific components
 import { ToastNotification } from '@/components/ToastNotification';
@@ -26,6 +28,7 @@ interface InvoiceAppProps {
 const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useInvoiceState(initialTab);
   const [bankAccounts, setBankAccounts] = React.useState<BankAccount[]>([]);
+  const [helpOpen, setHelpOpen] = React.useState(false);
 
   // Sync the currentUser from parent
   React.useEffect(() => {
@@ -56,6 +59,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
         onBack={onBack}
         appName="Invoice"
         tabLabels={{ aging: 'AR Aging' }}
+        onHelp={() => setHelpOpen(true)}
       />
 
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
@@ -133,6 +137,15 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
+
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="Invoice"
+        appIcon="🧾"
+        contents={INVOICE_HELP}
+        activeTabId={state.activeTab}
+      />
 
       <EInvoiceModals
         theme={state.invoice.theme} invoice={state.invoice}

@@ -15,9 +15,10 @@ interface NavbarProps {
   onBack?: () => void;
   appName?: string;
   tabLabels?: Record<string, string>;
+  onHelp?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels }) => (
+export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels, onHelp }) => (
   <nav className={`h-20 sticky top-0 backdrop-blur-md border-b flex items-center justify-between px-6 md:px-12 z-50 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-primary/10' : 'bg-white/95 border-gray-200 shadow-sm'}`}>
     <div className="flex items-center gap-3">
       {onBack && (
@@ -82,6 +83,22 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
           </button>
         ))}
       </div>
+
+      {/* Help button */}
+      {onHelp && (
+        <button
+          onClick={onHelp}
+          title="Hướng dẫn sử dụng"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all border ${
+            theme === 'dark'
+              ? 'text-neutral-medium hover:text-white border-white/10 hover:border-white/25 hover:bg-white/5'
+              : 'text-gray-400 hover:text-black border-gray-200 hover:border-gray-400 hover:bg-gray-50'
+          }`}
+        >
+          <span>?</span>
+          <span className="hidden lg:inline">Trợ giúp</span>
+        </button>
+      )}
 
       {/* Notification Bell */}
       <NotificationBell userId={currentUser.id} theme={theme} />
