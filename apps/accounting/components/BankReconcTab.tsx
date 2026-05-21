@@ -6,6 +6,7 @@ interface Props {
   invoices: InvoiceData[];
   expenses: ExpenseRecord[];
   advances: Advance[];
+  vcbAvgRate?: number; // VND per 1 USD — for matching USD invoices
   onImport: (bank: string, rows: BankStatementRow[]) => Promise<void>;
   onMatch: (id: string, matchedType: 'invoice' | 'expense' | 'advance', matchedId: string) => Promise<void>;
   onUnmatch: (id: string) => Promise<void>;
@@ -80,11 +81,22 @@ function detectBank(text: string): 'techcombank' | 'bidv' | null {
 
 // ── Auto-match ────────────────────────────────────────────────────
 
+/** Tính tổng tiền thực tế của invoice (sau discount + VAT), đã quy về VND */
+function calcInvoiceTotalVnd(inv: InvoiceData, usdRate: number): number {
+  const raw = (inv.items || []).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+  const afterDiscount = inv.discountType === 'percentage'
+    ? raw * (1 - (inv.discountValue || 0) / 100)
+    : raw - (inv.discountValue || 0);
+  const total = afterDiscount * (1 + (inv.taxRate || 0) / 100);
+  return inv.currency === 'USD' ? total * usdRate : total;
+}
+
 function autoMatchCandidate(
   stmt: BankStatement,
   invoices: InvoiceData[],
   expenses: ExpenseRecord[],
-  advances: Advance[]
+  advances: Advance[],
+  usdRate: number
 ): { type: 'invoice' | 'expense' | 'advance'; id: string; label: string } | null {
   const stmtDate = new Date(stmt.transaction_date);
   const withinDays = (dateStr: string | undefined, days = 3) => {
@@ -95,24 +107,26 @@ function autoMatchCandidate(
   const amtMatch = (a: number) => Math.abs(a - stmt.amount) / Math.max(stmt.amount, 1) <= 0.01;
 
   if (stmt.transaction_type === 'credit') {
-    // Credit = tiền vào → match invoice paid
+    // Credit = tiền vào → match invoice paid (so sánh tổng tiền sau discount + VAT, quy về VND)
     for (const inv of invoices) {
       if (inv.status !== 'paid') continue;
-      const sub = (inv.items || []).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-      if (amtMatch(sub) && withinDays(inv.paidDate)) {
+      const totalVnd = calcInvoiceTotalVnd(inv, usdRate);
+      if (amtMatch(totalVnd) && withinDays(inv.paidDate)) {
         return { type: 'invoice', id: inv.id!, label: `HĐ ${inv.invoiceNumber} — ${inv.clientInfo?.name}` };
       }
     }
   } else {
     // Debit = tiền ra → match expense paid / advance
     for (const exp of expenses) {
-      if (exp.status !== 'paid' || exp.currency !== 'VND') continue;
-      if (amtMatch(exp.amount) && withinDays(exp.expense_date)) {
+      if (exp.status !== 'paid') continue;
+      const expVnd = exp.currency === 'USD' ? exp.amount * usdRate : exp.amount;
+      if (amtMatch(expVnd) && withinDays(exp.expense_date)) {
         return { type: 'expense', id: exp.id!, label: `CP: ${exp.title}` };
       }
     }
     for (const adv of advances) {
       if (adv.status !== 'open') continue;
+      // Advance amounts are always VND
       if (amtMatch(adv.amount) && withinDays(adv.advance_date)) {
         return { type: 'advance', id: adv.id!, label: `TU: ${adv.purpose} — ${adv.recipient_name}` };
       }
@@ -123,7 +137,8 @@ function autoMatchCandidate(
 
 // ── Component ─────────────────────────────────────────────────────
 
-export default function BankReconcTab({ statements, invoices, expenses, advances, onImport, onMatch, onUnmatch }: Props) {
+export default function BankReconcTab({ statements, invoices, expenses, advances, vcbAvgRate, onImport, onMatch, onUnmatch }: Props) {
+  const usdRate = vcbAvgRate || 25000;
   const fileRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -284,7 +299,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
             </thead>
             <tbody>
               {filtered.map(stmt => {
-                const auto = !stmt.matched_id ? autoMatchCandidate(stmt, invoices, expenses, advances) : null;
+                const auto = !stmt.matched_id ? autoMatchCandidate(stmt, invoices, expenses, advances, usdRate) : null;
                 const isMatchingThis = matchingId === stmt.id;
                 return (
                   <React.Fragment key={stmt.id}>

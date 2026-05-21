@@ -9,6 +9,8 @@ import PnlTab from './PnlTab';
 import BankReconcTab from './BankReconcTab';
 import VatTab from './VatTab';
 import TncnTab from './TncnTab';
+import HelpPanel from '@/components/HelpPanel';
+import { ACCOUNTING_HELP } from '../helpContent';
 
 interface Props {
   currentUser: AccountUser;
@@ -30,6 +32,7 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
   const state = useAccountingState(currentUser.username, initialTab);
   const { avgUsdVnd } = useExchangeRate();
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -61,7 +64,7 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
             <span className="text-white font-black uppercase tracking-widest text-sm">Kế toán</span>
           </div>
           {/* Tab bar — scrollable */}
-          <div className="flex gap-1 ml-2 flex-nowrap overflow-x-auto">
+          <div className="flex gap-1 ml-2 flex-nowrap overflow-x-auto flex-1">
             {TABS.map(t => (
               <button
                 key={t.id}
@@ -77,6 +80,15 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
               </button>
             ))}
           </div>
+
+          {/* Help button */}
+          <button
+            onClick={() => setHelpOpen(true)}
+            title="Hướng dẫn sử dụng"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 hover:text-white hover:bg-white/5 transition-all border border-white/10 hover:border-white/20">
+            <span>?</span>
+            <span className="hidden sm:inline">Trợ giúp</span>
+          </button>
         </div>
       </div>
 
@@ -126,6 +138,7 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
                 invoices={state.invoices}
                 expenses={state.expenses}
                 advances={state.advances}
+                vcbAvgRate={avgUsdVnd}
                 onImport={async (bank, rows) => {
                   await wrapAction(
                     () => state.importStatements(bank, rows),
@@ -161,6 +174,16 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
           </>
         )}
       </div>
+
+      {/* Help Panel */}
+      <HelpPanel
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        appName="Kế toán"
+        appIcon="🧾"
+        contents={ACCOUNTING_HELP}
+        activeTabId={state.activeTab}
+      />
 
       {/* Toast */}
       {toast && (
