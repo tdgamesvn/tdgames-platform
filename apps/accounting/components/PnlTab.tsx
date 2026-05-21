@@ -55,15 +55,19 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
     return d >= from && d <= to;
   };
 
-  // Revenue: paid invoices trong kỳ
+  // Revenue (accrual): invoices phát sinh trong kỳ theo issue_date, trừ draft
   const revenueRows = useMemo(() =>
-    invoices.filter(inv => inv.status === 'paid' && inRange(inv.paidDate)),
+    invoices.filter(inv => !['draft'].includes(inv.status) && inRange(inv.issueDate)),
     [invoices, period]
   );
 
-  // Expense: paid expenses trong kỳ (exclude revenue type)
+  // Expense (accrual): chi phí phát sinh trong kỳ, tính cả approved + paid
   const expenseRows = useMemo(() =>
-    expenses.filter(e => (e.type || 'expense') === 'expense' && e.status === 'paid' && inRange(e.expense_date)),
+    expenses.filter(e =>
+      (e.type || 'expense') === 'expense' &&
+      ['approved', 'paid'].includes(e.status) &&
+      inRange(e.expense_date)
+    ),
     [expenses, period]
   );
 
@@ -126,7 +130,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-white font-black text-lg uppercase tracking-wider">📈 Báo cáo Lãi / Lỗ (P&L)</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">{label} • Tỷ giá quy đổi: {fmt(rate)} VND/USD</p>
+          <p className="text-neutral-500 text-xs mt-0.5">{label} • Cơ sở dồn tích • Tỷ giá: {fmt(rate)} VND/USD</p>
         </div>
         <div className="flex gap-1">
           {PERIODS.map(p => (
@@ -197,7 +201,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
           {/* Invoice list */}
           <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
             <div className="px-5 py-3 border-b border-white/5">
-              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Hoá đơn thu tiền trong kỳ ({revenueRows.length})</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Hoá đơn phát sinh trong kỳ ({revenueRows.length})</p>
             </div>
             {revenueRows.length === 0 ? (
               <p className="text-center py-8 text-neutral-600 text-sm">Không có hoá đơn trong kỳ</p>
@@ -219,7 +223,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
                         <td className="px-5 py-2 text-right text-emerald-400 font-bold">
                           {inv.currency === 'USD' ? `$${fmt(sub)}` : `${fmt(sub)} ₫`}
                         </td>
-                        <td className="px-5 py-2 text-right text-neutral-500">{inv.paidDate}</td>
+                        <td className="px-5 py-2 text-right text-neutral-500">{inv.issueDate}</td>
                       </tr>
                     );
                   })}

@@ -109,7 +109,7 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
               />
             )}
             {state.activeTab === 'payables' && (
-              <PayablesTab expenses={state.expenses} />
+              <PayablesTab expenses={state.expenses} vcbRate={avgUsdVnd} />
             )}
             {state.activeTab === 'pnl' && (
               <PnlTab

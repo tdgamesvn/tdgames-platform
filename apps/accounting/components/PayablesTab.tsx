@@ -3,6 +3,7 @@ import { ExpenseRecord } from '@/types';
 
 interface Props {
   expenses: ExpenseRecord[];
+  vcbRate: number; // VND per 1 USD, dùng để quy đổi USD sang VND
 }
 
 type Period = 'month' | 'quarter' | 'year' | 'all';
@@ -31,7 +32,8 @@ function inPeriod(dateStr: string, period: Period): boolean {
 
 const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
 
-export default function PayablesTab({ expenses }: Props) {
+export default function PayablesTab({ expenses, vcbRate }: Props) {
+  const rate = vcbRate || 25000;
   const [period, setPeriod] = useState<Period>('month');
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
 
@@ -49,8 +51,8 @@ export default function PayablesTab({ expenses }: Props) {
       if (!map.has(vendor)) map.set(vendor, { vendor, rows: [], payable: 0, paid: 0, outstanding: 0 });
       const entry = map.get(vendor)!;
       entry.rows.push(exp);
-      // VND only for now — USD expenses shown separately
-      const amt = exp.currency === 'VND' ? exp.amount : 0;
+      // Quy đổi tất cả về VND
+      const amt = exp.currency === 'VND' ? exp.amount : exp.amount * rate;
       if (exp.status === 'paid') { entry.paid += amt; }
       else { entry.payable += amt; entry.outstanding += amt; }
     }
@@ -99,7 +101,7 @@ export default function PayablesTab({ expenses }: Props) {
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Tổng phải trả', value: totPayable + totPaid, color: 'text-white' },
+          { label: 'Tổng phát sinh', value: totPayable + totPaid, color: 'text-white' },
           { label: 'Đã thanh toán', value: totPaid, color: 'text-emerald-400' },
           { label: 'Còn tồn đọng', value: totOutstanding, color: 'text-orange-400' },
         ].map(c => (
@@ -145,13 +147,21 @@ export default function PayablesTab({ expenses }: Props) {
                     <tr key={row.id} className="border-b border-white/3 bg-white/2">
                       <td className="pl-12 pr-5 py-2 text-neutral-400 text-xs">{row.expense_date} — {row.title}</td>
                       <td className="px-5 py-2 text-right text-xs text-neutral-400">
-                        {row.status !== 'paid' ? fmt(row.currency === 'VND' ? row.amount : 0) : '—'}
+                        {row.status !== 'paid' ? (
+                          <span>{fmt(row.currency === 'VND' ? row.amount : row.amount * rate)}
+                            {row.currency !== 'VND' && <span className="text-neutral-600 ml-1">(${fmt(row.amount)})</span>}
+                          </span>
+                        ) : '—'}
                       </td>
                       <td className="px-5 py-2 text-right text-xs text-emerald-400/70">
-                        {row.status === 'paid' ? fmt(row.currency === 'VND' ? row.amount : 0) : '—'}
+                        {row.status === 'paid' ? (
+                          <span>{fmt(row.currency === 'VND' ? row.amount : row.amount * rate)}
+                            {row.currency !== 'VND' && <span className="text-neutral-600 ml-1">(${fmt(row.amount)})</span>}
+                          </span>
+                        ) : '—'}
                       </td>
                       <td className="px-5 py-2 text-right text-xs">{statusBadge(row.status)}</td>
-                      <td className="px-5 py-2 text-center text-xs text-neutral-600">{row.currency !== 'VND' && `$${fmt(row.amount)} USD`}</td>
+                      <td className="px-5 py-2 text-center text-xs text-neutral-600">{row.currency !== 'VND' && row.currency}</td>
                     </tr>
                   ))}
                 </React.Fragment>
