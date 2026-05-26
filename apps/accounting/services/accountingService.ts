@@ -313,7 +313,7 @@ export interface BhxhEmployee {
 export async function fetchEmployeesForBhxh(): Promise<BhxhEmployee[]> {
   const { data, error } = await supabase
     .from('hr_employees')
-    .select('id, employee_code, full_name, insurance_number, salary, status, probation_end, official_date, start_date, department:hr_departments(name)')
+    .select('id, employee_code, full_name, insurance_number, salary, status, probation_end, official_date, start_date, department:hr_departments!hr_employees_department_id_fkey(name)')
     .eq('status', 'active')
     .order('full_name');
   if (error) throw error;
