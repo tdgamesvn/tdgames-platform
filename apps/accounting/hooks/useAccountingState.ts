@@ -4,11 +4,11 @@ import {
   InvoiceData, ExpenseRecord, HrEmployee, Settlement,
 } from '@/types';
 import * as svc from '../services/accountingService';
-import type { PayrollRecordWithMeta } from '../services/accountingService';
+import type { PayrollRecordWithMeta, BhxhEmployee } from '../services/accountingService';
 import { setHashTab } from '@/App';
 
-export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' | 'vat' | 'tncn';
-const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn'];
+export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' | 'vat' | 'tncn' | 'bhxh';
+const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh'];
 
 export function useAccountingState(currentUser: string, initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<AccountingTab>(() => {
@@ -30,6 +30,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
   const [payrollRecords, setPayrollRecords] = useState<PayrollRecordWithMeta[]>([]);
   const [employees, setEmployees] = useState<HrEmployee[]>([]);
   const [freelancerSettlements, setFreelancerSettlements] = useState<Settlement[]>([]);
+  const [bhxhEmployees, setBhxhEmployees] = useState<BhxhEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +38,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
     setLoading(true);
     setError(null);
     try {
-      const [a, adv, stmts, invs, exps, payroll, emps, settlements] = await Promise.all([
+      const [a, adv, stmts, invs, exps, payroll, emps, settlements, bhxhEmps] = await Promise.all([
         svc.fetchFixedAssets(),
         svc.fetchAdvances(),
         svc.fetchBankStatements(),
@@ -46,6 +47,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
         svc.fetchPayrollForTncn(),
         svc.fetchEmployeesForAccounting(),
         svc.fetchSettlementsForTncn(),
+        svc.fetchEmployeesForBhxh(),
       ]);
       setAssets(a);
       setAdvances(adv);
@@ -55,6 +57,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
       setPayrollRecords(payroll);
       setEmployees(emps);
       setFreelancerSettlements(settlements);
+      setBhxhEmployees(bhxhEmps);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -136,7 +139,7 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
 
   return {
     activeTab, setActiveTab,
-    assets, advances, statements, invoices, expenses, payrollRecords, employees, freelancerSettlements,
+    assets, advances, statements, invoices, expenses, payrollRecords, employees, freelancerSettlements, bhxhEmployees,
     loading, error, reload: loadAll,
     addAsset, editAsset, removeAsset,
     addAdvance, settle, cancel, removeAdvance,
