@@ -292,3 +292,41 @@ export async function fetchSettlementsForTncn(): Promise<Settlement[]> {
   if (error) throw error;
   return (data || []) as Settlement[];
 }
+
+// ══════════════════════════════════════════════════
+// BHXH (for BHXH tab)
+// ══════════════════════════════════════════════════
+
+export interface BhxhEmployee {
+  id: string;
+  employee_code: string;
+  full_name: string;
+  insurance_number: string;
+  salary: number;
+  status: string;
+  probation_end: string | null;
+  official_date: string | null;
+  start_date: string | null;
+  department_name: string | null;
+}
+
+export async function fetchEmployeesForBhxh(): Promise<BhxhEmployee[]> {
+  const { data, error } = await supabase
+    .from('hr_employees')
+    .select('id, employee_code, full_name, insurance_number, salary, status, probation_end, official_date, start_date, department:hr_departments(name)')
+    .eq('status', 'active')
+    .order('full_name');
+  if (error) throw error;
+  return ((data || []) as any[]).map(r => ({
+    id: r.id,
+    employee_code: r.employee_code,
+    full_name: r.full_name,
+    insurance_number: r.insurance_number || '',
+    salary: r.salary || 0,
+    status: r.status,
+    probation_end: r.probation_end,
+    official_date: r.official_date,
+    start_date: r.start_date,
+    department_name: r.department?.name ?? null,
+  }));
+}
