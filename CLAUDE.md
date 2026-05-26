@@ -1,3 +1,13 @@
+## UI/UX Design Rules
+
+**MUST read `.agent/meta/STYLE_GUIDE.md` BEFORE writing or editing any UI component.**
+
+The style guide contains all approved patterns for: colors, typography, buttons (3 tiers), cards,
+badges, form inputs, layout, animations, empty states, and toast notifications.
+Do not invent new patterns — extend the style guide first if a new pattern is needed.
+
+---
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 

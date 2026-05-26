@@ -311,6 +311,57 @@ export interface BhxhEmployee {
   department_name: string | null;
 }
 
+// ── BHXH Payment Status ───────────────────────────
+
+export interface BhxhPayment {
+  id: string;
+  month: number;
+  year: number;
+  total_amount: number;
+  paid_date: string;
+  paid_by: string;
+  notes: string;
+  created_at: string;
+}
+
+export async function fetchBhxhPayment(month: number, year: number): Promise<BhxhPayment | null> {
+  const { data, error } = await supabase
+    .from('acc_bhxh_payments')
+    .select('*')
+    .eq('month', month)
+    .eq('year', year)
+    .maybeSingle();
+  if (error) throw error;
+  return data as BhxhPayment | null;
+}
+
+export async function saveBhxhPayment(
+  month: number,
+  year: number,
+  payload: { total_amount: number; paid_date: string; paid_by: string; notes: string },
+): Promise<BhxhPayment> {
+  // Upsert on (month, year)
+  const { data, error } = await supabase
+    .from('acc_bhxh_payments')
+    .upsert({ month, year, ...payload, updated_at: new Date().toISOString() },
+             { onConflict: 'month,year' })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as BhxhPayment;
+}
+
+export async function deleteBhxhPayment(month: number, year: number): Promise<void> {
+  const { error } = await supabase
+    .from('acc_bhxh_payments')
+    .delete()
+    .eq('month', month)
+    .eq('year', year);
+  if (error) throw error;
+}
+
+// ── Employees ─────────────────────────────────────
+
 export async function fetchEmployeesForBhxh(): Promise<BhxhEmployee[]> {
   const { data, error } = await supabase
     .from('hr_employees')

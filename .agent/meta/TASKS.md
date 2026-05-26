@@ -6,6 +6,14 @@ _Cập nhật: 2026-05-21_
 
 ## To Do
 
+- [x] Fix Company app UI/UX theo Style Guide
+  - Done: 2026-05-21
+  - Result: footer border-white/5; InfoTab 2-col layout + SidebarItem; BankTab grid-cols-2; DocumentsTab inputs focus style. Commit 577b14f ✅
+
+- [x] Fix Accounting UI/UX theo Style Guide (6 tabs)
+  - Done: 2026-05-21
+  - Result: PayablesTab, PnlTab, BankReconcTab, VatTab, TncnTab, AdvanceTab — KPI labels → text-[10px] font-black text-neutral-600, values → text-2xl, form inputs → #1a1a1a px-3 py-2, buttons font-bold → font-black. Commit 7265ea8 ✅
+
 - [x] Thêm HelpPanel cho các module còn thiếu (Attendance, CRM, Payroll, Workforce)
   - Done: 2026-05-21
   - Result: 4 module wired; tất cả 8 app chính đều có HelpPanel. Commit 7f40aec.

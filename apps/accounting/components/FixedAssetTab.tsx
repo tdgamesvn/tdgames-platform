@@ -86,12 +86,14 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài sản cố định</h2>
-          <p className="text-neutral-400 text-sm mt-1">Theo dõi & khấu hao đường thẳng</p>
+          <h2 className="text-lg font-black uppercase tracking-wider text-white">🏢 Tài sản cố định</h2>
+          <p className="text-neutral-500 text-xs mt-0.5">Theo dõi & khấu hao đường thẳng</p>
         </div>
-        <button onClick={openAdd} className="px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #FF9500, #FF5E3A)' }}>
+        <button onClick={openAdd}
+          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"
+          style={{ background: '#FF9500' }}>
           + Thêm tài sản
         </button>
       </div>
@@ -103,8 +105,9 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
           { label: 'Giá trị còn lại', value: `${fmt(Math.round(totalBookValue))} ₫`, color: '#30D158' },
           { label: 'Khấu hao / tháng', value: `${fmt(Math.round(totalMonthlyDep))} ₫`, color: '#FF375F' },
         ].map(c => (
-          <div key={c.label} className="p-5 rounded-[20px] border border-white/5 bg-white/3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">{c.label}</p>
+          <div key={c.label} className="rounded-2xl border border-white/8 p-5 space-y-1"
+            style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
             <p className="text-2xl font-black" style={{ color: c.color }}>{c.value}</p>
           </div>
         ))}
@@ -124,7 +127,11 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       {/* Asset list */}
       <div className="space-y-2">
         {filtered.length === 0 && (
-          <div className="text-center py-16 text-neutral-500">Chưa có tài sản nào. Nhấn "+ Thêm tài sản" để bắt đầu.</div>
+          <div className="text-center py-16">
+            <p className="text-3xl mb-3">🏢</p>
+            <p className="text-neutral-600 text-sm">Chưa có tài sản nào</p>
+            <p className="text-xs mt-1 text-neutral-700">Nhấn "+ Thêm tài sản" để bắt đầu</p>
+          </div>
         )}
         {filtered.map(a => {
           const dep = calcDepreciation(a, today);
@@ -132,7 +139,8 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
           const st = STATUS_STYLES[a.status];
           return (
             <div key={a.id} onClick={() => setSelected(selected?.id === a.id ? null : a)}
-              className="rounded-[16px] border border-white/5 bg-white/3 p-4 cursor-pointer hover:border-white/10 transition-all">
+              className="rounded-2xl border border-white/5 p-4 cursor-pointer hover:border-white/10 transition-all"
+              style={{ background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-xl">{ASSET_TYPE_LABELS[a.asset_type].split(' ')[0]}</span>
@@ -173,8 +181,14 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
                   <div><span className="text-neutral-500">Tỉ lệ KH / năm</span><p className="text-white font-bold">{dep.depreciationRate.toFixed(1)}%</p></div>
                   {a.serial_number && <div><span className="text-neutral-500">Serial</span><p className="text-white font-bold">{a.serial_number}</p></div>}
                   <div className="col-span-2 flex gap-2 mt-2">
-                    <button onClick={e => { e.stopPropagation(); openEdit(a); }} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all">Sửa</button>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(a.id); }} className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold transition-all">Xóa</button>
+                    <button onClick={e => { e.stopPropagation(); openEdit(a); }}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
+                      ✏️ Sửa
+                    </button>
+                    <button onClick={e => { e.stopPropagation(); handleDelete(a.id); }}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all">
+                      🗑 Xóa
+                    </button>
                   </div>
                 </div>
               )}
@@ -186,82 +200,101 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[#1A1A1A] rounded-[24px] border border-white/10 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-white mb-6">{editId ? 'Sửa tài sản' : 'Thêm tài sản cố định'}</h3>
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 p-6 max-h-[90vh] overflow-y-auto"
+            style={{ background: '#1A1A1A' }}>
+            <h3 className="text-base font-black uppercase tracking-wider text-white mb-6">
+              {editId ? '✏️ Sửa tài sản' : '+ Thêm tài sản cố định'}
+            </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Tên tài sản *</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Tên tài sản *</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="VD: Máy tính Dell XPS 15" required
-                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                  style={{ background: '#0f0f0f' }} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Loại tài sản</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Loại tài sản</label>
                   <select value={form.asset_type} onChange={e => setForm(f => ({ ...f, asset_type: e.target.value as AssetType }))}
-                    className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50">
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }}>
                     {Object.entries(ASSET_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ngày mua *</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ngày mua *</label>
                   <input type="date" value={form.purchase_date} onChange={e => setForm(f => ({ ...f, purchase_date: e.target.value }))}
-                    className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }} />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Nguyên giá (₫) *</label>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Nguyên giá (₫) *</label>
                   <input type="number" min="0" value={form.cost || ''} onChange={e => setForm(f => ({ ...f, cost: +e.target.value }))}
-                    placeholder="0" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    placeholder="0" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }} />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Thời gian KH (tháng)</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Thời gian KH (tháng)</label>
                   <input type="number" min="1" value={form.useful_life_months} onChange={e => setForm(f => ({ ...f, useful_life_months: +e.target.value }))}
-                    className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }} />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Giá trị còn lại (₫)</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Giá trị còn lại (₫)</label>
                   <input type="number" min="0" value={form.residual_value || ''} onChange={e => setForm(f => ({ ...f, residual_value: +e.target.value }))}
-                    placeholder="0" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    placeholder="0" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Người sử dụng</label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Người sử dụng</label>
                   <input value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}
-                    placeholder="VD: Nguyễn Văn A" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    placeholder="VD: Nguyễn Văn A" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }} />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Vị trí</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Vị trí</label>
                   <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-                    placeholder="VD: Phòng dev, Tầng 3" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                    placeholder="VD: Phòng dev, Tầng 3" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }} />
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Serial / Số hiệu</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Serial / Số hiệu</label>
                 <input value={form.serial_number} onChange={e => setForm(f => ({ ...f, serial_number: e.target.value }))}
-                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50" />
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                  style={{ background: '#0f0f0f' }} />
               </div>
               {editId && (
-                <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Trạng thái</label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Trạng thái</label>
                   <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as AssetStatus }))}
-                    className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50">
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                    style={{ background: '#0f0f0f' }}>
                     {Object.entries(STATUS_STYLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                   </select>
                 </div>
               )}
-              <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Ghi chú</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ghi chú</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-primary/50 resize-none" />
+                  className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none"
+                  style={{ background: '#0f0f0f' }} />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={saving} className="flex-1 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #FF9500, #FF5E3A)' }}>
+                <button type="submit" disabled={saving}
+                  className="flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                  style={{ background: '#FF9500' }}>
                   {saving ? 'Đang lưu...' : editId ? 'Cập nhật' : 'Thêm mới'}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} className="px-6 py-3 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-black text-xs uppercase tracking-widest transition-all">Huỷ</button>
+                <button type="button" onClick={() => setShowForm(false)}
+                  className="px-5 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+                  Huỷ
+                </button>
               </div>
             </form>
           </div>

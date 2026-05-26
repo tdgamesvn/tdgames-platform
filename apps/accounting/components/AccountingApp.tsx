@@ -162,7 +162,7 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
               />
             )}
             {state.activeTab === 'bhxh' && (
-              <BhxhTab employees={state.bhxhEmployees} />
+              <BhxhTab employees={state.bhxhEmployees} currentUser={currentUser.username} />
             )}
           </>
         )}

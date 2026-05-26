@@ -1,5 +1,105 @@
 # LOG
 
+## 2026-05-26
+### Task
+Thêm tab BHXH vào app Kế toán – bảng kê nộp BHXH độc lập với bảng lương
+
+### Work Done
+- Khảo sát codebase: xác nhận BHXH hiện chỉ được tính trong Payroll (payrollService.ts), chưa có báo cáo riêng
+- Thiết kế: tab BHXH trong Accounting app (cùng domain với TNCN, VAT – nghĩa vụ nộp nhà nước)
+- `accountingService.ts`: thêm `BhxhEmployee` interface + `fetchEmployeesForBhxh()` (fetch active employees với salary, insurance_number, official_date)
+- `useAccountingState.ts`: thêm `'bhxh'` vào AccountingTab type, state `bhxhEmployees`, fetch trong `loadAll`
+- `BhxhTab.tsx`: tạo mới – month/year picker, lấy formula động từ `pay_payroll_formula_settings`, lọc thử việc, 4 summary cards, bảng kê, export Excel (xlsx)
+- `AccountingApp.tsx`: thêm tab `🛡️ BHXH` vào navbar + render BhxhTab
+
+### Validation
+- `npm run build` thành công (3 commits sạch)
+
+### Result
+- App Kế toán có tab BHXH mới
+- Kế toán có thể xem và xuất bảng kê BHXH trước ngày 25 hàng tháng, độc lập với việc khóa bảng lương cuối tháng
+- Tỷ lệ lấy từ PayrollFormulaConfig (đồng bộ với bảng lương, tự động cập nhật khi admin đổi tỷ lệ)
+- Nhân viên thử việc tự động bị loại khỏi bảng kê; nhân viên mới vào tháng được đánh dấu ghi chú
+
+## 2026-05-21 — Company app UI/UX Style Guide fixes
+
+### Task
+Chuẩn hoá UI/UX Company module theo Style Guide
+
+### Work Done
+- Audit 4 component: CompanyApp (shell ✅), InfoTab, BankTab, DocumentsTab
+- **CompanyApp**: footer `border-t` → `border-t border-white/5`
+- **InfoTab**: xoá `max-w-3xl` → `w-full`; restructure header layout; thêm `SidebarItem` component; 2-column dashboard layout (main 2/3 + sidebar sticky 1/3 với quick-ref orange-tinted card + address card)
+- **BankTab**: xoá `max-w-3xl` → `w-full`; accounts `space-y-3` → `grid grid-cols-1 md:grid-cols-2 gap-4`
+- **DocumentsTab**: inputs/select thêm `focus:border-orange-500/50 transition-colors`
+
+### Validation
+- `npm run build` ✅ (7.02s, no TypeScript errors)
+- Commit 577b14f, pushed origin/main ✅
+
+### Result
+- Company module nhất quán với Style Guide; InfoTab tận dụng 2-col layout đúng chuẩn
+
+## 2026-05-21 — Accounting UI/UX Style Guide fixes
+
+### Task
+Chuẩn hoá UI/UX toàn bộ Accounting module (7 tabs) theo Style Guide
+
+### Work Done
+- Audit 7 tab accounting vs STYLE_GUIDE.md — phát hiện vi phạm nhất quán trên 6 tab
+- **PayablesTab, PnlTab, BankReconcTab, VatTab, TncnTab**: KPI card labels `text-xs` → `text-[10px] font-black text-neutral-600`; values `text-xl`/`text-lg` → `text-2xl font-black`
+- **PnlTab**: view switcher + section labels `font-bold` → `font-black`; bar chart `duration-700` removed
+- **BankReconcTab**: filter + inline buttons `font-bold` → `font-black`
+- **AdvanceTab**: form inputs `bg-white/5 px-4 py-3` → `style={{ background: '#1a1a1a' }} px-3 py-2`; labels `text-xs font-bold` → `text-[10px] font-black`; modal titles `text-xl` → `text-base uppercase tracking-wider`; cancel buttons → ghost pattern chuẩn
+
+### Validation
+- `npm run build` ✅ (6.98s, no TypeScript errors)
+- grep verify: 0 violations còn lại
+- Commit 7265ea8, pushed origin/main ✅
+
+### Result
+- Toàn bộ Accounting module (FixedAssetTab đã đúng từ đầu + 6 tab vừa fix) nhất quán 100% với Style Guide
+- KPI cards, form inputs, buttons đều dùng đúng token/pattern
+
+## 2026-05-21 — Dashboard Style Guide
+
+### Task
+Viết và lưu Dashboard UI/UX Style Guide chuẩn hoá cho toàn platform
+
+### Work Done
+- Phân tích gap giữa landing page style guide và thực tế codebase (typography scale, button sizes, animation, spacing)
+- Viết `.agent/meta/STYLE_GUIDE.md` — style guide dashboard-specific với: color tokens, typography scale, 3-tier buttons, card variants, badges, form inputs, layout patterns, animations, empty states, toast
+- Cập nhật `CLAUDE.md` (project root) — thêm rule bắt buộc đọc STYLE_GUIDE.md trước khi làm UI
+- Cập nhật `index.html` (session trước) — thêm elevation/glow shadow tokens, keyframes scaleIn/shake/tdPulse, CSS variables, focus-visible, sr-only
+
+### Result
+- AI session sau sẽ tự load rule từ CLAUDE.md và biết đọc STYLE_GUIDE.md trước khi thiết kế UI
+- Style guide phản ánh đúng patterns đang chạy trong codebase, không phải lý thuyết landing page
+
+---
+
+## 2026-05-21 — Company app Option B dashboard layout
+
+### Task
+Redesign Company app layout: remove narrow `max-w-3xl` constraint, implement 2-column dashboard layout
+
+### Work Done
+- `InfoTab.tsx`: xoá `max-w-3xl`, view mode → 2-col grid (`lg:col-span-2` main + `lg:col-span-1` sidebar)
+  - Sidebar: sticky "Tóm tắt nhanh" card (MST, đại diện, ngày HĐ, email) + address card
+  - Edit mode: giữ full-width form như cũ
+- `BankTab.tsx`: xoá `max-w-3xl`, accounts hiển thị `grid-cols-1 md:grid-cols-2`
+- `DocumentsTab.tsx`: xoá `max-w-3xl` → `w-full`
+
+### Validation
+- `npm run build` ✅ passed (6.72s)
+
+### Result
+- Company app tận dụng toàn bộ chiều ngang màn hình
+- InfoTab có sidebar "Tóm tắt nhanh" với các trường quan trọng nhất
+- BankTab cards hiển thị dạng grid 2 cột trên màn hình rộng
+
+---
+
 ## 2026-05-21 (session — UI/UX layout fixes)
 ### Task
 Chuẩn hoá layout AccountingApp và CompanyApp theo standard app shell

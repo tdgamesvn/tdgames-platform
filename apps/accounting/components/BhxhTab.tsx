@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import type { BhxhEmployee } from '../services/accountingService';
+import type { BhxhEmployee, BhxhPayment } from '../services/accountingService';
+import { fetchBhxhPayment, saveBhxhPayment, deleteBhxhPayment } from '../services/accountingService';
 import {
   fetchPayrollFormulaForMonth,
   FALLBACK_PAYROLL_FORMULA,
@@ -9,19 +10,26 @@ import type { PayrollFormulaConfig } from '@/types';
 
 interface Props {
   employees: BhxhEmployee[];
+  currentUser: string;
 }
 
 const fmt = (n: number) => new Intl.NumberFormat('vi-VN').format(Math.round(n));
 const now = new Date();
 
-// Nhân viên đang thử việc tại thời điểm đầu tháng được chọn
+// ── Helpers ───────────────────────────────────────────────────
+
 function isProbationaryInMonth(emp: BhxhEmployee, year: number, month: number): boolean {
-  // Nếu chưa có official_date → vẫn thử việc
   if (!emp.official_date) return true;
   const monthStart = new Date(year, month - 1, 1);
-  const officialDate = new Date(emp.official_date);
-  // Chính thức sau ngày 1 của tháng → tháng đó vẫn tính là thử việc (không đóng BH)
-  return officialDate > monthStart;
+  return new Date(emp.official_date) > monthStart;
+}
+
+/** Số ngày còn đến ngày 25 của tháng/năm đang xem */
+function daysUntilDeadline(month: number, year: number): number {
+  const deadline = new Date(year, month - 1, 25);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.ceil((deadline.getTime() - today.getTime()) / 86400000);
 }
 
 interface BhxhRow {
@@ -52,7 +60,6 @@ function computeRows(
       const base = emp.bhxh_base;
       const empContrib = r(base * formula.bhEmployeeRate);
       const compContrib = r(base * formula.bhCompanyRate);
-      // Ghi chú nhân viên mới vào trong tháng
       let note = '';
       if (emp.start_date) {
         const start = new Date(emp.start_date);
@@ -88,31 +95,22 @@ function exportExcel(rows: BhxhRow[], formula: PayrollFormulaConfig, month: numb
     'Lương đóng BH',
     `NV đóng (${(formula.bhEmployeeRate * 100).toFixed(2)}%)`,
     `Công ty đóng (${(formula.bhCompanyRate * 100).toFixed(2)}%)`,
-    'Tổng đóng',
-    'Ghi chú',
+    'Tổng đóng', 'Ghi chú',
   ]);
   rows.forEach(r => {
-    data.push([
-      r.stt, r.employee_code, r.full_name, r.department_name || '',
-      r.insurance_number,
-      r.bhxh_base, r.employee_contrib, r.company_contrib, r.total, r.note,
-    ]);
+    data.push([r.stt, r.employee_code, r.full_name, r.department_name || '',
+      r.insurance_number, r.bhxh_base, r.employee_contrib, r.company_contrib, r.total, r.note]);
   });
   data.push([]);
-  data.push([
-    '', '', 'TỔNG CỘNG', '', '',
+  data.push(['', '', 'TỔNG CỘNG', '', '',
     rows.reduce((s, r) => s + r.bhxh_base, 0),
     rows.reduce((s, r) => s + r.employee_contrib, 0),
     rows.reduce((s, r) => s + r.company_contrib, 0),
-    rows.reduce((s, r) => s + r.total, 0),
-    '',
-  ]);
+    rows.reduce((s, r) => s + r.total, 0), '']);
 
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [
-    { wch: 5 }, { wch: 10 }, { wch: 28 }, { wch: 18 }, { wch: 18 },
-    { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 20 },
-  ];
+  ws['!cols'] = [{ wch: 5 }, { wch: 10 }, { wch: 28 }, { wch: 18 }, { wch: 18 },
+    { wch: 16 }, { wch: 16 }, { wch: 18 }, { wch: 16 }, { wch: 20 }];
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 9 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } },
@@ -123,12 +121,135 @@ function exportExcel(rows: BhxhRow[], formula: PayrollFormulaConfig, month: numb
   XLSX.writeFile(wb, `Bang_Ke_BHXH_T${month}_${year}.xlsx`);
 }
 
-export default function BhxhTab({ employees }: Props) {
+// ── Mark Paid Modal ───────────────────────────────────────────
+
+interface MarkPaidFormProps {
+  month: number;
+  year: number;
+  suggestedAmount: number;
+  currentUser: string;
+  existing: BhxhPayment | null;
+  onSave: (payment: BhxhPayment) => void;
+  onDelete: () => void;
+  onClose: () => void;
+}
+
+function MarkPaidForm({ month, year, suggestedAmount, currentUser, existing, onSave, onDelete, onClose }: MarkPaidFormProps) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [amount, setAmount] = useState(existing ? String(existing.total_amount) : String(suggestedAmount));
+  const [paidDate, setPaidDate] = useState(existing?.paid_date || today);
+  const [notes, setNotes] = useState(existing?.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    const amt = Number(amount.replace(/[^\d]/g, ''));
+    if (!amt || !paidDate) { setError('Vui lòng nhập đủ số tiền và ngày nộp'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      const result = await saveBhxhPayment(month, year, {
+        total_amount: amt,
+        paid_date: paidDate,
+        paid_by: currentUser,
+        notes,
+      });
+      onSave(result);
+    } catch (e: any) {
+      setError(e.message || 'Lỗi lưu dữ liệu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Xoá trạng thái đã nộp?')) return;
+    setSaving(true);
+    try {
+      await deleteBhxhPayment(month, year);
+      onDelete();
+    } catch (e: any) {
+      setError(e.message || 'Lỗi xoá dữ liệu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <div className="rounded-2xl border border-white/10 p-6 w-full max-w-sm space-y-4"
+        style={{ background: '#1A1A1A' }}>
+        <h3 className="text-sm font-black uppercase tracking-wider text-white">
+          {existing ? 'Cập nhật' : 'Đánh dấu đã nộp'} BHXH tháng {month}/{year}
+        </h3>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Số tiền đã nộp (đ)</label>
+            <input
+              type="text"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="mt-1 w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm font-mono text-white focus:outline-none focus:border-orange-500/50"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ngày nộp</label>
+            <input
+              type="date"
+              value={paidDate}
+              onChange={e => setPaidDate(e.target.value)}
+              className="mt-1 w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/50"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Ghi chú</label>
+            <input
+              type="text"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              className="mt-1 w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/50"
+              placeholder="VD: Chuyển khoản VCB..."
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
+
+        <div className="flex items-center gap-2 pt-1">
+          <button onClick={handleSave} disabled={saving}
+            className="flex-1 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider bg-primary text-black hover:opacity-90 transition-opacity disabled:opacity-40">
+            {saving ? 'Đang lưu...' : '✓ Xác nhận'}
+          </button>
+          {existing && (
+            <button onClick={handleDelete} disabled={saving}
+              className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider border border-red-500/30 text-red-400 hover:border-red-500/60 transition-colors">
+              Xoá
+            </button>
+          )}
+          <button onClick={onClose} disabled={saving}
+            className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider border border-white/10 text-neutral-400 hover:border-white/20 transition-colors">
+            Huỷ
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Tab ──────────────────────────────────────────────────
+
+export default function BhxhTab({ employees, currentUser }: Props) {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [formula, setFormula] = useState<PayrollFormulaConfig>(FALLBACK_PAYROLL_FORMULA);
   const [formulaLoading, setFormulaLoading] = useState(false);
+  const [payment, setPayment] = useState<BhxhPayment | null>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showMarkPaid, setShowMarkPaid] = useState(false);
 
+  // Fetch formula khi thay đổi tháng/năm
   useEffect(() => {
     let cancelled = false;
     setFormulaLoading(true);
@@ -139,56 +260,101 @@ export default function BhxhTab({ employees }: Props) {
     return () => { cancelled = true; };
   }, [month, year]);
 
+  // Fetch payment status khi thay đổi tháng/năm
+  useEffect(() => {
+    let cancelled = false;
+    setPaymentLoading(true);
+    setPayment(null);
+    fetchBhxhPayment(month, year)
+      .then(data => { if (!cancelled) setPayment(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setPaymentLoading(false); });
+    return () => { cancelled = true; };
+  }, [month, year]);
+
   const rows = useMemo(
     () => computeRows(employees, formula, year, month),
     [employees, formula, year, month],
   );
 
-  const totalBase = rows.reduce((s, r) => s + r.bhxh_base, 0);
   const totalEmp = rows.reduce((s, r) => s + r.employee_contrib, 0);
   const totalComp = rows.reduce((s, r) => s + r.company_contrib, 0);
   const totalAll = rows.reduce((s, r) => s + r.total, 0);
+  const totalBase = rows.reduce((s, r) => s + r.bhxh_base, 0);
+  const probationaryCount = employees.filter(emp => isProbationaryInMonth(emp, year, month)).length;
 
-  const probationaryCount = employees.filter(
-    emp => isProbationaryInMonth(emp, year, month)
-  ).length;
+  // Countdown logic — chỉ hiện khi đang xem tháng hiện tại
+  const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+  const daysLeft = isCurrentMonth ? daysUntilDeadline(month, year) : null;
+
+  const deadlineBanner = (() => {
+    if (!isCurrentMonth || payment) return null; // Đã nộp → không hiện
+    if (daysLeft === null) return null;
+    if (daysLeft < 0) return { bg: 'rgba(244,67,54,0.12)', border: '#F44336', color: '#F44336', text: `Đã quá hạn nộp BHXH tháng ${month}/${year} (${Math.abs(daysLeft)} ngày)!` };
+    if (daysLeft === 0) return { bg: 'rgba(244,67,54,0.12)', border: '#F44336', color: '#F44336', text: `Hôm nay là hạn cuối nộp BHXH tháng ${month}/${year}!` };
+    if (daysLeft <= 3) return { bg: 'rgba(244,67,54,0.10)', border: '#F44336', color: '#F44336', text: `⚠️ Còn ${daysLeft} ngày đến hạn nộp BHXH (ngày 25/${month})` };
+    if (daysLeft <= 7) return { bg: 'rgba(255,149,0,0.10)', border: '#FF9500', color: '#FF9500', text: `⏰ Còn ${daysLeft} ngày đến hạn nộp BHXH (ngày 25/${month})` };
+    return null;
+  })();
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-5">
+      {/* Deadline banner */}
+      {deadlineBanner && (
+        <div className="rounded-xl px-4 py-3 flex items-center gap-3 border"
+          style={{ background: deadlineBanner.bg, borderColor: deadlineBanner.border }}>
+          <span className="text-sm font-black" style={{ color: deadlineBanner.color }}>
+            {deadlineBanner.text}
+          </span>
+          <button onClick={() => setShowMarkPaid(true)}
+            className="ml-auto px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border"
+            style={{ borderColor: deadlineBanner.border, color: deadlineBanner.color }}>
+            Đánh dấu đã nộp
+          </button>
+        </div>
+      )}
+
+      {/* Header row */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-base font-black uppercase tracking-wider text-white">
-            Bảng kê nộp BHXH
-          </h2>
-          <p className="text-xs text-neutral-500 mt-1">
-            Hạn nộp: trước ngày 25 hàng tháng · Chỉ nhân viên chính thức
-          </p>
+          <h2 className="text-base font-black uppercase tracking-wider text-white">Bảng kê nộp BHXH</h2>
+          <p className="text-xs text-neutral-500 mt-1">Hạn nộp: trước ngày 25 hàng tháng · Chỉ nhân viên chính thức</p>
         </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={month}
-            onChange={e => setMonth(Number(e.target.value))}
-            className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-orange-500/50"
-          >
+
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Month/Year pickers */}
+          <select value={month} onChange={e => setMonth(Number(e.target.value))}
+            className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-orange-500/50">
             {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
               <option key={m} value={m}>Tháng {m}</option>
             ))}
           </select>
-          <select
-            value={year}
-            onChange={e => setYear(Number(e.target.value))}
-            className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-orange-500/50"
-          >
+          <select value={year} onChange={e => setYear(Number(e.target.value))}
+            className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-sm font-semibold text-white focus:outline-none focus:border-orange-500/50">
             {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <button
-            onClick={() => exportExcel(rows, formula, month, year)}
-            disabled={rows.length === 0}
-            className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider bg-primary text-black hover:opacity-90 transition-opacity disabled:opacity-30"
-          >
+
+          {/* Payment status badge */}
+          {paymentLoading ? (
+            <span className="text-[10px] text-neutral-600 uppercase tracking-wider">Đang tải...</span>
+          ) : payment ? (
+            <button onClick={() => setShowMarkPaid(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black uppercase tracking-wider transition-colors"
+              style={{ background: 'rgba(76,175,80,0.10)', borderColor: '#4CAF50', color: '#4CAF50' }}>
+              ✅ Đã nộp {payment.paid_date.slice(8, 10)}/{payment.paid_date.slice(5, 7)}
+            </button>
+          ) : (
+            <button onClick={() => setShowMarkPaid(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/15 text-[11px] font-black uppercase tracking-wider text-neutral-400 hover:border-white/30 hover:text-white transition-colors">
+              ⏳ Chưa nộp
+            </button>
+          )}
+
+          {/* Export button */}
+          <button onClick={() => exportExcel(rows, formula, month, year)} disabled={rows.length === 0}
+            className="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider bg-primary text-black hover:opacity-90 transition-opacity disabled:opacity-30">
             ↓ Xuất Excel
           </button>
         </div>
@@ -210,16 +376,12 @@ export default function BhxhTab({ employees }: Props) {
         ))}
       </div>
 
-      {/* Status notices */}
+      {/* Notices */}
       <div className="flex items-center gap-3 flex-wrap">
-        {formulaLoading && (
-          <span className="text-[10px] text-neutral-600 uppercase tracking-wider">Đang tải công thức...</span>
-        )}
+        {formulaLoading && <span className="text-[10px] text-neutral-600 uppercase tracking-wider">Đang tải công thức...</span>}
         {probationaryCount > 0 && (
-          <span
-            className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full"
-            style={{ background: 'rgba(255,167,38,0.12)', color: '#FFA726' }}
-          >
+          <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full"
+            style={{ background: 'rgba(255,167,38,0.12)', color: '#FFA726' }}>
             ⚠ {probationaryCount} NV thử việc – không tính vào bảng kê
           </span>
         )}
@@ -227,19 +389,13 @@ export default function BhxhTab({ employees }: Props) {
 
       {/* Table */}
       {rows.length === 0 ? (
-        <div
-          className="rounded-2xl border border-white/8 py-20 text-center"
-          style={{ background: 'rgba(255,255,255,0.02)' }}
-        >
+        <div className="rounded-2xl border border-white/8 py-20 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
           <div className="text-3xl mb-3">🛡️</div>
           <div className="text-sm font-semibold text-neutral-400">Không có nhân viên chính thức trong tháng này</div>
           <div className="text-xs text-neutral-600 mt-1">Kiểm tra lại ngày chính thức trong HR</div>
         </div>
       ) : (
-        <div
-          className="rounded-2xl border border-white/8 overflow-x-auto"
-          style={{ background: 'rgba(255,255,255,0.02)' }}
-        >
+        <div className="rounded-2xl border border-white/8 overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)' }}>
           <table className="text-xs w-full" style={{ minWidth: '900px' }}>
             <thead>
               <tr className="border-b border-white/5">
@@ -287,6 +443,20 @@ export default function BhxhTab({ employees }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Mark Paid Modal */}
+      {showMarkPaid && (
+        <MarkPaidForm
+          month={month}
+          year={year}
+          suggestedAmount={totalAll}
+          currentUser={currentUser}
+          existing={payment}
+          onSave={p => { setPayment(p); setShowMarkPaid(false); }}
+          onDelete={() => { setPayment(null); setShowMarkPaid(false); }}
+          onClose={() => setShowMarkPaid(false)}
+        />
       )}
     </div>
   );

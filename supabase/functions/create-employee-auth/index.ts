@@ -225,7 +225,34 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Determine user metadata
+    // Check if user already exists using direct DB query
+    const existingUser = await findAuthUserByEmail(supabaseAdmin, email);
+
+    if (existingUser) {
+      // Update metadata for existing user — preserve existing role unless explicitly overridden
+      const mergedMetadata: Record<string, any> = {
+        ...existingUser.user_metadata,
+        username: full_name,
+        full_name,
+        employee_id,
+        // Only overwrite role if caller explicitly provided one
+        ...(role ? { role } : {}),
+      };
+      if (worker_id) mergedMetadata.worker_id = worker_id;
+
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+        existingUser.id,
+        { user_metadata: mergedMetadata }
+      );
+      if (updateErr) throw updateErr;
+
+      return new Response(
+        JSON.stringify({ success: true, invited: false, message: "User already exists, metadata updated" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Determine user metadata for new invite
     const userMetadata: Record<string, any> = {
       username: full_name,
       full_name,
@@ -235,23 +262,6 @@ Deno.serve(async (req: Request) => {
 
     if (worker_id) {
       userMetadata.worker_id = worker_id;
-    }
-
-    // Check if user already exists using direct DB query
-    const existingUser = await findAuthUserByEmail(supabaseAdmin, email);
-
-    if (existingUser) {
-      // Update metadata for existing user
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-        existingUser.id,
-        { user_metadata: { ...existingUser.user_metadata, ...userMetadata } }
-      );
-      if (updateErr) throw updateErr;
-
-      return new Response(
-        JSON.stringify({ success: true, invited: false, message: "User already exists, metadata updated" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     // Invite new user by email

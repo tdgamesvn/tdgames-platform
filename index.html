@@ -43,37 +43,132 @@
             'gradient-hero': 'linear-gradient(180deg, #1A1A1A 0%, #0F0F0F 100%)',
           },
           boxShadow: {
+            /* Buttons */
             'btn-glow': '0 8px 24px rgba(255, 149, 0, 0.4)',
             'btn-glow-hover': '0 12px 32px rgba(255, 149, 0, 0.6)',
+            /* Cards */
             'card-glow': '0 8px 32px rgba(0, 0, 0, 0.4)',
             'card-glow-hover': '0 16px 48px rgba(255, 149, 0, 0.3)',
+            /* Elevation scale */
+            'elevation-sm': '0 2px 8px rgba(0,0,0,0.2)',
+            'elevation-md': '0 4px 24px rgba(0,0,0,0.3)',
+            'elevation-lg': '0 8px 32px rgba(0,0,0,0.4)',
+            'elevation-xl': '0 12px 40px rgba(0,0,0,0.5)',
+            /* Orange glow scale */
+            'glow-sm': '0 4px 16px rgba(255,149,0,0.3)',
+            'glow-md': '0 8px 24px rgba(255,149,0,0.4)',
+            'glow-lg': '0 12px 32px rgba(255,149,0,0.6)',
           }
         }
       }
     }
   </script>
   <style>
+    /* ── Design Tokens ─────────────────────────────────────────────── */
+    :root {
+      /* Colors */
+      --color-primary:      #FF9500;
+      --color-primary-dark: #FF7A00;
+      --color-primary-deep: #E86800;
+      --color-bg:           #0F0F0F;
+      --color-surface:      #1A1A1A;
+      --color-gray-light:   #F2F2F2;
+      --color-gray-medium:  #9D9C9D;
+      --color-gray-dark:    #404040;
+      --color-success:      #4CAF50;
+      --color-error:        #F44336;
+      --color-warning:      #FFA726;
+      --color-info:         #2196F3;
+
+      /* Borders */
+      --border-subtle: 1px solid rgba(242,242,242,0.1);
+      --border-light:  1px solid rgba(255,149,0,0.2);
+      --border-medium: 1px solid rgba(255,149,0,0.4);
+      --border-strong: 2px solid #FF9500;
+
+      /* Border radius */
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 20px;
+      --radius-xl: 24px;
+
+      /* Transitions */
+      --transition-fast:   0.2s ease;
+      --transition-normal: 0.3s ease;
+      --transition-slow:   0.4s ease;
+
+      /* Shadows - elevation */
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+      --shadow-md: 0 4px 24px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+      --shadow-xl: 0 12px 40px rgba(0,0,0,0.5);
+
+      /* Shadows - glow */
+      --glow-sm: 0 4px 16px rgba(255,149,0,0.3);
+      --glow-md: 0 8px 24px rgba(255,149,0,0.4);
+      --glow-lg: 0 12px 32px rgba(255,149,0,0.6);
+
+      /* Spacing */
+      --gap-sm: 16px;
+      --gap-md: 24px;
+      --gap-lg: 40px;
+
+      /* Grid */
+      --container-max: 1400px;
+      --container-form: 800px;
+    }
+
+    /* ── Base ──────────────────────────────────────────────────────── */
     body {
       background-color: #0F0F0F;
       color: #F2F2F2;
       font-family: 'Montserrat', sans-serif;
     }
 
+    /* ── Focus accessibility ───────────────────────────────────────── */
+    :focus-visible {
+      outline: 3px solid #FF9500;
+      outline-offset: 2px;
+    }
+
+    /* ── Screen reader only ────────────────────────────────────────── */
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ── Keyframes ─────────────────────────────────────────────────── */
     @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px)
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0)
-      }
+      from { opacity: 0; transform: translateY(30px) }
+      to   { opacity: 1; transform: translateY(0) }
     }
 
-    .animate-fadeInUp {
-      animation: fadeInUp 0.6s ease-out forwards;
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.9) }
+      to   { opacity: 1; transform: scale(1) }
     }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0) }
+      25%       { transform: translateX(-10px) }
+      75%       { transform: translateX(10px) }
+    }
+
+    @keyframes tdPulse {
+      0%, 100% { opacity: 1 }
+      50%       { opacity: 0.6 }
+    }
+
+    /* ── Animation utilities ───────────────────────────────────────── */
+    .animate-fadeInUp  { animation: fadeInUp 0.6s ease-out forwards; }
+    .animate-scaleIn   { animation: scaleIn  0.4s ease-out forwards; }
+    .animate-shake     { animation: shake    0.4s ease; }
+    .animate-td-pulse  { animation: tdPulse  1.5s ease infinite; }
 
     /* Fix dropdown option text visibility in dark theme */
     select option {
