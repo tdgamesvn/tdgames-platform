@@ -49,7 +49,7 @@ function computeRows(
     .filter(emp => !isProbationaryInMonth(emp, year, month))
     .map(emp => {
       stt++;
-      const base = emp.salary;
+      const base = emp.bhxh_base;
       const empContrib = r(base * formula.bhEmployeeRate);
       const compContrib = r(base * formula.bhCompanyRate);
       // Ghi chú nhân viên mới vào trong tháng

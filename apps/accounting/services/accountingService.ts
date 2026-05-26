@@ -302,7 +302,8 @@ export interface BhxhEmployee {
   employee_code: string;
   full_name: string;
   insurance_number: string;
-  salary: number;
+  /** Lương cơ bản (component 'Lương cơ bản' hiện tại) — đây là mức đóng BHXH */
+  bhxh_base: number;
   status: string;
   probation_end: string | null;
   official_date: string | null;
@@ -313,20 +314,31 @@ export interface BhxhEmployee {
 export async function fetchEmployeesForBhxh(): Promise<BhxhEmployee[]> {
   const { data, error } = await supabase
     .from('hr_employees')
-    .select('id, employee_code, full_name, insurance_number, salary, status, probation_end, official_date, start_date, department:hr_departments!hr_employees_department_id_fkey(name)')
+    .select(`
+      id, employee_code, full_name, insurance_number, status,
+      probation_end, official_date, start_date,
+      department:hr_departments!hr_employees_department_id_fkey(name),
+      salaries:hr_employee_salary(amount, effective_to, component:hr_salary_components(name))
+    `)
     .eq('status', 'active')
     .order('full_name');
   if (error) throw error;
-  return ((data || []) as any[]).map(r => ({
-    id: r.id,
-    employee_code: r.employee_code,
-    full_name: r.full_name,
-    insurance_number: r.insurance_number || '',
-    salary: r.salary || 0,
-    status: r.status,
-    probation_end: r.probation_end,
-    official_date: r.official_date,
-    start_date: r.start_date,
-    department_name: r.department?.name ?? null,
-  }));
+  return ((data || []) as any[]).map(r => {
+    // Lấy component 'Lương cơ bản' hiện tại (effective_to = null)
+    const baseSalaryEntry = (r.salaries || []).find(
+      (s: any) => s.effective_to === null && s.component?.name === 'Lương cơ bản'
+    );
+    return {
+      id: r.id,
+      employee_code: r.employee_code,
+      full_name: r.full_name,
+      insurance_number: r.insurance_number || '',
+      bhxh_base: baseSalaryEntry?.amount || 0,
+      status: r.status,
+      probation_end: r.probation_end,
+      official_date: r.official_date,
+      start_date: r.start_date,
+      department_name: r.department?.name ?? null,
+    };
+  });
 }
