@@ -76,6 +76,29 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState(employee.avatar_url || '');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarLightbox, setAvatarLightbox] = useState(false);
+  const [downloadingAvatar, setDownloadingAvatar] = useState(false);
+
+  const isAdmin = currentUser.role === 'admin';
+
+  const handleDownloadAvatar = async () => {
+    if (!avatarUrl) return;
+    setDownloadingAvatar(true);
+    try {
+      const response = await fetch(toPublicUrl(avatarUrl));
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      const ext = avatarUrl.split('.').pop()?.split('?')[0] || 'jpg';
+      a.download = `avatar-${employee.full_name.replace(/\s+/g, '-')}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch { alert('Tải ảnh thất bại'); }
+    finally { setDownloadingAvatar(false); }
+  };
 
   const handleAvatarUpload = async (file: File) => {
     setUploadingAvatar(true);
@@ -449,7 +472,10 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
               <input type="file" ref={avatarRef} accept=".jpg,.jpeg,.png,.webp" style={{ display: 'none' }} id="avatar-upload"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); }} />
               <div className="relative group w-20 h-20 rounded-[20px] overflow-hidden cursor-pointer flex-shrink-0"
-                onClick={() => avatarRef.current?.click()}>
+                onClick={() => {
+                  if (isAdmin && avatarUrl) { setAvatarLightbox(true); }
+                  else { avatarRef.current?.click(); }
+                }}>
                 {uploadingAvatar ? (
                   <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>
                     <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
@@ -458,7 +484,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                   <>
                     <img src={toPublicUrl(avatarUrl)} alt={employee.full_name} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                      <span className="text-white text-xs font-bold">📷 Đổi ảnh</span>
+                      <span className="text-white text-xs font-bold">{isAdmin ? '🔍 Xem ảnh' : '📷 Đổi ảnh'}</span>
                     </div>
                   </>
                 ) : (
@@ -604,6 +630,44 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
+      )}
+
+      {/* Avatar Lightbox (Admin only) */}
+      {avatarLightbox && avatarUrl && ReactDOM.createPortal(
+        <div
+          style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 99999, background: 'rgba(0,0,0,0.96)', display: 'flex', flexDirection: 'column' }}
+          onClick={() => setAvatarLightbox(false)}>
+          {/* Toolbar */}
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 20px', background: '#111', borderBottom: '1px solid rgba(255,255,255,0.08)', height: '52px', flexShrink: 0 }}>
+            <span style={{ color: '#F5F5F5', fontSize: '14px', fontWeight: 700, flex: 1 }}>
+              👤 {employee.full_name}
+            </span>
+            <button
+              onClick={handleDownloadAvatar}
+              disabled={downloadingAvatar}
+              style={{ padding: '6px 16px', borderRadius: '8px', background: '#FF9500', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: downloadingAvatar ? 'not-allowed' : 'pointer', border: 'none', opacity: downloadingAvatar ? 0.6 : 1, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {downloadingAvatar ? '⏳ Đang tải...' : '⬇️ Tải về máy'}
+            </button>
+            <button
+              onClick={() => setAvatarLightbox(false)}
+              style={{ padding: '6px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)' }}>
+              ✕ Đóng
+            </button>
+          </div>
+          {/* Image area */}
+          <div onClick={e => e.stopPropagation()} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+            <img
+              src={toPublicUrl(avatarUrl)}
+              alt={employee.full_name}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '16px', boxShadow: '0 32px 80px rgba(0,0,0,0.8)' }}
+            />
+          </div>
+          {/* Hint */}
+          <div style={{ textAlign: 'center', padding: '12px', color: 'rgba(255,255,255,0.25)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em' }}>
+            Click bên ngoài để đóng
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* CCCD Preview Modal */}
