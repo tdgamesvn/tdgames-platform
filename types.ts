@@ -104,7 +104,7 @@ export interface ExpenseRecord {
   payment_method: string;
   status: 'pending' | 'approved' | 'paid';
   type?: 'expense' | 'revenue';
-  source_type?: 'payroll' | 'settlement' | 'invoice' | 'manual' | null;
+  source_type?: 'payroll' | 'settlement' | 'invoice' | 'manual' | 'savings' | 'loan' | null;
   source_id?: string | null;
   notes: string;
   receipt_url: string;
@@ -934,6 +934,44 @@ export interface PayPayrollRecord {
 // ══════════════════════════════════════════════════════════
 // ── Leave Balance (Ngày phép) ─────────────────────────────
 // ══════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+// ── Accounting — Savings & Loans ──────────────────────────
+// ══════════════════════════════════════════════════════════
+
+export interface SavingsDeposit {
+  id?: string;
+  bank_name: string;
+  account_number?: string;
+  principal: number;
+  currency: 'VND' | 'USD';
+  interest_rate: number;
+  term_months: number;
+  start_date: string;
+  maturity_date: string;
+  status: 'active' | 'matured' | 'withdrawn' | 'renewed';
+  interest_earned?: number | null;
+  notes?: string;
+  parent_id?: string | null;
+  created_by: string;
+  created_at?: string;
+}
+
+export interface LoanRecord {
+  id?: string;
+  lender_name: string;
+  principal: number;
+  currency: 'VND' | 'USD';
+  interest_rate: number;
+  term_months: number;
+  start_date: string;
+  due_date: string;
+  outstanding: number;
+  status: 'active' | 'paid_off' | 'overdue';
+  notes?: string;
+  created_by: string;
+  created_at?: string;
+}
 
 export interface LeaveBalance {
   id: string;

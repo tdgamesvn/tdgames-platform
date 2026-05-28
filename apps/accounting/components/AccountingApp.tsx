@@ -13,6 +13,8 @@ import BankReconcTab from './BankReconcTab';
 import VatTab from './VatTab';
 import TncnTab from './TncnTab';
 import BhxhTab from './BhxhTab';
+import SavingsTab from './SavingsTab';
+import LoansTab from './LoansTab';
 import HelpPanel from '@/components/HelpPanel';
 import { ACCOUNTING_HELP } from '../helpContent';
 
@@ -31,9 +33,11 @@ const TAB_LABELS: Record<string, string> = {
   vat:      '🧾 VAT',
   tncn:     '💼 TNCN',
   bhxh:     '🛡️ BHXH',
+  savings:  '💰 Tiết kiệm',
+  loans:    '🏧 Vay nợ',
 };
 
-const ACCESSIBLE_TABS = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh'] as const;
+const ACCESSIBLE_TABS = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh', 'savings', 'loans'] as const;
 
 const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const state = useAccountingState(currentUser.username, initialTab);
@@ -163,6 +167,22 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
             )}
             {state.activeTab === 'bhxh' && (
               <BhxhTab employees={state.bhxhEmployees} currentUser={currentUser.username} />
+            )}
+            {state.activeTab === 'savings' && (
+              <SavingsTab
+                savings={state.savings}
+                currentUser={currentUser.username}
+                onReload={state.reload}
+                onToast={showToast}
+              />
+            )}
+            {state.activeTab === 'loans' && (
+              <LoansTab
+                loans={state.loans}
+                currentUser={currentUser.username}
+                onReload={state.reload}
+                onToast={showToast}
+              />
             )}
           </>
         )}
