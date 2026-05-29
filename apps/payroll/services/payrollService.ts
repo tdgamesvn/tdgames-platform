@@ -333,6 +333,7 @@ export async function createPayrollSheet(
       dependents_count: input.dependentsCount,
       is_probation: isProbation,
       probation_ratio: probationRatio,
+      bonus: 0,
       gross_ref: output.grossRef,
       gross_actual: output.grossActual,
       employee_bhxh: output.employeeBhxh,
@@ -377,6 +378,7 @@ export function recalculateRecord(
     probationRatio: rec.probation_ratio ?? (rec.is_probation ? 1 : 0),
   };
   const output = calculatePayroll(input, formula);
+  const bonus = rec.bonus ?? 0;
   return {
     ...rec,
     extra_ot: output.extraOt,
@@ -386,9 +388,9 @@ export function recalculateRecord(
     taxable_income: output.taxableIncome,
     assessable_income: output.assessableIncome,
     pit: output.pit,
-    net_salary: output.netSalary,
+    net_salary: output.netSalary + bonus,
     company_bhxh: output.companyBhxh,
-    total_company_cost: output.totalCompanyCost,
+    total_company_cost: output.totalCompanyCost + bonus,
   };
 }
 
