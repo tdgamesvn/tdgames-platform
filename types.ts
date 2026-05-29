@@ -915,6 +915,8 @@ export interface PayPayrollRecord {
   is_probation: boolean;
   /** Tỷ lệ ngày thử việc trong tháng (0 = full official, 1 = full probation, 0<x<1 = tháng chuyển giao) */
   probation_ratio: number;
+  /** Thưởng KPI nhập tay — cộng thẳng vào net, không tính thuế/BH */
+  bonus: number;
   // OUTPUT
   gross_ref: number;
   gross_actual: number;
