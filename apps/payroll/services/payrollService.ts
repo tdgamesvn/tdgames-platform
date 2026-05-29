@@ -28,6 +28,8 @@ interface PayrollInput {
   isProbation: boolean;
   /** Tỷ lệ ngày thử việc trong tháng. 0 = full official, 1 = full probation, 0<x<1 = transition month (lên chính thức giữa tháng) */
   probationRatio?: number;
+  /** Thưởng KPI nhập tay — tính vào thu nhập chịu thuế TNCN (TT 111/2013) */
+  bonus?: number;
 }
 
 interface PayrollOutput {
@@ -64,20 +66,23 @@ export function calculatePayroll(input: PayrollInput, formula: PayrollFormulaCon
 
   const hourlyRate = input.baseSalary / std / hpd;
   const extraOt = r(hourlyRate * formula.otRateWeekday * input.extraOtHours);
+  const bonusAmount = input.bonus ?? 0;
 
   const grossRef = r(input.baseSalary + input.lunchAllowance + input.transportAllowance
     + input.phoneAllowance + input.clothingAllowance + input.kpiAllowance + input.defaultOt);
 
   // Lương 100% — không phụ thuộc probation/official (per company policy)
+  // Bonus tính vào gross thực tế (cộng toàn bộ, không prorate)
   const grossActual = baseSalaryActual + lunchActual + transportActual
-    + phoneActual + clothingActual + kpiActual + defaultOtActual + extraOt;
+    + phoneActual + clothingActual + kpiActual + defaultOtActual + extraOt + bonusAmount;
 
   // BHXH: chỉ tính trên phần ngày chính thức trong tháng
   const employeeBhxh = r(input.baseSalary * formula.bhEmployeeRate * officialRatio);
   const companyBhxh = r(input.baseSalary * formula.bhCompanyRate * officialRatio);
 
   // Thu nhập chịu thuế (không bao gồm lunch, clothing, OT)
-  const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual;
+  // Bonus (tiền thưởng từ HĐLĐ) tính vào TNCT theo TT 111/2013
+  const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual + bonusAmount;
 
   // PIT phần thử việc: 10% flat trên phần thu nhập tương ứng số ngày probation
   const taxableProbation = r(taxableIncome * probRatio);
@@ -313,6 +318,7 @@ export async function createPayrollSheet(
       dependentsCount: depCountMap[emp.id] || 0,
       isProbation,
       probationRatio,
+      bonus: 0,
     };
 
     const output = calculatePayroll(input, formulaConfig);
@@ -376,9 +382,10 @@ export function recalculateRecord(
     dependentsCount: rec.dependents_count,
     isProbation: rec.is_probation ?? false,
     probationRatio: rec.probation_ratio ?? (rec.is_probation ? 1 : 0),
+    // Bonus tính vào TNCT → PIT tự tăng theo bậc lũy tiến
+    bonus: rec.bonus ?? 0,
   };
   const output = calculatePayroll(input, formula);
-  const bonus = rec.bonus ?? 0;
   return {
     ...rec,
     extra_ot: output.extraOt,
@@ -388,9 +395,9 @@ export function recalculateRecord(
     taxable_income: output.taxableIncome,
     assessable_income: output.assessableIncome,
     pit: output.pit,
-    net_salary: output.netSalary + bonus,
+    net_salary: output.netSalary,
     company_bhxh: output.companyBhxh,
-    total_company_cost: output.totalCompanyCost + bonus,
+    total_company_cost: output.totalCompanyCost,
   };
 }
 
