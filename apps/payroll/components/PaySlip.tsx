@@ -183,6 +183,9 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
                   <Tr2 label="BH nhân viên" value="0 (không đóng – thử việc)" color="#999" />
                   <Tr2 label="Thu nhập chịu thuế" value={fmt(rec.taxable_income)} />
                   <Tr2 label={`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`} value={rec.pit > 0 ? `-${fmt(rec.pit)}` : '0'} color="#d32f2f" />
+                  {(rec.bonus ?? 0) > 0 && (
+                    <Tr2 label="Thưởng KPI" value={`+${fmt(rec.bonus)}`} color="#d97706" />
+                  )}
                 </>
               ) : (
                 <>
@@ -192,6 +195,9 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
                   <Tr2 label={`Giảm trừ NPT (${rec.dependents_count} người)`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="#888" />
                   <Tr2 label="Thu nhập tính thuế" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0'} />
                   <Tr2 label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? `-${fmt(rec.pit)}` : '0'} color={rec.pit > 0 ? '#d32f2f' : '#2e7d32'} />
+                  {(rec.bonus ?? 0) > 0 && (
+                    <Tr2 label="Thưởng KPI" value={`+${fmt(rec.bonus)}`} color="#d97706" />
+                  )}
                 </>
               )}
             </tbody>

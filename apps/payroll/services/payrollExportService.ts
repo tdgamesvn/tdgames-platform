@@ -43,6 +43,7 @@ export function exportPayrollToExcel(
     'Số NPT',
     'Thu nhập tính thuế',
     'Thuế TNCN',
+    'Thưởng KPI',
     'NET thực lĩnh',
     'BH công ty',
     'Chi phí công ty',
@@ -72,6 +73,7 @@ export function exportPayrollToExcel(
       rec.dependents_count,
       rec.assessable_income,
       rec.pit,
+      rec.bonus ?? 0,
       rec.net_salary,
       rec.company_bhxh,
       rec.total_company_cost,
@@ -102,6 +104,7 @@ export function exportPayrollToExcel(
     '',
     sum('assessable_income'),
     sum('pit'),
+    sum('bonus'),
     sum('net_salary'),
     sum('company_bhxh'),
     sum('total_company_cost'),
@@ -133,6 +136,7 @@ export function exportPayrollToExcel(
     { wch: 8 },   // NPT
     { wch: 14 },  // TNTT
     { wch: 14 },  // Thuế
+    { wch: 14 },  // Thưởng KPI
     { wch: 16 },  // Net
     { wch: 14 },  // BH CT
     { wch: 16 },  // CPCT
@@ -213,6 +217,9 @@ export function exportPaySlipToExcel(
     rows.push(['Thuế TNCN (lũy tiến)', '', rec.pit]);
   }
   rows.push([]);
+  if ((rec.bonus ?? 0) > 0) {
+    rows.push(['Thưởng KPI', '', rec.bonus]);
+  }
   rows.push(['NET THỰC LĨNH', '', rec.net_salary]);
   rows.push([]);
   if (rec.is_probation) {

@@ -57,6 +57,7 @@ const PayrollSheet: React.FC<Props> = ({
   const totalBhNv = records.reduce((s, r) => s + r.employee_bhxh, 0);
   const totalPit = records.reduce((s, r) => s + r.pit, 0);
   const totalCompanyCost = records.reduce((s, r) => s + r.total_company_cost, 0);
+  const totalBonus = records.reduce((s, r) => s + (r.bonus ?? 0), 0);
 
   return (
     <div className="min-h-screen bg-bg-dark relative overflow-hidden">
@@ -117,11 +118,12 @@ const PayrollSheet: React.FC<Props> = ({
 
       {/* Summary cards */}
       <div className="max-w-[1400px] mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {[
             { label: 'Tổng Gross thực tế', value: totalGrossActual, color: 'text-white' },
             { label: 'Tổng BH nhân viên', value: totalBhNv, color: 'text-orange-400' },
             { label: 'Tổng thuế TNCN', value: totalPit, color: 'text-red-400' },
+            { label: 'Tổng thưởng KPI', value: totalBonus, color: 'text-yellow-400' },
             { label: 'Tổng Net thực lĩnh', value: totalNet, color: 'text-emerald-400' },
             { label: 'Tổng chi phí công ty', value: totalCompanyCost, color: 'text-blue-400' },
           ].map(card => (
@@ -140,7 +142,7 @@ const PayrollSheet: React.FC<Props> = ({
         ) : (
           <div className="rounded-2xl border border-primary/10 overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,1.2fr] gap-0 bg-black/30 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-neutral-medium border-b border-primary/10">
+            <div className="grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 bg-black/30 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-neutral-medium border-b border-primary/10">
               <span>Nhân viên</span>
               <span className="text-right">Ngày công</span>
               <span className="text-right">Gross TK</span>
@@ -148,6 +150,7 @@ const PayrollSheet: React.FC<Props> = ({
               <span className="text-right">Gross thực</span>
               <span className="text-right">BH NV</span>
               <span className="text-right">Thuế</span>
+              <span className="text-right">Thưởng</span>
               <span className="text-right">Net thực lĩnh</span>
             </div>
 
@@ -161,7 +164,7 @@ const PayrollSheet: React.FC<Props> = ({
                 <div key={rec.id}>
                   {/* Main row */}
                   <div
-                    className="group/row grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer items-center"
+                    className="group/row grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer items-center"
                     onClick={() => setExpandedId(isExpanded ? null : rec.id)}
                   >
                     <div className="flex items-center gap-2">
@@ -228,6 +231,26 @@ const PayrollSheet: React.FC<Props> = ({
                     <span className="text-right text-xs text-white font-bold">{fmt(rec.gross_actual)}</span>
                     <span className="text-right text-xs text-orange-400">{fmt(rec.employee_bhxh)}</span>
                     <span className="text-right text-xs text-red-400">{rec.pit > 0 ? fmt(rec.pit) : '0'}</span>
+
+                    {/* Bonus - editable */}
+                    <div className="text-right" onClick={e => e.stopPropagation()}>
+                      {isDraft && editingCell?.id === rec.id && editingCell?.field === 'bonus' ? (
+                        <input ref={inputRef} type="number" step="1000"
+                          className="w-20 px-1 py-0.5 rounded bg-black/40 border border-yellow-500/40 text-white text-xs text-right outline-none"
+                          value={rec.bonus ?? 0}
+                          onChange={e => handleCellChange(rec, 'bonus', +e.target.value)}
+                          onBlur={() => setEditingCell(null)}
+                        />
+                      ) : (
+                        <span
+                          className={`text-xs ${isDraft ? 'text-yellow-400 cursor-text' : 'text-white'}`}
+                          onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'bonus' })}
+                        >
+                          {(rec.bonus ?? 0) > 0 ? fmt(rec.bonus) : (isDraft ? '+ thêm' : '—')}
+                        </span>
+                      )}
+                    </div>
+
                     <span className="text-right text-sm text-emerald-400 font-black">{fmt(rec.net_salary)}</span>
                   </div>
 
@@ -266,6 +289,9 @@ const PayrollSheet: React.FC<Props> = ({
                               <Row label="BH nhân viên" value="0 (không đóng)" color="text-neutral-medium/50" />
                               <Row label="Thu nhập chịu thuế" value={fmt(rec.taxable_income)} />
                               <Row label={`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`} value={fmt(rec.pit)} color="text-red-400" />
+                              {(rec.bonus ?? 0) > 0 && (
+                                <Row label="Thưởng KPI (nhập tay)" value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
+                              )}
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
                                 <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
                               </div>
@@ -282,6 +308,9 @@ const PayrollSheet: React.FC<Props> = ({
                               <Row label={`Giảm trừ NPT (${rec.dependents_count})`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="text-neutral-medium" />
                               <Row label="TNTT" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0 (âm → 0)'} />
                               <Row label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? fmt(rec.pit) : '0'} color={rec.pit > 0 ? 'text-red-400' : 'text-emerald-400'} />
+                              {(rec.bonus ?? 0) > 0 && (
+                                <Row label="Thưởng KPI (nhập tay)" value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
+                              )}
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
                                 <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
                               </div>
@@ -300,7 +329,7 @@ const PayrollSheet: React.FC<Props> = ({
             })}
 
             {/* Summary row */}
-            <div className="grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 bg-black/40 text-xs font-bold">
+            <div className="grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 bg-black/40 text-xs font-bold">
               <span className="text-neutral-medium uppercase text-[10px] tracking-widest">Tổng cộng</span>
               <span></span>
               <span></span>
@@ -308,6 +337,7 @@ const PayrollSheet: React.FC<Props> = ({
               <span className="text-right text-white">{fmt(totalGrossActual)}</span>
               <span className="text-right text-orange-400">{fmt(totalBhNv)}</span>
               <span className="text-right text-red-400">{fmt(totalPit)}</span>
+              <span className="text-right text-yellow-400">{totalBonus > 0 ? fmt(totalBonus) : '—'}</span>
               <span className="text-right text-emerald-400 font-black text-sm">{fmt(totalNet)}</span>
             </div>
           </div>
