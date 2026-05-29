@@ -1,5 +1,59 @@
 # LOG
 
+## 2026-05-29
+### Task
+Thêm thưởng KPI (bonus) vào Payroll module
+
+### Work Done
+- Tạo DB migration `20260529000000_add_bonus_payroll_records.sql` — thêm cột `bonus numeric NOT NULL DEFAULT 0` vào `pay_payroll_records`
+- Apply migration lên Supabase live DB thành công
+- Thêm `bonus: number` vào `PayPayrollRecord` interface trong `types.ts`
+- Sửa `recalculateRecord()` trong `payrollService.ts`: cộng `bonus` vào `net_salary` và `total_company_cost` sau khi tính 8-step; không ảnh hưởng thuế/BH
+- Thêm `bonus: 0` vào `createPayrollSheet()` khi khởi tạo records mới
+- `PayrollSheet.tsx`: cột "Thưởng" editable (vàng, step 1000), summary card "Tổng thưởng KPI", dòng bonus trong expanded detail panel, cột bonus trong summary row
+- `PaySlip.tsx`: dòng "+Thưởng KPI" (màu amber) hiển thị khi bonus > 0, cả 2 nhánh probation & official
+- `payrollExportService.ts`: thêm cột "Thưởng KPI" vào bảng lương Excel và dòng bonus vào phiếu lương Excel
+
+### Validation
+- `npm run build` thành công ✓ (7.12s, 0 lỗi mới)
+- DB migration applied qua Supabase MCP
+
+### Result
+- Branch `feat/payroll-kpi-bonus` với 4 commits sẵn sàng merge
+- HR có thể nhập thưởng KPI cuối tháng trực tiếp trong bảng lương draft
+- Bonus cộng thẳng vào net lĩnh và chi phí công ty, không tính thuế/BH
+
+### Next Step
+- Merge `feat/payroll-kpi-bonus` vào `main`
+- Deploy lên VPS nếu cần
+
+---
+
+## 2026-05-28
+### Task
+Triển khai module Tiết kiệm & Vay nợ trong app Kế toán
+
+### Work Done
+- Đọc spec `2026-05-28-savings-loans-design.md` — spec đã đầy đủ từ session trước
+- Xác nhận DB tables `acc_savings` + `acc_loans` đã tồn tại với RLS đúng (admin + ke_toan)
+- Xác nhận các file service/component đã được tạo từ session trước (savingsService.ts, loansService.ts, SavingsTab.tsx, LoansTab.tsx)
+- Fix còn lại: wired `SavingsTab` + `LoansTab` vào `AccountingApp.tsx` (render switch + ACCESSIBLE_TABS)
+- Xác nhận `useAccountingState.ts` đã có `savings`/`loans` state và fetch
+- Xác nhận `types.ts` đã có `SavingsDeposit` + `LoanRecord` interfaces
+- `npm run build` thành công (7.37s, 0 TypeScript errors)
+- Commit 88ed9c4, pushed origin/main ✅
+
+### Validation
+- `npm run build` ✅
+- RLS policies trên `acc_savings` + `acc_loans`: SELECT/INSERT/UPDATE/DELETE đều require `admin` hoặc `ke_toan` ✅
+- INSERT có đúng `WITH CHECK` clause ✅
+
+### Result
+- App Kế toán có 2 tab mới: 💰 Tiết kiệm + 🏧 Vay nợ
+- Tiết kiệm: thêm/tất toán/tái tục, warning đáo hạn ≤30 ngày + quá hạn, 4 KPI cards, bảng chi tiết
+- Vay nợ: thêm/trả nợ/tất toán, warning quá hạn, 4 KPI cards, bảng chi tiết
+- Mọi action tự tạo bản ghi trong `expense_expenses` → CashFlow tự động cập nhật
+
 ## 2026-05-26
 ### Task
 Thêm tab BHXH vào app Kế toán – bảng kê nộp BHXH độc lập với bảng lương

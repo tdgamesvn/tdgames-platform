@@ -1,10 +1,14 @@
 # TASKS
 
-_Cập nhật: 2026-05-21_
+_Cập nhật: 2026-05-28_
 
 ---
 
 ## To Do
+
+- [x] Build Accounting — Tiết kiệm & Vay nợ (2 tabs mới)
+  - Done: 2026-05-28
+  - Result: SavingsTab (add/settle/renew + warning 30 ngày), LoansTab (add/repay/pay-off + overdue warning), CashFlow integration qua expense_expenses, DB acc_savings + acc_loans đã có RLS. Commit 88ed9c4 ✅
 
 - [x] Fix Company app UI/UX theo Style Guide
   - Done: 2026-05-21
@@ -31,6 +35,15 @@ _Cập nhật: 2026-05-21_
 ## Doing
 
 _(trống — không có task đang chạy)_
+
+---
+
+## Recently Completed
+
+- [x] Thêm thưởng KPI vào Payroll (bonus field)
+  - Done: 2026-05-29
+  - Branch: feat/payroll-kpi-bonus (4 commits: db, types, service, UI+export)
+  - Result: DB migration applied; bonus editable per nhân viên trong draft; cộng thẳng vào net+company cost; hiển thị trong PaySlip và Excel export. Build ✅
 
 ---
 
