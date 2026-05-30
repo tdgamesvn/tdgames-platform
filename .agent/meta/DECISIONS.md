@@ -44,6 +44,36 @@ Impact:
 
 ---
 
+## 2026-05-29 — Bonus KPI tính vào thu nhập chịu thuế TNCN
+Decision:
+- Trường `bonus` trong `pay_payroll_records` được đưa vào `taxableIncome` và `grossActual` bên trong `calculatePayroll()`, không cộng thủ công sau thuế.
+
+Reason:
+- Tiền thưởng từ HĐLĐ chịu thuế TNCN theo TT 111/2013/TT-BTC Điều 2.
+- Cộng sau thuế là sai luật; PIT phải tăng theo lũy tiến khi có bonus.
+
+Impact:
+- `PayrollInput` có thêm `bonus?: number`
+- `taxableIncome = CB_thực + xăng + ĐT + KPI + bonus`
+- `grossActual` bao gồm bonus (không prorate — lump sum cuối tháng)
+- Thử việc: bonus split theo `probationRatio` → phần probation 10% flat, phần official lũy tiến
+
+---
+
+## 2026-05-29 — Phụ cấp KPI cố định vs Thưởng KPI biến động
+Decision:
+- `kpi_allowance`: phụ cấp năng suất **cố định hàng tháng**, cấu hình trong HR salary components, được prorate theo ngày công.
+- `bonus`: thưởng KPI **nhập tay cuối tháng**, không prorate, HR nhập trực tiếp trên bảng lương Draft.
+- Cả hai đều chịu thuế TNCN.
+
+Reason:
+- Hai khoản có bản chất khác nhau (fixed vs discretionary), tách biệt để rõ ràng khi quyết toán.
+
+Impact:
+- Đừng nhầm `kpi_allowance` (prorated) với `bonus` (fixed lump sum) khi debug payroll.
+
+---
+
 ## 2026-05-14 — Use a dedicated Telegram inbox mapping for tdgames-platforms
 Decision:
 - Attach a project-specific Telegram inbox configuration to `tdgames-platforms`, but keep file intake manual and operator-triggered.

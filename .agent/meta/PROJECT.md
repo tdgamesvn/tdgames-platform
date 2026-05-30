@@ -1,6 +1,6 @@
 # PROJECT.md — tdgames-platforms
 
-_Cập nhật: 2026-05-14_
+_Cập nhật: 2026-05-29_
 
 ---
 
@@ -278,6 +278,56 @@ Migrations gần đây nhất:
 | Bundle size ~1.7MB | Medium | Có thể tách code-split sau |
 | 6 npm vulnerabilities | Low | Chưa cần xử lý ngay |
 | `freelancer` role trong `ProfileCompletionScreen` | Fixed | Đã được thêm vào VALID_ROLES trong App.tsx |
+
+---
+
+## Domain Knowledge — Payroll
+
+### Công thức tính lương (8 bước) — `calculatePayroll()` trong `payrollService.ts`
+
+```
+1. ratio = workDays / standardWorkDays (thường 22)
+2. grossActual = (tất cả khoản × ratio) + extraOT + bonus
+   grossRef    = tổng khoản full tháng (không prorate, không bonus)
+3. BHXH NV = baseSalary × 10.5% × officialRatio (probation: không đóng)
+   BHXH CT = baseSalary × 21.5% × officialRatio
+4. taxableIncome = (CB + xăng + ĐT + KPI + bonus) × ratio
+   KHÔNG chịu thuế: ăn trưa, trang phục, tăng ca
+5. Probation split (probationRatio 0-1):
+   - taxableProbation = taxableIncome × probationRatio → PIT 10% flat
+   - taxableOfficial  = taxableIncome × officialRatio → PIT lũy tiến
+6. assessable = taxableOfficial - BHXH - 15.5M (bản thân) - 6.2M×NPT
+7. PIT lũy tiến theo bậc (Thông tư 111/2013)
+8. netSalary = grossActual - BHXH_NV - PIT
+   totalCompanyCost = grossActual + BHXH_CT
+```
+
+**Key rules:**
+- `bonus` (thưởng KPI nhập tay) → tính vào TNCT, KHÔNG prorate
+- `kpi_allowance` (phụ cấp KPI cố định từ HR) → tính vào TNCT, CÓ prorate
+- OT phát sinh (`extra_ot_hours`) → tính vào gross, KHÔNG chịu thuế
+- Bảng lương: Draft → Confirmed (lock + sync expense) → Paid
+
+### Các bảng DB chính của Payroll
+
+| Bảng | Vai trò |
+|------|---------|
+| `pay_payroll_sheets` | Bảng lương theo tháng (month, year, status) |
+| `pay_payroll_records` | Từng dòng nhân viên trong sheet |
+| `pay_payroll_formula_settings` | Thông số công thức (thuế, BH, ngày chuẩn) |
+| `hr_employee_salary` | Khoản lương từng NV (linked qua `hr_salary_components.name`) |
+| `att_monthly_records` | Ngày công + OT → pull vào khi tạo bảng lương |
+
+### Salary components name mapping (SALARY_NAME_MAP)
+```
+'Lương cơ bản'          → base_salary
+'Phụ cấp ăn trưa'       → lunch_allowance   (không chịu thuế)
+'Phụ cấp xăng xe'       → transport_allowance
+'Phụ cấp điện thoại'    → phone_allowance
+'Phụ cấp trang phục'    → clothing_allowance (không chịu thuế)
+'Phụ cấp năng suất (KPI)' → kpi_allowance
+'Tăng ca'               → default_ot        (không chịu thuế)
+```
 
 ---
 
