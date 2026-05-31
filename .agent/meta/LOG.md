@@ -1,5 +1,105 @@
 # LOG
 
+## 2026-06-01
+### Task
+Outreach Phase A — Hiring Signal Discovery Pipeline
+
+### Work Done
+- DB migration: thêm `trigger_source` (default 'generic') + `lead_score` (0-100) vào `crm_outreach_leads`
+- VPS: tạo `services/hiring_signals.py` — Google CSE parser v3, tự clean tên platform (LinkedIn, Indeed) khỏi company name
+- VPS: tạo `cron_hiring_signals.py` — daily cron 07:00 ICT, insert leads với trigger_source='hiring_signal', Discord notification
+- VPS: đăng ký cron `/etc/cron.d/td-mailer-automation` (0 0 * * *)
+- Frontend `types.ts`: thêm `trigger_source` + `lead_score` vào `CrmOutreachLead`
+- Frontend `outreachService.ts`: thêm filter `trigger_source`, sort by `lead_score DESC`
+- Frontend `EmailOutreach.tsx`: badge "🔎 Hiring" + score, filter dropdown "Hiring Signal / Generic"
+- Migration file: `supabase/migrations/20260531000000_add_trigger_source_score.sql`
+- Branch: `feat/outreach-hiring-signals-phase-a`
+
+### Validation
+- `npm run build` ✅ no errors
+- Dry run: 18 unique studios found từ Google CSE
+- Real run: 17 leads inserted với trigger_source='hiring_signal'
+- Discord nhận notification với danh sách studios
+
+### Result
+- Pipeline từ: Apollo random discovery
+- Pipeline thành: Hiring signal leads (studios ĐANG tuyển art roles) + generic leads song song
+- Leads sorting: hiring signal (score 55-85) lên trên, generic (30-50) xuống dưới
+- Giai đoạn B (template personalization): làm sau khi A vận hành 1-2 tuần
+
+## 2026-05-31
+### Task
+Thêm Discord notifications chi tiết cho toàn bộ outreach pipeline
+
+### Work Done
+**VPS (live ngay):**
+- Tạo `/opt/td-mailer-api/services/discord.py` — shared Discord helper (3 functions: notify_batch_done, notify_followup_done, notify_discovery_done)
+- Patch `routes/email.py` — thêm Discord sau khi `_run_batch` hoàn thành (danh sách ai được gửi, success/fail)
+- Patch `cron_followup.py` — thêm Discord sau mỗi lần chạy FU1/FU2 (danh sách recipients)
+- Restart `td-mailer-api` service, test Discord helper → OK
+
+**Supabase Edge Function:**
+- Update `outreach-auto-discovery` v4 — Discord message giờ kèm danh sách contacts tìm được (max 15), inline/non-inline tự động theo độ dài, truncate 1024 chars
+- Cũng thêm error Discord khi FastAPI không reach được hoặc trả lỗi
+
+### Validation
+- `python3 -c "from services.discord import notify_followup_done; notify_followup_done([], [])"` → Discord received ✅
+- `systemctl is-active td-mailer-api` → active ✅
+- Edge Function deploy → ACTIVE version 4 ✅
+
+### Result
+Discord channels sẽ nhận:
+- 📧 **Batch email done** (khi initial_outreach batch xong): danh sách người nhận + status
+- 📨 **Follow-up cron** (10:00 ICT mỗi ngày): danh sách FU1/FU2 đã gửi
+- 🔍 **Auto Discovery** (02:00 UTC): danh sách contacts tìm được theo country
+
+## 2026-05-30 (session 2)
+### Task
+Debug tại sao auto discovery tìm được 0 contacts + fix Apollo API deprecated endpoint
+
+### Work Done
+- Phân tích trạng thái toàn bộ outreach pipeline qua Supabase DB và VPS
+- Tìm ra `cron_followup.py` hoạt động đúng (gửi FU2 mỗi ngày theo 7-day delay)
+- Xác nhận `daily-send` hết pending leads là ĐÚNG behavior (không phải bug)
+- Tìm root cause: Apollo deprecated `mixed_people/search` → 422 error → 0 contacts/ngày
+- Fix: đổi sang `mixed_people/api_search` trong `/opt/td-mailer-api/services/apollo.py`
+- Backup: `apollo.py.bak-20260530`
+- Restart `td-mailer-api` service
+- Verify: EA test trả về 5 contacts đúng (Art Director, Executive Art Director + email thật)
+
+### Validation
+- `curl localhost:8401/api/leads/discover` → 5 contacts found for EA ✅
+- `systemctl status td-mailer-api` → active (running) ✅
+
+### Result
+- Discovery pipeline hoạt động trở lại — cron 08:00 ICT sẽ tìm được contacts mới
+- 138 leads ở `followup1_sent` đang được xử lý đúng bởi `cron_followup.py`
+- Không cần thay đổi gì ở Supabase hay frontend
+
+## 2026-05-30 (session 1)
+### Task
+Debug và fix các bug trong CRM Outreach flow (studio search, email sending)
+
+### Work Done
+- Đọc và trace toàn bộ luồng outreach: `outreachApi.ts` → `outreachService.ts` → `EmailOutreach.tsx` → `AutoTab.tsx`
+- Phát hiện 5 bugs qua systematic code review
+
+**Bug fixes:**
+1. **[CRITICAL] types.ts** — Thêm `'invalid_email'` vào union type `CrmOutreachLead.outreach_status` (thiếu khiến TypeScript lỗi ở nhiều chỗ)
+2. **[CRITICAL] EmailOutreach.tsx line 1492** — Batch results "Add" button gọi `handleAddToLeads(c, r.company)` truyền tên công ty vào `emailOverride` thay vì email thật. Fix: `handleAddToLeads(c, c.email, r.company)`
+3. **[MODERATE] EmailOutreach.tsx** — `loadAll` catch block nuốt lỗi im lặng (`catch { }`). Fix: log ra console với context
+4. **[MODERATE] EmailOutreach.tsx** — Analytics tab không check `r.ok` trước khi `.json()` → có thể crash khi API trả 500. Fix: thêm ok-guard
+5. **[MINOR] AutoTab.tsx** — 4 handlers (`handleToggleDiscovery`, `handleSaveDiscovery`, `handleToggleBatch`, `handleSaveBatch`) dùng `.update().eq()` thay vì `.upsert()` → nếu row chưa tồn tại thì không ghi được. Cả 4 đều thiếu try/catch khiến `setSaving(false)` không bao giờ được gọi khi lỗi. Fix: chuyển sang `.upsert({onConflict: 'key'})` + wrap try/catch/finally
+
+### Validation
+- `npm run build` thành công (7.07s) — không có errors, chỉ warnings chunk size cũ
+
+### Result
+- Luồng studio search và contact discovery: hoạt động đúng (không có bug logic)
+- Email sending (single + bulk): hoạt động đúng
+- Batch results "Add" button: **đã fix** — trước đây tạo lead với email = tên công ty
+- AutoTab save/toggle: **đã fix** — bây giờ upsert đúng + không bị stuck loading state khi lỗi
+
 ## 2026-05-29
 ### Task
 Thêm thưởng KPI (bonus) vào Payroll module

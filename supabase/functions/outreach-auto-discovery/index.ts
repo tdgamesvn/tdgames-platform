@@ -9,11 +9,11 @@ async function discordReport(ok: boolean, data: Record<string, unknown>, err?: s
   const vnTime = new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
 
   const fields = ok
-    ? Object.entries(data).map(([k, v]) => ({
-        name: k,
-        value: String(v ?? "—"),
-        inline: true,
-      }))
+    ? Object.entries(data).map(([k, v]) => {
+        const val = String(v ?? "—");
+        const isLong = val.includes("\n") || val.length > 60;
+        return { name: k, value: val.slice(0, 1024), inline: !isLong };
+      })
     : [{ name: "Error", value: err || "Unknown", inline: false }];
 
   await fetch(DISCORD_WEBHOOK, {
@@ -261,17 +261,33 @@ Deno.serve(async (req: Request) => {
     updated_at: new Date().toISOString(),
   }).eq("key", "auto_discovery");
 
+  // Build contact list for Discord (max 15)
+  const contactLines = (result.leads_to_add ?? []).slice(0, 15).map((c: any) => {
+    const tier = c.tier === 1 ? "⭐T1" : c.tier === 2 ? "★T2" : "☆T3";
+    const name = c.name || "—";
+    const studio = c.company || "";
+    const email = c.email || "?";
+    return `${tier} **${name}** (${studio}) → \`${email}\``;
+  });
+  if ((result.leads_to_add ?? []).length > 15) {
+    contactLines.push(`_...và ${result.leads_to_add.length - 15} contacts khác_`);
+  }
+
   const summary = {
     "🌏 Country": resolvedCountry,
     "📄 Page": String(resolvedPage),
     "🏢 Studios tìm": String(result.studios_searched),
     "⏭ Studios bỏ qua": String(result.studios_skipped),
     "👤 Contacts thêm": String(result.contacts_found),
-    "🔄 Country exhausted": result.country_exhausted ? "Có → chuyển nước" : "Không",
-    "➡ Next": result.country_exhausted
-      ? `${countries[(newIdx) % countries.length]} (page 1)`
+    "🔄 Next": result.country_exhausted
+      ? `${countries[(newIdx) % countries.length]} (page 1) — đổi nước`
       : `${resolvedCountry} (page ${newPage})`,
   };
+  if (contactLines.length > 0) {
+    (summary as any)["📋 Danh sách contacts"] = contactLines.join("\n");
+  } else {
+    (summary as any)["📋 Danh sách contacts"] = "_(Không tìm thấy contact nào)_";
+  }
   await discordReport(true, summary);
 
   return new Response(JSON.stringify({

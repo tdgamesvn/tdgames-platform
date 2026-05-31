@@ -158,20 +158,29 @@ export const AutoTab: React.FC = () => {
   const handleToggleDiscovery = async () => {
     const { supabase } = await import('@/services/supabaseClient');
     const next = { ...discoveryCfg, enabled: !discoveryCfg.enabled };
-    await supabase.from('crm_outreach_config')
-      .update({ value: next, updated_at: new Date().toISOString() })
-      .eq('key', 'auto_discovery');
-    setDiscoveryCfg(next);
+    try {
+      const { error } = await supabase.from('crm_outreach_config')
+        .upsert({ key: 'auto_discovery', value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+      setDiscoveryCfg(next);
+    } catch (err: any) {
+      alert(`Lỗi lưu cấu hình: ${err.message}`);
+    }
   };
 
   const handleSaveDiscovery = async () => {
     setSavingDiscovery(true);
-    const { supabase } = await import('@/services/supabaseClient');
-    await supabase.from('crm_outreach_config')
-      .update({ value: discoveryCfg, updated_at: new Date().toISOString() })
-      .eq('key', 'auto_discovery');
-    setSavingDiscovery(false);
-    alert('✅ Đã lưu cấu hình Auto Discovery!');
+    try {
+      const { supabase } = await import('@/services/supabaseClient');
+      const { error } = await supabase.from('crm_outreach_config')
+        .upsert({ key: 'auto_discovery', value: discoveryCfg, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+      alert('✅ Đã lưu cấu hình Auto Discovery!');
+    } catch (err: any) {
+      alert(`Lỗi lưu cấu hình: ${err.message}`);
+    } finally {
+      setSavingDiscovery(false);
+    }
   };
 
   const handleRunDiscovery = async () => {
@@ -218,23 +227,32 @@ export const AutoTab: React.FC = () => {
   // ── Batch handlers ──
   const handleToggleBatch = async () => {
     if (!batchCfg) return;
-    const { supabase } = await import('@/services/supabaseClient');
     const next = { ...batchCfg, enabled: !batchCfg.enabled };
-    await supabase.from('crm_outreach_config')
-      .update({ value: next, updated_at: new Date().toISOString() })
-      .eq('key', 'auto_batch');
-    setBatchCfg(next);
+    try {
+      const { supabase } = await import('@/services/supabaseClient');
+      const { error } = await supabase.from('crm_outreach_config')
+        .upsert({ key: 'auto_batch', value: next, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+      setBatchCfg(next);
+    } catch (err: any) {
+      alert(`Lỗi lưu cấu hình: ${err.message}`);
+    }
   };
 
   const handleSaveBatch = async () => {
     if (!batchCfg) return;
     setSavingBatch(true);
-    const { supabase } = await import('@/services/supabaseClient');
-    await supabase.from('crm_outreach_config')
-      .update({ value: batchCfg, updated_at: new Date().toISOString() })
-      .eq('key', 'auto_batch');
-    setSavingBatch(false);
-    alert('✅ Đã lưu cấu hình!');
+    try {
+      const { supabase } = await import('@/services/supabaseClient');
+      const { error } = await supabase.from('crm_outreach_config')
+        .upsert({ key: 'auto_batch', value: batchCfg, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+      alert('✅ Đã lưu cấu hình!');
+    } catch (err: any) {
+      alert(`Lỗi lưu cấu hình: ${err.message}`);
+    } finally {
+      setSavingBatch(false);
+    }
   };
 
   const handleRunBatch = async () => {
