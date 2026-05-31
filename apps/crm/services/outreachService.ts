@@ -8,16 +8,19 @@ import { outreachRequest } from './outreachApi';
 
 export async function fetchLeads(filters?: {
   status?: string; tier?: number; source?: string; search?: string;
+  trigger_source?: string;
 }): Promise<CrmOutreachLead[]> {
   let q = supabase
     .from('crm_outreach_leads')
     .select('*')
+    .order('lead_score', { ascending: false })  // hiring signal leads (score 55–85) lên trước
     .order('tier')
     .order('created_at', { ascending: false });
 
   if (filters?.status) q = q.eq('outreach_status', filters.status);
   if (filters?.tier) q = q.eq('tier', filters.tier);
   if (filters?.source) q = q.eq('source', filters.source);
+  if (filters?.trigger_source) q = q.eq('trigger_source', filters.trigger_source);
   if (filters?.search) {
     // Escape PostgREST `.or()` filter chars: , () % * — nếu không user gõ "(" hoặc ","
     // sẽ làm broken query hoặc inject thêm clause.

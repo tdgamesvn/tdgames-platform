@@ -55,18 +55,21 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
   const [searchQ, setSearchQ] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTier, setFilterTier] = useState<number | ''>('');
+  const [filterTrigger, setFilterTrigger] = useState('');
 
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     try {
       const [l, t, s] = await Promise.all([
-        svc.fetchLeads({ search: searchQ || undefined, status: filterStatus || undefined, tier: filterTier || undefined }),
+        svc.fetchLeads({ search: searchQ || undefined, status: filterStatus || undefined, tier: filterTier || undefined, trigger_source: filterTrigger || undefined }),
         svc.fetchTemplates(),
         svc.getPipelineStats(),
       ]);
       setLeads(l); setTemplates(t); setStats(s);
-    } catch { } finally { setIsLoading(false); }
-  }, [searchQ, filterStatus, filterTier]);
+    } catch (err: any) {
+      console.error('[Outreach] loadAll failed:', err);
+    } finally { setIsLoading(false); }
+  }, [searchQ, filterStatus, filterTier, filterTrigger]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -114,6 +117,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
             searchQ={searchQ} setSearchQ={setSearchQ}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTier={filterTier} setFilterTier={setFilterTier}
+            filterTrigger={filterTrigger} setFilterTrigger={setFilterTrigger}
             onRefresh={loadAll}
           />
         )}
@@ -291,10 +295,11 @@ interface LeadsProps {
   searchQ: string; setSearchQ: (v: string) => void;
   filterStatus: string; setFilterStatus: (v: string) => void;
   filterTier: number | ''; setFilterTier: (v: number | '') => void;
+  filterTrigger: string; setFilterTrigger: (v: string) => void;
   onRefresh: () => void;
 }
 
-const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, onRefresh }) => {
+const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh }) => {
   const [showImport, setShowImport] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ studio_name: '', contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
@@ -614,6 +619,11 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
           <option value="">Tất cả tier</option>
           {[1, 2, 3].map(t => <option key={t} value={t}>{TIER_CFG[t].icon} Tier {t}</option>)}
         </select>
+        <select style={{ ...inputStyle, width: '150px' }} value={filterTrigger} onChange={e => setFilterTrigger(e.target.value)}>
+          <option value="">Tất cả nguồn</option>
+          <option value="hiring_signal">🔎 Hiring Signal</option>
+          <option value="generic">Generic</option>
+        </select>
         <button onClick={() => setShowImport(!showImport)} style={{
           padding: '10px 16px', border: 'none', borderRadius: '8px', background: '#0A84FF',
           color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
@@ -745,7 +755,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #333' }}>
-                {['Tier', 'Contact', 'Email', 'Studio', 'Chức vụ', 'Trạng thái', 'Nguồn', 'Actions'].map((h, i) => (
+                {['Tier', 'Signal', 'Contact', 'Email', 'Studio', 'Chức vụ', 'Trạng thái', 'Actions'].map((h, i) => (
                   <th key={i} style={{ padding: '10px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -760,6 +770,14 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
                     <td style={{ padding: '10px' }}>
                       <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: tc.color + '15', color: tc.color }}>{tc.icon} {tc.label}</span>
+                    </td>
+                    <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
+                      {lead.trigger_source === 'hiring_signal' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', background: 'rgba(255,149,0,0.15)', color: '#FF9500' }}>🔎 Hiring</span>
+                          <span style={{ fontSize: '10px', color: '#FF9500', fontWeight: 700 }}>{lead.lead_score ?? 55}pts</span>
+                        </div>
+                      ) : <span style={{ fontSize: '10px', color: '#333' }}>—</span>}
                     </td>
                     <td style={{ padding: '10px' }}>
                       <div style={{ fontWeight: 600, color: '#F5F5F5' }}>{lead.contact_name || '—'}</div>
@@ -1489,7 +1507,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
                               {zbBadge(c)}
                             </td>
                             <td style={{ padding: '6px 8px', width: '60px' }}>
-                              <button onClick={() => handleAddToLeads(c, r.company)} style={{
+                              <button onClick={() => handleAddToLeads(c, c.email, r.company)} style={{
                                 padding: '3px 8px', border: 'none', borderRadius: '4px',
                                 background: isInvalid ? '#FF453A20' : '#34C75920',
                                 color: isInvalid ? '#FF453A' : '#34C759',
@@ -1788,7 +1806,10 @@ const AnalyticsTab: React.FC = () => {
 
   useEffect(() => {
     outreachRequest('/api/email/analytics')
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`Analytics API lỗi: ${r.status}`);
+        return r.json();
+      })
       .then(d => { setData(d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
   }, []);

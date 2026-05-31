@@ -347,12 +347,14 @@ export interface CrmOutreachLead {
   job_title: string;
   linkedin_url: string;
   tier: number; // 1=Art Director, 2=Producer, 3=CEO
-  outreach_status: 'pending' | 'initial_sent' | 'followup1_sent' | 'followup2_sent' | 'replied' | 'bounced' | 'unsubscribed';
+  outreach_status: 'pending' | 'initial_sent' | 'followup1_sent' | 'followup2_sent' | 'replied' | 'bounced' | 'invalid_email' | 'unsubscribed';
   initial_sent_at: string | null;
   followup1_sent_at: string | null;
   followup2_sent_at: string | null;
   replied_at: string | null;
   source: string;
+  trigger_source: 'generic' | 'hiring_signal' | 'funded' | 'csv_import' | 'crm_import' | 'discovery' | 'batch_discovery' | 'manual';
+  lead_score: number; // 0–100, hiring_signal T1=85 T2=70 T3=55, generic T1=50 T2=40 T3=30
   tags: string[];
   notes: string;
   created_at: string;
