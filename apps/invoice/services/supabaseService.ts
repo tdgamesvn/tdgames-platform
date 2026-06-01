@@ -25,6 +25,8 @@ export const fetchClientsFromCloud = async (): Promise<ClientRecord[]> => {
         email: c.email || '',
         address: c.address || '',
         taxCode: c.tax_code || '',
+        defaultPoNumber: c.default_po_number || '',
+        defaultServiceLocation: c.default_service_location || '',
     }));
 };
 
@@ -38,6 +40,8 @@ export const saveClientToCloud = async (client: ClientInfo): Promise<ClientRecor
             email: client.email,
             address: client.address,
             tax_code: client.taxCode || '',
+            default_po_number: client.defaultPoNumber || '',
+            default_service_location: client.defaultServiceLocation || '',
             status: 'active',
             updated_at: new Date().toISOString(),
         })
@@ -57,6 +61,8 @@ export const updateClientInCloud = async (id: string, client: ClientInfo): Promi
             email: client.email,
             address: client.address,
             tax_code: client.taxCode || '',
+            default_po_number: client.defaultPoNumber || '',
+            default_service_location: client.defaultServiceLocation || '',
             updated_at: new Date().toISOString(),
         })
         .eq('id', id);

@@ -453,6 +453,8 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
               <div className="md:col-span-2">
                 <TextArea label="Billing Address" value={invoice.clientInfo.address} onChange={(e) => updateInvoice('clientInfo.address', e.target.value)} />
               </div>
+              <Input label="PO Number mặc định (lưu theo khách)" value={invoice.clientInfo.defaultPoNumber || ''} onChange={(e) => { updateInvoice('clientInfo.defaultPoNumber', e.target.value); updateInvoice('poNumber', e.target.value); }} placeholder="e.g. 10575-O3" />
+              <Input label="Service Location mặc định (lưu theo khách)" value={invoice.clientInfo.defaultServiceLocation || ''} onChange={(e) => { updateInvoice('clientInfo.defaultServiceLocation', e.target.value); updateInvoice('serviceLocation', e.target.value); }} placeholder="e.g. Services were performed at Hanoi, Vietnam." />
             </div>
           </div>
 

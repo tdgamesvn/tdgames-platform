@@ -256,6 +256,8 @@ export function useInvoiceState(initialTab?: string | null) {
     if (!c) return;
     const { id: _id, ...info } = c;
     updateInvoice('clientInfo', info);
+    if (c.defaultPoNumber) updateInvoice('poNumber', c.defaultPoNumber);
+    if (c.defaultServiceLocation) updateInvoice('serviceLocation', c.defaultServiceLocation);
   };
 
   // ── Invoice CRUD ──

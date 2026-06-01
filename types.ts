@@ -24,6 +24,8 @@ export interface ClientInfo {
   contactPerson: string;
   email: string;
   taxCode?: string;
+  defaultPoNumber?: string;
+  defaultServiceLocation?: string;
 }
 
 /** A client saved in NocoDB */
