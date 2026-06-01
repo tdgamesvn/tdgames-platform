@@ -48,7 +48,7 @@ export const exportToPDF = async (elementId: string, fileName: string) => {
   // Use scrollHeight to get the complete height including content below viewport
   const heightPx = Math.max(element.scrollHeight, element.offsetHeight);
   // Convert pixels to mm (96dpi screen: 1mm = 96/25.4 ≈ 3.7795px)
-  const heightMm = Math.ceil(heightPx / 3.7795) + 10; // +10mm buffer để bù sai số screen→print DPI
+  const heightMm = Math.ceil(heightPx / 3.7795) + 25; // +25mm buffer để bù sai số screen→print DPI
 
   // Inject a dynamic @page style that matches the invoice size exactly
   const styleId = '__pdf_page_size_override__';
