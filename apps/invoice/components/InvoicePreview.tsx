@@ -28,11 +28,11 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
   };
 
   const themeStyles = {
-    container: isDark ? 'bg-[#0F0F0F] text-[#F2F2F2]' : 'bg-[#FDFDFD] text-[#1A202C]',
-    border: isDark ? 'border-[#333333]' : 'border-[#E2E8F0]',
-    muted: isDark ? 'text-[#9D9C9D]' : 'text-[#4A5568]',
+    container: isDark ? 'bg-[#1A1A1A] text-[#F2F2F2]' : 'bg-[#FDFDFD] text-[#1A202C]',
+    border: isDark ? 'border-[#3A3A3A]' : 'border-[#E2E8F0]',
+    muted: isDark ? 'text-[#A0A0A0]' : 'text-[#4A5568]',
     accent: 'text-[#FF9500]',
-    card: isDark ? 'bg-[#1A1A1A] border-[#333333]' : 'bg-white border-[#FF9500]/10 shadow-sm',
+    card: isDark ? 'bg-[#242424] border-[#3A3A3A]' : 'bg-white border-[#FF9500]/10 shadow-sm',
     tableText: isDark ? 'text-[#F2F2F2]' : 'text-[#1A202C]',
     summaryRow: isDark ? 'bg-white/5' : 'bg-white shadow-sm border border-[#FF9500]/10',
   };
