@@ -241,7 +241,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
         <div>
           <p className={`${themeStyles.muted} text-[10px] font-black uppercase tracking-[0.4em]`}>Thank you for your business!</p>
           {data.serviceLocation && (
-            <p className={`${themeStyles.muted} text-[10px] mt-1 italic opacity-70`}>{data.serviceLocation}</p>
+            <p className={`${themeStyles.muted} text-[12px] mt-1 italic opacity-80`}>{data.serviceLocation}</p>
           )}
         </div>
         <div className="text-right">
