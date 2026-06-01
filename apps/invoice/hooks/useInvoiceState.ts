@@ -109,7 +109,9 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Effects ──
   useEffect(() => {
-    bankMgr.loadBanks(activeTab === 'edit');
+    const shouldAutoApplyBank = activeTab === 'edit' && !skipBankAutoApplyRef.current;
+    skipBankAutoApplyRef.current = false;
+    bankMgr.loadBanks(shouldAutoApplyBank);
     loadClients();
     studioMgr.loadStudios().then(data => {
       if (activeTab === 'edit') {
@@ -125,6 +127,7 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Realtime Subscription (P3-1) ──
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const skipBankAutoApplyRef = useRef(false);
 
   useEffect(() => {
     if (!currentUser) {
@@ -345,6 +348,7 @@ export function useInvoiceState(initialTab?: string | null) {
   };
 
   const loadFromHistory = (item: InvoiceData) => {
+    skipBankAutoApplyRef.current = true;
     setInvoice(item);
     setActiveTab('edit');
     window.scrollTo({ top: 0, behavior: 'smooth' });
