@@ -73,7 +73,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
             <p className="font-bold text-sm text-[#FF9500] uppercase mb-0.5 tracking-wide">{data.studioInfo.name}</p>
             <p className="max-w-[300px] leading-relaxed">{data.studioInfo.address}</p>
             <p className="font-bold underline decoration-[#FF9500]/40">{data.studioInfo.email}</p>
-            <p className="pt-0.5 font-bold">MST: <span className={isDark ? 'text-white' : 'text-[#1A202C]'}>{data.studioInfo.taxCode}</span></p>
+            <p className="pt-0.5 font-bold">Tax ID: <span className={isDark ? 'text-white' : 'text-[#1A202C]'}>{data.studioInfo.taxCode}</span></p>
           </div>
         </div>
 
@@ -109,7 +109,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
             <h3 className="text-2xl font-black mb-2">{data.clientInfo.name || '---'}</h3>
             <p className={`${themeStyles.muted} text-[13px] leading-relaxed max-w-[380px] font-bold`}>{data.clientInfo.address || '---'}</p>
             {(data.clientInfo.clientType || 'company') === 'company' && data.clientInfo.taxCode && (
-              <p className={`${themeStyles.muted} text-[12px] font-bold mt-1`}>MST: <span className={isDark ? 'text-white' : 'text-[#1A202C]'}>{data.clientInfo.taxCode}</span></p>
+              <p className={`${themeStyles.muted} text-[12px] font-bold mt-1`}>Tax ID: <span className={isDark ? 'text-white' : 'text-[#1A202C]'}>{data.clientInfo.taxCode}</span></p>
             )}
           </div>
           <div className="text-right space-y-2">
