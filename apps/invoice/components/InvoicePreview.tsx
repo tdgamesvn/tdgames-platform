@@ -6,7 +6,8 @@ interface InvoicePreviewProps {
   data: InvoiceData;
 }
 
-const LOGO_URL = "https://pub-f0ef2ac3b67c4d4da2fe20c73ab57f83.r2.dev/logo_td.png";
+const LOGO_URL_DARK = "https://pub-f0ef2ac3b67c4d4da2fe20c73ab57f83.r2.dev/logo_td.png";
+const LOGO_URL_LIGHT = "https://pub-dad8a9bea8cb47c7ac0a03614d43b5b1.r2.dev/logo/logo_td_black.png";
 
 export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
   const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0);
@@ -57,7 +58,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
         <div>
           <div className="mb-4">
             <img
-              src={LOGO_URL}
+              src={isDark ? LOGO_URL_DARK : LOGO_URL_LIGHT}
               alt="TD Games Logo"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "https://picsum.photos/seed/tdgames/200/200";
@@ -190,7 +191,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
 
             <div className="pt-1">
               <span className={`${themeStyles.muted} text-[9px] font-black uppercase block mb-0.5 tracking-widest`}>Branch & Address</span>
-              <span className="text-[11px] font-bold block leading-relaxed italic">{data.bankingInfo.branchName} — <span className="font-medium opacity-80">{data.bankingInfo.bankAddress}</span></span>
+              <span className="text-[11px] font-bold block leading-relaxed italic">{[data.bankingInfo.branchName, data.bankingInfo.bankAddress].filter(Boolean).join(' — ')}</span>
             </div>
           </div>
         </div>
@@ -222,7 +223,7 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
           )}
 
           {/* Grand Total */}
-          <div className="bg-[#FF9500] h-36 rounded-[36px] flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden px-6">
+          <div className="bg-[#FF9500] h-36 rounded-[36px] flex flex-col items-center justify-center text-center relative overflow-hidden px-6">
             <span className="text-[11px] font-black uppercase text-black/60 tracking-[0.4em] mb-2 leading-none">Grand Total Amount</span>
             <span className="text-[38px] font-black text-black tracking-tighter leading-none tabular-nums">{formatCurrency(total)}</span>
           </div>
