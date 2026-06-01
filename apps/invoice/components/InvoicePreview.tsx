@@ -81,6 +81,12 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
           <div className="mb-4">
             <span className={`${themeStyles.muted} text-[10px] font-black uppercase tracking-[0.2em] block mb-1.5 opacity-70`}>Invoice Number</span>
             <span className="text-2xl font-black block tracking-tight">{data.invoiceNumber}</span>
+            {data.poNumber && (
+              <div className="mt-1.5">
+                <span className={`${themeStyles.muted} text-[9px] font-black uppercase opacity-70`}>PO Number: </span>
+                <span className="text-[13px] font-bold">{data.poNumber}</span>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#FF9500]/20">
             <div>
@@ -232,7 +238,12 @@ export const InvoicePreview: React.FC<InvoicePreviewProps> = ({ data }) => {
 
       {/* Decorative Footer */}
       <div className="mt-12 flex justify-between items-end border-t border-[#FF9500]/10 pt-8">
-        <p className={`${themeStyles.muted} text-[10px] font-black uppercase tracking-[0.4em]`}>Thank you for your business!</p>
+        <div>
+          <p className={`${themeStyles.muted} text-[10px] font-black uppercase tracking-[0.4em]`}>Thank you for your business!</p>
+          {data.serviceLocation && (
+            <p className={`${themeStyles.muted} text-[10px] mt-1 italic opacity-70`}>{data.serviceLocation}</p>
+          )}
+        </div>
         <div className="text-right">
           <img
             src={isDark

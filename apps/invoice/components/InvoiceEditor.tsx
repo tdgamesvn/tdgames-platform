@@ -142,6 +142,10 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
             <Input label="Issue Date" type="date" value={invoice.issueDate} onChange={(e) => updateInvoice('issueDate', e.target.value)} />
             <Input label="Due Date" type="date" value={invoice.dueDate} onChange={(e) => updateInvoice('dueDate', e.target.value)} />
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="PO Number (tuỳ chọn)" value={invoice.poNumber || ''} onChange={(e) => updateInvoice('poNumber', e.target.value)} placeholder="e.g. 10575-O3" />
+            <Input label="Service Location (tuỳ chọn)" value={invoice.serviceLocation || ''} onChange={(e) => updateInvoice('serviceLocation', e.target.value)} placeholder="e.g. Services were performed at Hanoi, Vietnam." />
+          </div>
           {crmProjects.length > 0 && (
             <Select
               label="🔗 Dự án CRM (tuỳ chọn)"
