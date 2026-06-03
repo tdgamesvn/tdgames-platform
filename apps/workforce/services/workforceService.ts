@@ -252,42 +252,53 @@ export async function updateSettlement(id: string, updates: Partial<Settlement>)
         .in('id', taskIds);
     }
 
-    // 2. Auto-create expense record (skip if already linked)
-    const { data: existing } = await supabase
+    // 2. Sync expense record: tạo mới nếu chưa có, hoặc cập nhật status='paid' nếu đã có
+    const { data: existing, error: fetchErr } = await supabase
       .from('wf_settlements')
-      .select('expense_id, net_amount, currency, period, account_type, worker:wf_workers(name)')
+      .select('expense_id, net_amount, currency, period, account_type, worker:wf_workers(full_name)')
       .eq('id', id)
       .single();
+    if (fetchErr) throw fetchErr;
 
-    if (existing && !existing.expense_id) {
-      const categoryId = await ensureFreelancerCategory();
-      const workerName = (existing.worker as any)?.name || 'Freelancer';
-      const { data: expenseRow } = await supabase
-        .from('expense_expenses')
-        .insert({
-          title: `Freelancer: ${workerName} — ${existing.period}`,
-          amount: existing.net_amount,
-          currency: existing.currency,
-          expense_date: new Date().toISOString().split('T')[0],
-          category_id: categoryId,
-          type: 'expense',
-          source_type: 'settlement',
-          source_id: id,
-          status: 'paid',
-          vendor: workerName,
-          project: '',
-          client_name: '',
-          payment_method: 'CK',
-          account_type: existing.account_type || 'company',
-          notes: `Tự động từ Settlement ${id}`,
-          receipt_url: '',
-          created_by: 'system',
-        })
-        .select('id')
-        .single();
+    if (existing) {
+      if (!existing.expense_id) {
+        // Chưa có expense → tạo mới với status='paid'
+        const categoryId = await ensureFreelancerCategory();
+        const workerName = (existing.worker as any)?.full_name || 'Freelancer';
+        const { data: expenseRow, error: insertErr } = await supabase
+          .from('expense_expenses')
+          .insert({
+            title: `Freelancer: ${workerName} — ${existing.period}`,
+            amount: existing.net_amount,
+            currency: existing.currency,
+            expense_date: new Date().toISOString().split('T')[0],
+            category_id: categoryId,
+            type: 'expense',
+            source_type: 'settlement',
+            source_id: id,
+            status: 'paid',
+            vendor: workerName,
+            project: '',
+            client_name: '',
+            payment_method: 'CK',
+            account_type: existing.account_type || 'company',
+            notes: `Tự động từ Settlement ${id}`,
+            receipt_url: '',
+            created_by: 'system',
+          })
+          .select('id')
+          .single();
+        if (insertErr) throw insertErr;
 
-      if (expenseRow) {
-        await supabase.from('wf_settlements').update({ expense_id: expenseRow.id }).eq('id', id);
+        if (expenseRow) {
+          await supabase.from('wf_settlements').update({ expense_id: expenseRow.id }).eq('id', id);
+        }
+      } else {
+        // Đã có expense_id → cập nhật status='paid' (fix: trước đây bỏ qua bước này)
+        await supabase
+          .from('expense_expenses')
+          .update({ status: 'paid' })
+          .eq('id', existing.expense_id);
       }
     }
   }
