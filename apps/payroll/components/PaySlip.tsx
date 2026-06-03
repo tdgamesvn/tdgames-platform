@@ -12,7 +12,8 @@ interface Props {
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
 const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
-  const std = formula.standardWorkDays;
+  // Dùng standard_work_days từ sheet (T2-T6 thực tế tháng đó), fallback về formula nếu sheet cũ
+  const std = sheet.standard_work_days ?? formula.standardWorkDays;
   const ratio = rec.work_days / std;
   const empName = rec.employee?.full_name || 'N/A';
   const empCode = rec.employee?.employee_code || '';
