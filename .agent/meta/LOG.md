@@ -1,6 +1,66 @@
 # LOG
 
-## 2026-06-01
+## 2026-06-03
+### Task
+Payroll: tính ngày công tiêu chuẩn động (T2-T6) + thêm bonus_reason
+
+### Work Done
+**Dynamic standard work days:**
+- Thêm cột `standard_work_days smallint` vào `pay_payroll_sheets` (Supabase migration)
+- Tạo `apps/payroll/utils/workdayUtils.ts` với hàm `countWeekdays(year, month)` — đếm T2-T6 thực tế (21/22/23 tuỳ tháng)
+- Sửa `calculatePayroll()` nhận param `standardWorkDays?` override formula config
+- Sửa `createPayrollSheet()` tính `stdDays = countWeekdays(year, month)`, lưu vào sheet, dùng làm std trong tính lương và fallback attendance
+- Sửa `recalculateRecord()` + `recalculateAndSave()` nhận `standardWorkDays?`
+- Sửa `usePayrollState.ts` truyền `activeSheet?.standard_work_days` khi recalculate
+- Sửa `PayrollSheet.tsx` dùng `sheet.standard_work_days ?? formula.standardWorkDays` ở 3 chỗ hiển thị
+- Backward compatible: sheet cũ có `standard_work_days = null` → fallback về formula config (22)
+
+**Bonus reason:**
+- Thêm cột `bonus_reason text` vào `pay_payroll_records` (Supabase migration)
+- Thêm `bonus_reason?: string | null` vào `PayPayrollRecord` type
+- Sửa `updateRecord` trong hook nhận `number | string` — string field không trigger recalculate
+- Thêm `handleStringChange()` trong `PayrollSheet.tsx`
+- UI bonus cell: hiển thị số tiền + lý do italic khi view; edit mode có 2 input (số tiền + lý do)
+- Expanded detail: label thưởng hiển thị lý do nếu có ("Thưởng: Thưởng KPI Q2")
+
+### Validation
+- `npm run build` succeeded (2 lần, cả 2 pass)
+
+### Result
+- Bảng lương mới tạo từ giờ dùng số ngày T2-T6 thực tế của tháng thay vì cố định 22
+- HR nhập ngày công thực tế của nhân viên, hệ thống tính tỷ lệ dựa trên T2-T6 của tháng đó
+- Kế toán có thể nhập tiền thưởng + lý do thưởng cho từng nhân viên trong bảng lương
+
+## 2026-06-01 (session 2)
+### Task
+Outreach Smart Signals — Apollo Intent Topics + Engagement Counter
+
+### Work Done
+**VPS (live):**
+- `services/apollo.py`: thêm `intent_only` param + `q_organization_intent_strengths: ["strong"]` filter
+- `routes/automation.py`: `daily-discover` nay set đúng `trigger_source` + `lead_score` khi insert lead:
+  - intent_signal → score 90
+  - generic → T1=50, T2=40, T3=30
+- `routes/webhook.py`: `_handle_engagement()` upgrade:
+  - Increment `open_count` / `click_count` trong DB (thay vì chỉ append notes)
+  - Discord hot lead alert khi open_count đạt 3, 5, 10
+
+**DB (live — Supabase):**
+- Thêm `open_count INTEGER DEFAULT 0` vào `crm_outreach_leads`
+- Thêm `click_count INTEGER DEFAULT 0` vào `crm_outreach_leads`
+- Index `idx_leads_open_count`
+
+### Validation
+- `npm run build` ✅ no errors
+- `systemctl is-active td-mailer-api` → active ✅
+- Pushed to `main`, GitHub Actions deploy triggered
+
+### Result
+- Studio mở email 3+ lần → Discord alert "🔥 Hot Lead — [Name] ([Studio])" tự động
+- Apollo daily-discover sẽ tag leads có intent signal với score 90 (cao nhất trong hệ thống)
+- Cần setup: vào Apollo dashboard → configure 6 Intent Topics slots với: "game art outsourcing", "3D animation", "art production", "game development outsourcing"
+
+## 2026-06-01 (session 1)
 ### Task
 Outreach Phase A — Hiring Signal Discovery Pipeline
 

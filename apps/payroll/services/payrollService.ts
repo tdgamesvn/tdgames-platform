@@ -9,6 +9,7 @@ import {
   fetchPayrollFormulaForMonth,
   fetchPayrollFormulaById,
 } from './payrollFormulaService';
+import { countWeekdays } from '../utils/workdayUtils';
 
 // ══════════════════════════════════════════════════════════
 // ── Core: calculatePayroll (pure function, 8 steps) ──────
@@ -45,9 +46,14 @@ interface PayrollOutput {
   totalCompanyCost: number;
 }
 
-export function calculatePayroll(input: PayrollInput, formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA): PayrollOutput {
+export function calculatePayroll(
+  input: PayrollInput,
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+  /** Override ngày công tiêu chuẩn — ưu tiên hơn formula.standardWorkDays (dùng giá trị tính động T2-T6 của tháng). */
+  standardWorkDays?: number,
+): PayrollOutput {
   const r = (v: number) => Math.round(v);
-  const std = formula.standardWorkDays;
+  const std = standardWorkDays ?? formula.standardWorkDays;
   const hpd = formula.hoursPerDay;
 
   const ratio = input.workDays / std;
@@ -210,8 +216,11 @@ export async function createPayrollSheet(
 ): Promise<{ sheet: PayPayrollSheet; records: PayPayrollRecord[] }> {
   const { settings: formulaRow, config: formulaConfig } = await fetchPayrollFormulaForMonth(month, year);
 
+  // Tính số ngày T2-T6 thực tế của tháng (có thể là 21, 22, hoặc 23)
+  const stdDays = countWeekdays(year, month);
+
   const title = `Bảng lương Tháng ${month}/${year}`;
-  const insertSheet: Record<string, unknown> = { month, year, title };
+  const insertSheet: Record<string, unknown> = { month, year, title, standard_work_days: stdDays };
   if (formulaRow?.id) insertSheet.formula_settings_id = formulaRow.id;
 
   const { data: sheet, error: sheetErr } = await supabase
@@ -282,7 +291,8 @@ export async function createPayrollSheet(
 
     // Attendance data
     const attRec = attRecords.find(r => r.employee_id === emp.id);
-    const workDays = attRec?.work_days ?? formulaConfig.standardWorkDays;
+    // Fallback: dùng stdDays (T2-T6 thực tế) thay vì formulaConfig.standardWorkDays cố định
+    const workDays = attRec?.work_days ?? stdDays;
     const extraOtHours = attRec?.ot_hours ?? 0;
 
     // ── Probation ratio computation ─────────────────────────
@@ -321,7 +331,7 @@ export async function createPayrollSheet(
       bonus: 0,
     };
 
-    const output = calculatePayroll(input, formulaConfig);
+    const output = calculatePayroll(input, formulaConfig, stdDays);
 
     return {
       sheet_id: sheet.id,
@@ -368,6 +378,8 @@ export async function createPayrollSheet(
 export function recalculateRecord(
   rec: PayPayrollRecord,
   formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+  /** Ngày công tiêu chuẩn của bảng lương — lấy từ sheet.standard_work_days (T2-T6 thực tế tháng đó). Fallback về formula.standardWorkDays nếu null (bảng lương cũ). */
+  standardWorkDays?: number | null,
 ): PayPayrollRecord {
   const input: PayrollInput = {
     workDays: rec.work_days,
@@ -385,7 +397,7 @@ export function recalculateRecord(
     // Bonus tính vào TNCT → PIT tự tăng theo bậc lũy tiến
     bonus: rec.bonus ?? 0,
   };
-  const output = calculatePayroll(input, formula);
+  const output = calculatePayroll(input, formula, standardWorkDays ?? undefined);
   return {
     ...rec,
     extra_ot: output.extraOt,
@@ -404,8 +416,9 @@ export function recalculateRecord(
 export async function recalculateAndSave(
   rec: PayPayrollRecord,
   formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+  standardWorkDays?: number | null,
 ): Promise<PayPayrollRecord> {
-  const updated = recalculateRecord(rec, formula);
+  const updated = recalculateRecord(rec, formula, standardWorkDays);
   const { employee, ...clean } = updated as any;
   await updatePayrollRecord(updated.id, clean);
   return updated;

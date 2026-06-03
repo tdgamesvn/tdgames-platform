@@ -902,6 +902,8 @@ export interface PayPayrollSheet {
   confirmed_by?: string | null;
   paid_by?: string | null;
   formula_settings_id?: string | null;
+  /** Số ngày T2-T6 trong tháng — tính động khi tạo bảng, lưu cố định để recalculate dùng lại. */
+  standard_work_days?: number | null;
 }
 
 export interface PayPayrollRecord {
@@ -925,6 +927,8 @@ export interface PayPayrollRecord {
   probation_ratio: number;
   /** Thưởng KPI nhập tay — cộng thẳng vào net, không tính thuế/BH */
   bonus: number;
+  /** Lý do thưởng — ví dụ: "Thưởng KPI Q2", "Thưởng dự án X" */
+  bonus_reason?: string | null;
   // OUTPUT
   gross_ref: number;
   gross_actual: number;

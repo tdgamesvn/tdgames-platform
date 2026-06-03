@@ -126,23 +126,27 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, [activeSheet]);
 
-  const updateRecord = useCallback(async (id: string, field: string, value: number) => {
+  const updateRecord = useCallback(async (id: string, field: string, value: number | string) => {
     const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
+    const std = activeSheet?.standard_work_days;
     setRecords(prev => prev.map(r => {
       if (r.id !== id) return r;
       const updated = { ...r, [field]: value };
-      return svc.recalculateRecord(updated, f);
+      // Chỉ recalculate cho numeric fields — string fields (bonus_reason) không ảnh hưởng tính lương
+      if (typeof value === 'string') return updated as PayPayrollRecord;
+      return svc.recalculateRecord(updated, f, std);
     }));
-  }, [activeFormula]);
+  }, [activeFormula, activeSheet]);
 
   const saveRecord = useCallback(async (rec: PayPayrollRecord) => {
     const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
+    const std = activeSheet?.standard_work_days;
     try {
-      await svc.recalculateAndSave(rec, f);
+      await svc.recalculateAndSave(rec, f, std);
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
     }
-  }, [activeFormula]);
+  }, [activeFormula, activeSheet]);
 
   const confirmSheet = useCallback(async () => {
     if (!activeSheet) return;

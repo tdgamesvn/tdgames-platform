@@ -11,7 +11,7 @@ interface Props {
   formula: PayrollFormulaConfig;
   loading: boolean;
   onBack: () => void;
-  onUpdateRecord: (id: string, field: string, value: number) => void;
+  onUpdateRecord: (id: string, field: string, value: number | string) => void;
   onSaveRecord: (rec: PayPayrollRecord) => void;
   onConfirm: () => void;
   onMarkPaid?: () => void;
@@ -37,17 +37,26 @@ const PayrollSheet: React.FC<Props> = ({
     if (editingCell && inputRef.current) inputRef.current.focus();
   }, [editingCell]);
 
-  // Auto-save with debounce
+  // Auto-save with debounce (numeric fields — triggers recalculate)
   const handleCellChange = (rec: PayPayrollRecord, field: string, value: number) => {
     onUpdateRecord(rec.id, field, value);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      // Find updated record from records
       const updated = records.find(r => r.id === rec.id);
       if (updated) {
         const recalced = { ...updated, [field]: value };
         onSaveRecord(recalced);
       }
+    }, 800);
+  };
+
+  // Auto-save with debounce (string fields — no recalculate)
+  const handleStringChange = (rec: PayPayrollRecord, field: string, value: string) => {
+    onUpdateRecord(rec.id, field, value);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const updated = records.find(r => r.id === rec.id);
+      if (updated) onSaveRecord({ ...updated, [field]: value });
     }, 800);
   };
 
@@ -158,7 +167,8 @@ const PayrollSheet: React.FC<Props> = ({
             {records.map(rec => {
               const isExpanded = expandedId === rec.id;
               const empName = rec.employee?.full_name || 'N/A';
-              const ratio = rec.work_days / formula.standardWorkDays;
+              const std = sheet.standard_work_days ?? formula.standardWorkDays;
+              const ratio = rec.work_days / std;
 
               return (
                 <div key={rec.id}>
@@ -204,7 +214,7 @@ const PayrollSheet: React.FC<Props> = ({
                       ) : (
                         <span className={`text-xs ${isDraft ? 'text-emerald-400 cursor-text' : 'text-white'}`}
                           onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'work_days' })}>
-                          {rec.work_days}/{formula.standardWorkDays}
+                          {rec.work_days}/{std}
                         </span>
                       )}
                     </div>
@@ -232,22 +242,36 @@ const PayrollSheet: React.FC<Props> = ({
                     <span className="text-right text-xs text-orange-400">{fmt(rec.employee_bhxh)}</span>
                     <span className="text-right text-xs text-red-400">{rec.pit > 0 ? fmt(rec.pit) : '0'}</span>
 
-                    {/* Bonus - editable */}
+                    {/* Bonus + Lý do — editable */}
                     <div className="text-right" onClick={e => e.stopPropagation()}>
                       {isDraft && editingCell?.id === rec.id && editingCell?.field === 'bonus' ? (
-                        <input ref={inputRef} type="number" step="1000"
-                          className="w-20 px-1 py-0.5 rounded bg-black/40 border border-yellow-500/40 text-white text-xs text-right outline-none"
-                          value={rec.bonus ?? 0}
-                          onChange={e => handleCellChange(rec, 'bonus', +e.target.value)}
-                          onBlur={() => setEditingCell(null)}
-                        />
+                        <div className="flex flex-col gap-1 items-end">
+                          <input ref={inputRef} type="number" step="1000" placeholder="Số tiền"
+                            className="w-24 px-1 py-0.5 rounded bg-black/40 border border-yellow-500/40 text-white text-xs text-right outline-none"
+                            value={rec.bonus ?? 0}
+                            onChange={e => handleCellChange(rec, 'bonus', +e.target.value)}
+                          />
+                          <input type="text" placeholder="Lý do thưởng..."
+                            className="w-32 px-1 py-0.5 rounded bg-black/40 border border-yellow-500/20 text-yellow-200/70 text-[10px] text-right outline-none"
+                            value={rec.bonus_reason ?? ''}
+                            onChange={e => handleStringChange(rec, 'bonus_reason', e.target.value)}
+                            onBlur={() => setEditingCell(null)}
+                          />
+                        </div>
                       ) : (
-                        <span
-                          className={`text-xs ${isDraft ? 'text-yellow-400 cursor-text' : 'text-white'}`}
+                        <div
+                          className={`flex flex-col items-end gap-0.5 ${isDraft ? 'cursor-text' : ''}`}
                           onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'bonus' })}
                         >
-                          {(rec.bonus ?? 0) > 0 ? fmt(rec.bonus) : (isDraft ? '+ thêm' : '—')}
-                        </span>
+                          <span className={`text-xs ${isDraft ? 'text-yellow-400' : 'text-white'}`}>
+                            {(rec.bonus ?? 0) > 0 ? fmt(rec.bonus) : (isDraft ? '+ thêm' : '—')}
+                          </span>
+                          {rec.bonus_reason && (
+                            <span className="text-[9px] text-yellow-200/50 italic truncate max-w-[7rem]" title={rec.bonus_reason}>
+                              {rec.bonus_reason}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 
@@ -264,7 +288,7 @@ const PayrollSheet: React.FC<Props> = ({
                         {/* Left: Input + Steps 1-2 */}
                         <div className="space-y-2">
                           <div className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Input & Bước 1-2</div>
-                          <Row label="Ngày công" value={`${rec.work_days} / ${formula.standardWorkDays}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
+                          <Row label="Ngày công" value={`${rec.work_days} / ${std}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
                           <Row label="Lương CB" value={fmt(rec.base_salary)} sub={`Thực: ${fmt(Math.round(rec.base_salary * ratio))}`} />
                           <Row label="PC ăn trưa" value={fmt(rec.lunch_allowance)} sub={`Thực: ${fmt(Math.round(rec.lunch_allowance * ratio))}`} />
                           <Row label="PC xăng xe" value={fmt(rec.transport_allowance)} sub={`Thực: ${fmt(Math.round(rec.transport_allowance * ratio))}`} />
@@ -290,7 +314,7 @@ const PayrollSheet: React.FC<Props> = ({
                               <Row label="Thu nhập chịu thuế" value={fmt(rec.taxable_income)} />
                               <Row label={`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`} value={fmt(rec.pit)} color="text-red-400" />
                               {(rec.bonus ?? 0) > 0 && (
-                                <Row label="Thưởng KPI (nhập tay)" value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
+                                <Row label={rec.bonus_reason ? `Thưởng: ${rec.bonus_reason}` : 'Thưởng (nhập tay)'} value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
                               )}
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
                                 <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
@@ -309,7 +333,7 @@ const PayrollSheet: React.FC<Props> = ({
                               <Row label="TNTT" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0 (âm → 0)'} />
                               <Row label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? fmt(rec.pit) : '0'} color={rec.pit > 0 ? 'text-red-400' : 'text-emerald-400'} />
                               {(rec.bonus ?? 0) > 0 && (
-                                <Row label="Thưởng KPI (nhập tay)" value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
+                                <Row label={rec.bonus_reason ? `Thưởng: ${rec.bonus_reason}` : 'Thưởng (nhập tay)'} value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
                               )}
                               <div className="border-t border-white/[0.06] pt-2 mt-2">
                                 <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
