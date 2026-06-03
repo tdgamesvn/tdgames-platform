@@ -179,7 +179,7 @@ const PayrollSheet: React.FC<Props> = ({
         ) : (
           <div className="rounded-2xl border border-primary/10 overflow-hidden">
             {/* Table header */}
-            <div className="grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 bg-black/30 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-neutral-medium border-b border-primary/10">
+            <div className="grid grid-cols-[3fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 bg-black/30 px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-neutral-medium border-b border-primary/10">
               <span>Nhân viên</span>
               <span className="text-right">Ngày công</span>
               <span className="text-right">Gross TK</span>
@@ -202,41 +202,47 @@ const PayrollSheet: React.FC<Props> = ({
                 <div key={rec.id}>
                   {/* Main row */}
                   <div
-                    className="group/row grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer items-center"
+                    className="group/row grid grid-cols-[3fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer items-center"
                     onClick={() => setExpandedId(isExpanded ? null : rec.id)}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{isExpanded ? '▼' : '▶'}</span>
-                      <span className="text-white font-bold text-sm truncate">{empName}</span>
-                      {rec.is_probation && (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-[9px] font-bold uppercase tracking-wider">
-                          THỬ VIỆC
-                        </span>
-                      )}
-                      {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
-                        <span
-                          className="px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-400 text-[9px] font-bold uppercase tracking-wider"
-                          title={`${Math.round(rec.probation_ratio * 100)}% thử việc + ${Math.round((1 - rec.probation_ratio) * 100)}% chính thức`}
-                        >
-                          CHUYỂN GIAO
-                        </span>
-                      )}
-                      <button
-                        onClick={e => { e.stopPropagation(); setPaySlipRecord(rec); }}
-                        className="ml-1 px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-400 text-[9px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 transition-all"
-                        title="Xem phiếu lương"
-                      >
-                        📄 Phiếu lương
-                      </button>
-                      {sheet.status !== 'draft' && (() => {
-                        const st = rec.employee_status ?? 'pending';
-                        const badge = EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending;
-                        return (
-                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${badge.cls}`}>
-                            {badge.label}
-                          </span>
-                        );
-                      })()}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm flex-shrink-0">{isExpanded ? '▼' : '▶'}</span>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        {/* Dòng 1: Tên đầy đủ */}
+                        <span className="text-white font-bold text-sm leading-tight" title={empName}>{empName}</span>
+                        {/* Dòng 2: Badges nhỏ */}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {rec.is_probation && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 text-[9px] font-bold uppercase tracking-wider">
+                              THỬ VIỆC
+                            </span>
+                          )}
+                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
+                            <span
+                              className="px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 text-[9px] font-bold uppercase tracking-wider"
+                              title={`${Math.round(rec.probation_ratio * 100)}% thử việc + ${Math.round((1 - rec.probation_ratio) * 100)}% chính thức`}
+                            >
+                              CHUYỂN GIAO
+                            </span>
+                          )}
+                          <button
+                            onClick={e => { e.stopPropagation(); setPaySlipRecord(rec); }}
+                            className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 text-[9px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 transition-all"
+                            title="Xem phiếu lương"
+                          >
+                            📄 Phiếu lương
+                          </button>
+                          {sheet.status !== 'draft' && (() => {
+                            const st = rec.employee_status ?? 'pending';
+                            const badge = EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending;
+                            return (
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${badge.cls}`}>
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Work days - editable */}
@@ -433,7 +439,7 @@ const PayrollSheet: React.FC<Props> = ({
             })}
 
             {/* Summary row */}
-            <div className="grid grid-cols-[2fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 bg-black/40 text-xs font-bold">
+            <div className="grid grid-cols-[3fr,0.8fr,1fr,0.8fr,1fr,0.8fr,0.8fr,0.8fr,1.2fr] gap-0 px-4 py-3 bg-black/40 text-xs font-bold">
               <span className="text-neutral-medium uppercase text-[10px] tracking-widest">Tổng cộng</span>
               <span></span>
               <span></span>
