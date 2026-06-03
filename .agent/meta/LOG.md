@@ -1,5 +1,82 @@
 # LOG
 
+## 2026-06-03 (session 4)
+### Tasks
+1. Bug fix: Settlement→expense sync không hoạt động (công nợ không cập nhật)
+2. UI fix: Tên nhân viên bị truncate trong bảng lương
+3. Feature: exclude_from_payroll flag cho nhân viên không nhận lương
+
+### Work Done
+**Bug: Settlement→expense sync**
+- Root cause 1: `worker:wf_workers(name)` → column thực là `full_name` → query lỗi → `existing = null` → block tạo expense bị skip hoàn toàn
+- Root cause 2: không check `error` từ supabase insert → lỗi nuốt im lặng
+- Root cause 3: khi `expense_id` đã có → không update `status='paid'`
+- Fix: đổi `name` → `full_name`, throw fetchErr/insertErr, thêm else branch update status
+- Backfill data: SQL insert 9 expense records cho 9 settlements đã paid + link expense_id
+
+**UI: Tên nhân viên bị cắt**
+- Root cause: badges (Phiếu lương, CHỜ XN, THỬ VIỆC) inline cùng dòng với tên → tên bị truncate
+- Fix: tên hiển thị dòng 1, badges xuống dòng 2 (flex-col). Cột tên: 2fr → 3fr
+
+**Feature: exclude_from_payroll**
+- DB migration: `exclude_from_payroll boolean default false` vào `hr_employees`
+- types.ts: thêm field vào `HrEmployee`
+- payrollService: filter `.neq('exclude_from_payroll', true)` khi tạo bảng lương
+- EmployeeForm: thêm checkbox toggle "Không tính lương tự động"
+- Data: set `exclude_from_payroll=true` cho Đặng Thế Toàn, xóa record khỏi bảng T5/2026
+
+### Commits
+- `5cd36cd` fix(workforce): correct worker name column + error handling
+- `375eabd` fix(payroll): show full employee name — stack badges on second line
+- `6f343a1` feat(hr/payroll): exclude_from_payroll flag for employees
+
+### Validation
+- `npm run build` succeeded × 3
+- Deployed tất cả → https://app.tdgamestudio.com
+
+## 2026-06-03 (session 3)
+### Task
+Bug fix: Công nợ phải trả không cập nhật realtime sau khi thanh toán nghiệm thu
+
+### Root Cause
+`useAccountingState.ts` fetch `expense_expenses` một lần lúc mount, không có Supabase realtime subscription. Khi Workforce ghi payment vào `expense_expenses`, Accounting không hay biết → Công nợ phải trả không cập nhật.
+
+### Work Done
+- Thêm Supabase realtime subscription (INSERT/UPDATE/DELETE) cho `expense_expenses` vào `useAccountingState.ts`
+- Cập nhật state trực tiếp khi nhận event, không cần reload toàn bộ
+
+### Validation
+- `npm run build` succeeded (234 modules)
+- Deployed: commit 8fdd5d2 → https://app.tdgamestudio.com
+
+### Result
+- Công nợ phải trả bây giờ cập nhật realtime ngay khi kế toán Workforce thanh toán nghiệm thu
+
+## 2026-06-03 (session 2)
+### Task
+Payroll employee acknowledgement flow
+
+### Work Done
+- DB: thêm `employee_status` (pending/confirmed/disputed/resolved), `employee_confirmed_at`, `employee_comment` vào `pay_payroll_records`
+- DB trigger `trg_notify_payroll_confirmed`: gửi noti loại `payslip_pending_review` cho từng NV khi sheet → confirmed
+- `portalService.ts`: thêm `submitPayslipAcknowledgement()` và `resolvePayslipDispute()`
+- `PayslipAcknowledgeModal.tsx`: component blocking full-screen, hiện phiếu lương tóm tắt + 2 nút (Xác nhận / Báo sai sót), không thể đóng
+- `PortalApp.tsx`: load pending payslip on mount, hiện modal blocking nếu có
+- `PayrollSheet.tsx`: badge employee status per row, khối xác nhận NV trong expanded section, resolve button cho disputed, block "Đã trả lương" khi còn pending/disputed
+- `usePayrollState.ts`: thêm `resolveDispute()` callback
+- `PayrollApp.tsx`: wire `onResolveDispute` prop
+
+### Validation
+- `npm run build` succeeded (234 modules)
+- Deployed: commit c35f32f → https://app.tdgamestudio.com
+
+### Result
+- Khi kế toán xác nhận bảng lương → NV nhận noti ngay
+- NV vào portal → bị chặn bởi màn hình xác nhận bắt buộc
+- NV xác nhận đúng hoặc gửi khiếu nại kèm mô tả
+- Kế toán thấy trạng thái từng NV, có thể resolve khiếu nại
+- Nút "Đã trả lương" chỉ active khi tất cả NV confirmed/resolved
+
 ## 2026-06-03
 ### Task
 Payroll: tính ngày công tiêu chuẩn động (T2-T6) + thêm bonus_reason

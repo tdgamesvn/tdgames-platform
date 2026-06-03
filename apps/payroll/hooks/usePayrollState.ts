@@ -112,6 +112,20 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, []);
 
+  /** Làm mới danh sách records (fetch lại từ DB) — dùng khi cần sync thủ công. */
+  const refreshRecords = useCallback(async () => {
+    if (!activeSheet) return;
+    setLoading(true);
+    try {
+      const data = await svc.fetchPayrollRecords(activeSheet.id);
+      setRecords(data);
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [activeSheet]);
+
   const deleteSheet = useCallback(async (id: string) => {
     try {
       await svc.deletePayrollSheet(id);
@@ -242,6 +256,6 @@ export function usePayrollState(initialTab?: string | null) {
   return {
     view, sheets, records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, backToSheets,
+    updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, refreshRecords, backToSheets,
   };
 }

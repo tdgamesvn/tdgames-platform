@@ -18,6 +18,8 @@ interface Props {
   onRollback?: () => void;
   /** Kế toán đánh dấu đã giải quyết khiếu nại của nhân viên */
   onResolveDispute?: (recordId: string) => void;
+  /** Làm mới dữ liệu từ DB */
+  onRefresh?: () => void;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
@@ -30,7 +32,7 @@ const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const PayrollSheet: React.FC<Props> = ({
-  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onMarkPaid, onRollback, onResolveDispute,
+  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onMarkPaid, onRollback, onResolveDispute, onRefresh,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -111,6 +113,13 @@ const PayrollSheet: React.FC<Props> = ({
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {onRefresh && (
+              <button onClick={onRefresh} disabled={loading}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-medium hover:text-white border border-white/10 hover:border-white/20 transition-all"
+                title="Làm mới trạng thái xác nhận">
+                🔄
+              </button>
+            )}
             <button onClick={() => exportPayrollToExcel(sheet, records, formula)}
               className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
               style={{ background: 'linear-gradient(135deg, #059669, #34D399)' }}>
