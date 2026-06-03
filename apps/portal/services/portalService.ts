@@ -60,6 +60,33 @@ export async function fetchMyPayslips(employeeId: string): Promise<PayslipWithSh
   return (data as PayslipWithSheet[]) || [];
 }
 
+/** Nhân viên xác nhận phiếu lương đúng hoặc báo sai sót. */
+export async function submitPayslipAcknowledgement(
+  recordId: string,
+  status: 'confirmed' | 'disputed',
+  comment?: string,
+): Promise<void> {
+  const updates: Record<string, unknown> = {
+    employee_status: status,
+    employee_confirmed_at: new Date().toISOString(),
+  };
+  if (comment) updates.employee_comment = comment;
+  const { error } = await supabase
+    .from('pay_payroll_records')
+    .update(updates)
+    .eq('id', recordId);
+  if (error) throw error;
+}
+
+/** Kế toán đánh dấu đã giải quyết khiếu nại của nhân viên. */
+export async function resolvePayslipDispute(recordId: string): Promise<void> {
+  const { error } = await supabase
+    .from('pay_payroll_records')
+    .update({ employee_status: 'resolved' })
+    .eq('id', recordId);
+  if (error) throw error;
+}
+
 // Fetch my monthly attendance records — only from FINALIZED attendance sheets
 export async function fetchMyAttendance(employeeId: string): Promise<AttendanceWithSheet[]> {
   // 1. Get finalized sheet IDs

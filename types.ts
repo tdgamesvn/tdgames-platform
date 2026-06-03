@@ -929,6 +929,13 @@ export interface PayPayrollRecord {
   bonus: number;
   /** Lý do thưởng — ví dụ: "Thưởng KPI Q2", "Thưởng dự án X" */
   bonus_reason?: string | null;
+  // EMPLOYEE ACKNOWLEDGEMENT
+  /** Trạng thái xác nhận của nhân viên: pending / confirmed / disputed / resolved */
+  employee_status?: 'pending' | 'confirmed' | 'disputed' | 'resolved';
+  /** Thời điểm nhân viên xác nhận */
+  employee_confirmed_at?: string | null;
+  /** Nội dung khiếu nại / ghi chú của nhân viên */
+  employee_comment?: string | null;
   // OUTPUT
   gross_ref: number;
   gross_actual: number;

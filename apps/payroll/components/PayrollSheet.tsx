@@ -16,12 +16,21 @@ interface Props {
   onConfirm: () => void;
   onMarkPaid?: () => void;
   onRollback?: () => void;
+  /** Kế toán đánh dấu đã giải quyết khiếu nại của nhân viên */
+  onResolveDispute?: (recordId: string) => void;
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
+const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
+  pending:   { label: '⏳ Chờ XN', cls: 'bg-yellow-500/15 text-yellow-400' },
+  confirmed: { label: '✅ Đã XN', cls: 'bg-emerald-500/15 text-emerald-400' },
+  disputed:  { label: '❌ Khiếu nại', cls: 'bg-red-500/15 text-red-400' },
+  resolved:  { label: '✓ Đã giải quyết', cls: 'bg-blue-500/15 text-blue-400' },
+};
+
 const PayrollSheet: React.FC<Props> = ({
-  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onMarkPaid, onRollback,
+  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onMarkPaid, onRollback, onResolveDispute,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -31,6 +40,13 @@ const PayrollSheet: React.FC<Props> = ({
 
   const isDraft = sheet.status === 'draft';
   const isPaid = sheet.status === 'paid';
+
+  // Chỉ cho phép "Đã trả lương" khi tất cả NV đã xác nhận hoặc đã giải quyết khiếu nại
+  const canMarkPaid = records.length > 0 && records.every(r =>
+    r.employee_status === 'confirmed' || r.employee_status === 'resolved',
+  );
+  const pendingCount = records.filter(r => !r.employee_status || r.employee_status === 'pending').length;
+  const disputedCount = records.filter(r => r.employee_status === 'disputed').length;
 
   // Focus when editing
   useEffect(() => {
@@ -108,11 +124,23 @@ const PayrollSheet: React.FC<Props> = ({
               </button>
             )}
             {sheet.status === 'confirmed' && onMarkPaid && (
-              <button onClick={onMarkPaid}
-                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
-                style={{ background: 'linear-gradient(135deg, #0EA5E9, #2563EB)' }}>
-                💳 Đánh dấu đã trả lương
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  onClick={canMarkPaid ? onMarkPaid : undefined}
+                  disabled={!canMarkPaid}
+                  title={!canMarkPaid ? `Còn ${pendingCount} chờ XN, ${disputedCount} khiếu nại chưa giải quyết` : ''}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all ${canMarkPaid ? 'hover:opacity-80' : 'opacity-40 cursor-not-allowed'}`}
+                  style={{ background: canMarkPaid ? 'linear-gradient(135deg, #0EA5E9, #2563EB)' : '#374151' }}>
+                  💳 Đánh dấu đã trả lương
+                </button>
+                {!canMarkPaid && (
+                  <span className="text-[10px] text-yellow-400/80">
+                    {pendingCount > 0 && `${pendingCount} chờ xác nhận`}
+                    {pendingCount > 0 && disputedCount > 0 && ' · '}
+                    {disputedCount > 0 && `${disputedCount} khiếu nại`}
+                  </span>
+                )}
+              </div>
             )}
             {sheet.status === 'confirmed' && onRollback && (
               <button onClick={onRollback}
@@ -200,6 +228,15 @@ const PayrollSheet: React.FC<Props> = ({
                       >
                         📄 Phiếu lương
                       </button>
+                      {sheet.status !== 'draft' && (() => {
+                        const st = rec.employee_status ?? 'pending';
+                        const badge = EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending;
+                        return (
+                          <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Work days - editable */}
@@ -346,6 +383,49 @@ const PayrollSheet: React.FC<Props> = ({
                           )}
                         </div>
                       </div>
+
+                      {/* Khối xác nhận nhân viên — chỉ hiện khi sheet đã confirmed/paid */}
+                      {sheet.status !== 'draft' && (() => {
+                        const st = rec.employee_status ?? 'pending';
+                        const badge = EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending;
+                        return (
+                          <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">
+                              👤 Xác nhận từ nhân viên
+                            </p>
+                            <div className="flex items-start gap-3 flex-wrap">
+                              <span className={`px-3 py-1 rounded-lg text-[10px] font-bold ${badge.cls}`}>
+                                {badge.label}
+                              </span>
+                              {rec.employee_confirmed_at && (
+                                <span className="text-[10px] text-neutral-medium">
+                                  {new Date(rec.employee_confirmed_at).toLocaleString('vi-VN')}
+                                </span>
+                              )}
+                              {st === 'disputed' && rec.employee_comment && (
+                                <div className="w-full mt-1 p-2 bg-red-500/8 border border-red-500/20 rounded-lg">
+                                  <p className="text-[10px] text-red-300/80 font-semibold mb-1">Nội dung khiếu nại:</p>
+                                  <p className="text-[11px] text-red-200/70">{rec.employee_comment}</p>
+                                  {onResolveDispute && (
+                                    <button
+                                      onClick={e => { e.stopPropagation(); onResolveDispute(rec.id); }}
+                                      className="mt-2 px-3 py-1 rounded-lg bg-blue-500/20 text-blue-400 text-[10px] font-bold hover:bg-blue-500/30 transition-colors"
+                                    >
+                                      ✓ Đã giải quyết
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                              {st === 'resolved' && rec.employee_comment && (
+                                <div className="w-full mt-1 p-2 bg-blue-500/8 border border-blue-500/20 rounded-lg">
+                                  <p className="text-[10px] text-blue-300/60 font-semibold mb-1">Khiếu nại đã giải quyết:</p>
+                                  <p className="text-[11px] text-blue-200/50 line-through">{rec.employee_comment}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

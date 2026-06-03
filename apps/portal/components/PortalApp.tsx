@@ -18,6 +18,7 @@ import {
   fetchMyAttendance,
   fetchMyProfile,
 } from '../services/portalService';
+import PayslipAcknowledgeModal from './PayslipAcknowledgeModal';
 
 type DirectoryEmployee = Pick<
   HrEmployee,
@@ -73,6 +74,8 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   /** undefined = đang tải hồ sơ; null = không có employee_id hoặc lỗi */
   const [linkedEmployeeType, setLinkedEmployeeType] = useState<string | null | undefined>(undefined);
+  /** Phiếu lương đang chờ xác nhận bắt buộc (pending) — hiện modal blocking */
+  const [pendingPayslip, setPendingPayslip] = useState<(PayPayrollRecord & { sheet?: PayPayrollSheet }) | null | undefined>(undefined);
 
   useEffect(() => {
     if (!currentUser.employee_id) {
@@ -126,12 +129,28 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
       .finally(() => setIsLoading(false));
   }, []);
 
-  // Load payslips when tab or employee changes
+  // Kiểm tra phiếu lương pending ngay khi mount — hiện modal blocking nếu có
+  useEffect(() => {
+    if (!currentUser.employee_id) return;
+    fetchMyPayslips(currentUser.employee_id)
+      .then(data => {
+        setPayslips(data);
+        const pending = data.find(p => (p.employee_status ?? 'pending') === 'pending' && p.sheet?.status === 'confirmed');
+        setPendingPayslip(pending ?? null);
+      })
+      .catch(() => setPendingPayslip(null));
+  }, [currentUser.employee_id]);
+
+  // Load payslips when tab or employee changes (refresh khi vào tab)
   useEffect(() => {
     if (activeTab === 'payslip' && currentUser.employee_id) {
       setIsLoading(true);
       fetchMyPayslips(currentUser.employee_id)
-        .then(data => setPayslips(data))
+        .then(data => {
+          setPayslips(data);
+          const pending = data.find(p => (p.employee_status ?? 'pending') === 'pending' && p.sheet?.status === 'confirmed');
+          setPendingPayslip(pending ?? null);
+        })
         .catch(() => setPayslips([]))
         .finally(() => setIsLoading(false));
     }
@@ -153,6 +172,21 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
       <AppBackground />
+
+      {/* Modal blocking bắt buộc — nhân viên phải xác nhận trước khi dùng app */}
+      {pendingPayslip && (
+        <PayslipAcknowledgeModal
+          payslip={pendingPayslip}
+          onDone={() => {
+            setPendingPayslip(null);
+            // Refresh payslip list
+            if (currentUser.employee_id) {
+              fetchMyPayslips(currentUser.employee_id).then(data => setPayslips(data)).catch(() => {});
+            }
+          }}
+        />
+      )}
+
       <div className="min-h-screen flex flex-col relative z-10">
         <Navbar
           theme="dark"

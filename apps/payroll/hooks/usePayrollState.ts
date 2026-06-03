@@ -3,6 +3,7 @@ import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types
 import { supabase } from '@/services/supabaseClient';
 import * as svc from '../services/payrollService';
 import { FALLBACK_PAYROLL_FORMULA } from '../services/payrollFormulaService';
+import { resolvePayslipDispute } from '@/apps/portal/services/portalService';
 
 export type PayrollView = 'sheets' | 'detail';
 
@@ -186,6 +187,18 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, [activeSheet]);
 
+  const resolveDispute = useCallback(async (recordId: string) => {
+    try {
+      await resolvePayslipDispute(recordId);
+      setRecords(prev => prev.map(r =>
+        r.id === recordId ? { ...r, employee_status: 'resolved' as const } : r,
+      ));
+      setToast({ message: 'Đã đánh dấu giải quyết khiếu nại', type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' });
+    }
+  }, []);
+
   const backToSheets = useCallback(() => {
     setView('sheets');
     setActiveSheet(null);
@@ -196,6 +209,6 @@ export function usePayrollState(initialTab?: string | null) {
   return {
     view, sheets, records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, backToSheets,
+    updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, backToSheets,
   };
 }
