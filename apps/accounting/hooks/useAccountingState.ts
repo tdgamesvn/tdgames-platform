@@ -9,6 +9,7 @@ import type { PayrollRecordWithMeta, BhxhEmployee } from '../services/accounting
 import { fetchSavings } from '../services/savingsService';
 import { fetchLoans } from '../services/loansService';
 import { setHashTab } from '@/App';
+import { supabase } from '@/services/supabaseClient';
 
 export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' | 'vat' | 'tncn' | 'bhxh' | 'savings' | 'loans';
 const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh', 'savings', 'loans'];
@@ -75,6 +76,43 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Realtime: cập nhật expense_expenses khi Workforce ghi payment (INSERT/UPDATE)
+  // Fix bug: Công nợ phải trả không cập nhật sau khi thanh toán nghiệm thu
+  useEffect(() => {
+    const channel = supabase
+      .channel('accounting_expense_expenses_realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'expense_expenses' },
+        (payload) => {
+          setExpenses(prev => {
+            // Tránh duplicate nếu đã có
+            if (prev.find(e => e.id === payload.new.id)) return prev;
+            return [payload.new as ExpenseRecord, ...prev];
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'expense_expenses' },
+        (payload) => {
+          setExpenses(prev => prev.map(e =>
+            e.id === payload.new.id ? { ...e, ...(payload.new as ExpenseRecord) } : e,
+          ));
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'expense_expenses' },
+        (payload) => {
+          setExpenses(prev => prev.filter(e => e.id !== payload.old.id));
+        },
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // ── Fixed Assets ──
   const addAsset = useCallback(async (asset: Omit<FixedAsset, 'id' | 'created_at' | 'updated_at'>) => {
