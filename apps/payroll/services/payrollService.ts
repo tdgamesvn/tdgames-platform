@@ -235,7 +235,8 @@ export async function createPayrollSheet(
     .from('hr_employees')
     .select('*')
     .eq('type', 'fulltime')
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .neq('exclude_from_payroll', true);
 
   if (!employees?.length) return { sheet, records: [] };
 

@@ -457,6 +457,8 @@ export interface HrEmployee {
   worker_id: string | null;
   created_at: string;
   updated_at: string;
+  /** Không tính vào bảng lương tự động (vd: chủ/giám đốc không nhận lương) */
+  exclude_from_payroll?: boolean;
 }
 
 export interface HrContract {
