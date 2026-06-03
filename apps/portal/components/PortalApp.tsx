@@ -466,6 +466,19 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
                             <span style={{ fontSize: '12px', fontWeight: 900, color: '#34C759', letterSpacing: '0.06em' }}>💵 NET THỰC LĨNH</span>
                             <span style={{ fontSize: '22px', fontWeight: 900, color: '#34C759' }}>{fmt(ps.net_salary || 0)} ₫</span>
                           </div>
+
+                          {/* Confidentiality notice */}
+                          <div style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '8px',
+                            padding: '10px 14px', marginTop: '6px',
+                            background: 'rgba(255,149,0,0.05)', border: '1px solid rgba(255,149,0,0.12)',
+                            borderRadius: '10px',
+                          }}>
+                            <span style={{ fontSize: '13px', flexShrink: 0 }}>🔒</span>
+                            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>
+                              Thông tin lương là <span style={{ color: 'rgba(255,149,0,0.7)', fontWeight: 700 }}>bảo mật cá nhân</span>. Vui lòng không chia sẻ, tiết lộ hoặc cho bất kỳ ai khác biết nội dung phiếu lương này.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     );

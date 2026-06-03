@@ -171,6 +171,19 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
             </p>
           )}
 
+          {/* Confidentiality notice */}
+          <div style={{
+            display: 'flex', alignItems: 'flex-start', gap: '8px',
+            padding: '10px 14px', marginBottom: '14px',
+            background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.15)',
+            borderRadius: '10px',
+          }}>
+            <span style={{ fontSize: '14px', flexShrink: 0 }}>🔒</span>
+            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,149,0,0.8)', lineHeight: 1.6 }}>
+              Thông tin lương là <strong>bảo mật cá nhân</strong>. Vui lòng không chia sẻ, tiết lộ hoặc cho bất kỳ ai khác biết nội dung phiếu lương này.
+            </p>
+          </div>
+
           {/* Action buttons */}
           {mode === 'view' ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
