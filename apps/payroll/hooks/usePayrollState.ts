@@ -187,6 +187,39 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, [activeSheet]);
 
+  // Realtime: cập nhật employee_status ngay khi nhân viên xác nhận/khiếu nại từ portal
+  useEffect(() => {
+    if (!activeSheet) return;
+    const sheetId = activeSheet.id;
+    const channel = supabase
+      .channel(`payroll_records_ack_${sheetId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'pay_payroll_records',
+          filter: `sheet_id=eq.${sheetId}`,
+        },
+        (payload) => {
+          const updated = payload.new as any;
+          if (!updated?.id) return;
+          setRecords(prev => prev.map(r =>
+            r.id === updated.id
+              ? {
+                  ...r,
+                  employee_status: updated.employee_status,
+                  employee_confirmed_at: updated.employee_confirmed_at,
+                  employee_comment: updated.employee_comment,
+                }
+              : r,
+          ));
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeSheet]);
+
   const resolveDispute = useCallback(async (recordId: string) => {
     try {
       await resolvePayslipDispute(recordId);
