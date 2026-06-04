@@ -1,5 +1,27 @@
 # LOG
 
+## 2026-06-04
+### Task
+Feature: Thêm toggle "Hiện tất cả tháng" trong form Tạo Nghiệm Thu (freelancer settlement)
+
+### Work Done
+- Đọc `SettlementCreateView.tsx` và phân tích filter logic hiện tại
+- Thêm state `showAllTasks` (default `false`)
+- Sửa `eligibleTasks` filter: thêm `!showAllTasks &&` trước date-bound checks — khi bật sẽ bỏ giới hạn `periodEnd` trên ngày task
+- Thêm toggle button "Hiện tất cả tháng" vào thanh filter, hiển thị hint "Bỏ giới hạn tháng — hiện tất cả task chưa thanh toán" khi bật
+- Cập nhật empty state message phản ánh trạng thái toggle
+- `npm run build` thành công, không có lỗi TypeScript
+
+### Validation
+- `npm run build` passed
+
+### Result
+- User có thể bật toggle để thấy toàn bộ task chưa thanh toán của worker, bao gồm task tạo sau tháng nghiệm thu
+- Behavior mặc định không thay đổi (backward-compatible)
+- 1 file thay đổi: `apps/workforce/components/settlement/SettlementCreateView.tsx`
+
+---
+
 ## 2026-06-03 (session 4)
 ### Tasks
 1. Bug fix: Settlement→expense sync không hoạt động (công nợ không cập nhật)

@@ -44,6 +44,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const [selTaxRate, setSelTaxRate] = useState(10);
   const [includeAllStatuses, setIncludeAllStatuses] = useState(false);
   const [selectedClickupStatuses, setSelectedClickupStatuses] = useState<string[]>([]);
+  const [showAllTasks, setShowAllTasks] = useState(false);
 
   // All tasks for this worker (unpaid only)
   const periodEnd = selPeriod ? new Date(selPeriod + '-01') : null;
@@ -62,10 +63,11 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
     // When not including all statuses, require closed_date (original behavior)
     if (!includeAllStatuses) {
       if (!t.closed_date) return false;
-      if (periodEnd && new Date(t.closed_date) > periodEnd) return false;
+      // showAllTasks bypasses the period upper-bound: show tasks from any date
+      if (!showAllTasks && periodEnd && new Date(t.closed_date) > periodEnd) return false;
     } else {
-      // When including all statuses, use period filter on closed_date OR created_at
-      if (periodEnd) {
+      // When including all statuses, use period filter on closed_date OR start_date
+      if (!showAllTasks && periodEnd) {
         const refDate = t.closed_date || t.start_date;
         if (refDate && new Date(refDate) > periodEnd) return false;
       }
@@ -142,7 +144,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
         {/* Status Filter Toggle */}
         {selWorkerId && (
           <div className="space-y-3">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <label className={labelCls + ' !mb-0'}>Trạng thái task</label>
               <div className="flex items-center bg-surface border border-primary/10 rounded-xl overflow-hidden">
                 <button
@@ -162,8 +164,25 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                   Tất cả trạng thái
                 </button>
               </div>
-              {!includeAllStatuses && (
+
+              {/* Show-all-tasks toggle: remove period upper-bound */}
+              <button
+                onClick={() => { setShowAllTasks(prev => !prev); setSelTaskIds([]); }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  showAllTasks
+                    ? 'bg-orange-500/15 text-orange-400 border-orange-500/30'
+                    : 'text-neutral-medium border-white/10 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <span className="text-[10px]">{showAllTasks ? '✓' : '○'}</span>
+                Hiện tất cả tháng
+              </button>
+
+              {!showAllTasks && !includeAllStatuses && (
                 <span className="text-[10px] text-neutral-medium/50">💡 Chỉ hiện task có ngày đóng (Approved/Closed)</span>
+              )}
+              {showAllTasks && (
+                <span className="text-[10px] text-orange-400/60">⚡ Bỏ giới hạn tháng — hiện tất cả task chưa thanh toán</span>
               )}
             </div>
 
@@ -208,7 +227,11 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
             </div>
 
             {eligibleTasks.length === 0 ? (
-              <p className="text-neutral-medium text-sm py-4 text-center">Không có task khả dụng cho nhân sự này trong kỳ {selPeriod}</p>
+              <p className="text-neutral-medium text-sm py-4 text-center">
+                {showAllTasks
+                  ? 'Không có task chưa thanh toán nào cho nhân sự này'
+                  : `Không có task khả dụng cho nhân sự này trong kỳ ${selPeriod}`}
+              </p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
                 {eligibleTasks.map(t => {
