@@ -157,21 +157,11 @@ const EvalCycleDetail: React.FC<EvalCycleDetailProps> = ({ cycle, currentUser, o
             </button>
           )}
 
-          {cycle.status !== 'completed' && !confirmDelete && (
+          {currentUser.role === 'admin' && (
             <button onClick={() => setConfirmDelete(true)}
-              className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-400 border border-red-500/20 hover:bg-red-500/5 transition-all">
-              Xóa
+              className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all">
+              🗑 Xóa
             </button>
-          )}
-          {confirmDelete && (
-            <div className="flex gap-2">
-              <button onClick={handleDelete} disabled={deleting} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-white bg-red-500 hover:opacity-90 transition-all disabled:opacity-50">
-                {deleting ? '...' : 'Xác nhận xóa'}
-              </button>
-              <button onClick={() => setConfirmDelete(false)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
-                Huỷ
-              </button>
-            </div>
           )}
         </div>
       </div>
@@ -355,6 +345,51 @@ const EvalCycleDetail: React.FC<EvalCycleDetailProps> = ({ cycle, currentUser, o
               <p className="text-xs mt-1 text-neutral-700">{STATUS_LABELS[cycle.status]}</p>
             </div>
           )}
+        </div>
+      )}
+      {/* ── Delete confirmation modal (admin only) ── */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="w-full max-w-sm rounded-[24px] border border-red-500/20 bg-[#1a1a1a] p-6 space-y-5 animate-fadeInUp">
+            {/* Icon + title */}
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-3xl"
+                style={{ background: 'rgba(255,55,95,0.12)', border: '1px solid rgba(255,55,95,0.25)' }}>
+                🗑
+              </div>
+              <div>
+                <p className="text-base font-black text-neutral-light">Xóa kỳ đánh giá?</p>
+                <p className="text-xs text-neutral-medium mt-1 leading-relaxed">
+                  <span className="text-neutral-light font-semibold">{cycle.period_label}</span>
+                  {emp && <> — {emp.full_name}</>}
+                </p>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="rounded-xl p-3 text-xs text-red-300 leading-relaxed"
+              style={{ background: 'rgba(255,55,95,0.08)', border: '1px solid rgba(255,55,95,0.15)' }}>
+              ⚠️ Toàn bộ dữ liệu tự đánh giá và đánh giá leader sẽ bị xóa vĩnh viễn. Không thể khôi phục.
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                style={{ background: deleting ? 'rgba(255,55,95,0.4)' : '#FF375F' }}
+              >
+                {deleting ? 'Đang xóa...' : 'Xác nhận xóa'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
