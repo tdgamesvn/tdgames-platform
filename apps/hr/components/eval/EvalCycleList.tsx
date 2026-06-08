@@ -15,9 +15,9 @@ type FilterMode = 'all' | 'active' | 'completed';
 
 const STATUS_COLOR: Record<EvalStatus, string> = {
   pending_self:   '#FFA726',
-  pending_leader: '#2196F3',
+  pending_leader: '#0A84FF',
   pending_1on1:   '#FF9500',
-  completed:      '#4CAF50',
+  completed:      '#34C759',
 };
 const STATUS_ICON: Record<EvalStatus, string> = {
   pending_self:   '⏳',
@@ -64,50 +64,57 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
     return true;
   });
 
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString('vi-VN');
+  const pendingCount   = cycles.filter(c => c.status !== 'completed').length;
+  const completedCount = cycles.filter(c => c.status === 'completed').length;
 
   return (
-    <div>
+    <div className="animate-fadeInUp space-y-8">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="flex justify-between items-end">
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
-            📋 Đánh giá nhân viên
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
+            Đánh giá
           </h2>
-          <p style={{ fontSize: '12px', color: '#9D9C9D', marginTop: '4px' }}>
-            {cycles.length} kỳ · {cycles.filter(c => c.status !== 'completed').length} đang chờ
-          </p>
+          <p className="text-neutral-medium text-sm mt-1">Quản lý kỳ đánh giá nhân viên</p>
         </div>
-
         <button
           onClick={() => setShowCreate(true)}
-          style={{
-            padding: '10px 18px', borderRadius: '10px', cursor: 'pointer',
-            fontSize: '12px', fontWeight: 800, border: 'none',
-            background: '#FF9500', color: '#000',
-          }}
+          className="flex items-center gap-2 px-5 py-3 rounded-2xl text-black font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all"
+          style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)' }}
         >
           + Tạo kỳ đánh giá
         </button>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Tổng kỳ', value: cycles.length, color: '#FF9500' },
+          { label: 'Đang chờ', value: pendingCount, color: '#FFA726' },
+          { label: 'Hoàn thành', value: completedCount, color: '#34C759' },
+        ].map(c => (
+          <div key={c.label} className="p-5 rounded-[20px] border border-primary/10 bg-surface">
+            <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">{c.label}</p>
+            <p className="text-3xl font-black" style={{ color: c.color }}>{c.value}</p>
+          </div>
+        ))}
+      </div>
+
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '4px', width: 'fit-content' }}>
+      <div className="flex gap-1 bg-surface rounded-xl p-1 w-fit border border-white/5">
         {([
-          { key: 'all', label: 'Tất cả' },
-          { key: 'active', label: 'Đang chờ' },
+          { key: 'all',       label: 'Tất cả' },
+          { key: 'active',    label: 'Đang chờ' },
           { key: 'completed', label: 'Hoàn thành' },
         ] as { key: FilterMode; label: string }[]).map(tab => (
           <button
             key={tab.key}
             onClick={() => setFilter(tab.key)}
-            style={{
-              padding: '7px 16px', borderRadius: '7px', cursor: 'pointer',
-              fontSize: '11px', fontWeight: 800, border: 'none',
-              background: filter === tab.key ? 'rgba(255,149,0,0.15)' : 'transparent',
-              color: filter === tab.key ? '#FF9500' : '#9D9C9D',
-              transition: 'all 0.15s',
-            }}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+              filter === tab.key
+                ? 'bg-primary/20 text-primary'
+                : 'text-neutral-medium hover:text-neutral-light'
+            }`}
           >
             {tab.label}
           </button>
@@ -116,33 +123,27 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
 
       {/* Content */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px' }}>
-          <p style={{ color: '#9D9C9D', fontSize: '13px' }} className="animate-pulse">Đang tải...</p>
+        <div className="text-center py-20">
+          <p className="text-neutral-medium text-sm animate-pulse">Đang tải...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{
-          textAlign: 'center', padding: '48px',
-          background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)',
-          borderRadius: '12px',
-        }}>
-          <p style={{ fontSize: '32px', marginBottom: '8px' }}>📋</p>
-          <p style={{ fontSize: '14px', color: '#9D9C9D', fontWeight: 600 }}>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">📋</p>
+          <p className="text-neutral-medium text-sm">
             {filter === 'all' ? 'Chưa có kỳ đánh giá nào' : 'Không có kỳ phù hợp'}
           </p>
           {filter === 'all' && (
             <button
               onClick={() => setShowCreate(true)}
-              style={{
-                marginTop: '16px', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer',
-                fontSize: '12px', fontWeight: 800, border: 'none', background: '#FF9500', color: '#000',
-              }}
+              className="mt-4 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-black hover:opacity-90 transition-all"
+              style={{ background: '#FF9500' }}
             >
               Tạo kỳ đầu tiên
             </button>
           )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="space-y-3">
           {filtered.map(cycle => {
             const emp = cycle.employee;
             const sc = STATUS_COLOR[cycle.status];
@@ -150,36 +151,33 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
               <div
                 key={cycle.id}
                 onClick={() => setViewingCycle(cycle)}
-                style={{
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: '12px', padding: '14px 18px', cursor: 'pointer',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  gap: '12px', transition: 'border-color 0.15s, background 0.15s',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.15)'; (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.07)'; (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.02)'; }}
+                className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all cursor-pointer"
+                style={{ background: 'rgba(255,255,255,0.02)' }}
               >
-                {/* Left: Employee + period info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '14px', fontWeight: 800, color: '#F2F2F2', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {emp?.full_name ?? '—'} &nbsp;
-                    <span style={{ fontSize: '11px', color: '#9D9C9D', fontWeight: 600 }}>
+                {/* Employee info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black text-neutral-light truncate">
+                    {emp?.full_name ?? '—'}
+                    <span className="ml-2 text-[10px] font-bold text-neutral-medium normal-case">
                       {cycle.period_type === 'probation' ? 'Thử việc' : '6 tháng'}
                     </span>
                   </p>
-                  <p style={{ fontSize: '12px', color: '#9D9C9D', margin: '2px 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {cycle.period_label} · {fmtDate(cycle.created_at)}
+                  <p className="text-xs text-neutral-medium mt-0.5 truncate">
+                    {cycle.period_label} · {new Date(cycle.created_at).toLocaleDateString('vi-VN')}
                   </p>
                 </div>
 
-                {/* Right: status badge */}
-                <span style={{
-                  fontSize: '10px', fontWeight: 800, padding: '5px 10px', borderRadius: '7px',
-                  textTransform: 'uppercase' as const, letterSpacing: '0.07em', whiteSpace: 'nowrap',
-                  background: `${sc}18`, color: sc, border: `1px solid ${sc}44`,
-                }}>
+                {/* Status badge */}
+                <span
+                  className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg shrink-0"
+                  style={{ background: `${sc}20`, color: sc }}
+                >
                   {STATUS_ICON[cycle.status]} {STATUS_LABELS[cycle.status]}
                 </span>
+
+                <svg className="w-4 h-4 text-neutral-medium shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             );
           })}

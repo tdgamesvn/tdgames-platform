@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { HrEmployee, EvalPeriodType } from '@/types';
+import { HrEmployee, EvalPeriodType, AccountUser } from '@/types';
 import { createCycle, autoLabel } from '../../services/evaluationService';
-import { AccountUser } from '@/types';
 
 interface EvalCreateModalProps {
   employees: HrEmployee[];
@@ -11,12 +10,12 @@ interface EvalCreateModalProps {
 }
 
 const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUser, onCreated, onClose }) => {
-  const [employeeId, setEmployeeId] = useState('');
-  const [periodType, setPeriodType] = useState<EvalPeriodType>('probation');
-  const [periodLabel, setPeriodLabel] = useState(autoLabel('probation'));
+  const [employeeId, setEmployeeId]     = useState('');
+  const [periodType, setPeriodType]     = useState<EvalPeriodType>('probation');
+  const [periodLabel, setPeriodLabel]   = useState(autoLabel('probation'));
   const [leaderUserId, setLeaderUserId] = useState(currentUser.id);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [saving, setSaving]             = useState(false);
+  const [error, setError]               = useState('');
 
   // Chỉ Fulltime và Parttime mới được đánh giá — Freelancer không áp dụng
   const activeEmployees = employees.filter(
@@ -30,12 +29,11 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!employeeId) { setError('Vui lòng chọn nhân viên'); return; }
-    if (!periodLabel.trim()) { setError('Vui lòng nhập tên kỳ đánh giá'); return; }
+    if (!employeeId)          { setError('Vui lòng chọn nhân viên'); return; }
+    if (!periodLabel.trim())  { setError('Vui lòng nhập tên kỳ'); return; }
     if (!leaderUserId.trim()) { setError('Vui lòng nhập User ID của leader'); return; }
 
-    setSaving(true);
-    setError('');
+    setSaving(true); setError('');
     try {
       await createCycle({
         employee_id: employeeId,
@@ -53,40 +51,36 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
     }
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', background: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px', padding: '10px 14px', color: '#F2F2F2',
-    fontSize: '13px', fontWeight: 600, outline: 'none', boxSizing: 'border-box',
-  };
-  const labelStyle: React.CSSProperties = {
-    fontSize: '10px', fontWeight: 800, textTransform: 'uppercase',
-    letterSpacing: '0.1em', color: '#9D9C9D', marginBottom: '6px', display: 'block',
-  };
+  const inputCls = "w-full bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all";
+  const labelCls = "text-[10px] font-black uppercase tracking-widest text-neutral-medium";
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
-    }} onClick={onClose}>
-      <div style={{
-        background: '#161616', border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px',
-      }} onClick={e => e.stopPropagation()}>
-
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: 'rgba(0,0,0,0.75)' }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-surface rounded-[20px] border border-primary/10 p-7 w-full max-w-md animate-scaleIn"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 900, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-base font-black uppercase tracking-wider text-neutral-light">
             📋 Tạo kỳ đánh giá
           </h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#9D9C9D', cursor: 'pointer', fontSize: '18px', padding: '4px' }}>✕</button>
+          <button onClick={onClose} className="text-neutral-medium hover:text-neutral-light transition-all text-lg leading-none">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Employee */}
-          <div>
-            <label style={labelStyle}>Nhân viên *</label>
-            <select value={employeeId} onChange={e => setEmployeeId(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Nhân viên *</label>
+            <select
+              value={employeeId}
+              onChange={e => setEmployeeId(e.target.value)}
+              className={inputCls}
+            >
               <option value="">— Chọn nhân viên —</option>
               {activeEmployees.map(emp => (
                 <option key={emp.id} value={emp.id}>
@@ -97,22 +91,19 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
           </div>
 
           {/* Period type */}
-          <div>
-            <label style={labelStyle}>Loại kỳ *</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Loại kỳ *</label>
+            <div className="flex gap-2">
               {(['probation', 'semi_annual'] as EvalPeriodType[]).map(t => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => handlePeriodTypeChange(t)}
-                  style={{
-                    flex: 1, padding: '10px', borderRadius: '8px', cursor: 'pointer',
-                    fontSize: '12px', fontWeight: 800, border: '1px solid',
-                    background: periodType === t ? 'rgba(255,149,0,0.12)' : 'rgba(255,255,255,0.03)',
-                    borderColor: periodType === t ? 'rgba(255,149,0,0.4)' : 'rgba(255,255,255,0.1)',
-                    color: periodType === t ? '#FF9500' : '#9D9C9D',
-                    transition: 'all 0.15s',
-                  }}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
+                    periodType === t
+                      ? 'bg-primary/15 border-primary/40 text-primary'
+                      : 'bg-transparent border-white/10 text-neutral-medium hover:bg-white/5'
+                  }`}
                 >
                   {t === 'probation' ? '🧪 Thử việc' : '📅 6 tháng'}
                 </button>
@@ -121,60 +112,48 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
           </div>
 
           {/* Period label */}
-          <div>
-            <label style={labelStyle}>Tên kỳ *</label>
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Tên kỳ *</label>
             <input
               type="text"
               value={periodLabel}
               onChange={e => setPeriodLabel(e.target.value)}
               placeholder="VD: Thử việc T6/2026"
-              style={inputStyle}
+              className={inputCls}
             />
           </div>
 
           {/* Leader user ID */}
-          <div>
-            <label style={labelStyle}>Leader User ID *</label>
+          <div className="flex flex-col gap-1">
+            <label className={labelCls}>Leader User ID *</label>
             <input
               type="text"
               value={leaderUserId}
               onChange={e => setLeaderUserId(e.target.value)}
               placeholder="UUID của tài khoản leader"
-              style={inputStyle}
+              className={inputCls}
             />
-            <p style={{ fontSize: '11px', color: '#9D9C9D', marginTop: '4px' }}>
-              Mặc định: tài khoản của bạn. Thay bằng UUID nếu người đánh giá khác.
-            </p>
+            <p className="text-xs text-neutral-medium">Mặc định: tài khoản của bạn. Thay bằng UUID nếu người đánh giá khác.</p>
           </div>
 
           {error && (
-            <p style={{ fontSize: '12px', color: '#F44336', background: 'rgba(244,67,54,0.08)', borderRadius: '8px', padding: '8px 12px', margin: 0 }}>
-              {error}
-            </p>
+            <p className="p-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-500/5">{error}</p>
           )}
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', paddingTop: '8px' }}>
+          <div className="flex gap-3 justify-end pt-2">
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '10px 20px', borderRadius: '8px', cursor: 'pointer',
-                fontSize: '12px', fontWeight: 800, border: '1px solid rgba(255,255,255,0.1)',
-                background: 'transparent', color: '#9D9C9D',
-              }}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
             >
               Huỷ
             </button>
             <button
               type="submit"
               disabled={saving}
-              style={{
-                padding: '10px 20px', borderRadius: '8px', cursor: saving ? 'not-allowed' : 'pointer',
-                fontSize: '12px', fontWeight: 800, border: 'none',
-                background: saving ? 'rgba(255,149,0,0.5)' : '#FF9500',
-                color: '#000', opacity: saving ? 0.7 : 1,
-              }}
+              className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black hover:opacity-90 transition-all disabled:opacity-50"
+              style={{ background: '#FF9500' }}
             >
               {saving ? 'Đang tạo...' : 'Tạo kỳ'}
             </button>

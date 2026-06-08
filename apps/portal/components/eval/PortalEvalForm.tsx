@@ -6,207 +6,133 @@ import {
 } from '../../../hr/services/evaluationService';
 
 interface PortalEvalFormProps {
-  cycle: HrEvaluationCycle;
-  userId: string;
+  cycle:       HrEvaluationCycle;
+  userId:      string;
   onSubmitted: () => void;
-  onBack: () => void;
-  onToast: (msg: string, type: 'success' | 'error') => void;
+  onBack:      () => void;
+  onToast:     (msg: string, type: 'success' | 'error') => void;
 }
 
-const SCORE_LABELS: Record<number, string> = {
-  1: 'Chưa đạt',
-  2: 'Cần cải thiện',
-  3: 'Đạt yêu cầu',
-  4: 'Tốt',
-  5: 'Xuất sắc',
+const SCORE_LABELS: Record<number, string> = { 1: 'Chưa đạt', 2: 'Cần cải thiện', 3: 'Đạt', 4: 'Tốt', 5: 'Xuất sắc' };
+const RATING_COLOR: Record<string, string> = {
+  excellent: '#34C759', good: '#FF9500', meets: '#0A84FF', needs_improvement: '#FF375F',
 };
 
 const PortalEvalForm: React.FC<PortalEvalFormProps> = ({ cycle, userId, onSubmitted, onBack, onToast }) => {
   const groupsConfig = useMemo(() => getGroupsConfig(cycle.period_type), [cycle.period_type]);
 
-  // scores[groupIdx][criterionIdx] = 0 (unset) | 1-5
-  const [scores, setScores] = useState<number[][]>(
-    () => groupsConfig.map(g => g.criteria.map(() => 0))
-  );
-  const [comments, setComments] = useState('');
+  const [scores, setScores]       = useState<number[][]>(() => groupsConfig.map(g => g.criteria.map(() => 0)));
+  const [comments, setComments]   = useState('');
   const [recommended, setRecommended] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]       = useState(false);
   const [openGroup, setOpenGroup] = useState<number>(0);
 
   const setScore = (gIdx: number, cIdx: number, val: number) => {
-    setScores(prev => {
-      const next = prev.map(row => [...row]);
-      next[gIdx][cIdx] = val;
-      return next;
-    });
+    setScores(prev => { const next = prev.map(r => [...r]); next[gIdx][cIdx] = val; return next; });
   };
 
-  // Build EvalGroup[] from current scores
-  const groups: EvalGroup[] = groupsConfig.map((gc, gIdx) => {
-    const filledScores = scores[gIdx].filter(s => s > 0);
-    return {
-      name: gc.name,
-      weight: gc.weight,
-      scores: scores[gIdx],
-      group_avg: filledScores.length === gc.criteria.length
-        ? calcGroupAvg(scores[gIdx])
-        : 0,
-    };
-  });
+  const groups: EvalGroup[] = groupsConfig.map((gc, gIdx) => ({
+    name: gc.name, weight: gc.weight, scores: scores[gIdx],
+    group_avg: scores[gIdx].every(s => s > 0) ? calcGroupAvg(scores[gIdx]) : 0,
+  }));
 
-  const allFilled = groups.every((g, gIdx) => scores[gIdx].every(s => s > 0));
-  const previewScore = allFilled ? calcTotalScore(groups) : null;
+  const allFilled     = groups.every((_, gi) => scores[gi].every(s => s > 0));
+  const doneCount     = groups.filter((_, gi) => scores[gi].every(s => s > 0)).length;
+  const previewScore  = allFilled ? calcTotalScore(groups) : null;
   const previewRating = previewScore !== null ? calcRating(previewScore) : null;
 
-  const RATING_COLOR_TEXT: Record<string, string> = {
-    excellent: '#4CAF50',
-    good: '#FF9500',
-    meets: '#2196F3',
-    needs_improvement: '#F44336',
-  };
-
   const handleSubmit = async () => {
-    if (!allFilled) { onToast('Vui lòng đánh giá đủ tất cả tiêu chí', 'error'); return; }
-    if (!comments.trim()) { onToast('Vui lòng nhập nhận xét chung', 'error'); return; }
-
+    if (!allFilled)        { onToast('Vui lòng đánh giá đủ tất cả tiêu chí', 'error'); return; }
+    if (!comments.trim())  { onToast('Vui lòng nhập nhận xét chung', 'error'); return; }
     setSaving(true);
     try {
-      await submitEvaluation({
-        cycle_id: cycle.id,
-        evaluator_role: 'self',
-        evaluator_user_id: userId,
-        groups,
-        comments: comments.trim(),
-        recommended_action: recommended.trim(),
-      });
+      await submitEvaluation({ cycle_id: cycle.id, evaluator_role: 'self', evaluator_user_id: userId, groups, comments: comments.trim(), recommended_action: recommended.trim() });
       onToast('Đã gửi tự đánh giá thành công', 'success');
       onSubmitted();
-    } catch (e: any) {
-      onToast(e.message, 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const inputBase: React.CSSProperties = {
-    width: '100%', background: '#1A1A1A', border: '1px solid rgba(255,255,255,0.1)',
-    borderRadius: '8px', padding: '10px 14px', color: '#F2F2F2', fontSize: '13px',
-    fontWeight: 500, outline: 'none', resize: 'vertical' as const, boxSizing: 'border-box',
+    } catch (e: any) { onToast(e.message, 'error'); }
+    finally { setSaving(false); }
   };
 
   return (
-    <div>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 800, color: '#9D9C9D', display: 'flex', alignItems: 'center', gap: '6px', padding: 0, marginBottom: '20px' }}>
-        ← Quay lại
+    <div className="animate-fadeInUp space-y-6">
+      <button onClick={onBack} className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-neutral-medium hover:text-neutral-light transition-all">
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        Quay lại
       </button>
 
       {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fff', margin: 0 }}>
-          ✏️ Tự đánh giá
-        </h2>
-        <p style={{ fontSize: '13px', color: '#9D9C9D', marginTop: '4px' }}>
-          {cycle.period_label} — thang điểm 1–5 cho mỗi tiêu chí
-        </p>
+      <div>
+        <h2 className="text-lg font-black uppercase tracking-wider text-neutral-light">✏️ Tự đánh giá</h2>
+        <p className="text-sm text-neutral-medium mt-1">{cycle.period_label} — thang điểm 1–5</p>
       </div>
 
       {/* Sticky score preview */}
-      <div style={{
-        position: 'sticky', top: '16px', zIndex: 10,
-        background: 'rgba(22,22,22,0.95)', border: '1px solid rgba(255,255,255,0.1)',
-        borderRadius: '12px', padding: '12px 16px', marginBottom: '20px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        backdropFilter: 'blur(8px)',
-      }}>
+      <div className="sticky top-4 z-10 flex justify-between items-center p-4 rounded-[20px] border border-primary/10 bg-surface">
         <div>
-          <p style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9D9C9D', margin: 0 }}>
-            Điểm dự kiến
-          </p>
-          <p style={{ fontSize: '22px', fontWeight: 900, color: '#fff', margin: 0 }}>
-            {previewScore !== null ? previewScore.toFixed(2) : '—'}
-            <span style={{ fontSize: '13px', color: '#9D9C9D', marginLeft: '4px' }}>/5</span>
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Điểm dự kiến</p>
+          <div className="flex items-baseline gap-1.5 mt-0.5">
+            <span className="text-2xl font-black text-neutral-light">{previewScore !== null ? previewScore.toFixed(2) : '—'}</span>
+            <span className="text-xs text-neutral-medium">/5</span>
+          </div>
         </div>
         {previewRating && (
-          <span style={{
-            fontSize: '11px', fontWeight: 800, padding: '5px 14px', borderRadius: '8px',
-            textTransform: 'uppercase' as const, letterSpacing: '0.08em',
-            color: RATING_COLOR_TEXT[previewRating],
-            background: `${RATING_COLOR_TEXT[previewRating]}18`,
-            border: `1px solid ${RATING_COLOR_TEXT[previewRating]}40`,
-          }}>
+          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg" style={{ background: `${RATING_COLOR[previewRating]}20`, color: RATING_COLOR[previewRating] }}>
             {RATING_LABELS[previewRating]}
           </span>
         )}
-        <p style={{ fontSize: '11px', color: '#9D9C9D', margin: 0 }}>
-          {groups.filter((_, gi) => scores[gi].every(s => s > 0)).length}/{groups.length} nhóm hoàn tất
-        </p>
+        <p className="text-xs text-neutral-medium">{doneCount}/{groups.length} nhóm</p>
       </div>
 
       {/* Groups */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+      <div className="space-y-3">
         {groupsConfig.map((gc, gIdx) => {
           const groupDone = scores[gIdx].every(s => s > 0);
-          const isOpen = openGroup === gIdx;
-          const groupAvg = groupDone ? calcGroupAvg(scores[gIdx]) : null;
-
+          const isOpen    = openGroup === gIdx;
           return (
-            <div key={gIdx} style={{
-              background: 'rgba(255,255,255,0.02)', border: `1px solid ${isOpen ? 'rgba(255,149,0,0.25)' : 'rgba(255,255,255,0.07)'}`,
-              borderRadius: '12px', overflow: 'hidden', transition: 'border-color 0.2s',
-            }}>
+            <div key={gIdx} className={`rounded-[20px] border transition-all overflow-hidden ${isOpen ? 'border-primary/30' : 'border-white/8'} bg-surface`}>
               {/* Group header */}
               <button
                 onClick={() => setOpenGroup(isOpen ? -1 : gIdx)}
-                style={{
-                  width: '100%', padding: '14px 16px', background: 'none', border: 'none',
-                  cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                }}
+                className="w-full flex justify-between items-center px-5 py-4 text-left"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 900, color: '#F2F2F2' }}>{gc.name}</span>
-                  <span style={{ fontSize: '10px', color: '#9D9C9D', background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: '5px' }}>
-                    {gc.weight}%
-                  </span>
-                  {groupDone && (
-                    <span style={{ fontSize: '10px', fontWeight: 800, color: '#4CAF50' }}>✓ {groupAvg!.toFixed(1)}</span>
-                  )}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-black text-neutral-light">{gc.name}</span>
+                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-lg bg-white/5 text-neutral-medium">{gc.weight}%</span>
+                  {groupDone && <span className="text-[9px] font-black text-status-success">✓ {calcGroupAvg(scores[gIdx]).toFixed(1)}</span>}
                 </div>
-                <span style={{ color: '#9D9C9D', fontSize: '14px' }}>{isOpen ? '▲' : '▼'}</span>
+                <svg className={`w-4 h-4 text-neutral-medium transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
 
               {/* Criteria */}
               {isOpen && (
-                <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="px-5 pb-5 space-y-5 border-t border-white/5">
                   {gc.criteria.map((criterion, cIdx) => {
                     const val = scores[gIdx][cIdx];
                     return (
-                      <div key={cIdx}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <div key={cIdx} className="pt-4">
+                        <div className="flex justify-between items-start mb-3">
                           <div>
-                            <p style={{ fontSize: '13px', fontWeight: 700, color: '#F2F2F2', margin: 0 }}>{criterion.label}</p>
-                            <p style={{ fontSize: '11px', color: '#9D9C9D', margin: '2px 0 0' }}>{criterion.hint}</p>
+                            <p className="text-sm font-black text-neutral-light">{criterion.label}</p>
+                            <p className="text-xs text-neutral-medium mt-0.5">{criterion.hint}</p>
                           </div>
                           {val > 0 && (
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#FF9500', whiteSpace: 'nowrap', marginLeft: '12px' }}>
-                              {val} — {SCORE_LABELS[val]}
-                            </span>
+                            <span className="text-xs font-black text-primary shrink-0 ml-4">{val} — {SCORE_LABELS[val]}</span>
                           )}
                         </div>
-                        {/* Score buttons 1-5 */}
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          {[1, 2, 3, 4, 5].map(n => (
+                        <div className="flex gap-2">
+                          {[1,2,3,4,5].map(n => (
                             <button
                               key={n}
                               onClick={() => setScore(gIdx, cIdx, n)}
-                              style={{
-                                flex: 1, padding: '8px 4px', borderRadius: '8px', cursor: 'pointer',
-                                fontSize: '13px', fontWeight: 800, border: '1px solid',
-                                borderColor: val === n ? '#FF9500' : 'rgba(255,255,255,0.1)',
-                                background: val === n ? 'rgba(255,149,0,0.18)' : 'rgba(255,255,255,0.03)',
-                                color: val === n ? '#FF9500' : '#9D9C9D',
-                                transition: 'all 0.12s',
-                              }}
+                              className={`flex-1 py-2 rounded-xl text-sm font-black border transition-all ${
+                                val === n
+                                  ? 'border-primary/50 bg-primary/15 text-primary'
+                                  : 'border-white/10 text-neutral-medium hover:bg-white/5'
+                              }`}
                             >
                               {n}
                             </button>
@@ -223,29 +149,25 @@ const PortalEvalForm: React.FC<PortalEvalFormProps> = ({ cycle, userId, onSubmit
       </div>
 
       {/* Comments */}
-      <div style={{ marginBottom: '14px' }}>
-        <label style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9D9C9D', display: 'block', marginBottom: '6px' }}>
-          Nhận xét chung *
-        </label>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Nhận xét chung *</label>
         <textarea
           rows={4}
           value={comments}
           onChange={e => setComments(e.target.value)}
-          placeholder="Mô tả thành tựu nổi bật, những điều bạn học được và muốn cải thiện..."
-          style={inputBase}
+          placeholder="Thành tựu nổi bật, điều học được, muốn cải thiện..."
+          className="w-full bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/40 transition-all resize-none"
         />
       </div>
 
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9D9C9D', display: 'block', marginBottom: '6px' }}>
-          Đề xuất / kỳ vọng bản thân
-        </label>
+      <div className="flex flex-col gap-1">
+        <label className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Đề xuất / kỳ vọng bản thân</label>
         <textarea
           rows={2}
           value={recommended}
           onChange={e => setRecommended(e.target.value)}
-          placeholder="VD: Muốn được trao đổi thêm về lộ trình thăng tiến..."
-          style={inputBase}
+          placeholder="VD: Muốn trao đổi thêm về lộ trình thăng tiến..."
+          className="w-full bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-primary/40 transition-all resize-none"
         />
       </div>
 
@@ -253,16 +175,12 @@ const PortalEvalForm: React.FC<PortalEvalFormProps> = ({ cycle, userId, onSubmit
       <button
         onClick={handleSubmit}
         disabled={saving || !allFilled}
-        style={{
-          width: '100%', padding: '14px', borderRadius: '10px', cursor: (saving || !allFilled) ? 'not-allowed' : 'pointer',
-          fontSize: '13px', fontWeight: 900, border: 'none',
-          background: allFilled ? '#FF9500' : 'rgba(255,255,255,0.06)',
-          color: allFilled ? '#000' : '#9D9C9D',
-          opacity: saving ? 0.7 : 1,
-          transition: 'all 0.2s',
-        }}
+        className={`w-full py-3.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all disabled:opacity-50 ${
+          allFilled ? 'text-black hover:opacity-90' : 'text-neutral-medium border border-white/10'
+        }`}
+        style={allFilled ? { background: 'linear-gradient(135deg, #FF9500, #FF6B00)' } : { background: 'rgba(255,255,255,0.03)' }}
       >
-        {saving ? 'Đang gửi...' : allFilled ? '✓ Gửi tự đánh giá' : `Chưa điền đủ (${groups.filter((_, gi) => scores[gi].every(s => s > 0)).length}/${groups.length} nhóm)`}
+        {saving ? 'Đang gửi...' : allFilled ? '✓ Gửi tự đánh giá' : `Chưa điền đủ (${doneCount}/${groups.length} nhóm)`}
       </button>
     </div>
   );
