@@ -33,35 +33,36 @@ function buildEmailText(title: string, body: string | null, link: string | null,
 
 function buildEmailHtml(title: string, body: string | null, link: string | null, appUrl: string): string {
   const actionBtn = link
-    ? `<a href="${appUrl}${link}" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#FF9500;color:#000;font-weight:800;text-decoration:none;border-radius:10px;font-size:14px;letter-spacing:0.02em;">Xem chi tiết →</a>`
+    ? `<a href="${appUrl}${link}" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#FF9500;color:#000;font-weight:800;text-decoration:none;border-radius:8px;font-size:14px;letter-spacing:0.02em;">Xem chi tiết →</a>`
     : '';
 
+  // Light theme — dark backgrounds score poorly with Gmail spam filters
   return `<!DOCTYPE html>
 <html lang="vi">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${title}</title></head>
-<body style="margin:0;padding:0;background:#0A0A0A;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0A0A0A;padding:40px 20px;">
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 20px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:#161616;border-radius:20px;border:1px solid #2a2a2a;overflow:hidden;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;border:1px solid #e4e4e7;overflow:hidden;">
         <!-- Header -->
-        <tr><td style="background:linear-gradient(135deg,#FF9500 0%,#FF6B35 100%);padding:28px 36px;">
+        <tr><td style="background:linear-gradient(135deg,#FF9500 0%,#FF6B35 100%);padding:24px 36px;">
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr>
-              <td style="color:#000;font-size:20px;font-weight:900;letter-spacing:-0.02em;text-transform:uppercase;">TD Games Platform</td>
-              <td align="right" style="color:rgba(0,0,0,0.6);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">Thông báo</td>
+              <td style="color:#000000;font-size:18px;font-weight:900;letter-spacing:-0.01em;text-transform:uppercase;">TD Games Platform</td>
+              <td align="right" style="color:rgba(0,0,0,0.5);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Thông báo</td>
             </tr>
           </table>
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:36px;">
           <p style="margin:0 0 8px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#FF9500;">Thông báo mới</p>
-          <h1 style="margin:0 0 16px 0;font-size:22px;font-weight:900;color:#F5F5F5;line-height:1.2;">${title}</h1>
-          ${body ? `<p style="margin:0;font-size:15px;color:#aaa;line-height:1.6;">${body}</p>` : ''}
+          <h1 style="margin:0 0 16px 0;font-size:22px;font-weight:800;color:#18181b;line-height:1.3;">${title}</h1>
+          ${body ? `<p style="margin:0;font-size:15px;color:#52525b;line-height:1.7;">${body}</p>` : ''}
           ${actionBtn}
         </td></tr>
         <!-- Footer -->
-        <tr><td style="padding:20px 36px;border-top:1px solid #222;">
-          <p style="margin:0;font-size:11px;color:#555;line-height:1.5;">Email này được gửi tự động từ <strong style="color:#888;">TD Games Platform</strong>.<br>Vui lòng không reply email này.</p>
+        <tr><td style="padding:20px 36px;border-top:1px solid #e4e4e7;background:#fafafa;">
+          <p style="margin:0;font-size:11px;color:#a1a1aa;line-height:1.6;">Email này được gửi tự động từ <strong style="color:#71717a;">TD Games Platform</strong>.<br>Vui lòng không reply email này.</p>
         </td></tr>
       </table>
     </td></tr>
