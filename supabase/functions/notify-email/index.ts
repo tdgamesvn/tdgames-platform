@@ -25,7 +25,8 @@ const TYPE_META: Record<string, { subject: string; category: string }> = {
   leave_rejected:         { subject: '[TD Games] Đơn nghỉ phép của bạn bị từ chối',       category: 'Nghỉ phép'   },
   leave_new:              { subject: '[TD Games] Có đơn nghỉ phép mới cần xử lý',          category: 'Nghỉ phép'   },
   // Lương
-  payslip_created:        { subject: '[TD Games] Phiếu lương tháng vừa được cập nhật',    category: 'Bảng lương'  },
+  payslip_created:          { subject: '[TD Games] Phiếu lương tháng vừa được cập nhật',        category: 'Bảng lương'  },
+  payslip_pending_review:   { subject: '[TD Games] Phiếu lương cần xác nhận',                   category: 'Bảng lương'  },
   // Chi phí
   expense_approved:       { subject: '[TD Games] Chi phí của bạn đã được duyệt',          category: 'Chi phí'     },
   expense_rejected:       { subject: '[TD Games] Chi phí của bạn bị từ chối',             category: 'Chi phí'     },
