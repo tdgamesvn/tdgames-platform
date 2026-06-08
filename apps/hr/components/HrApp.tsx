@@ -12,6 +12,7 @@ import ReminderDashboard from './ReminderDashboard';
 import QuickAddEmployee from './QuickAddEmployee';
 import HelpPanel from '@/components/HelpPanel';
 import { HR_HELP } from '../helpContent';
+import EvalTab from './EvalTab';
 
 interface HrAppProps {
   currentUser: AccountUser;
@@ -26,6 +27,7 @@ const TAB_MAP: Record<HrTab, string> = {
   departments: 'activity',
   reminders: 'dashboard',
   quickAdd: 'edit',
+  evaluation: 'tasks',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -33,6 +35,7 @@ const TAB_LABELS: Record<string, string> = {
   edit: 'Thêm/Sửa',
   activity: 'Phòng ban',
   dashboard: 'Nhắc việc',
+  tasks: 'Đánh giá',
 };
 
 const REVERSE_TAB: Record<string, HrTab> = {
@@ -41,6 +44,7 @@ const REVERSE_TAB: Record<string, HrTab> = {
   recurring: 'employeeDetail',
   activity: 'departments',
   dashboard: 'reminders',
+  tasks: 'evaluation',
 };
 
 const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
@@ -48,7 +52,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const accessibleTabs = ['history', 'activity', 'dashboard'];
+  const accessibleTabs = ['history', 'activity', 'dashboard', 'tasks'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -155,6 +159,14 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
             departments={state.departments}
             onSave={state.handleSaveEmployee}
             onCancel={() => state.setActiveTab('employees')}
+          />
+        )}
+
+        {state.activeTab === 'evaluation' && (
+          <EvalTab
+            employees={state.employees}
+            currentUser={currentUser}
+            onToast={(msg, type) => state.setToast({ message: msg, type })}
           />
         )}
       </main>

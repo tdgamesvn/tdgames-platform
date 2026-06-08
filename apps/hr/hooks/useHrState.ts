@@ -3,8 +3,8 @@ import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrReminder } from '
 import * as svc from '../services/hrService';
 import { setHashTab } from '@/App';
 
-export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd';
-const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd'];
+export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd' | 'evaluation';
+const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation'];
 
 export function useHrState(initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<HrTab>(() => {
