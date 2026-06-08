@@ -21,6 +21,14 @@ const STATUS_COLOR: Record<string, string> = {
   pending_1on1:   '#FF9500',
   completed:      '#34C759',
 };
+const SCORE_CONFIG: Record<number, { color: string; bg: string; label: string }> = {
+  1: { color: '#FF375F', bg: 'rgba(255,55,95,0.15)',  label: 'Chưa đạt' },
+  2: { color: '#FF9500', bg: 'rgba(255,149,0,0.15)',  label: 'Cần cải thiện' },
+  3: { color: '#0A84FF', bg: 'rgba(10,132,255,0.15)', label: 'Đạt' },
+  4: { color: '#30D158', bg: 'rgba(48,209,88,0.15)',  label: 'Tốt' },
+  5: { color: '#34C759', bg: 'rgba(52,199,89,0.2)',   label: 'Xuất sắc' },
+};
+// kept for backward compatibility
 const SCORE_LABELS: Record<number, string> = {
   1: 'Chưa đạt', 2: 'Cần cải thiện', 3: 'Đạt', 4: 'Tốt', 5: 'Xuất sắc',
 };
@@ -261,27 +269,41 @@ const EvalCycleDetail: React.FC<EvalCycleDetailProps> = ({ cycle, currentUser, o
                       </button>
 
                       {isOpen && (
-                        <div className="px-4 pb-4 space-y-4 border-t border-white/5">
+                        <div className="border-t border-white/5 divide-y divide-white/5">
                           {gc.criteria.map((criterion, cIdx) => {
                             const val = scores[gIdx][cIdx];
+                            const sc  = val > 0 ? SCORE_CONFIG[val] : null;
                             return (
-                              <div key={cIdx} className="pt-3">
-                                <div className="flex justify-between items-start mb-2">
+                              <div key={cIdx} className="px-4 py-4">
+                                <div className="flex items-start justify-between gap-3 mb-3">
                                   <div>
                                     <p className="text-sm font-black text-neutral-light">{criterion.label}</p>
                                     <p className="text-xs text-neutral-medium mt-0.5">{criterion.hint}</p>
                                   </div>
-                                  {val > 0 && <span className="text-xs font-black text-primary shrink-0 ml-4">{val} — {SCORE_LABELS[val]}</span>}
+                                  {sc && (
+                                    <span className="text-xs font-black px-2.5 py-1 rounded-lg shrink-0"
+                                      style={{ background: sc.bg, color: sc.color }}>
+                                      {val} — {sc.label}
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex gap-2">
-                                  {[1,2,3,4,5].map(n => (
-                                    <button key={n} onClick={() => setScore(gIdx, cIdx, n)}
-                                      className={`flex-1 py-2 rounded-xl text-sm font-black border transition-all ${
-                                        val === n ? 'border-primary/50 bg-primary/15 text-primary' : 'border-white/10 text-neutral-medium hover:bg-white/5'
-                                      }`}>
-                                      {n}
-                                    </button>
-                                  ))}
+                                  {[1,2,3,4,5].map(n => {
+                                    const cfg = SCORE_CONFIG[n];
+                                    const active = val === n;
+                                    return (
+                                      <button key={n} onClick={() => setScore(gIdx, cIdx, n)}
+                                        className="flex-1 flex flex-col items-center py-2.5 rounded-xl border transition-all gap-0.5"
+                                        style={{
+                                          background:  active ? cfg.bg : 'rgba(255,255,255,0.03)',
+                                          borderColor: active ? `${cfg.color}60` : 'rgba(255,255,255,0.08)',
+                                          color:       active ? cfg.color : '#9D9C9D',
+                                        }}>
+                                        <span className="text-base font-black leading-none">{n}</span>
+                                        <span className="text-[9px] font-bold uppercase leading-none hidden sm:block">{cfg.label}</span>
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             );
