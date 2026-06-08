@@ -141,17 +141,21 @@ Deno.serve(async (req: Request) => {
   const resolvedCountry = body.country ?? countries[idx] ?? "United States";
   const resolvedPage = body.page ?? cfg.current_page ?? 1;
   const studiosPerRun = body.studios_per_run ?? cfg.studios_per_run ?? 5;
-  const reDiscoverAfterDays = body.re_discover_after_days ?? cfg.re_discover_after_days ?? 90;
 
-  // Build exclusion lists
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - reDiscoverAfterDays);
+  // Hướng B: chỉ block studios được query trong 7 ngày gần nhất (tránh hammer API).
+  // Studios phát hiện lâu hơn sẽ được re-process → Apollo tìm contacts mới →
+  // dedup thực sự dựa trên existing_emails (đã từng thêm vào outreach list chưa).
+  const recentOnlyDays = body.re_discover_after_days ?? cfg.re_discover_after_days ?? 7;
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - recentOnlyDays);
 
   const [studiosRes, leadsRes] = await Promise.all([
+    // Chỉ exclude studios queried trong 7 ngày — không phải 90 ngày
     supabase
       .from("crm_discovered_studios")
       .select("apollo_id")
-      .gte("discovered_at", cutoffDate.toISOString()),
+      .gte("discovered_at", recentCutoff.toISOString()),
+    // Email dedup: không thêm lại contact đã có trong outreach list
     supabase
       .from("crm_outreach_leads")
       .select("email"),
@@ -164,8 +168,8 @@ Deno.serve(async (req: Request) => {
     country: resolvedCountry,
     page: resolvedPage,
     studios_per_run: studiosPerRun,
-    existing_apollo_ids: existingApolloIds,
-    existing_emails: existingEmails,
+    existing_apollo_ids: existingApolloIds,   // window ngắn hơn → pool lớn hơn
+    existing_emails: existingEmails,           // dedup thật sự: email đã outreach rồi
   };
 
   const forwardHeaders = new Headers({ "content-type": "application/json" });
