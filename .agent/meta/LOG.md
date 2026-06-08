@@ -1,5 +1,34 @@
 # LOG
 
+## 2026-06-08
+### Task
+Build Employee Evaluation v2 — HR tab + Employee Portal tab
+
+### Work Done
+- Created DB migration: `hr_evaluation_cycles` + `hr_evaluation_submissions` (2 new tables, indexes, RLS)
+- Applied migration to Supabase production ✅
+- Added TypeScript types: `EvalGroup`, `EvalPeriodType`, `EvalStatus`, `EvalRating`, `HrEvaluationCycle`, `HrEvaluationSubmission`
+- Created `apps/hr/services/evaluationService.ts`: pure helpers (calcTotalScore, calcRating, calcGap, calcGroupAvg, autoLabel), full CRUD (fetchEvaluationCycles, fetchCycleById, fetchSubmissions, fetchMyCycles, createCycle, submitEvaluation, markComplete1on1, deleteCycle), fixed group config (getGroupsConfig — probation + semi_annual)
+- Created HR components: `EvalScoreCard` (side-by-side comparison + gap alert), `EvalCycleDetail` (metadata + 1-on-1 action), `EvalCreateModal` (form), `EvalCycleList` (table + filter tabs), `EvalTab` (container)
+- Created Portal components: `PortalEvalResult` (hero score + breakdown), `PortalEvalForm` (accordion groups, score buttons 1-5, live preview, sticky total), `PortalEvalList` (list with status routing to form/result), `EvalTab` (container with unlinked-account guard)
+- Wired `evaluation` tab into `HrApp.tsx` (navbar key: `tasks`) and `PortalApp.tsx` (navbar key: `dashboard`)
+- Updated `useHrState.ts` to add `evaluation` to `HrTab` type and `VALID_TABS`
+- Build: `npm run build` ✅ — 0 errors
+
+### Validation
+- `npm run build` succeeded — 244 modules transformed
+- Supabase migration applied successfully
+
+### Result
+- HR staff can create evaluation cycles, view self+leader submissions side-by-side, mark 1-on-1 complete
+- Employees can fill self-assessment form (accordion UI, score 1-5, live preview) and view results
+- Auto-advance: pending_self → pending_leader → (gap check) → pending_1on1 or completed
+- Gap > 1.0 triggers requires_1on1 flag and blocks completion until HR marks 1-on-1 done
+
+### Next Step
+- Deploy branch to VPS after PR review
+- Push branch and create PR
+
 ## 2026-06-04
 ### Task
 Feature: Thêm toggle "Hiện tất cả tháng" trong form Tạo Nghiệm Thu (freelancer settlement)

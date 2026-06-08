@@ -40,6 +40,11 @@ _(trống — không có task đang chạy)_
 
 ## Recently Completed
 
+- [x] Build Employee Evaluation v2 (HR tab + Portal tab)
+  - Done: 2026-06-08
+  - Branch: feat/employee-evaluation-v2 (6 commits)
+  - Result: 2 bảng DB mới (hr_evaluation_cycles + hr_evaluation_submissions), evaluationService với gap detection, EvalTab trong HR app, EvalTab trong Portal. Build ✅, migration applied ✅
+
 - [x] Thêm thưởng KPI vào Payroll (bonus field)
   - Done: 2026-05-29
   - Branch: feat/payroll-kpi-bonus (4 commits: db, types, service, UI+export)
