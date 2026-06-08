@@ -17,11 +17,9 @@ function daysUntil(dateStr: string | null): number | null {
   return Math.ceil(diff / 86400000);
 }
 
-/** Next 6-month anniversary from official_date relative to today */
 function nextSemiAnnualDate(officialDate: string): string {
   const base = new Date(officialDate);
   const now  = new Date();
-  // Find the next 6-month mark
   let next = new Date(base);
   while (next <= now) {
     next = new Date(next);
@@ -41,37 +39,32 @@ function urgencyColor(days: number | null): string {
 
 function urgencyLabel(days: number | null, type: EvalPeriodType): string {
   if (days === null) return '';
-  if (days < 0)   return `Đã quá hạn ${Math.abs(days)} ngày`;
+  if (days < 0)   return `Quá hạn ${Math.abs(days)} ngày`;
   if (days === 0) return 'Hôm nay!';
-  if (type === 'probation') return `Còn ${days} ngày hết thử việc`;
-  return `Còn ${days} ngày đến kỳ review`;
+  if (type === 'probation') return `Còn ${days} ngày`;
+  return `Còn ${days} ngày`;
 }
 
 // ─────────────────────────────────────────────────────────
 
 const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUser, onCreated, onClose }) => {
-  const [step, setStep]             = useState<1 | 2>(1);
-  const [periodType, setPeriodType] = useState<EvalPeriodType>('probation');
+  const [step, setStep]               = useState<1 | 2>(1);
+  const [periodType, setPeriodType]   = useState<EvalPeriodType>('probation');
   const [periodLabel, setPeriodLabel] = useState(autoLabel('probation'));
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId]   = useState('');
   const [leaderUserId, setLeaderUserId] = useState(currentUser.id);
-  const [saving, setSaving]         = useState(false);
-  const [error, setError]           = useState('');
-  const [deadline, setDeadline] = useState('');
-
-  // ── Smart filter + annotate ──────────────────────────────
+  const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState('');
+  const [deadline, setDeadline]       = useState('');
 
   const candidateEmployees = useMemo(() => {
     const base = employees.filter(e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime'));
-
     if (periodType === 'probation') {
-      // Only employees still in probation (probation_end is in the future, or up to 14 days past)
       return base
         .filter(e => e.probation_end && daysUntil(e.probation_end) !== null && daysUntil(e.probation_end)! > -14)
         .map(e => ({ emp: e, days: daysUntil(e.probation_end), dateLabel: e.probation_end! }))
-        .sort((a, b) => (a.days ?? 999) - (b.days ?? 999)); // sắp xếp gần nhất lên trên
+        .sort((a, b) => (a.days ?? 999) - (b.days ?? 999));
     } else {
-      // Only officially hired (official_date set), not in probation
       return base
         .filter(e => e.official_date)
         .map(e => {
@@ -85,15 +78,15 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
   const handlePeriodTypeChange = (t: EvalPeriodType) => {
     setPeriodType(t);
     setPeriodLabel(autoLabel(t));
-    setEmployeeId(''); // reset khi đổi loại
+    setEmployeeId('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!employeeId)          { setError('Vui lòng chọn nhân viên'); return; }
-    if (!periodLabel.trim())  { setError('Vui lòng nhập tên kỳ'); return; }
-    if (!deadline)            { setError('Vui lòng chọn hạn nộp tự đánh giá'); return; }
-    if (!leaderUserId.trim()) { setError('Vui lòng nhập User ID của leader'); return; }
+    if (!employeeId)         { setError('Vui lòng chọn nhân viên'); return; }
+    if (!periodLabel.trim()) { setError('Vui lòng nhập tên kỳ'); return; }
+    if (!deadline)           { setError('Vui lòng chọn hạn nộp tự đánh giá'); return; }
+    if (!leaderUserId.trim()){ setError('Vui lòng nhập User ID của leader'); return; }
 
     setSaving(true); setError('');
     try {
@@ -111,108 +104,167 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
     } finally { setSaving(false); }
   };
 
-  const inputCls = "w-full bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all";
+  const inputCls = "w-full bg-[#111111] border border-white/8 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/50 transition-all";
   const labelCls = "text-[10px] font-black uppercase tracking-widest text-neutral-medium";
-
   const selectedCandidate = candidateEmployees.find(c => c.emp.id === employeeId);
+
+  const probationCount = employees.filter(
+    e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime')
+      && e.probation_end && daysUntil(e.probation_end)! > -14
+  ).length;
+  const officialCount = employees.filter(
+    e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime') && e.official_date
+  ).length;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{ background: 'rgba(0,0,0,0.75)' }}
+      style={{ background: 'rgba(0,0,0,0.8)' }}
       onClick={onClose}
     >
       <div
-        className="bg-surface rounded-[20px] border border-primary/10 w-full max-w-lg animate-scaleIn overflow-hidden"
+        className="bg-[#141414] rounded-2xl border border-white/8 w-full max-w-lg animate-scaleIn overflow-hidden shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b border-white/5">
-          <div>
-            <h3 className="text-base font-black uppercase tracking-wider text-neutral-light">📋 Tạo kỳ đánh giá</h3>
-            <p className="text-xs text-neutral-medium mt-0.5">Bước {step}/2 — {step === 1 ? 'Chọn loại kỳ' : 'Chọn nhân viên & xác nhận'}</p>
+        {/* ── Header ── */}
+        <div className="flex justify-between items-center px-6 py-5 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            {/* Step indicator */}
+            <div className="flex items-center gap-1.5">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                step >= 1 ? 'bg-primary text-black' : 'bg-white/10 text-neutral-medium'
+              }`}>1</div>
+              <div className={`w-8 h-px transition-all ${step === 2 ? 'bg-primary' : 'bg-white/10'}`} />
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                step === 2 ? 'bg-primary text-black' : 'bg-white/10 text-neutral-medium'
+              }`}>2</div>
+            </div>
+            <div>
+              <p className="text-sm font-black text-neutral-light">Tạo kỳ đánh giá</p>
+              <p className="text-[10px] text-neutral-medium mt-0.5 uppercase tracking-wider">
+                {step === 1 ? 'Bước 1 — Chọn loại kỳ' : 'Bước 2 — Nhân viên & xác nhận'}
+              </p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-neutral-medium hover:text-neutral-light transition-all text-lg leading-none">✕</button>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-0.5 bg-white/5">
-          <div className="h-full bg-primary transition-all" style={{ width: step === 1 ? '50%' : '100%' }} />
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-medium hover:text-neutral-light hover:bg-white/5 transition-all text-sm"
+          >✕</button>
         </div>
 
         <div className="p-6">
-          {/* ── STEP 1: Chọn loại kỳ ── */}
-          {step === 1 && (
-            <div className="space-y-5">
-              <p className="text-sm text-neutral-medium">Chọn loại đánh giá bạn muốn tạo:</p>
 
-              <div className="grid grid-cols-1 gap-3">
-                {([
-                  {
-                    type: 'probation' as EvalPeriodType,
-                    icon: '🧪',
-                    title: 'Đánh giá hết thử việc',
-                    desc: 'Dành cho nhân viên đang trong giai đoạn thử việc',
-                    count: employees.filter(e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime') && e.probation_end && daysUntil(e.probation_end)! > -14).length,
-                    countLabel: 'NV đang thử việc',
-                  },
-                  {
-                    type: 'semi_annual' as EvalPeriodType,
-                    icon: '📅',
-                    title: 'Review định kỳ 6 tháng',
-                    desc: 'Dành cho nhân viên đã chính thức (sau thử việc)',
-                    count: employees.filter(e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime') && e.official_date).length,
-                    countLabel: 'NV đã chính thức',
-                  },
-                ]).map(opt => (
-                  <button
-                    key={opt.type}
-                    type="button"
-                    onClick={() => { handlePeriodTypeChange(opt.type); setStep(2); }}
-                    className={`flex items-start gap-4 p-4 rounded-[20px] border text-left transition-all hover:border-primary/40 hover:bg-primary/5 ${
-                      periodType === opt.type ? 'border-primary/40 bg-primary/5' : 'border-white/8'
-                    }`}
-                    style={{ background: periodType === opt.type ? 'rgba(255,149,0,0.05)' : 'rgba(255,255,255,0.02)' }}
-                  >
-                    <span className="text-2xl mt-0.5">{opt.icon}</span>
-                    <div className="flex-1">
-                      <p className="text-sm font-black text-neutral-light">{opt.title}</p>
-                      <p className="text-xs text-neutral-medium mt-0.5">{opt.desc}</p>
-                    </div>
-                    <span className="text-xs font-black text-primary shrink-0">
-                      {opt.count} {opt.countLabel}
+          {/* ══ STEP 1: Chọn loại kỳ ══ */}
+          {step === 1 && (
+            <div className="space-y-3">
+              <p className="text-xs text-neutral-medium mb-4">Chọn loại đánh giá bạn muốn tạo:</p>
+
+              {/* Card — Thử việc */}
+              <button
+                type="button"
+                onClick={() => { handlePeriodTypeChange('probation'); setStep(2); }}
+                className="w-full group relative flex items-center gap-5 p-5 rounded-2xl border border-white/8 hover:border-primary/40 text-left transition-all overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.03)' }}
+              >
+                {/* Hover glow */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(255,149,0,0.04)' }} />
+
+                {/* Icon */}
+                <div className="relative w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.2)' }}>
+                  <span className="text-xl">🧪</span>
+                </div>
+
+                {/* Text */}
+                <div className="relative flex-1 min-w-0">
+                  <p className="text-sm font-black text-neutral-light group-hover:text-white transition-colors">
+                    Đánh giá hết thử việc
+                  </p>
+                  <p className="text-xs text-neutral-medium mt-1 leading-relaxed">
+                    Dành cho nhân viên đang trong giai đoạn thử việc
+                  </p>
+                  {/* Count pill */}
+                  <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                    style={{ background: 'rgba(255,149,0,0.10)' }}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                    <span className="text-[10px] font-black text-primary uppercase tracking-wide">
+                      {probationCount} NV đang thử việc
                     </span>
-                  </button>
-                ))}
-              </div>
+                  </div>
+                </div>
+
+                {/* Arrow */}
+                <svg className="relative w-4 h-4 text-neutral-medium group-hover:text-primary transition-all group-hover:translate-x-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {/* Card — 6 tháng */}
+              <button
+                type="button"
+                onClick={() => { handlePeriodTypeChange('semi_annual'); setStep(2); }}
+                className="w-full group relative flex items-center gap-5 p-5 rounded-2xl border border-white/8 hover:border-primary/40 text-left transition-all overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.03)' }}
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ background: 'rgba(255,149,0,0.04)' }} />
+
+                <div className="relative w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(33,150,243,0.12)', border: '1px solid rgba(33,150,243,0.2)' }}>
+                  <span className="text-xl">📅</span>
+                </div>
+
+                <div className="relative flex-1 min-w-0">
+                  <p className="text-sm font-black text-neutral-light group-hover:text-white transition-colors">
+                    Review định kỳ 6 tháng
+                  </p>
+                  <p className="text-xs text-neutral-medium mt-1 leading-relaxed">
+                    Dành cho nhân viên đã chính thức (sau thử việc)
+                  </p>
+                  <div className="mt-2.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                    style={{ background: 'rgba(33,150,243,0.10)' }}>
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-wide">
+                      {officialCount} NV đã chính thức
+                    </span>
+                  </div>
+                </div>
+
+                <svg className="relative w-4 h-4 text-neutral-medium group-hover:text-primary transition-all group-hover:translate-x-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           )}
 
-          {/* ── STEP 2: Chọn nhân viên + xác nhận ── */}
+          {/* ══ STEP 2: Chọn nhân viên + xác nhận ══ */}
           {step === 2 && (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Back to step 1 */}
+              {/* Back */}
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-neutral-medium hover:text-primary transition-all"
+                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-neutral-medium hover:text-primary transition-all mb-1"
               >
-                ← Đổi loại kỳ
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Đổi loại kỳ
               </button>
 
-              {/* Loại đã chọn (readonly) */}
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
-                <span>{periodType === 'probation' ? '🧪' : '📅'}</span>
+              {/* Loại đã chọn */}
+              <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20"
+                style={{ background: 'rgba(255,149,0,0.06)' }}>
+                <span className="text-base">{periodType === 'probation' ? '🧪' : '📅'}</span>
                 <span className="text-xs font-black text-primary uppercase tracking-wider">
                   {periodType === 'probation' ? 'Đánh giá hết thử việc' : 'Review định kỳ 6 tháng'}
                 </span>
               </div>
 
-              {/* Employee list — thẻ chọn, không phải dropdown */}
-              <div className="flex flex-col gap-1">
+              {/* Employee list */}
+              <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>
-                  Nhân viên * &nbsp;
-                  <span className="text-neutral-medium normal-case font-normal">
+                  Nhân viên *
+                  <span className="text-neutral-medium normal-case font-normal ml-1">
                     ({candidateEmployees.length} {periodType === 'probation' ? 'đang thử việc' : 'đã chính thức'})
                   </span>
                 </label>
@@ -227,37 +279,37 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
                     {candidateEmployees.map(({ emp, days }) => {
                       const isSelected = employeeId === emp.id;
-                      const dc = urgencyColor(days);
-                      const dl = urgencyLabel(days, periodType);
                       return (
                         <button
                           key={emp.id}
                           type="button"
                           onClick={() => setEmployeeId(emp.id)}
-                          className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                             isSelected
-                              ? 'border-primary/50 bg-primary/10'
+                              ? 'border-primary/50'
                               : 'border-white/8 hover:border-white/15'
                           }`}
                           style={{ background: isSelected ? 'rgba(255,149,0,0.08)' : 'rgba(255,255,255,0.02)' }}
                         >
-                          {/* Check */}
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? 'border-primary bg-primary' : 'border-white/20'}`}>
+                          {/* Radio */}
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                            isSelected ? 'border-primary bg-primary' : 'border-white/20'
+                          }`}>
                             {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
                           </div>
 
-                          {/* Info */}
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-black text-neutral-light truncate">{emp.full_name}</p>
                             <p className="text-xs text-neutral-medium">{emp.employee_code} — {emp.position || 'N/A'}</p>
                           </div>
 
-                          {/* Days badge */}
-                          {dl && (
-                            <span className={`text-[10px] font-black shrink-0 ${dc}`}>{dl}</span>
+                          {days !== null && (
+                            <span className={`text-[10px] font-black shrink-0 ${urgencyColor(days)}`}>
+                              {urgencyLabel(days, periodType)}
+                            </span>
                           )}
                         </button>
                       );
@@ -266,8 +318,8 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
                 )}
               </div>
 
-              {/* Period label */}
-              <div className="flex flex-col gap-1">
+              {/* Tên kỳ */}
+              <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>Tên kỳ *</label>
                 <input
                   type="text"
@@ -279,7 +331,7 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
               </div>
 
               {/* Deadline */}
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>Hạn nộp tự đánh giá *</label>
                 <input
                   type="date"
@@ -291,8 +343,8 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
                 />
               </div>
 
-              {/* Leader user ID */}
-              <div className="flex flex-col gap-1">
+              {/* Leader */}
+              <div className="flex flex-col gap-1.5">
                 <label className={labelCls}>Leader User ID *</label>
                 <input
                   type="text"
@@ -303,13 +355,18 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
                 <p className="text-xs text-neutral-medium">Mặc định: tài khoản của bạn. Thay UUID nếu người đánh giá khác.</p>
               </div>
 
+              {/* Error */}
               {error && (
-                <p className="p-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-500/5">{error}</p>
+                <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5">
+                  <span className="text-red-400 text-sm">⚠</span>
+                  <p className="text-xs text-red-400">{error}</p>
+                </div>
               )}
 
-              {/* Selected summary */}
-              {selectedCandidate && (
-                <div className="flex items-center gap-2 p-3 rounded-xl border border-white/8 bg-white/2">
+              {/* Summary */}
+              {selectedCandidate && !error && (
+                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-white/8"
+                  style={{ background: 'rgba(255,255,255,0.02)' }}>
                   <span className="text-status-success text-sm">✓</span>
                   <p className="text-xs text-neutral-medium">
                     <span className="font-black text-neutral-light">{selectedCandidate.emp.full_name}</span>
@@ -320,16 +377,20 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
 
               {/* Actions */}
               <div className="flex gap-3 justify-end pt-1">
-                <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
+                >
                   Huỷ
                 </button>
                 <button
                   type="submit"
                   disabled={saving || !employeeId}
-                  className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black hover:opacity-90 transition-all disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-black hover:opacity-90 transition-all disabled:opacity-40"
                   style={{ background: '#FF9500' }}
                 >
-                  {saving ? 'Đang tạo...' : 'Tạo kỳ'}
+                  {saving ? 'Đang tạo...' : 'Tạo kỳ đánh giá'}
                 </button>
               </div>
             </form>
