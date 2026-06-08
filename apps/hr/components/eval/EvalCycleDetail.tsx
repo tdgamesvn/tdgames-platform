@@ -188,11 +188,29 @@ const EvalCycleDetail: React.FC<EvalCycleDetailProps> = ({ cycle, currentUser, o
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Self submission (read-only) */}
-          {selfSub && (
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-3">Tự đánh giá của nhân viên</p>
-              <EvalScoreCard self={selfSub} />
+          {/* ── Leader form: show self results as compact reference above form ── */}
+          {showLeaderForm && selfSub && (
+            <div className="rounded-[20px] border border-white/8 p-4 space-y-3" style={{ background: 'rgba(33,150,243,0.04)' }}>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400" />
+                <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#0A84FF' }}>Tự đánh giá của nhân viên — {selfSub.total_score.toFixed(2)}/5</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {selfSub.groups.map((g, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <div className="flex justify-between mb-0.5">
+                        <span className="text-[10px] text-neutral-medium truncate">{g.name}</span>
+                        <span className="text-[10px] font-black text-neutral-light ml-1">{g.group_avg.toFixed(1)}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-white/8">
+                        <div className="h-full rounded-full" style={{ width: `${(g.group_avg / 5) * 100}%`, background: '#0A84FF' }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {selfSub.comments && <p className="text-xs text-neutral-medium italic">"{selfSub.comments}"</p>}
             </div>
           )}
 

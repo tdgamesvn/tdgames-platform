@@ -14,26 +14,58 @@ const RATING_COLOR: Record<EvalRating, string> = {
   needs_improvement: '#FF375F',
 };
 
-function ScoreCol({ sub, data }: { sub: string; data: HrEvaluationSubmission }) {
+// Visual identity per role
+const ROLE_STYLE = {
+  self: {
+    accent:      '#0A84FF',
+    barColor:    '#0A84FF',
+    bg:          'rgba(33,150,243,0.04)',
+    border:      'rgba(33,150,243,0.2)',
+    dot:         'bg-blue-400',
+    label:       'Tự đánh giá (NV)',
+  },
+  leader: {
+    accent:      '#FF9500',
+    barColor:    '#FF9500',
+    bg:          'rgba(255,149,0,0.04)',
+    border:      'rgba(255,149,0,0.2)',
+    dot:         'bg-primary',
+    label:       'Đánh giá của Leader',
+  },
+} as const;
+
+function ScoreCol({ role, data }: { role: 'self' | 'leader'; data: HrEvaluationSubmission }) {
+  const rs = ROLE_STYLE[role];
   const rc = RATING_COLOR[data.rating];
   return (
-    <div className="flex-1 rounded-[20px] border border-white/8 p-5 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
-      {/* Header */}
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">{sub}</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-black text-neutral-light">{data.total_score.toFixed(2)}</span>
-          <span className="text-xs text-neutral-medium">/5</span>
-          <span
-            className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ml-1"
-            style={{ background: `${rc}20`, color: rc }}
-          >
-            {RATING_LABELS[data.rating]}
-          </span>
-        </div>
+    <div
+      className="flex-1 rounded-[20px] p-5 space-y-4"
+      style={{ background: rs.bg, border: `1px solid ${rs.border}` }}
+    >
+      {/* Coloured header strip */}
+      <div className="flex items-center gap-2 pb-3 border-b border-white/5">
+        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${rs.dot}`} />
+        <p
+          className="text-[10px] font-black uppercase tracking-widest"
+          style={{ color: rs.accent }}
+        >
+          {rs.label}
+        </p>
       </div>
 
-      {/* Groups */}
+      {/* Score */}
+      <div className="flex items-baseline gap-2">
+        <span className="text-3xl font-black text-neutral-light">{data.total_score.toFixed(2)}</span>
+        <span className="text-xs text-neutral-medium">/5</span>
+        <span
+          className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ml-1"
+          style={{ background: `${rc}20`, color: rc }}
+        >
+          {RATING_LABELS[data.rating]}
+        </span>
+      </div>
+
+      {/* Groups breakdown */}
       <div className="space-y-3">
         {data.groups.map((g, i) => (
           <div key={i}>
@@ -44,7 +76,7 @@ function ScoreCol({ sub, data }: { sub: string; data: HrEvaluationSubmission }) 
             <div className="h-1 rounded-full bg-white/8 overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${(g.group_avg / 5) * 100}%`, background: '#FF9500' }}
+                style={{ width: `${(g.group_avg / 5) * 100}%`, background: rs.barColor }}
               />
             </div>
           </div>
@@ -79,16 +111,20 @@ const EvalScoreCard: React.FC<EvalScoreCardProps> = ({ self, leader }) => {
         <div className="flex items-start gap-3 p-4 rounded-2xl border border-orange-500/30 bg-orange-500/5">
           <span className="text-base mt-0.5">⚠️</span>
           <div>
-            <p className="text-xs font-black text-orange-400">Chênh lệch điểm: {gap.toFixed(2)} — cần trao đổi 1-on-1</p>
-            <p className="text-xs text-neutral-medium mt-0.5">Khi tự đánh giá và leader chênh &gt; 1.0 điểm, cần có buổi trao đổi trực tiếp.</p>
+            <p className="text-xs font-black text-orange-400">
+              Chênh lệch điểm: {gap.toFixed(2)} — cần trao đổi 1-on-1
+            </p>
+            <p className="text-xs text-neutral-medium mt-0.5">
+              Khi tự đánh giá và leader chênh &gt; 1.0 điểm, cần có buổi trao đổi trực tiếp.
+            </p>
           </div>
         </div>
       )}
 
       {/* Side-by-side */}
       <div className="flex gap-4">
-        {self   && <ScoreCol data={self}   sub="Tự đánh giá (NV)" />}
-        {leader && <ScoreCol data={leader} sub="Đánh giá của Leader" />}
+        {self   && <ScoreCol role="self"   data={self} />}
+        {leader && <ScoreCol role="leader" data={leader} />}
       </div>
     </div>
   );
