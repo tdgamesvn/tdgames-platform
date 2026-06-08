@@ -1039,6 +1039,7 @@ export interface HrEvaluationCycle {
   period_label: string;           // e.g. "Thử việc T6/2026"
   status: EvalStatus;
   leader_user_id: string;
+  deadline: string;               // ISO datetime — hạn nộp tự đánh giá
   self_submitted_at: string | null;
   leader_submitted_at: string | null;
   completed_at: string | null;
