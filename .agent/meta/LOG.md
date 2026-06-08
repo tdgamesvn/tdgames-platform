@@ -1,5 +1,40 @@
 # LOG
 
+## 2026-06-10
+### Task
+Email deliverability — thoát khỏi Spam → Promotions → Primary
+
+### Work Done
+- Traced chain: notification INSERT → trigger_notify_email → notify-email edge function → Resend (200 OK) — chain đúng, lỗi ở phía Gmail phân loại
+- Phát hiện email vào Spam → đổi sang light HTML theme (v6)
+- Phát hiện email vào Promotions → iterative debug qua v7–v11:
+  - v8: per-type category badge, XHTML doctype, preheader
+  - v9: payslip_pending_review thêm vào TYPE_META
+  - v10: xóa orange accent bar, badge, gradient header → Supabase-style minimal
+  - **v11 (fix thực sự)**: xóa `List-Unsubscribe` + `X-Mailer` headers, xóa `[TD Games]` bracket prefix trong subject, from name "TD Games Platform" → "TD Games"
+- Tạo `EMAIL_STANDARD.md` — tài liệu chuẩn cho mọi luồng email tương lai
+- Deep-link: email → `#portal/eval-{cycle_id}` → app tự mở form đánh giá
+- PortalApp/EvalTab/PortalEvalList nhận `initialCycleId` và auto-open cycle
+
+### Root Cause (email Promotions)
+`List-Unsubscribe` header = Gmail's #1 signal phân loại bulk/newsletter → Promotions tab.
+Volume <5000/day → không bắt buộc theo Google 2024 policy → xóa là đúng.
+
+### Validation
+- Email v11 → **vào Primary inbox** ✅ (confirmed by user)
+- notify-email edge function: v11 ACTIVE
+
+### Commits
+- aee2469 feat(eval): deep-link from email to eval form + anti-spam improvements
+- 56f35fc fix(email): switch to light theme to avoid Gmail spam filter
+- b9969cf feat(email): full template redesign + EMAIL_STANDARD.md reference doc
+- 4baf876 feat(email): final template redesign + EMAIL_STANDARD.md reference doc
+- b944242 fix(email): add payslip_pending_review to TYPE_META
+- e31839b fix(email): minimal Supabase-style template to escape Promotions tab
+- cc7fac3 fix(email): remove Promotions signals — no brackets, no List-Unsubscribe ✅
+
+---
+
 ## 2026-06-08 (session 3)
 ### Task
 Eval deadline field + notify-on-create trigger + pg_cron daily reminder + deploy

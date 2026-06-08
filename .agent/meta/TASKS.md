@@ -40,6 +40,13 @@ _(trống — không có task đang chạy)_
 
 ## Recently Completed
 
+- [x] Email deliverability — Primary inbox
+  - Done: 2026-06-10
+  - Root cause: `List-Unsubscribe` header → Gmail Promotions signal; `[TD Games]` bracket prefix → marketing pattern
+  - Fix: v11 — xóa List-Unsubscribe + X-Mailer headers, xóa bracket prefix, from "TD Games Platform" → "TD Games"
+  - Bonus: deep-link email → app (PortalEvalList auto-open), EMAIL_STANDARD.md, payslip_pending_review type
+  - Result: email vào Primary ✅
+
 - [x] Eval deadline + notify-on-create + pg_cron daily reminder
   - Done: 2026-06-08
   - Commits: 5bea894 → 8194523 (6 commits on main)
