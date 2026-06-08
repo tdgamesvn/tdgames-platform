@@ -31,8 +31,9 @@ import { toPublicUrl } from '@/apps/hr/services/hrService';
 import LeaveTab from './LeaveTab';
 import ProfileTab from './ProfileTab';
 import ParkingTab from './ParkingTab';
+import EvalTab from './EvalTab';
 
-type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'parking' | 'profile';
+type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'parking' | 'profile' | 'evaluation';
 
 interface PortalAppProps {
   currentUser: AccountUser;
@@ -46,22 +47,25 @@ const TAB_MAP: Record<PortalTab, string> = {
   leave:      'recurring',
   parking:    'overview',
   profile:    'edit',
+  evaluation: 'dashboard',
 };
 const TAB_LABELS: Record<string, string> = {
-  history:  'Thông tin công ty',
-  activity: 'Bảng lương',
-  tasks:    'Chấm công',
+  history:   'Thông tin công ty',
+  activity:  'Bảng lương',
+  tasks:     'Chấm công',
   recurring: 'Nghỉ phép',
-  overview: 'Gửi xe',
-  edit:     'Hồ sơ',
+  overview:  'Gửi xe',
+  edit:      'Hồ sơ',
+  dashboard: 'Đánh giá',
 };
 const REVERSE_TAB: Record<string, PortalTab> = {
-  history:  'directory',
-  activity: 'payslip',
-  tasks:    'attendance',
+  history:   'directory',
+  activity:  'payslip',
+  tasks:     'attendance',
   recurring: 'leave',
-  overview: 'parking',
-  edit:     'profile',
+  overview:  'parking',
+  edit:      'profile',
+  dashboard: 'evaluation',
 };
 
 const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
@@ -102,7 +106,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
   const accessibleTabs = useMemo(() => {
     const tabs = ['history', 'activity', 'tasks', 'recurring'];
     if (parkingEligible) tabs.push('overview');
-    tabs.push('edit');
+    tabs.push('dashboard', 'edit');
     return tabs;
   }, [parkingEligible]);
 
@@ -605,6 +609,14 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
           {/* ── Profile Tab ── */}
           {activeTab === 'profile' && (
             <ProfileTab
+              currentUser={currentUser}
+              onToast={(msg, type) => setToast({ message: msg, type })}
+            />
+          )}
+
+          {/* ── Evaluation Tab ── */}
+          {activeTab === 'evaluation' && (
+            <EvalTab
               currentUser={currentUser}
               onToast={(msg, type) => setToast({ message: msg, type })}
             />
