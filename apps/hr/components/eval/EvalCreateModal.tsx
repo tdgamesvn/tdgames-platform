@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { HrEmployee, EvalPeriodType, AccountUser } from '@/types';
 import { createCycle, autoLabel } from '../../services/evaluationService';
@@ -51,6 +51,10 @@ function urgencyLabel(days: number | null, type: EvalPeriodType): string {
 // ─────────────────────────────────────────────────────────
 
 const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUser, onCreated, onClose }) => {
+  // Track where mousedown started — only close backdrop if drag originated ON the backdrop,
+  // not when user drags from inside the modal (e.g. selecting text in an input)
+  const backdropMouseDownRef = useRef(false);
+
   const [step, setStep]             = useState<1 | 2>(1);
   const [periodType, setPeriodType] = useState<EvalPeriodType>('probation');
   const [periodLabel, setPeriodLabel] = useState(autoLabel('probation'));
@@ -123,7 +127,8 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-6"
       style={{ background: 'rgba(0,0,0,0.75)' }}
-      onClick={onClose}
+      onMouseDown={(e) => { backdropMouseDownRef.current = e.target === e.currentTarget; }}
+      onClick={(e) => { if (e.target === e.currentTarget && backdropMouseDownRef.current) onClose(); }}
     >
       <div
         className="bg-surface rounded-[20px] border border-primary/10 w-full max-w-lg animate-scaleIn overflow-hidden"
