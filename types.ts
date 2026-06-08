@@ -1006,3 +1006,58 @@ export interface LeaveBalance {
   expired_days: number;
   created_at: string;
 }
+
+// ══════════════════════════════════════════════════════════
+// ── Employee Evaluation v2 ────────────────────────────────
+// ══════════════════════════════════════════════════════════
+
+export interface EvalGroup {
+  name: string;
+  weight: number;       // 35, 30, 20, 15 — sum = 100
+  scores: number[];     // per-criterion scores 1–5
+  group_avg: number;    // sum(scores)/scores.length
+}
+
+export type EvalPeriodType = 'probation' | 'semi_annual';
+
+export type EvalStatus =
+  | 'pending_self'    // waiting for employee self-assessment
+  | 'pending_leader'  // waiting for leader evaluation
+  | 'pending_1on1'    // gap > 1.0 → needs 1-on-1 session
+  | 'completed';
+
+export type EvalRating =
+  | 'excellent'          // total_score >= 4.5
+  | 'good'               // 3.5–4.4
+  | 'meets'              // 2.5–3.4
+  | 'needs_improvement'; // < 2.5
+
+export interface HrEvaluationCycle {
+  id: string;
+  employee_id: string;
+  period_type: EvalPeriodType;
+  period_label: string;           // e.g. "Thử việc T6/2026"
+  status: EvalStatus;
+  leader_user_id: string;
+  self_submitted_at: string | null;
+  leader_submitted_at: string | null;
+  completed_at: string | null;
+  requires_1on1: boolean;
+  created_by: string;
+  created_at: string;
+  // joined
+  employee?: HrEmployee;
+}
+
+export interface HrEvaluationSubmission {
+  id: string;
+  cycle_id: string;
+  evaluator_role: 'self' | 'leader';
+  evaluator_user_id: string;
+  groups: EvalGroup[];
+  total_score: number;
+  rating: EvalRating;
+  comments: string;
+  recommended_action: string;
+  submitted_at: string;
+}
