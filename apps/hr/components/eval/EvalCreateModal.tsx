@@ -18,7 +18,10 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const activeEmployees = employees.filter(e => e.status === 'active');
+  // Chỉ Fulltime và Parttime mới được đánh giá — Freelancer không áp dụng
+  const activeEmployees = employees.filter(
+    e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime')
+  );
 
   const handlePeriodTypeChange = (t: EvalPeriodType) => {
     setPeriodType(t);
