@@ -203,16 +203,18 @@ export async function createCycle(data: {
   period_label: string;
   leader_user_id: string;
   created_by: string;
+  deadline: string;         // ISO date string "YYYY-MM-DD"
 }): Promise<HrEvaluationCycle> {
   const { data: row, error } = await supabase
     .from('hr_evaluation_cycles')
     .insert({
-      employee_id: data.employee_id,
-      period_type: data.period_type,
-      period_label: data.period_label,
+      employee_id:    data.employee_id,
+      period_type:    data.period_type,
+      period_label:   data.period_label,
       leader_user_id: data.leader_user_id,
-      created_by: data.created_by,
-      status: 'pending_self',
+      created_by:     data.created_by,
+      status:         'pending_self',
+      deadline:       data.deadline,
     })
     .select('*, employee:hr_employees(id,full_name,employee_code,position,avatar_url)')
     .single();
