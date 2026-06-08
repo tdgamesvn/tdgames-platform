@@ -19,28 +19,30 @@ const corsHeaders = {
 // category : short category badge shown inside email body
 // Add a new entry here every time you add a new notification type
 // ─────────────────────────────────────────────────────────────────────────────
+// Subject rules: NO [brackets], NO marketing words, short & direct.
+// Brackets signal bulk/newsletter → Gmail Promotions.
 const TYPE_META: Record<string, { subject: string; category: string }> = {
   // Nghỉ phép
-  leave_approved:         { subject: '[TD Games] Đơn nghỉ phép của bạn đã được duyệt',   category: 'Nghỉ phép'   },
-  leave_rejected:         { subject: '[TD Games] Đơn nghỉ phép của bạn bị từ chối',       category: 'Nghỉ phép'   },
-  leave_new:              { subject: '[TD Games] Có đơn nghỉ phép mới cần xử lý',          category: 'Nghỉ phép'   },
+  leave_approved:         { subject: 'Đơn nghỉ phép của bạn đã được duyệt',   category: 'Nghỉ phép'   },
+  leave_rejected:         { subject: 'Đơn nghỉ phép của bạn bị từ chối',       category: 'Nghỉ phép'   },
+  leave_new:              { subject: 'Có đơn nghỉ phép mới cần xử lý',          category: 'Nghỉ phép'   },
   // Lương
-  payslip_created:          { subject: '[TD Games] Phiếu lương tháng vừa được cập nhật',        category: 'Bảng lương'  },
-  payslip_pending_review:   { subject: '[TD Games] Phiếu lương cần xác nhận',                   category: 'Bảng lương'  },
+  payslip_created:          { subject: 'Phiếu lương tháng vừa được cập nhật',   category: 'Bảng lương'  },
+  payslip_pending_review:   { subject: 'Phiếu lương của bạn cần xác nhận',      category: 'Bảng lương'  },
   // Chi phí
-  expense_approved:       { subject: '[TD Games] Chi phí của bạn đã được duyệt',          category: 'Chi phí'     },
-  expense_rejected:       { subject: '[TD Games] Chi phí của bạn bị từ chối',             category: 'Chi phí'     },
+  expense_approved:       { subject: 'Chi phí của bạn đã được duyệt',           category: 'Chi phí'     },
+  expense_rejected:       { subject: 'Chi phí của bạn bị từ chối',              category: 'Chi phí'     },
   // Hóa đơn
-  invoice_overdue:        { subject: '[TD Games] Cảnh báo: Invoice sắp quá hạn',          category: 'Hóa đơn'     },
+  invoice_overdue:        { subject: 'Cảnh báo: Invoice sắp đến hạn thanh toán', category: 'Hóa đơn'    },
   // Broadcast
-  broadcast:              { subject: '[TD Games] Thông báo từ Ban Giám Đốc',              category: 'Thông báo'   },
+  broadcast:              { subject: 'Thông báo nội bộ từ TD Games',             category: 'Thông báo'  },
   // Đánh giá nhân viên
-  eval_self_submitted:    { subject: '[TD Games] Nhân viên đã nộp tự đánh giá',           category: 'Đánh giá'    },
-  eval_leader_submitted:  { subject: '[TD Games] Kết quả đánh giá đã có',                 category: 'Đánh giá'    },
-  eval_1on1_required:     { subject: '[TD Games] Cần lên lịch buổi 1-on-1',               category: 'Đánh giá'    },
-  eval_completed:         { subject: '[TD Games] Kỳ đánh giá đã hoàn tất',               category: 'Đánh giá'    },
-  eval_assigned:          { subject: '[TD Games] Bạn có form tự đánh giá mới',            category: 'Đánh giá'    },
-  eval_deadline_reminder: { subject: '[TD Games] Nhắc nhở: Form đánh giá sắp hết hạn',   category: 'Đánh giá'    },
+  eval_self_submitted:    { subject: 'Nhân viên đã nộp tự đánh giá',            category: 'Đánh giá'    },
+  eval_leader_submitted:  { subject: 'Kết quả đánh giá của bạn đã có',          category: 'Đánh giá'    },
+  eval_1on1_required:     { subject: 'Cần lên lịch buổi 1-on-1',                category: 'Đánh giá'    },
+  eval_completed:         { subject: 'Kỳ đánh giá đã hoàn tất',                 category: 'Đánh giá'    },
+  eval_assigned:          { subject: 'Bạn có form tự đánh giá mới cần hoàn thành', category: 'Đánh giá' },
+  eval_deadline_reminder: { subject: 'Nhắc nhở: Form tự đánh giá sắp hết hạn', category: 'Đánh giá'    },
 };
 
 // ── Plain-text fallback ───────────────────────────────────────────────────────
@@ -246,18 +248,16 @@ Deno.serve(async (req: Request) => {
         'Content-Type':  'application/json',
       },
       body: JSON.stringify({
-        from:     `TD Games Platform <${fromEmail}>`,
+        // "TD Games" (no "Platform") — less system/bulk feel
+        from:     `TD Games <${fromEmail}>`,
         reply_to: fromEmail,
         to:       [toEmail],
         subject:  meta.subject,
         html,
         text,
-        // Required by Google / Yahoo 2024 bulk sender guidelines
-        headers: {
-          'List-Unsubscribe':      `<mailto:${fromEmail}?subject=unsubscribe>`,
-          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-          'X-Mailer':              'TD Games Platform v1',
-        },
+        // NO List-Unsubscribe / X-Mailer — those are newsletter/bulk signals
+        // that cause Gmail to classify email as Promotions, not Primary.
+        // This sender volume is <5000/day → not required by Google 2024 policy.
       }),
     });
 
