@@ -91,10 +91,10 @@ export function calcTotalScore(groups: EvalGroup[]): number {
 }
 
 export function calcRating(score: number): EvalRating {
-  if (score >= 4.5) return 'excellent';
-  if (score >= 3.5) return 'good';
-  if (score >= 2.5) return 'meets';
-  return 'needs_improvement';
+  if (score >= 4.0) return 'excellent';       // Vượt kỳ vọng
+  if (score >= 3.0) return 'good';            // Đạt yêu cầu
+  if (score >= 2.0) return 'meets';           // Cần cải thiện
+  return 'needs_improvement';                 // Không đạt
 }
 
 export function calcGap(self: HrEvaluationSubmission, leader: HrEvaluationSubmission): number {
@@ -116,10 +116,26 @@ export function autoLabel(periodType: EvalPeriodType): string {
 }
 
 export const RATING_LABELS: Record<EvalRating, string> = {
-  excellent: 'Xuất sắc',
-  good: 'Tốt',
-  meets: 'Đạt yêu cầu',
-  needs_improvement: 'Cần cải thiện',
+  excellent:         'Vượt kỳ vọng',   // ≥ 4.0
+  good:              'Đạt yêu cầu',    // 3.0–3.9
+  meets:             'Cần cải thiện',  // 2.0–2.9
+  needs_improvement: 'Không đạt',      // < 2.0
+};
+
+/** Short label for badges in small spaces */
+export const RATING_SHORT: Record<EvalRating, string> = {
+  excellent:         'Vượt KV',
+  good:              'Đạt YC',
+  meets:             'Cần CT',
+  needs_improvement: 'Không đạt',
+};
+
+/** Action suggestion per rating */
+export const RATING_ACTION: Record<EvalRating, string> = {
+  excellent:         'Chính thức hoá sớm · Xem xét thưởng / tăng lương',
+  good:              'Chính thức hoá bình thường',
+  meets:             'Gia hạn thử việc hoặc lập kế hoạch cải thiện (PIP)',
+  needs_improvement: 'Xem xét chấm dứt hợp đồng',
 };
 
 export const STATUS_LABELS: Record<EvalStatus, string> = {

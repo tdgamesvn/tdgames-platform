@@ -1027,10 +1027,10 @@ export type EvalStatus =
   | 'completed';
 
 export type EvalRating =
-  | 'excellent'          // total_score >= 4.5
-  | 'good'               // 3.5–4.4
-  | 'meets'              // 2.5–3.4
-  | 'needs_improvement'; // < 2.5
+  | 'excellent'          // ≥ 4.0  → Vượt kỳ vọng
+  | 'good'               // 3.0–3.9 → Đạt yêu cầu
+  | 'meets'              // 2.0–2.9 → Cần cải thiện
+  | 'needs_improvement'; // < 2.0   → Không đạt
 
 export interface HrEvaluationCycle {
   id: string;

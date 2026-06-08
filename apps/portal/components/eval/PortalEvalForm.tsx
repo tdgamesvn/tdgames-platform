@@ -15,7 +15,10 @@ interface PortalEvalFormProps {
 
 const SCORE_LABELS: Record<number, string> = { 1: 'Chưa đạt', 2: 'Cần cải thiện', 3: 'Đạt', 4: 'Tốt', 5: 'Xuất sắc' };
 const RATING_COLOR: Record<string, string> = {
-  excellent: '#34C759', good: '#FF9500', meets: '#0A84FF', needs_improvement: '#FF375F',
+  excellent:         '#34C759',  // green  — Vượt kỳ vọng
+  good:              '#0A84FF',  // blue   — Đạt yêu cầu
+  meets:             '#FFA726',  // amber  — Cần cải thiện
+  needs_improvement: '#FF375F',  // red    — Không đạt
 };
 
 const PortalEvalForm: React.FC<PortalEvalFormProps> = ({ cycle, userId, onSubmitted, onBack, onToast }) => {

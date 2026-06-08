@@ -8,10 +8,10 @@ interface EvalScoreCardProps {
 }
 
 const RATING_COLOR: Record<EvalRating, string> = {
-  excellent:         '#34C759',
-  good:              '#FF9500',
-  meets:             '#0A84FF',
-  needs_improvement: '#FF375F',
+  excellent:         '#34C759',  // green   — Vượt kỳ vọng
+  good:              '#0A84FF',  // blue    — Đạt yêu cầu
+  meets:             '#FFA726',  // amber   — Cần cải thiện
+  needs_improvement: '#FF375F',  // red     — Không đạt
 };
 
 // Visual identity per role
