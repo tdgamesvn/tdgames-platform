@@ -57,6 +57,7 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
   const [leaderUserId, setLeaderUserId] = useState(currentUser.id);
   const [saving, setSaving]         = useState(false);
   const [error, setError]           = useState('');
+  const [deadline, setDeadline] = useState('');
 
   // ── Smart filter + annotate ──────────────────────────────
 
@@ -91,11 +92,19 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
     e.preventDefault();
     if (!employeeId)          { setError('Vui lòng chọn nhân viên'); return; }
     if (!periodLabel.trim())  { setError('Vui lòng nhập tên kỳ'); return; }
+    if (!deadline)            { setError('Vui lòng chọn hạn nộp tự đánh giá'); return; }
     if (!leaderUserId.trim()) { setError('Vui lòng nhập User ID của leader'); return; }
 
     setSaving(true); setError('');
     try {
-      await createCycle({ employee_id: employeeId, period_type: periodType, period_label: periodLabel.trim(), leader_user_id: leaderUserId.trim(), created_by: currentUser.id });
+      await createCycle({
+        employee_id:    employeeId,
+        period_type:    periodType,
+        period_label:   periodLabel.trim(),
+        leader_user_id: leaderUserId.trim(),
+        created_by:     currentUser.id,
+        deadline,
+      });
       onCreated(); onClose();
     } catch (err: any) {
       setError(err.message || 'Lỗi tạo kỳ đánh giá');
@@ -266,6 +275,19 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
                   onChange={e => setPeriodLabel(e.target.value)}
                   placeholder="VD: Thử việc T6/2026"
                   className={inputCls}
+                />
+              </div>
+
+              {/* Deadline */}
+              <div className="flex flex-col gap-1">
+                <label className={labelCls}>Hạn nộp tự đánh giá *</label>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={e => setDeadline(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={inputCls}
+                  required
                 />
               </div>
 
