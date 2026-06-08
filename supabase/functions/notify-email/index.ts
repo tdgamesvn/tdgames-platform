@@ -91,15 +91,14 @@ function buildEmailHtml(
   const preview = (body ?? title).replace(/\s+/g, ' ').slice(0, 90);
   const padding = '&nbsp;&zwnj;'.repeat(20);
 
-  // Dark neutral button — avoids "promotional orange" signal
   const ctaBlock = ctaUrl
     ? `
         <table cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
           <tr>
-            <td style="border-radius:6px;background-color:#111111;">
+            <td style="border-radius:6px;background-color:#FF9500;">
               <a href="${ctaUrl}" target="_blank"
                  style="display:inline-block;padding:11px 28px;font-family:Helvetica,Arial,sans-serif;
-                        font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;
+                        font-size:14px;font-weight:700;color:#000000;text-decoration:none;
                         border-radius:6px;white-space:nowrap;">
                 Xem chi ti&#7871;t &rarr;
               </a>
@@ -132,11 +131,11 @@ function buildEmailHtml(
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
                style="max-width:560px;background-color:#ffffff;border-radius:8px;border:1px solid #e8e8e8;">
 
-          <!-- Logo / brand — plain text, no colors -->
+          <!-- Header — orange background, brand name in white -->
           <tr>
-            <td style="padding:28px 36px 20px 36px;border-bottom:1px solid #f0f0f0;">
-              <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#111111;letter-spacing:0.03em;text-transform:uppercase;">TD Games</span>
-              <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:400;color:#999999;">&nbsp;Platform</span>
+            <td style="padding:22px 36px;background-color:#FF9500;border-radius:8px 8px 0 0;">
+              <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:900;color:#000000;letter-spacing:0.05em;text-transform:uppercase;">TD Games</span>
+              <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:400;color:rgba(0,0,0,0.55);">&nbsp;Platform</span>
             </td>
           </tr>
 
@@ -171,7 +170,7 @@ function buildEmailHtml(
                 Email t&#x1ef1; &#x111;&#x1ed9;ng t&#x1eeb; <strong style="color:#888888;">TD Games Platform</strong>. Vui l&#xf2;ng kh&#xf4;ng reply.
               </p>
               <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#cccccc;line-height:1.6;">
-                TD GAMES COMPANY LIMITED &bull; Dong Anh, Hanoi, Vietnam &bull; MST&nbsp;0111386856
+                TD GAMES COMPANY LIMITED
               </p>
             </td>
           </tr>
