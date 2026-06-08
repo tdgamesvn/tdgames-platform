@@ -61,11 +61,36 @@ const PortalEvalList: React.FC<PortalEvalListProps> = ({ employeeId, userId, onT
     setView('result');
   };
 
+  const selfSub   = submissions.find(s => s.evaluator_role === 'self');
+  const leaderSub = submissions.find(s => s.evaluator_role === 'leader');
+
   if (view === 'form' && selected)
-    return <PortalEvalForm cycle={selected} userId={userId} onSubmitted={handleFormSubmitted} onBack={handleBack} onToast={onToast} />;
+    return (
+      <PortalEvalForm
+        cycle={selected}
+        userId={userId}
+        onSubmitted={handleFormSubmitted}
+        onBack={handleBack}
+        onToast={onToast}
+        initialSubmission={selfSub} // pre-fill when editing existing submission
+      />
+    );
 
   if (view === 'result' && selected)
-    return <PortalEvalResult cycle={selected} self={submissions.find(s => s.evaluator_role === 'self')} leader={submissions.find(s => s.evaluator_role === 'leader')} onBack={handleBack} />;
+    return (
+      <PortalEvalResult
+        cycle={selected}
+        self={selfSub}
+        leader={leaderSub}
+        onBack={handleBack}
+        onEdit={
+          // Allow editing only when self has submitted but leader hasn't yet
+          selected.status === 'pending_leader' && selfSub && !leaderSub
+            ? () => setView('form')
+            : undefined
+        }
+      />
+    );
 
   return (
     <div className="animate-fadeInUp space-y-8">

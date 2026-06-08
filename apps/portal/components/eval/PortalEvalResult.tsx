@@ -3,10 +3,11 @@ import { HrEvaluationCycle, HrEvaluationSubmission, EvalRating } from '@/types';
 import { RATING_LABELS, calcGap } from '../../../hr/services/evaluationService';
 
 interface PortalEvalResultProps {
-  cycle:   HrEvaluationCycle;
-  self?:   HrEvaluationSubmission;
-  leader?: HrEvaluationSubmission;
-  onBack:  () => void;
+  cycle:    HrEvaluationCycle;
+  self?:    HrEvaluationSubmission;
+  leader?:  HrEvaluationSubmission;
+  onBack:   () => void;
+  onEdit?:  () => void; // available only when leader hasn't submitted yet
 }
 
 const RATING_COLOR: Record<EvalRating, string> = {
@@ -16,18 +17,30 @@ const RATING_COLOR: Record<EvalRating, string> = {
   needs_improvement: '#FF375F',  // red    — Không đạt
 };
 
-const PortalEvalResult: React.FC<PortalEvalResultProps> = ({ cycle, self, leader, onBack }) => {
+const PortalEvalResult: React.FC<PortalEvalResultProps> = ({ cycle, self, leader, onBack, onEdit }) => {
   const primary = leader ?? self;
   const gap = self && leader ? calcGap(self, leader) : null;
 
   return (
     <div className="animate-fadeInUp space-y-6">
-      <button onClick={onBack} className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-neutral-medium hover:text-neutral-light transition-all">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-        </svg>
-        Quay lại
-      </button>
+      <div className="flex items-center justify-between">
+        <button onClick={onBack} className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-neutral-medium hover:text-neutral-light transition-all">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Quay lại
+        </button>
+
+        {/* Sửa lại — chỉ hiện khi leader chưa submit */}
+        {onEdit && cycle.status === 'pending_leader' && !leader && (
+          <button
+            onClick={onEdit}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-primary/30 text-xs font-black uppercase tracking-wider text-primary hover:bg-primary/10 transition-all"
+          >
+            ✏️ Sửa lại
+          </button>
+        )}
+      </div>
 
       {/* Hero score */}
       {primary && (

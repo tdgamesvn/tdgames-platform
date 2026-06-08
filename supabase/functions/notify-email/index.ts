@@ -6,14 +6,19 @@ const corsHeaders = {
 };
 
 const TYPE_LABELS: Record<string, string> = {
-  leave_approved:   '✅ Đơn nghỉ phép được duyệt',
-  leave_rejected:   '❌ Đơn nghỉ phép bị từ chối',
-  leave_new:        '📋 Đơn nghỉ phép mới',
-  payslip_created:  '💰 Lương đã được chi trả',
-  expense_approved: '✅ Chi phí được duyệt',
-  expense_rejected: '❌ Chi phí bị từ chối',
-  invoice_overdue:  '⚠️ Invoice quá hạn',
-  broadcast:        '📢 Thông báo từ TD Games',
+  leave_approved:       '✅ Đơn nghỉ phép được duyệt',
+  leave_rejected:       '❌ Đơn nghỉ phép bị từ chối',
+  leave_new:            '📋 Đơn nghỉ phép mới',
+  payslip_created:      '💰 Lương đã được chi trả',
+  expense_approved:     '✅ Chi phí được duyệt',
+  expense_rejected:     '❌ Chi phí bị từ chối',
+  invoice_overdue:      '⚠️ Invoice quá hạn',
+  broadcast:            '📢 Thông báo từ TD Games',
+  // Evaluation
+  eval_self_submitted:  '📝 Nhân viên đã nộp tự đánh giá',
+  eval_leader_submitted:'⭐ Kết quả đánh giá đã có',
+  eval_1on1_required:   '🤝 Cần lên lịch 1-on-1',
+  eval_completed:       '✅ Chu kỳ đánh giá hoàn tất',
 };
 
 function buildEmailHtml(title: string, body: string | null, link: string | null, appUrl: string): string {
