@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { HrEmployee, EvalPeriodType, AccountUser } from '@/types';
 import { createCycle, autoLabel } from '../../services/evaluationService';
 
@@ -116,7 +117,9 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
 
   const selectedCandidate = candidateEmployees.find(c => c.emp.id === employeeId);
 
-  return (
+  // createPortal renders straight to document.body — bypasses any ancestor
+  // with transform/filter/will-change that would break position:fixed
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-6"
       style={{ background: 'rgba(0,0,0,0.75)' }}
@@ -336,7 +339,8 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
