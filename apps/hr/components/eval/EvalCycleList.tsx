@@ -51,6 +51,7 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
     return (
       <EvalCycleDetail
         cycle={viewingCycle}
+        currentUser={currentUser}
         onBack={() => setViewingCycle(null)}
         onRefresh={load}
         onToast={onToast}
