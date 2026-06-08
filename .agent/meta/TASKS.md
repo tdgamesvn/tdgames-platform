@@ -1,6 +1,6 @@
 # TASKS
 
-_Cập nhật: 2026-05-28_
+_Cập nhật: 2026-06-08_
 
 ---
 
@@ -39,6 +39,15 @@ _(trống — không có task đang chạy)_
 ---
 
 ## Recently Completed
+
+- [x] Eval deadline + notify-on-create + pg_cron daily reminder
+  - Done: 2026-06-08
+  - Commits: 5bea894 → 8194523 (6 commits on main)
+  - Result: deadline field UI (date picker + validation); DB migration: `deadline` column + `notify_eval_cycle_created` trigger (eval_assigned noti); pg_cron 01:00 UTC daily reminder 1 ngày trước hạn; notify-email edge function v4 deployed. Build ✅
+
+- [x] Email notifications cho Evaluation workflow
+  - Done: 2026-06-08
+  - Result: trg_notify_eval_submission, trg_notify_eval_cycle_status; notify-email v3; 4 event types. VPS deploy fec1e59 ✅
 
 - [x] Build Employee Evaluation v2 (HR tab + Portal tab)
   - Done: 2026-06-08

@@ -1,5 +1,69 @@
 # LOG
 
+## 2026-06-08 (session 3)
+### Task
+Eval deadline field + notify-on-create trigger + pg_cron daily reminder + deploy
+
+### Work Done
+- Added `deadline: string` to `HrEvaluationCycle` TypeScript type (`types.ts`)
+- Updated `createCycle()` in `evaluationService.ts` to accept + INSERT `deadline`
+- Added "Hạn nộp tự đánh giá *" date picker to `EvalCreateModal.tsx` (state, validation, pass to service)
+- Added 2 new `TYPE_LABELS` to `notify-email/index.ts`: `eval_assigned`, `eval_deadline_reminder`
+- Applied Migration 1 (`20260608110000_eval_deadline_and_notify.sql`):
+  - `deadline timestamptz NOT NULL` column on `hr_evaluation_cycles`
+  - `notify_eval_cycle_created()` trigger → notifies employee on new cycle INSERT (`eval_assigned`)
+- Applied Migration 2 (`20260608120000_eval_deadline_reminder_cron.sql`):
+  - `send_eval_deadline_reminders()` function: finds cycles with deadline = tomorrow, self not submitted → inserts `eval_deadline_reminder` notification (deduped via metadata->>'cycle_id')
+  - pg_cron job `eval-deadline-reminder` at 01:00 UTC (08:00 VN) daily
+- Deployed `notify-email` edge function → version 4 ACTIVE ✅
+
+### Validation
+- `npm run build` ✅ (0 errors, 7.13s)
+- Migration 1 column verified: `deadline | timestamp with time zone | NO`
+- pg_cron job verified: `eval-deadline-reminder | 0 1 * * *` present in `cron.job`
+- Edge function v4 ACTIVE confirmed via Supabase MCP
+
+### Result
+- Khi HR tạo cycle mới, NV nhận ngay in-app noti `eval_assigned` + email "📋 Bạn có form tự đánh giá mới"
+- Mỗi 08:00 VN, cron tự gửi nhắc nhở 1 ngày trước deadline cho NV chưa nộp tự đánh giá
+- 6 commits trên main, push lên GitHub → GitHub Actions deploy VPS tự động
+
+### Commits
+- 5bea894 feat(eval): add deadline field to HrEvaluationCycle type
+- 7ce314a feat(eval): thread deadline through createCycle service
+- d7e5562 feat(eval): add deadline date picker to EvalCreateModal
+- 54b1ada feat(eval): add eval_assigned and eval_deadline_reminder email labels
+- 38a6061 feat(eval): add deadline column and notify_eval_cycle_created trigger
+- 8194523 feat(eval): add pg_cron daily deadline reminder
+
+---
+
+## 2026-06-08 (session 2)
+### Task
+Email notifications cho evaluation workflow + deploy lên VPS
+
+### Work Done
+- Viết SQL migration `20260608100000_notify_evaluation.sql`:
+  - `notify_eval_submission()`: NV nộp self → leader + HR/admin nhận noti; leader nộp → NV nhận noti
+  - `notify_eval_cycle_status()`: pending_1on1 → HR/admin; completed → NV + leader
+- Apply migration lên Supabase production via MCP execute_sql ✅
+- Verify: cả 2 trigger live trên DB (`trg_notify_eval_submission`, `trg_notify_eval_cycle_status`)
+- Update `supabase/functions/notify-email/index.ts`: thêm 4 TYPE_LABELS (eval_self_submitted, eval_leader_submitted, eval_1on1_required, eval_completed)
+- Deploy edge function notify-email → version 3 ACTIVE ✅
+- Commit 5 files + push lên main → GitHub Actions deploy tự động
+- Verify VPS: commit fec1e59 đã có trên `/opt/tdgames-platforms` ✅
+
+### Validation
+- Triggers confirmed via `information_schema.triggers` query trên production DB
+- Edge function v3 status: ACTIVE
+- VPS git log khớp với local HEAD (fec1e59)
+
+### Result
+- Luồng email noti evaluation hoàn chỉnh cho 4 sự kiện
+- Production live tại https://app.tdgamestudio.com
+
+---
+
 ## 2026-06-08
 ### Task
 Build Employee Evaluation v2 — HR tab + Employee Portal tab
