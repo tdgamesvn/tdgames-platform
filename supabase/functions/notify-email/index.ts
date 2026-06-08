@@ -23,6 +23,14 @@ const TYPE_LABELS: Record<string, string> = {
   eval_deadline_reminder:   '⏰ Nhắc nhở: Form đánh giá sắp hết hạn',
 };
 
+function buildEmailText(title: string, body: string | null, link: string | null, appUrl: string): string {
+  const lines: string[] = ['TD Games Platform', '─'.repeat(40), '', title];
+  if (body) lines.push('', body);
+  if (link) lines.push('', `Xem chi tiết: ${appUrl}${link}`);
+  lines.push('', '─'.repeat(40), 'Email tự động từ TD Games Platform. Vui lòng không reply.');
+  return lines.join('\n');
+}
+
 function buildEmailHtml(title: string, body: string | null, link: string | null, appUrl: string): string {
   const actionBtn = link
     ? `<a href="${appUrl}${link}" style="display:inline-block;margin-top:24px;padding:12px 28px;background:#FF9500;color:#000;font-weight:800;text-decoration:none;border-radius:10px;font-size:14px;letter-spacing:0.02em;">Xem chi tiết →</a>`
@@ -110,9 +118,12 @@ Deno.serve(async (req: Request) => {
 
     const toEmail = userData.user.email;
     const subject = TYPE_LABELS[record.type] || record.title;
-    const html = buildEmailHtml(record.title, record.body || null, record.link || null, appUrl);
+    const bodyText = record.body || null;
+    const linkText = record.link || null;
+    const html = buildEmailHtml(record.title, bodyText, linkText, appUrl);
+    const text = buildEmailText(record.title, bodyText, linkText, appUrl);
 
-    // Send via Resend
+    // Send via Resend — include plain-text to improve deliverability / avoid spam
     const resendRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -121,9 +132,11 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         from: `TD Games Platform <${fromEmail}>`,
+        reply_to: fromEmail,
         to: [toEmail],
         subject,
         html,
+        text, // plain-text fallback — critical for spam filter scoring
       }),
     });
 

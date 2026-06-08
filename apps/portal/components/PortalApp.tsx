@@ -38,6 +38,7 @@ type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'parking' | 
 interface PortalAppProps {
   currentUser: AccountUser;
   onBack: () => void;
+  initialTab?: string | null;
 }
 
 const TAB_MAP: Record<PortalTab, string> = {
@@ -68,8 +69,15 @@ const REVERSE_TAB: Record<string, PortalTab> = {
   dashboard: 'evaluation',
 };
 
-const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
-  const [activeTab, setActiveTab] = useState<PortalTab>('directory');
+const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab }) => {
+  // Parse deep-link: initialTab === 'eval-{uuid}' → jump straight to evaluation tab
+  const initialEvalCycleId = initialTab?.startsWith('eval-')
+    ? initialTab.slice('eval-'.length)
+    : null;
+
+  const [activeTab, setActiveTab] = useState<PortalTab>(
+    initialEvalCycleId ? 'evaluation' : 'directory'
+  );
   const [employees, setEmployees] = useState<DirectoryEmployee[]>([]);
   const [departments, setDepartments] = useState<DepartmentLite[]>([]);
   const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
@@ -619,6 +627,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack }) => {
             <EvalTab
               currentUser={currentUser}
               onToast={(msg, type) => setToast({ message: msg, type })}
+              initialCycleId={initialEvalCycleId ?? undefined}
             />
           )}
         </main>

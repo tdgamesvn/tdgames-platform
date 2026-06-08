@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { HrEvaluationCycle, HrEvaluationSubmission, EvalStatus } from '@/types';
 import { fetchMyCycles, fetchSubmissions, STATUS_LABELS } from '../../../hr/services/evaluationService';
 import PortalEvalForm from './PortalEvalForm';
 import PortalEvalResult from './PortalEvalResult';
 
 interface PortalEvalListProps {
-  employeeId: string;
-  userId:     string;
-  onToast:    (msg: string, type: 'success' | 'error') => void;
+  employeeId:      string;
+  userId:          string;
+  onToast:         (msg: string, type: 'success' | 'error') => void;
+  initialCycleId?: string; // deep-link: auto-open this cycle after data loads
 }
 
 type ViewMode = 'list' | 'form' | 'result';
@@ -25,12 +26,13 @@ const STATUS_ICON: Record<EvalStatus, string> = {
   completed:      '✅',
 };
 
-const PortalEvalList: React.FC<PortalEvalListProps> = ({ employeeId, userId, onToast }) => {
+const PortalEvalList: React.FC<PortalEvalListProps> = ({ employeeId, userId, onToast, initialCycleId }) => {
   const [cycles, setCycles]           = useState<HrEvaluationCycle[]>([]);
   const [loading, setLoading]         = useState(true);
   const [view, setView]               = useState<ViewMode>('list');
   const [selected, setSelected]       = useState<HrEvaluationCycle | null>(null);
   const [submissions, setSubmissions] = useState<HrEvaluationSubmission[]>([]);
+  const deepLinkOpened                = useRef(false); // run auto-open only once
 
   const loadCycles = async () => {
     setLoading(true);
@@ -40,6 +42,16 @@ const PortalEvalList: React.FC<PortalEvalListProps> = ({ employeeId, userId, onT
   };
 
   useEffect(() => { loadCycles(); }, [employeeId]);
+
+  // Auto-open cycle from deep-link (email button click)
+  useEffect(() => {
+    if (!initialCycleId || deepLinkOpened.current || loading || cycles.length === 0) return;
+    const target = cycles.find(c => c.id === initialCycleId);
+    if (target) {
+      deepLinkOpened.current = true;
+      openCycle(target);
+    }
+  }, [initialCycleId, loading, cycles]);
 
   const openCycle = async (cycle: HrEvaluationCycle) => {
     setSelected(cycle);

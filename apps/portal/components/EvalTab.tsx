@@ -3,11 +3,12 @@ import { AccountUser } from '@/types';
 import PortalEvalList from './eval/PortalEvalList';
 
 interface EvalTabProps {
-  currentUser: AccountUser;
-  onToast: (msg: string, type: 'success' | 'error') => void;
+  currentUser:    AccountUser;
+  onToast:        (msg: string, type: 'success' | 'error') => void;
+  initialCycleId?: string; // deep-link: auto-open a specific cycle
 }
 
-const EvalTab: React.FC<EvalTabProps> = ({ currentUser, onToast }) => {
+const EvalTab: React.FC<EvalTabProps> = ({ currentUser, onToast, initialCycleId }) => {
   if (!currentUser.employee_id) {
     return (
       <div style={{
@@ -31,6 +32,7 @@ const EvalTab: React.FC<EvalTabProps> = ({ currentUser, onToast }) => {
         employeeId={currentUser.employee_id}
         userId={currentUser.id}
         onToast={onToast}
+        initialCycleId={initialCycleId}
       />
     </div>
   );

@@ -270,7 +270,7 @@ const App: React.FC = () => {
   }
 
   if (activeApp === 'portal') {
-    return <PortalApp currentUser={currentUser} onBack={handleBack} />;
+    return <PortalApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
   }
 
   if (activeApp === 'freelancer-portal') {
