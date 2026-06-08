@@ -74,8 +74,10 @@ function buildEmailText(
   return lines.join('\n');
 }
 
-// ── HTML template ─────────────────────────────────────────────────────────────
-// See EMAIL_STANDARD.md for full design specification and rules
+// ── HTML template (minimal — Supabase-style) ──────────────────────────────────
+// Minimal layout = Gmail classifies as transactional, not promotional.
+// Rules: no colored header bars, no badges, no gradients, dark CTA button.
+// See EMAIL_STANDARD.md for full design specification.
 function buildEmailHtml(
   category: string,
   title: string,
@@ -84,19 +86,19 @@ function buildEmailHtml(
   appUrl: string,
 ): string {
   const ctaUrl  = link ? `${appUrl}${link}` : null;
-  // Preheader = first 90 chars of body, shown in inbox as preview text
   const preview = (body ?? title).replace(/\s+/g, ' ').slice(0, 90);
-  // Zero-width non-joiners pad the preheader so Gmail doesn't show junk after it
   const padding = '&nbsp;&zwnj;'.repeat(20);
 
+  // Dark neutral button — avoids "promotional orange" signal
   const ctaBlock = ctaUrl
     ? `
-        <!-- CTA button: table-wrapped for Outlook compatibility -->
-        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:28px;">
+        <table cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;">
           <tr>
-            <td align="center" style="border-radius:6px;background-color:#FF9500;">
+            <td style="border-radius:6px;background-color:#111111;">
               <a href="${ctaUrl}" target="_blank"
-                 style="display:inline-block;padding:12px 32px;font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#000000;text-decoration:none;border-radius:6px;white-space:nowrap;">
+                 style="display:inline-block;padding:11px 28px;font-family:Helvetica,Arial,sans-serif;
+                        font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;
+                        border-radius:6px;white-space:nowrap;">
                 Xem chi ti&#7871;t &rarr;
               </a>
             </td>
@@ -110,95 +112,49 @@ function buildEmailHtml(
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="x-apple-disable-message-reformatting" />
-  <!--[if !mso]><!-->
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <!--<![endif]-->
+  <!--[if !mso]><!--><meta http-equiv="X-UA-Compatible" content="IE=edge" /><!--<![endif]-->
   <title>${title}</title>
 </head>
+<body style="margin:0;padding:0;background-color:#f6f6f6;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
 
-<body style="margin:0;padding:0;background-color:#f2f2f4;word-spacing:normal;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
-
-  <!--
-    PREHEADER — hidden text shown in Gmail/Apple Mail inbox preview.
-    Keep under 90 chars before the padding.
-  -->
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;
-              font-size:1px;line-height:1px;color:#f2f2f4;">
+  <!-- Preheader -->
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#f6f6f6;">
     ${preview}${padding}
   </div>
 
-  <!-- PAGE WRAPPER -->
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-         style="background-color:#f2f2f4;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f6f6f6;">
     <tr>
-      <td align="center" style="padding:48px 16px 32px 16px;">
+      <td align="center" style="padding:40px 16px 32px 16px;">
 
-        <!-- ═══════════════════════════════════════════
-             EMAIL CARD  (max 600px)
-             ═══════════════════════════════════════════ -->
+        <!-- Card -->
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-               style="max-width:600px;background-color:#ffffff;border-radius:10px;
-                      border:1px solid #e0e0e4;overflow:hidden;">
+               style="max-width:560px;background-color:#ffffff;border-radius:8px;border:1px solid #e8e8e8;">
 
-          <!-- ┌─────────────────────────────────────┐
-               │  HEADER: orange accent bar + brand  │
-               └─────────────────────────────────────┘ -->
+          <!-- Logo / brand — plain text, no colors -->
           <tr>
-            <!-- Top accent stripe -->
-            <td style="height:4px;background-color:#FF9500;font-size:0;line-height:0;">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="padding:20px 36px 18px 36px;border-bottom:1px solid #ebebee;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td valign="middle">
-                    <!-- Brand name -->
-                    <span style="font-family:Helvetica,Arial,sans-serif;font-size:15px;
-                                 font-weight:900;color:#111111;letter-spacing:0.06em;
-                                 text-transform:uppercase;">
-                      TD Games
-                    </span>
-                    <span style="font-family:Helvetica,Arial,sans-serif;font-size:15px;
-                                 font-weight:400;color:#888888;letter-spacing:0.02em;">
-                      &nbsp;Platform
-                    </span>
-                  </td>
-                  <td align="right" valign="middle">
-                    <!-- Dynamic category badge -->
-                    <span style="display:inline-block;padding:3px 10px;
-                                 background-color:#fff3e0;border-radius:20px;
-                                 font-family:Helvetica,Arial,sans-serif;font-size:11px;
-                                 font-weight:700;color:#e65c00;letter-spacing:0.04em;
-                                 text-transform:uppercase;white-space:nowrap;">
-                      ${category}
-                    </span>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding:28px 36px 20px 36px;border-bottom:1px solid #f0f0f0;">
+              <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#111111;letter-spacing:0.03em;text-transform:uppercase;">TD Games</span>
+              <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:400;color:#999999;">&nbsp;Platform</span>
             </td>
           </tr>
 
-          <!-- ┌─────────────────────────────────────┐
-               │  BODY                               │
-               └─────────────────────────────────────┘ -->
+          <!-- Body -->
           <tr>
-            <td style="padding:32px 36px 28px 36px;">
+            <td style="padding:28px 36px 32px 36px;">
+
+              <!-- Category label — plain small gray text, no badge -->
+              <p style="margin:0 0 10px 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#999999;text-transform:uppercase;letter-spacing:0.06em;">${category}</p>
 
               <!-- Title -->
-              <h1 style="margin:0 0 14px 0;
-                         font-family:Helvetica,Arial,sans-serif;
-                         font-size:21px;font-weight:800;
-                         color:#111111;line-height:1.4;letter-spacing:-0.01em;">
-                ${title}
-              </h1>
+              <h1 style="margin:0 0 14px 0;font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#111111;line-height:1.4;">${title}</h1>
+
+              <!-- Divider -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:16px;">
+                <tr><td style="height:1px;background-color:#f0f0f0;font-size:0;line-height:0;">&nbsp;</td></tr>
+              </table>
 
               ${body
-                ? `<!-- Body paragraph -->
-              <p style="margin:0;
-                        font-family:Helvetica,Arial,sans-serif;
-                        font-size:15px;color:#555555;line-height:1.75;">
-                ${body}
-              </p>`
+                ? `<p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#444444;line-height:1.7;">${body}</p>`
                 : ''}
 
               ${ctaBlock}
@@ -206,37 +162,24 @@ function buildEmailHtml(
             </td>
           </tr>
 
-          <!-- ┌─────────────────────────────────────┐
-               │  FOOTER                             │
-               └─────────────────────────────────────┘ -->
+          <!-- Footer -->
           <tr>
-            <td style="padding:18px 36px 22px 36px;
-                       background-color:#f9f9fb;
-                       border-top:1px solid #ebebee;">
-              <p style="margin:0 0 5px 0;
-                        font-family:Helvetica,Arial,sans-serif;
-                        font-size:12px;color:#999999;line-height:1.6;">
-                Email n&#xe0;y &#x111;&#x01b0;&#x1ee3;c g&#x1edf;i t&#x1ef1; &#x111;&#x1ed9;ng t&#x1eeb; h&#x1ec7; th&#x1ed1;ng n&#x1ed9;i b&#x1ed9;
-                <strong style="color:#666666;">TD Games Platform</strong>.
-                Vui l&#xf2;ng kh&#xf4;ng tr&#x1ea3; l&#x1eddi; email n&#xe0;y.
+            <td style="padding:16px 36px 20px 36px;border-top:1px solid #f0f0f0;">
+              <p style="margin:0 0 4px 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#aaaaaa;line-height:1.6;">
+                Email t&#x1ef1; &#x111;&#x1ed9;ng t&#x1eeb; <strong style="color:#888888;">TD Games Platform</strong>. Vui l&#xf2;ng kh&#xf4;ng reply.
               </p>
-              <p style="margin:0;
-                        font-family:Helvetica,Arial,sans-serif;
-                        font-size:11px;color:#bbbbbb;line-height:1.6;">
-                TD GAMES COMPANY LIMITED
-                &bull; Xom Ngoai, Dong Anh Commune, Hanoi, Vietnam
-                &bull; MST&nbsp;0111386856
+              <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#cccccc;line-height:1.6;">
+                TD GAMES COMPANY LIMITED &bull; Dong Anh, Hanoi, Vietnam &bull; MST&nbsp;0111386856
               </p>
             </td>
           </tr>
 
         </table>
-        <!-- /EMAIL CARD -->
+        <!-- /Card -->
 
       </td>
     </tr>
   </table>
-  <!-- /PAGE WRAPPER -->
 
 </body>
 </html>`;
