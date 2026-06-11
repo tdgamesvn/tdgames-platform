@@ -209,24 +209,28 @@ Deno.serve(async (req: Request) => {
 
   // Insert new leads (ignore email conflicts)
   if (result.leads_to_add?.length) {
-    await supabase.from("crm_outreach_leads").upsert(
+    const { error: leadsErr } = await supabase.from("crm_outreach_leads").upsert(
       result.leads_to_add.map(l => ({
         email: l.email,
-        company: l.company,
-        name: l.name ?? null,
-        title: l.title ?? null,
-        country: l.country ?? resolvedCountry,
+        studio_name: l.company ?? "",
+        contact_name: l.name ?? "",
+        first_name: (l.name ?? "").split(" ")[0] ?? "",
+        job_title: l.title ?? "",
         tier: l.tier ?? 3,
-        status: "pending",
+        outreach_status: "pending",
         source: "apollo_auto",
+        trigger_source: "auto_discovery",
       })),
       { onConflict: "email", ignoreDuplicates: true },
     );
+    if (leadsErr) {
+      console.error("[auto-discovery] leads upsert failed:", leadsErr.message);
+    }
   }
 
   // Insert new discovered studios
   if (result.new_apollo_ids?.length) {
-    await supabase.from("crm_discovered_studios").upsert(
+    const { error: studiosErr } = await supabase.from("crm_discovered_studios").upsert(
       result.new_apollo_ids.map(s => ({
         apollo_id: s.apollo_id,
         studio_name: s.studio_name,
@@ -236,6 +240,9 @@ Deno.serve(async (req: Request) => {
       })),
       { onConflict: "apollo_id" },
     );
+    if (studiosErr) {
+      console.error("[auto-discovery] studios upsert failed:", studiosErr.message);
+    }
   }
 
   // Update rotation state
