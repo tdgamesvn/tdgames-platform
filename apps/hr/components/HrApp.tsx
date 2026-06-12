@@ -13,6 +13,7 @@ import QuickAddEmployee from './QuickAddEmployee';
 import HelpPanel from '@/components/HelpPanel';
 import { HR_HELP } from '../helpContent';
 import EvalTab from './EvalTab';
+import ChangeRequestTab from './ChangeRequestTab';
 
 interface HrAppProps {
   currentUser: AccountUser;
@@ -28,6 +29,7 @@ const TAB_MAP: Record<HrTab, string> = {
   reminders: 'dashboard',
   quickAdd: 'edit',
   evaluation: 'tasks',
+  changeRequests: 'requests',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -36,6 +38,7 @@ const TAB_LABELS: Record<string, string> = {
   activity: 'Phòng ban',
   dashboard: 'Nhắc việc',
   tasks: 'Đánh giá',
+  requests: 'Đề xuất',
 };
 
 const REVERSE_TAB: Record<string, HrTab> = {
@@ -45,6 +48,7 @@ const REVERSE_TAB: Record<string, HrTab> = {
   activity: 'departments',
   dashboard: 'reminders',
   tasks: 'evaluation',
+  requests: 'changeRequests',
 };
 
 const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
@@ -52,7 +56,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const accessibleTabs = ['history', 'activity', 'dashboard', 'tasks'];
+  const accessibleTabs = ['history', 'activity', 'dashboard', 'tasks', 'requests'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -166,6 +170,17 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
           <EvalTab
             employees={state.employees}
             currentUser={currentUser}
+            onToast={(msg, type) => state.setToast({ message: msg, type })}
+          />
+        )}
+
+        {state.activeTab === 'changeRequests' && (
+          <ChangeRequestTab
+            requests={state.changeRequests}
+            employees={state.employees}
+            departments={state.departments}
+            currentUser={currentUser}
+            onRefresh={state.loadChangeRequests}
             onToast={(msg, type) => state.setToast({ message: msg, type })}
           />
         )}

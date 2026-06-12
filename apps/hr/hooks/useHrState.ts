@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrReminder } from '@/types';
+import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrReminder, HrChangeRequest } from '@/types';
 import * as svc from '../services/hrService';
 import { setHashTab } from '@/App';
 
-export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd' | 'evaluation';
-const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation'];
+export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd' | 'evaluation' | 'changeRequests';
+const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation', 'changeRequests'];
 
 export function useHrState(initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<HrTab>(() => {
@@ -25,6 +25,7 @@ export function useHrState(initialTab?: string | null) {
   const [contracts, setContracts] = useState<HrContract[]>([]);
   const [evaluations, setEvaluations] = useState<HrEvaluation[]>([]);
   const [reminders, setReminders] = useState<(HrReminder & { employee?: any })[]>([]);
+  const [changeRequests, setChangeRequests] = useState<HrChangeRequest[]>([]);
 
   // ── Edit/Detail state ──
   const [editingEmployee, setEditingEmployee] = useState<HrEmployee | null>(null);
@@ -51,6 +52,10 @@ export function useHrState(initialTab?: string | null) {
       else console.error('Failed to load departments:', results[1].reason);
       if (results[2].status === 'fulfilled') setReminders((results[2].value as any[]).filter((r: any) => r.status !== 'dismissed'));
       else console.error('Failed to load reminders:', results[2].reason);
+      // Load change requests (non-blocking)
+      import('../services/changeRequestService').then(m =>
+        m.fetchChangeRequests().then(setChangeRequests).catch(() => {})
+      );
     } catch (e: any) {
       setToast({ message: e.message || 'Lỗi tải dữ liệu', type: 'error' });
     } finally {
@@ -255,6 +260,13 @@ export function useHrState(initialTab?: string | null) {
     return true;
   });
 
+  // ── Change Request handlers ──
+  const loadChangeRequests = useCallback(async () => {
+    const { fetchChangeRequests: fetch } = await import('../services/changeRequestService');
+    setChangeRequests(await fetch());
+  }, []);
+  const pendingChangeRequests = changeRequests.filter(r => r.status === 'pending');
+
   // ── Computed ──
   const pendingReminders = reminders.filter(r => r.status === 'pending');
 
@@ -276,5 +288,6 @@ export function useHrState(initialTab?: string | null) {
     handleGenerateReminders, handleDismissReminder,
     handleSyncAllToWorkforce,
     loadAll,
+    changeRequests, pendingChangeRequests, loadChangeRequests,
   };
 }

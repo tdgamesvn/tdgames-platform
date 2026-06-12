@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { HrEmployee, HrDepartment, HrContract, HrSalaryComponent, HrEmployeeSalary, HrDependent, HrDependentDocument, HrPositionHistory } from '@/types';
+import { HrEmployee, HrDepartment, HrContract, HrSalaryComponent, HrEmployeeSalary, HrDependent, HrDependentDocument, HrPositionHistory, HrChangeRequestType } from '@/types';
 import { uploadFileToR2, toPublicUrl } from '../services/hrService';
 import * as svc from '../services/hrService';
 import { supabase } from '@/services/supabaseClient';
+import ChangeRequestForm from './ChangeRequestForm';
 
 interface Props {
   editingEmployee: HrEmployee | null;
@@ -129,11 +130,9 @@ const EmployeeForm: React.FC<Props> = ({
   const [docUploadType, setDocUploadType] = useState('cccd');
   const depDocRef = useRef<HTMLInputElement>(null);
 
-  // Official salary modal state
-  const [showOfficialSalaryModal, setShowOfficialSalaryModal] = useState(false);
-  const [pendingOfficialDate, setPendingOfficialDate] = useState<string | null>(null);
-  const [officialSalaryDraft, setOfficialSalaryDraft] = useState<Record<string, number>>({});
-  const [savingOfficialSalary, setSavingOfficialSalary] = useState(false);
+  // Change request form state
+  const [showChangeRequestForm, setShowChangeRequestForm] = useState(false);
+  const [changeRequestType, setChangeRequestType] = useState<HrChangeRequestType | null>(null);
 
   // Photo upload state
   const avatarFileRef = useRef<HTMLInputElement>(null);
@@ -281,20 +280,7 @@ const EmployeeForm: React.FC<Props> = ({
           } catch {}
         }
 
-        // Detect official_date changed → show salary modal BEFORE navigating away
-        const oldOfficialDate = editingEmployee!.official_date || null;
-        const newOfficialDate = form.official_date || null;
-        if (newOfficialDate && newOfficialDate !== oldOfficialDate) {
-          // Save employee data to DB directly (without triggering navigation)
-          await svc.updateEmployee(editingEmployee!.id, formWithSalary);
-          // Show modal — stay on form so modal is visible
-          setPendingOfficialDate(newOfficialDate);
-          setOfficialSalaryDraft({ ...salaryAmounts });
-          setShowOfficialSalaryModal(true);
-          return; // Don't call onUpdate which navigates away
-        }
-
-        // No official_date change → normal save + navigate
+        // Normal save + navigate (sensitive changes go through change request flow)
         onUpdate(editingEmployee!.id, formWithSalary);
       } else {
         // For new employee, pass salary amounts so parent can save after employee is created
@@ -591,18 +577,18 @@ const EmployeeForm: React.FC<Props> = ({
               )}
               <div>
                 <label className={labelCls}>Phòng ban{reqStar('department_id')}</label>
-              <select className={inputCls} style={isFieldMissing('department_id') ? { borderColor: '#FF453A' } : {}} value={form.department_id || ''} onChange={e => setForm(f => ({ ...f, department_id: e.target.value || null }))}>
+              <select className={inputCls + (isEdit ? ' opacity-60 cursor-not-allowed' : '')} style={isFieldMissing('department_id') ? { borderColor: '#FF453A' } : {}} value={form.department_id || ''} onChange={e => !isEdit && setForm(f => ({ ...f, department_id: e.target.value || null }))} disabled={isEdit}>
                   <option value="">-- Chọn --</option>
                   {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className={labelCls}>Chức danh{reqStar('position')}</label>
-              <input className={inputCls} style={isFieldMissing('position') ? { borderColor: '#FF453A' } : {}} value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="Senior Artist" />
+              <input className={inputCls + (isEdit ? ' opacity-60 cursor-not-allowed' : '')} style={isFieldMissing('position') ? { borderColor: '#FF453A' } : {}} value={form.position} onChange={e => !isEdit && setForm(f => ({ ...f, position: e.target.value }))} readOnly={isEdit} placeholder="Senior Artist" />
               </div>
               <div>
                 <label className={labelCls}>Cấp bậc</label>
-                <select className={inputCls} value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))}>
+                <select className={inputCls + (isEdit ? ' opacity-60 cursor-not-allowed' : '')} value={form.level} onChange={e => !isEdit && setForm(f => ({ ...f, level: e.target.value }))} disabled={isEdit}>
                   <option value="">-- Chọn --</option>
                   <option value="Intern">Intern</option>
                   <option value="Junior">Junior</option>
@@ -649,10 +635,24 @@ const EmployeeForm: React.FC<Props> = ({
               </div>
               <div>
                 <label className={labelCls}>Ngày chính thức</label>
-                <input type="date" className={inputCls} value={form.official_date || ''} onChange={e => setForm(f => ({ ...f, official_date: e.target.value || null }))} />
-                <p className="text-[11px] text-neutral-medium/60 mt-1">Mặc định = ngày hết thử việc + 1. Sửa nếu lên chính thức sớm/muộn.</p>
+                <input type="date" className={inputCls + (isEdit ? ' opacity-60 cursor-not-allowed' : '')} value={form.official_date || ''} onChange={e => !isEdit && setForm(f => ({ ...f, official_date: e.target.value || null }))} readOnly={isEdit} />
+                {!isEdit && <p className="text-[11px] text-neutral-medium/60 mt-1">Mặc định = ngày hết thử việc + 1. Sửa nếu lên chính thức sớm/muộn.</p>}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Locked fields banner (edit mode) ── */}
+        {isEdit && (form.type === 'fulltime' || form.type === 'parttime') && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-orange-500/20" style={{ background: 'rgba(255,149,0,0.04)' }}>
+            <span className="text-orange-400 text-sm">🔒</span>
+            <span className="text-orange-300/80 text-xs font-semibold flex-1">
+              Lương, chức vụ, phòng ban chỉ thay đổi qua đơn đề xuất.
+            </span>
+            <button type="button" onClick={() => setShowChangeRequestForm(true)}
+              className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">
+              Tạo đề xuất
+            </button>
           </div>
         )}
 
@@ -671,9 +671,10 @@ const EmployeeForm: React.FC<Props> = ({
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
-                          className="w-40 px-3 py-2 rounded-lg bg-black/30 border border-primary/10 text-white text-sm text-right outline-none focus:border-emerald-500/40 transition-colors"
+                          className={'w-40 px-3 py-2 rounded-lg bg-black/30 border border-primary/10 text-white text-sm text-right outline-none focus:border-emerald-500/40 transition-colors' + (isEdit ? ' opacity-60 cursor-not-allowed' : '')}
                           value={salaryAmounts[comp.id] || ''}
-                          onChange={e => setSalaryAmounts(prev => ({ ...prev, [comp.id]: +e.target.value }))}
+                          onChange={e => !isEdit && setSalaryAmounts(prev => ({ ...prev, [comp.id]: +e.target.value }))}
+                          readOnly={isEdit}
                           placeholder="0"
                         />
                         <span className="text-neutral-medium text-xs w-8">VNĐ</span>
