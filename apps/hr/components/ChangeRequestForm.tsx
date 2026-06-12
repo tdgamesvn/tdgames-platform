@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   HrEmployee, HrDepartment, HrChangeRequestType, HrChangeRequest,
   HrSalaryComponent, HrEmployeeSalary,
@@ -301,19 +302,21 @@ const ChangeRequestForm: React.FC<Props> = ({
   };
 
   // ── Render ──
-  return (
+  const backdropMouseDownRef = useRef(false);
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-8"
-      style={{ background: 'rgba(0,0,0,0.70)', backdropFilter: 'blur(4px)' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: 'rgba(0,0,0,0.75)' }}
+      onMouseDown={e => { backdropMouseDownRef.current = e.target === e.currentTarget; }}
+      onClick={e => { if (e.target === e.currentTarget && backdropMouseDownRef.current) onClose(); }}
     >
       <div
-        className="w-full max-w-2xl rounded-2xl border border-white/[0.08] animate-scaleIn"
-        style={{ background: '#1A1A1A' }}
+        className="bg-surface rounded-[20px] border border-primary/10 w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
+        <div className="flex items-center justify-between p-6 border-b border-white/5 shrink-0">
           <div>
             <h2 className="text-lg font-black text-white">Tạo đề xuất nhân sự</h2>
             <p className="text-xs text-neutral-medium mt-0.5">Chọn nhân viên, loại đề xuất và điền thông tin</p>
@@ -326,7 +329,7 @@ const ChangeRequestForm: React.FC<Props> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* ── 1. Employee select ── */}
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Nhân viên *</label>
@@ -523,7 +526,7 @@ const ChangeRequestForm: React.FC<Props> = ({
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-white/5">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-white/5 shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
@@ -540,7 +543,8 @@ const ChangeRequestForm: React.FC<Props> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
