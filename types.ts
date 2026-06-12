@@ -543,6 +543,28 @@ export interface HrPositionHistory {
   created_at: string;
 }
 
+// ── Change Requests (Đơn đề xuất nhân sự) ────────────────
+export type HrChangeRequestType = 'probation_end' | 'salary_change' | 'promotion' | 'department_transfer' | 'termination';
+export type HrChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface HrChangeRequest {
+  id: string;
+  employee_id: string;
+  request_type: HrChangeRequestType;
+  status: HrChangeRequestStatus;
+  changes: Record<string, any>;
+  current_snapshot: Record<string, any>;
+  effective_date: string;
+  reason?: string | null;
+  requested_by?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  approval_note?: string | null;
+  created_at: string;
+  // joined
+  employee?: HrEmployee;
+}
+
 export interface HrEvaluation {
   id: string;
   employee_id: string;
