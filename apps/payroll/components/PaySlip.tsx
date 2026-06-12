@@ -20,6 +20,13 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
   const dept = rec.employee?.department?.name || '—';
   const position = rec.employee?.position || '—';
 
+  // Proration for transition months with salary change
+  const isTransition = !rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1;
+  const hasPreSalary = isTransition && rec.pre_official_base_salary != null;
+  const effectiveBase = hasPreSalary
+    ? Math.round(rec.pre_official_base_salary! * rec.probation_ratio + rec.base_salary * (1 - rec.probation_ratio))
+    : rec.base_salary;
+
   const handlePrint = () => {
     const styleId = '__payslip_print_style__';
     let styleEl = document.getElementById(styleId) as HTMLStyleElement | null;
@@ -156,7 +163,15 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
             </thead>
             <tbody>
               <Tr label={`Ngày công (tỷ lệ: ${(ratio * 100).toFixed(2)}%)`} ref_val={`${std}`} actual={`${rec.work_days}`} />
-              <Tr label="Lương cơ bản" ref_val={fmt(rec.base_salary)} actual={fmt(Math.round(rec.base_salary * ratio))} />
+              {hasPreSalary ? (
+                <>
+                  <Tr label={`Lương CB cũ (TV ${Math.round(rec.probation_ratio * 100)}%)`} ref_val={fmt(rec.pre_official_base_salary!)} actual={fmt(Math.round(rec.pre_official_base_salary! * rec.probation_ratio * ratio))} />
+                  <Tr label={`Lương CB mới (CThức ${Math.round((1 - rec.probation_ratio) * 100)}%)`} ref_val={fmt(rec.base_salary)} actual={fmt(Math.round(rec.base_salary * (1 - rec.probation_ratio) * ratio))} />
+                  <Tr label="Lương CB thực tế (prorate)" ref_val={fmt(effectiveBase)} actual={fmt(Math.round(effectiveBase * ratio))} highlight />
+                </>
+              ) : (
+                <Tr label="Lương cơ bản" ref_val={fmt(rec.base_salary)} actual={fmt(Math.round(rec.base_salary * ratio))} />
+              )}
               <Tr label="Phụ cấp ăn trưa" ref_val={fmt(rec.lunch_allowance)} actual={fmt(Math.round(rec.lunch_allowance * ratio))} />
               <Tr label="PC xăng xe" ref_val={fmt(rec.transport_allowance)} actual={fmt(Math.round(rec.transport_allowance * ratio))} />
               <Tr label="PC điện thoại" ref_val={fmt(rec.phone_allowance)} actual={fmt(Math.round(rec.phone_allowance * ratio))} />

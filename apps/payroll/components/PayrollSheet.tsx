@@ -342,6 +342,31 @@ const PayrollSheet: React.FC<Props> = ({
                           <div className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Input & Bước 1-2</div>
                           <Row label="Ngày công" value={`${rec.work_days} / ${std}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
                           <Row label="Lương CB" value={fmt(rec.base_salary)} sub={`Thực: ${fmt(Math.round(rec.base_salary * ratio))}`} />
+                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
+                            <div className="pl-3 border-l-2 border-orange-500/30 space-y-1">
+                              {isDraft ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-orange-300/80 font-semibold whitespace-nowrap">Lương CB cũ (TV):</span>
+                                  <input
+                                    type="number" step="100000"
+                                    className="w-28 px-1.5 py-0.5 rounded bg-black/40 border border-orange-500/30 text-orange-300 text-[11px] text-right outline-none focus:border-orange-500/60"
+                                    value={rec.pre_official_base_salary ?? ''}
+                                    placeholder="Nhập lương cũ..."
+                                    onChange={e => handleCellChange(rec, 'pre_official_base_salary', +e.target.value || 0)}
+                                  />
+                                </div>
+                              ) : rec.pre_official_base_salary != null ? (
+                                <Row label="Lương CB cũ (thử việc)" value={fmt(rec.pre_official_base_salary)} color="text-orange-300/80" />
+                              ) : null}
+                              {rec.pre_official_base_salary != null && (
+                                <Row
+                                  label="Prorate"
+                                  value={`${fmt(rec.pre_official_base_salary)} × ${Math.round(rec.probation_ratio * 100)}% + ${fmt(rec.base_salary)} × ${Math.round((1 - rec.probation_ratio) * 100)}%`}
+                                  color="text-orange-200/60"
+                                />
+                              )}
+                            </div>
+                          )}
                           <Row label="PC ăn trưa" value={fmt(rec.lunch_allowance)} sub={`Thực: ${fmt(Math.round(rec.lunch_allowance * ratio))}`} />
                           <Row label="PC xăng xe" value={fmt(rec.transport_allowance)} sub={`Thực: ${fmt(Math.round(rec.transport_allowance * ratio))}`} />
                           <Row label="PC điện thoại" value={fmt(rec.phone_allowance)} sub={`Thực: ${fmt(Math.round(rec.phone_allowance * ratio))}`} />

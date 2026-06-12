@@ -927,6 +927,8 @@ export interface PayPayrollRecord {
   is_probation: boolean;
   /** Tỷ lệ ngày thử việc trong tháng (0 = full official, 1 = full probation, 0<x<1 = tháng chuyển giao) */
   probation_ratio: number;
+  /** Lương CB trước khi lên chính thức — chỉ dùng khi tháng chuyển giao + tăng lương. null = cùng mức. */
+  pre_official_base_salary?: number | null;
   /** Thưởng KPI nhập tay — cộng thẳng vào net, không tính thuế/BH */
   bonus: number;
   /** Lý do thưởng — ví dụ: "Thưởng KPI Q2", "Thưởng dự án X" */
