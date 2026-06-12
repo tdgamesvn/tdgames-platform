@@ -476,7 +476,7 @@ ${employeeInfo(employee)}
   <p><strong>1. Quyền của người lao động</strong></p>
   <p><strong>1.1. Quyền lợi:</strong></p>
   <p>- Mức lương cơ bản: <strong>${baseSalary > 0 ? fmt(baseSalary) : '..........'}</strong> đồng/tháng</p>
-  <p>- Mức lương thử việc: 85% lương cơ bản</p>
+  <p>- Mức lương thử việc: 100% lương cơ bản</p>
   <p>- Hình thức trả lương: chuyển khoản</p>
   <p>- Thời hạn trả lương: từ ngày 03 đến ngày 05 hàng tháng</p>
   <p><strong>1.2. Hỗ trợ:</strong></p>
@@ -660,7 +660,7 @@ export type ContractType = 'hdld' | 'hdtv' | 'nda' | 'hdkv' | 'nda_ctv';
 
 export const CONTRACT_TYPES_FULLTIME: { key: ContractType; label: string; icon: string; description: string }[] = [
   { key: 'hdld', label: 'Hợp đồng Lao động', icon: '📋', description: 'HĐLĐ – Hợp đồng chính thức 12 tháng' },
-  { key: 'hdtv', label: 'Hợp đồng Thử việc', icon: '📝', description: 'HĐTV – Thử việc 2 tháng, 85% lương' },
+  { key: 'hdtv', label: 'Hợp đồng Thử việc', icon: '📝', description: 'HĐTV – Thử việc 2 tháng, 100% lương' },
   { key: 'nda', label: 'Cam kết Bảo mật', icon: '🔒', description: 'NDA – Bảo mật thông tin dự án' },
 ];
 
