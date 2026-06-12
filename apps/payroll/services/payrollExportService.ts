@@ -28,6 +28,7 @@ export function exportPayrollToExcel(
     'Thử việc',
     'Ngày công',
     'Lương CB',
+    'Lương CB cũ (TV)',
     'PC ăn trưa',
     'PC xăng xe',
     'PC điện thoại',
@@ -58,6 +59,7 @@ export function exportPayrollToExcel(
       rec.is_probation ? 'Có' : '',
       rec.work_days,
       rec.base_salary,
+      rec.pre_official_base_salary ?? '',
       rec.lunch_allowance,
       rec.transport_allowance,
       rec.phone_allowance,
@@ -89,6 +91,7 @@ export function exportPayrollToExcel(
     '', '', 'TỔNG CỘNG', '',
     '',
     sum('base_salary'),
+    '',  // no sum for pre-official salary
     sum('lunch_allowance'),
     sum('transport_allowance'),
     sum('phone_allowance'),
@@ -121,6 +124,7 @@ export function exportPayrollToExcel(
     { wch: 10 },  // Thử việc
     { wch: 10 },  // Ngày công
     { wch: 14 },  // Lương CB
+    { wch: 14 },  // Lương CB cũ (TV)
     { wch: 14 },  // PC ăn trưa
     { wch: 14 },  // PC xăng xe
     { wch: 14 },  // PC điện thoại
@@ -190,6 +194,12 @@ export function exportPaySlipToExcel(
   rows.push([]);
   rows.push(['— BƯỚC 1-2: LƯƠNG THỰC TẾ —']);
   rows.push(['Lương cơ bản', rec.base_salary, Math.round(rec.base_salary * ratio)]);
+  if (rec.pre_official_base_salary != null && rec.probation_ratio > 0 && rec.probation_ratio < 1) {
+    const effBase = Math.round(rec.pre_official_base_salary * rec.probation_ratio + rec.base_salary * (1 - rec.probation_ratio));
+    rows.push([`  → Lương CB cũ (TV ${Math.round(rec.probation_ratio * 100)}%)`, rec.pre_official_base_salary, Math.round(rec.pre_official_base_salary * rec.probation_ratio * ratio)]);
+    rows.push([`  → Lương CB mới (${Math.round((1 - rec.probation_ratio) * 100)}%)`, rec.base_salary, Math.round(rec.base_salary * (1 - rec.probation_ratio) * ratio)]);
+    rows.push(['  → Lương CB prorate', effBase, Math.round(effBase * ratio)]);
+  }
   rows.push(['Phụ cấp ăn trưa', rec.lunch_allowance, Math.round(rec.lunch_allowance * ratio)]);
   rows.push(['Phụ cấp xăng xe', rec.transport_allowance, Math.round(rec.transport_allowance * ratio)]);
   rows.push(['Phụ cấp điện thoại', rec.phone_allowance, Math.round(rec.phone_allowance * ratio)]);

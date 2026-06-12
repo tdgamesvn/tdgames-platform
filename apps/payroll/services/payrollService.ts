@@ -29,6 +29,8 @@ interface PayrollInput {
   isProbation: boolean;
   /** Tỷ lệ ngày thử việc trong tháng. 0 = full official, 1 = full probation, 0<x<1 = transition month (lên chính thức giữa tháng) */
   probationRatio?: number;
+  /** Lương CB trước khi lên chính thức. Nếu có và tháng chuyển giao → prorate giữa 2 mức. */
+  preOfficialBaseSalary?: number | null;
   /** Thưởng KPI nhập tay — tính vào thu nhập chịu thuế TNCN (TT 111/2013) */
   bonus?: number;
 }
@@ -62,7 +64,12 @@ export function calculatePayroll(
   const probRatio = Math.max(0, Math.min(1, input.probationRatio ?? (input.isProbation ? 1 : 0)));
   const officialRatio = 1 - probRatio;
 
-  const baseSalaryActual = r(input.baseSalary * ratio);
+  // Tháng chuyển giao + tăng lương: prorate giữa lương cũ (probation) và lương mới (official)
+  const hasPreOfficialSalary = input.preOfficialBaseSalary != null && probRatio > 0 && probRatio < 1;
+  const effectiveBaseSalary = hasPreOfficialSalary
+    ? r(input.preOfficialBaseSalary! * probRatio + input.baseSalary * officialRatio)
+    : input.baseSalary;
+  const baseSalaryActual = r(effectiveBaseSalary * ratio);
   const lunchActual = r(input.lunchAllowance * ratio);
   const transportActual = r(input.transportAllowance * ratio);
   const phoneActual = r(input.phoneAllowance * ratio);
@@ -274,11 +281,41 @@ export async function createPayrollSheet(
     depCountMap[d.employee_id] = (depCountMap[d.employee_id] || 0) + 1;
   });
 
-  // 6. Build records
-  // Determine month boundaries for probation_ratio computation
-  const payrollFirstDay = new Date(year, month - 1, 1); // first day of this month
-  const payrollLastDay = new Date(year, month, 0);      // last day of this month
+  // 5b. Fetch salary changes for employees with mid-month transition
+  // (used to auto-populate pre_official_base_salary)
+  const payrollFirstDay = new Date(year, month - 1, 1);
+  const payrollLastDay = new Date(year, month, 0);
   const totalDaysInMonth = payrollLastDay.getDate();
+
+  const transitionEmpIds = employees
+    .filter(emp => {
+      const officialRaw = (emp as any).official_date
+        || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
+      if (!officialRaw) return false;
+      const od = new Date(officialRaw);
+      return od > payrollFirstDay && od <= payrollLastDay;
+    })
+    .map(e => e.id);
+
+  const salaryChangeMap: Record<string, number> = {};
+  if (transitionEmpIds.length > 0) {
+    const { data: historyRows } = await supabase
+      .from('hr_position_history')
+      .select('*')
+      .in('employee_id', transitionEmpIds)
+      .eq('change_type', 'salary')
+      .gte('effective_date', `${year}-${String(month).padStart(2, '0')}-01`)
+      .lte('effective_date', `${year}-${String(month).padStart(2, '0')}-${totalDaysInMonth}`);
+
+    (historyRows || []).forEach((h: any) => {
+      const oldVal = Number(h.old_value);
+      if (!isNaN(oldVal) && oldVal > 0) {
+        salaryChangeMap[h.employee_id] = oldVal;
+      }
+    });
+  }
+
+  // 6. Build records
 
   const rows = employees.map(emp => {
     // Salary components for this employee
@@ -316,6 +353,11 @@ export async function createPayrollSheet(
     }
     const isProbation = probationRatio === 1;
 
+    // Lương CB trước chính thức (auto-detect từ hr_position_history, hoặc null)
+    const preOfficialBaseSalary = (probationRatio > 0 && probationRatio < 1)
+      ? (salaryChangeMap[emp.id] ?? null)
+      : null;
+
     const input: PayrollInput = {
       workDays,
       baseSalary: salaryMap.base_salary || 0,
@@ -329,6 +371,7 @@ export async function createPayrollSheet(
       dependentsCount: depCountMap[emp.id] || 0,
       isProbation,
       probationRatio,
+      preOfficialBaseSalary,
       bonus: 0,
     };
 
@@ -350,6 +393,7 @@ export async function createPayrollSheet(
       dependents_count: input.dependentsCount,
       is_probation: isProbation,
       probation_ratio: probationRatio,
+      pre_official_base_salary: preOfficialBaseSalary,
       bonus: 0,
       gross_ref: output.grossRef,
       gross_actual: output.grossActual,
@@ -395,6 +439,7 @@ export function recalculateRecord(
     dependentsCount: rec.dependents_count,
     isProbation: rec.is_probation ?? false,
     probationRatio: rec.probation_ratio ?? (rec.is_probation ? 1 : 0),
+    preOfficialBaseSalary: rec.pre_official_base_salary ?? null,
     // Bonus tính vào TNCT → PIT tự tăng theo bậc lũy tiến
     bonus: rec.bonus ?? 0,
   };
