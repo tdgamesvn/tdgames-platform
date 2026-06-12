@@ -297,22 +297,38 @@ export async function createPayrollSheet(
     })
     .map(e => e.id);
 
+  // For transition employees: find old base salary from hr_employee_salary records.
+  // saveEmployeeSalary() does INSERT (not upsert), so old probation salary records
+  // still exist alongside new official salary records for the same component.
   const salaryChangeMap: Record<string, number> = {};
   if (transitionEmpIds.length > 0) {
-    const { data: historyRows } = await supabase
-      .from('hr_position_history')
-      .select('*')
+    // All "Lương cơ bản" records for transition employees, ordered by created_at
+    const { data: baseSalaryHistory } = await supabase
+      .from('hr_employee_salary')
+      .select('employee_id, amount, created_at, component:hr_salary_components(name)')
       .in('employee_id', transitionEmpIds)
-      .eq('change_type', 'salary')
-      .gte('effective_date', `${year}-${String(month).padStart(2, '0')}-01`)
-      .lte('effective_date', `${year}-${String(month).padStart(2, '0')}-${totalDaysInMonth}`);
+      .order('created_at', { ascending: true });
 
-    (historyRows || []).forEach((h: any) => {
-      const oldVal = Number(h.old_value);
-      if (!isNaN(oldVal) && oldVal > 0) {
-        salaryChangeMap[h.employee_id] = oldVal;
+    // Group by employee → find old base salary (second-to-last "Lương cơ bản" record)
+    const empBaseRecords: Record<string, number[]> = {};
+    (baseSalaryHistory || []).forEach((s: any) => {
+      if (s.component?.name === 'Lương cơ bản' && s.amount > 0) {
+        if (!empBaseRecords[s.employee_id]) empBaseRecords[s.employee_id] = [];
+        empBaseRecords[s.employee_id].push(s.amount);
       }
     });
+
+    for (const empId of transitionEmpIds) {
+      const amounts = empBaseRecords[empId];
+      // If there are 2+ records and the latest differs from the previous → salary changed
+      if (amounts && amounts.length >= 2) {
+        const oldBase = amounts[amounts.length - 2];
+        const newBase = amounts[amounts.length - 1];
+        if (oldBase !== newBase) {
+          salaryChangeMap[empId] = oldBase;
+        }
+      }
+    }
   }
 
   // 6. Build records
