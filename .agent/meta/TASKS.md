@@ -40,6 +40,11 @@ _(trống — không có task đang chạy)_
 
 ## Recently Completed
 
+- [x] Mid-month salary proration (tháng chuyển giao + tăng lương)
+  - Done: 2026-06-12
+  - Branch: feat/payroll-mid-month-salary-proration (commit e66142c)
+  - Result: DB column `pre_official_base_salary`; calculatePayroll() dùng weighted salary (lươngCũ × probRatio + lươngMới × officialRatio); auto-detect từ hr_position_history; editable trong PayrollSheet; hiển thị prorate trong PaySlip + Excel export. Build ✅
+
 - [x] Email deliverability — Primary inbox
   - Done: 2026-06-10
   - Root cause: `List-Unsubscribe` header → Gmail Promotions signal; `[TD Games]` bracket prefix → marketing pattern

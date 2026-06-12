@@ -1,5 +1,31 @@
 # LOG
 
+## 2026-06-12
+### Task
+Mid-month salary proration — tính lương chính xác khi nhân viên lên chính thức giữa tháng + tăng lương
+
+### Work Done
+- Thêm cột `pre_official_base_salary` (bigint, nullable) vào `pay_payroll_records` via Supabase migration
+- Thêm field vào `PayPayrollRecord` type và `PayrollInput` interface
+- Sửa `calculatePayroll()`: khi có `preOfficialBaseSalary` + tháng chuyển giao → weighted base salary: `lươngCũ × probRatio + lươngMới × officialRatio`
+- `createPayrollSheet()`: auto-detect lương cũ từ `hr_position_history` (change_type='salary')
+- `recalculateRecord()`: truyền `pre_official_base_salary` qua PayrollInput
+- PayrollSheet UI: editable input lương CB cũ trong expanded detail (draft mode), hiện prorate formula
+- PaySlip: hiện 3 dòng (lương cũ TV%, lương mới CT%, prorate thực tế) thay vì 1 dòng lương CB
+- Excel export: thêm cột "Lương CB cũ (TV)" trong batch export + dòng prorate trong phiếu lương cá nhân
+
+### Validation
+- `npm run build` ✅ clean (7.68s)
+- Backward compatible: `pre_official_base_salary = null` → calculation unchanged
+- Formula check: 10M × 0.4667 + 12M × 0.5333 = 11,066,667 (vs old: 12M — tiết kiệm 933K/tháng)
+
+### Commits
+- e66142c feat(payroll): mid-month salary proration for probation→official transitions
+
+### Next Step
+- Merge vào main
+- Test thực tế trên app
+
 ## 2026-06-10
 ### Task
 Email deliverability — thoát khỏi Spam → Promotions → Primary
