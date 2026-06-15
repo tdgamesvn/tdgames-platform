@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HrChangeRequest, HrEmployee, HrDepartment, AccountUser, HrChangeRequestType } from '@/types';
 import { approveChangeRequest, rejectChangeRequest } from '../services/changeRequestService';
 import ChangeRequestForm from './ChangeRequestForm';
@@ -10,6 +10,7 @@ interface Props {
   currentUser: AccountUser;
   onRefresh: () => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
+  highlightId?: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────
@@ -98,10 +99,21 @@ interface CardProps {
   departments: HrDepartment[];
   onRefresh: () => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
+  isHighlighted?: boolean;
 }
 
-const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast }) => {
-  const [expanded, setExpanded] = useState(false);
+const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast, isHighlighted }) => {
+  const [expanded, setExpanded] = useState(!!isHighlighted);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to highlighted card on mount
+  useEffect(() => {
+    if (isHighlighted && cardRef.current) {
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+  }, [isHighlighted]);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -143,10 +155,12 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
 
   return (
     <div
+      ref={cardRef}
       className="rounded-[20px] border transition-all duration-200"
       style={{
         background: '#1A1A1A',
-        borderColor: expanded ? 'rgba(255,149,0,0.25)' : 'rgba(255,255,255,0.08)',
+        borderColor: isHighlighted ? 'rgba(255,149,0,0.5)' : expanded ? 'rgba(255,149,0,0.25)' : 'rgba(255,255,255,0.08)',
+        boxShadow: isHighlighted ? '0 0 20px rgba(255,149,0,0.15)' : 'none',
       }}
     >
       {/* Card header — always visible, click to expand */}
@@ -357,6 +371,7 @@ const ChangeRequestTab: React.FC<Props> = ({
   currentUser,
   onRefresh,
   onToast,
+  highlightId,
 }) => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [showForm, setShowForm] = useState(false);
@@ -446,6 +461,7 @@ const ChangeRequestTab: React.FC<Props> = ({
               departments={departments}
               onRefresh={onRefresh}
               onToast={onToast}
+              isHighlighted={req.id === highlightId}
             />
           ))}
         </div>
