@@ -13,3 +13,23 @@ export function countWeekdays(year: number, month: number): number {
   }
   return count;
 }
+
+/**
+ * Đếm số ngày làm việc (T2-T6) từ một ngày cụ thể đến hết tháng.
+ * Dùng để xác định ngưỡng 14 ngày đóng BHXH theo luật Việt Nam:
+ * - Nếu < 14 ngày làm việc chính thức trong tháng → miễn đóng BHXH
+ * - Nếu ≥ 14 ngày → đóng full BHXH (không prorate)
+ *
+ * Công ty làm T2-T6 nên chỉ đếm weekdays.
+ */
+export function countWeekdaysFromDate(year: number, month: number, fromDay: number): number {
+  const date = new Date(year, month - 1, fromDay);
+  const lastDay = new Date(year, month, 0); // ngày cuối tháng
+  let count = 0;
+  while (date <= lastDay) {
+    const dow = date.getDay();
+    if (dow >= 1 && dow <= 5) count++;
+    date.setDate(date.getDate() + 1);
+  }
+  return count;
+}

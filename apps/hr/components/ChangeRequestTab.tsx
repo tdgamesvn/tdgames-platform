@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HrChangeRequest, HrEmployee, HrDepartment, AccountUser, HrChangeRequestType } from '@/types';
-import { approveChangeRequest, rejectChangeRequest } from '../services/changeRequestService';
+import { approveChangeRequest, rejectChangeRequest, deleteChangeRequest } from '../services/changeRequestService';
 import ChangeRequestForm from './ChangeRequestForm';
 
 interface Props {
@@ -153,6 +153,22 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Xoá đề xuất này? Hành động không thể hoàn tác.')) return;
+    setSaving(true);
+    try {
+      await deleteChangeRequest(req.id);
+      onToast('Đã xoá đề xuất', 'success');
+      onRefresh();
+    } catch (e: any) {
+      onToast(e.message || 'Lỗi xoá đề xuất', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isAdmin = currentUser.role === 'admin' || currentUser.role === 'hr';
+
   return (
     <div
       ref={cardRef}
@@ -296,22 +312,27 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
                 <p className="text-sm text-neutral-light">{req.reason}</p>
               </div>
             )}
-            <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
-              <p className="text-[10px] font-black text-neutral-medium mb-1 uppercase tracking-wider">Người tạo</p>
-              <p className="text-sm text-neutral-light">{req.requested_by || '—'}</p>
-              <p className="text-[10px] text-neutral-medium mt-0.5">{fmtDateTime(req.created_at)}</p>
-            </div>
-            {(req.status === 'approved' || req.status === 'rejected') && (
-              <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
-                <p className="text-[10px] font-black text-neutral-medium mb-1 uppercase tracking-wider">
-                  {req.status === 'approved' ? 'Người duyệt' : 'Người từ chối'}
-                </p>
-                <p className="text-sm text-neutral-light">{req.approved_by || '—'}</p>
-                <p className="text-[10px] text-neutral-medium mt-0.5">{fmtDateTime(req.approved_at)}</p>
-                {req.approval_note && (
-                  <p className="text-xs text-neutral-medium mt-1 italic">"{req.approval_note}"</p>
+            {/* Người tạo / Người duyệt — chỉ hiện cho admin & hr */}
+            {isAdmin && (
+              <>
+                <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
+                  <p className="text-[10px] font-black text-neutral-medium mb-1 uppercase tracking-wider">Người tạo</p>
+                  <p className="text-sm text-neutral-light">{req.requested_by || '—'}</p>
+                  <p className="text-[10px] text-neutral-medium mt-0.5">{fmtDateTime(req.created_at)}</p>
+                </div>
+                {(req.status === 'approved' || req.status === 'rejected') && (
+                  <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
+                    <p className="text-[10px] font-black text-neutral-medium mb-1 uppercase tracking-wider">
+                      {req.status === 'approved' ? 'Người duyệt' : 'Người từ chối'}
+                    </p>
+                    <p className="text-sm text-neutral-light">{req.approved_by || '—'}</p>
+                    <p className="text-[10px] text-neutral-medium mt-0.5">{fmtDateTime(req.approved_at)}</p>
+                    {req.approval_note && (
+                      <p className="text-xs text-neutral-medium mt-1 italic">"{req.approval_note}"</p>
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
 
@@ -353,9 +374,21 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
                 >
                   {saving ? '...' : '❌ Từ chối'}
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={handleDelete}
+                    disabled={saving}
+                    className="py-3 px-5 rounded-xl font-black text-xs uppercase tracking-widest text-white transition-all hover:opacity-90 disabled:opacity-50"
+                    style={{ background: 'linear-gradient(135deg, #78716c 0%, #57534e 100%)' }}
+                    title="Xoá đề xuất (Admin)"
+                  >
+                    {saving ? '...' : '🗑️ Xoá'}
+                  </button>
+                )}
               </div>
             </div>
           )}
+
         </div>
       )}
     </div>

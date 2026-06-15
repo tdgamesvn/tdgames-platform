@@ -24,13 +24,14 @@ const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
 const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company'];
 
-/** Parse hash like #workforce/tasks → { app: 'workforce', tab: 'tasks' } */
-const parseHash = (): { app: string | null; tab: string | null } => {
+/** Parse hash like #workforce/tasks or #hr/requests/uuid → { app, tab, param } */
+const parseHash = (): { app: string | null; tab: string | null; param: string | null } => {
   const hash = window.location.hash.replace('#', '');
-  const [app, tab] = hash.split('/');
+  const parts = hash.split('/');
   return {
-    app: VALID_APPS.includes(app) ? app : null,
-    tab: tab || null,
+    app: VALID_APPS.includes(parts[0]) ? parts[0] : null,
+    tab: parts[1] || null,
+    param: parts[2] || null,
   };
 };
 
@@ -157,10 +158,12 @@ const App: React.FC = () => {
   // ── App Router State (synced with URL hash) ──
   const [activeApp, _setActiveApp] = useState<string | null>(() => parseHash().app);
   const [initialTab, setInitialTab] = useState<string | null>(() => parseHash().tab);
+  const [initialParam, setInitialParam] = useState<string | null>(() => parseHash().param);
 
   const setActiveApp = useCallback((app: string | null) => {
     _setActiveApp(app);
     setInitialTab(null);
+    setInitialParam(null);
     if (app) {
       window.location.hash = app;
     } else {
@@ -171,9 +174,10 @@ const App: React.FC = () => {
   // Listen for browser back/forward
   useEffect(() => {
     const onHashChange = () => {
-      const { app, tab } = parseHash();
+      const { app, tab, param } = parseHash();
       _setActiveApp(app);
       setInitialTab(tab);
+      setInitialParam(param);
     };
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
@@ -258,7 +262,7 @@ const App: React.FC = () => {
   }
 
   if (activeApp === 'hr') {
-    return <HrApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
+    return <HrApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} initialParam={initialParam} />;
   }
 
   if (activeApp === 'attendance') {

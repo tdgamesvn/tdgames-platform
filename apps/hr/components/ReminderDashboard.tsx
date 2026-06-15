@@ -16,6 +16,10 @@ const TYPE_LABELS: Record<string, { icon: string; label: string; color: string }
   probation_end: { icon: '📋', label: 'Hết thử việc', color: '#FF6B00' },
   anniversary: { icon: '🎉', label: 'Kỷ niệm', color: '#5856D6' },
   performance_review: { icon: '🔄', label: 'Review định kỳ', color: '#30D158' },
+  bhxh_payment_deadline: { icon: '🛡️', label: 'Hạn nộp BHXH', color: '#0A84FF' },
+  bhxh_missing_insurance: { icon: '🛡️', label: 'Thiếu mã BHXH', color: '#FF9500' },
+  bhxh_new_employee: { icon: '🛡️', label: 'Đăng ký BHXH', color: '#AF52DE' },
+  bhxh_salary_change: { icon: '🛡️', label: 'Cập nhật BHXH', color: '#FFD60A' },
 };
 
 const ReminderDashboard: React.FC<Props> = ({ reminders, onGenerate, onDismiss }) => {

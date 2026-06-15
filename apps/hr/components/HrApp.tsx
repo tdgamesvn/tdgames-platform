@@ -19,6 +19,7 @@ interface HrAppProps {
   currentUser: AccountUser;
   onBack: () => void;
   initialTab?: string | null;
+  initialParam?: string | null;
 }
 
 const TAB_MAP: Record<HrTab, string> = {
@@ -51,7 +52,7 @@ const REVERSE_TAB: Record<string, HrTab> = {
   requests: 'changeRequests',
 };
 
-const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
+const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialParam }) => {
   const state = useHrState(initialTab);
   const [helpOpen, setHelpOpen] = React.useState(false);
 
@@ -182,6 +183,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab }) => {
             currentUser={currentUser}
             onRefresh={state.loadChangeRequests}
             onToast={(msg, type) => state.setToast({ message: msg, type })}
+            highlightId={initialParam}
           />
         )}
       </main>

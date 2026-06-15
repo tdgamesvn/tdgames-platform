@@ -174,7 +174,8 @@ const EmployeeForm: React.FC<Props> = ({
           const items = await svc.fetchEmployeeSalary(editingEmployee.id);
           const amounts: Record<string, number> = {};
           const ids: Record<string, string> = {};
-          items.forEach(it => { amounts[it.component_id] = it.amount; ids[it.component_id] = it.id; });
+          // Only use currently-active salary records (effective_to is null)
+          items.filter(it => !it.effective_to).forEach(it => { amounts[it.component_id] = it.amount; ids[it.component_id] = it.id; });
           setSalaryAmounts(amounts);
           setExistingSalaryIds(ids);
         } catch {}

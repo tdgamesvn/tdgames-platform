@@ -9,7 +9,7 @@ import {
   fetchPayrollFormulaForMonth,
   fetchPayrollFormulaById,
 } from './payrollFormulaService';
-import { countWeekdays } from '../utils/workdayUtils';
+import { countWeekdays, countWeekdaysFromDate } from '../utils/workdayUtils';
 
 // ══════════════════════════════════════════════════════════
 // ── Core: calculatePayroll (pure function, 8 steps) ──────
@@ -33,6 +33,10 @@ interface PayrollInput {
   preOfficialBaseSalary?: number | null;
   /** Thưởng KPI nhập tay — tính vào thu nhập chịu thuế TNCN (TT 111/2013) */
   bonus?: number;
+  /** Miễn BHXH: ngày làm việc chính thức trong tháng < 14 ngày (Luật BHXH VN, TT 59/2015).
+   *  - true → BHXH = 0 (cả NV lẫn công ty)
+   *  - false/undefined → đóng full BHXH (all-or-nothing, không prorate theo officialRatio) */
+  bhxhExempt?: boolean;
 }
 
 interface PayrollOutput {
@@ -89,9 +93,12 @@ export function calculatePayroll(
   const grossActual = baseSalaryActual + lunchActual + transportActual
     + phoneActual + clothingActual + kpiActual + defaultOtActual + extraOt + bonusAmount;
 
-  // BHXH: chỉ tính trên phần ngày chính thức trong tháng
-  const employeeBhxh = r(input.baseSalary * formula.bhEmployeeRate * officialRatio);
-  const companyBhxh = r(input.baseSalary * formula.bhCompanyRate * officialRatio);
+  // BHXH: all-or-nothing theo luật BHXH Việt Nam (TT 59/2015/TT-BLĐTBXH)
+  // - Miễn (bhxhExempt=true): full probation HOẶC ngày làm việc chính thức < 14 ngày trong tháng
+  // - Đóng full (không prorate): ngày làm việc chính thức ≥ 14 ngày
+  const bhxhExempt = input.bhxhExempt ?? (officialRatio === 0);
+  const employeeBhxh = bhxhExempt ? 0 : r(input.baseSalary * formula.bhEmployeeRate);
+  const companyBhxh = bhxhExempt ? 0 : r(input.baseSalary * formula.bhCompanyRate);
 
   // Thu nhập chịu thuế (không bao gồm lunch, clothing, OT)
   // Bonus (tiền thưởng từ HĐLĐ) tính vào TNCT theo TT 111/2013
@@ -369,6 +376,18 @@ export async function createPayrollSheet(
     }
     const isProbation = probationRatio === 1;
 
+    // ── BHXH 14-ngày threshold (Luật BHXH VN, TT 59/2015) ──
+    // Miễn BHXH nếu: (a) full probation, hoặc (b) chuyển giao giữa tháng + ngày làm việc chính thức < 14
+    let bhxhExempt = false;
+    if (isProbation) {
+      bhxhExempt = true; // cả tháng thử việc → không đóng BHXH
+    } else if (probationRatio > 0 && probationRatio < 1 && officialDate) {
+      // Tháng chuyển giao: đếm ngày làm việc T2-T6 từ official_date đến hết tháng
+      const officialWorkDays = countWeekdaysFromDate(year, month, officialDate.getDate());
+      bhxhExempt = officialWorkDays < 14;
+    }
+    // else: cả tháng chính thức → bhxhExempt = false → đóng full
+
     // Lương CB trước chính thức (auto-detect từ hr_position_history, hoặc null)
     const preOfficialBaseSalary = (probationRatio > 0 && probationRatio < 1)
       ? (salaryChangeMap[emp.id] ?? null)
@@ -389,6 +408,7 @@ export async function createPayrollSheet(
       probationRatio,
       preOfficialBaseSalary,
       bonus: 0,
+      bhxhExempt,
     };
 
     const output = calculatePayroll(input, formulaConfig, stdDays);
@@ -410,6 +430,7 @@ export async function createPayrollSheet(
       is_probation: isProbation,
       probation_ratio: probationRatio,
       pre_official_base_salary: preOfficialBaseSalary,
+      bhxh_exempt: bhxhExempt,
       bonus: 0,
       gross_ref: output.grossRef,
       gross_actual: output.grossActual,
@@ -458,6 +479,7 @@ export function recalculateRecord(
     preOfficialBaseSalary: rec.pre_official_base_salary ?? null,
     // Bonus tính vào TNCT → PIT tự tăng theo bậc lũy tiến
     bonus: rec.bonus ?? 0,
+    bhxhExempt: rec.bhxh_exempt ?? false,
   };
   const output = calculatePayroll(input, formula, standardWorkDays ?? undefined);
   return {

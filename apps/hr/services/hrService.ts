@@ -710,6 +710,86 @@ export async function generateReminders(): Promise<number> {
     }
   }
 
+  // ── BHXH Reminders ──────────────────────────────────────────
+
+  // 1. BHXH Payment Deadline — nhắc trước ngày 25 hàng tháng
+  {
+    const deadline25 = new Date(today.getFullYear(), today.getMonth(), 25);
+    if (deadline25 < today) deadline25.setMonth(deadline25.getMonth() + 1);
+    const daysToDeadline = Math.ceil((deadline25.getTime() - today.getTime()) / 86400000);
+    if (daysToDeadline >= 0 && daysToDeadline <= 7) {
+      const m = deadline25.getMonth() + 1;
+      const y = deadline25.getFullYear();
+      addIfNew({
+        employee_id: null, type: 'bhxh_payment_deadline',
+        title: `🛡️ Hạn nộp BHXH tháng ${m}/${y}`,
+        due_date: fmt(deadline25), status: 'pending',
+        notes: `Hạn cuối nộp BHXH: ngày 25/${m}/${y}. Kiểm tra tab BHXH bên Kế Toán.`,
+      });
+    }
+  }
+
+  // 2. Missing insurance number — NV chính thức chưa có mã BHXH
+  for (const emp of employees) {
+    if (emp.status !== 'active' || emp.type !== 'fulltime') continue;
+    if (emp.insurance_number) continue;
+    const isPastProbation = emp.probation_end && new Date(emp.probation_end) < today;
+    const isOfficial = emp.official_date && new Date(emp.official_date) <= today;
+    if (isPastProbation || isOfficial) {
+      addIfNew({
+        employee_id: emp.id, type: 'bhxh_missing_insurance',
+        title: `🛡️ Chưa có mã BHXH: ${emp.full_name}`,
+        due_date: fmt(today), status: 'pending',
+        notes: 'NV đã lên chính thức nhưng chưa được cấp mã số BHXH',
+      });
+    }
+  }
+
+  // 3. New employee needs BHXH registration — sắp hết thử việc, chưa có mã BHXH
+  for (const emp of employees) {
+    if (emp.status !== 'active' || emp.type !== 'fulltime') continue;
+    if (emp.insurance_number) continue;
+    if (!emp.probation_end) continue;
+    const probEnd = new Date(emp.probation_end);
+    const diff = Math.ceil((probEnd.getTime() - today.getTime()) / 86400000);
+    if (diff >= 0 && diff <= 30) {
+      addIfNew({
+        employee_id: emp.id, type: 'bhxh_new_employee',
+        title: `🛡️ Cần đăng ký BHXH: ${emp.full_name}`,
+        due_date: emp.probation_end, status: 'pending',
+        notes: `NV sắp hết thử việc (${emp.probation_end}), cần chuẩn bị hồ sơ đăng ký BHXH`,
+      });
+    }
+  }
+
+  // 4. Salary change affecting BHXH — NV đã có BHXH mà thay đổi lương cơ bản gần đây
+  {
+    const thirtyDaysAgo = new Date(today);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { data: recentChanges } = await supabase
+      .from('hr_employee_salary')
+      .select('employee_id, effective_from, component:hr_salary_components(name)')
+      .gte('effective_from', fmt(thirtyDaysAgo))
+      .order('effective_from', { ascending: false });
+
+    if (recentChanges) {
+      const baseSalaryChanges = (recentChanges as any[]).filter(
+        s => s.component?.name === 'Lương cơ bản'
+      );
+      const empMap = new Map(employees.map(e => [e.id, e]));
+      for (const change of baseSalaryChanges) {
+        const emp = empMap.get(change.employee_id);
+        if (!emp || !emp.insurance_number) continue; // chỉ nhắc NV đã có BHXH
+        addIfNew({
+          employee_id: emp.id, type: 'bhxh_salary_change',
+          title: `🛡️ Điều chỉnh mức đóng BHXH: ${emp.full_name}`,
+          due_date: change.effective_from, status: 'pending',
+          notes: 'Lương cơ bản thay đổi → cần cập nhật mức đóng BHXH với cơ quan bảo hiểm',
+        });
+      }
+    }
+  }
+
   // Contract expiry
   for (const c of contracts) {
     if (c.status !== 'active' || !c.end_date) continue;

@@ -605,7 +605,7 @@ export interface HrDocument {
 export interface HrReminder {
   id: string;
   employee_id: string | null;
-  type: 'contract_expiry' | 'birthday' | 'evaluation' | 'work_permit' | 'freelancer_payment' | 'probation_end' | 'anniversary' | 'performance_review';
+  type: 'contract_expiry' | 'birthday' | 'evaluation' | 'work_permit' | 'freelancer_payment' | 'probation_end' | 'anniversary' | 'performance_review' | 'bhxh_payment_deadline' | 'bhxh_missing_insurance' | 'bhxh_new_employee' | 'bhxh_salary_change';
   title: string;
   due_date: string;
   status: 'pending' | 'notified' | 'dismissed';
@@ -955,6 +955,8 @@ export interface PayPayrollRecord {
   bonus: number;
   /** Lý do thưởng — ví dụ: "Thưởng KPI Q2", "Thưởng dự án X" */
   bonus_reason?: string | null;
+  /** Miễn BHXH: ngày làm việc chính thức trong tháng < 14 ngày (Luật BHXH VN, TT 59/2015) */
+  bhxh_exempt?: boolean;
   // EMPLOYEE ACKNOWLEDGEMENT
   /** Trạng thái xác nhận của nhân viên: pending / confirmed / disputed / resolved */
   employee_status?: 'pending' | 'confirmed' | 'disputed' | 'resolved';

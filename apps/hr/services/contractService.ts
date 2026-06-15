@@ -26,7 +26,8 @@ const genderVi = (g: string) => g === 'male' ? 'Nam' : g === 'female' ? 'Nữ' :
 const blank = (v: string | null | undefined, placeholder = '..........') => v || placeholder;
 
 function getSalaryAmount(salaryComponents: HrEmployeeSalary[], code: string): number {
-  const comp = salaryComponents.find(s => s.component?.code === code);
+  // Only use currently-active salary records (effective_to is null)
+  const comp = salaryComponents.find(s => s.component?.code === code && !s.effective_to);
   return comp?.amount || 0;
 }
 

@@ -36,6 +36,9 @@ const TYPE_META: Record<string, { subject: string; category: string }> = {
   invoice_overdue:        { subject: 'Cảnh báo: Invoice sắp đến hạn thanh toán', category: 'Hóa đơn'    },
   // Broadcast
   broadcast:              { subject: 'Thông báo nội bộ từ TD Games',             category: 'Thông báo'  },
+  // Đề xuất thay đổi nhân sự
+  change_request_approved:  { subject: 'Đề xuất thay đổi nhân sự của bạn được duyệt', category: 'Nhân sự' },
+  change_request_rejected:  { subject: 'Đề xuất thay đổi nhân sự của bạn bị từ chối', category: 'Nhân sự' },
   // Đánh giá nhân viên
   eval_self_submitted:    { subject: 'Nhân viên đã nộp tự đánh giá',            category: 'Đánh giá'    },
   eval_leader_submitted:  { subject: 'Kết quả đánh giá của bạn đã có',          category: 'Đánh giá'    },
@@ -61,7 +64,8 @@ function buildEmailText(
     '',
     title,
   ];
-  if (body) lines.push('', body);
+  // Strip HTML tags (e.g. <strong>) for plain-text fallback
+  if (body) lines.push('', body.replace(/<[^>]*>/g, ''));
   if (link) lines.push('', `Xem chi tiet: ${appUrl}${link}`);
   lines.push(
     '',
@@ -155,7 +159,7 @@ function buildEmailHtml(
               </table>
 
               ${body
-                ? `<p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#444444;line-height:1.7;">${body}</p>`
+                ? `<p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#444444;line-height:1.7;">${body.replace(/\n/g, '<br>')}</p>`
                 : ''}
 
               ${ctaBlock}
