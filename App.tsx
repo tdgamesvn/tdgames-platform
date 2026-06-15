@@ -274,7 +274,7 @@ const App: React.FC = () => {
   }
 
   if (activeApp === 'portal') {
-    return <PortalApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
+    return <PortalApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} initialParam={initialParam} />;
   }
 
   if (activeApp === 'freelancer-portal') {

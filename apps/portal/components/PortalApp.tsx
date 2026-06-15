@@ -32,13 +32,15 @@ import LeaveTab from './LeaveTab';
 import ProfileTab from './ProfileTab';
 import ParkingTab from './ParkingTab';
 import EvalTab from './EvalTab';
+import ChangeRequestsTab from './ChangeRequestsTab';
 
-type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'parking' | 'profile' | 'evaluation';
+type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'parking' | 'profile' | 'evaluation' | 'proposals';
 
 interface PortalAppProps {
   currentUser: AccountUser;
   onBack: () => void;
   initialTab?: string | null;
+  initialParam?: string | null;
 }
 
 const TAB_MAP: Record<PortalTab, string> = {
@@ -49,6 +51,7 @@ const TAB_MAP: Record<PortalTab, string> = {
   parking:    'overview',
   profile:    'edit',
   evaluation: 'dashboard',
+  proposals:  'proposals',
 };
 const TAB_LABELS: Record<string, string> = {
   history:   'Thông tin công ty',
@@ -58,6 +61,7 @@ const TAB_LABELS: Record<string, string> = {
   overview:  'Gửi xe',
   edit:      'Hồ sơ',
   dashboard: 'Đánh giá',
+  proposals: 'Đề xuất',
 };
 const REVERSE_TAB: Record<string, PortalTab> = {
   history:   'directory',
@@ -67,17 +71,23 @@ const REVERSE_TAB: Record<string, PortalTab> = {
   overview:  'parking',
   edit:      'profile',
   dashboard: 'evaluation',
+  proposals: 'proposals',
 };
 
-const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab }) => {
+const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, initialParam }) => {
   // Parse deep-link: initialTab === 'eval-{uuid}' → jump straight to evaluation tab
   const initialEvalCycleId = initialTab?.startsWith('eval-')
     ? initialTab.slice('eval-'.length)
     : null;
 
-  const [activeTab, setActiveTab] = useState<PortalTab>(
-    initialEvalCycleId ? 'evaluation' : 'directory'
-  );
+  // Deep-link: initialTab === 'proposals' → jump to change requests tab
+  const resolvedInitialTab: PortalTab = initialEvalCycleId
+    ? 'evaluation'
+    : initialTab === 'proposals'
+      ? 'proposals'
+      : 'directory';
+
+  const [activeTab, setActiveTab] = useState<PortalTab>(resolvedInitialTab);
   const [employees, setEmployees] = useState<DirectoryEmployee[]>([]);
   const [departments, setDepartments] = useState<DepartmentLite[]>([]);
   const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
@@ -114,7 +124,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab }
   const accessibleTabs = useMemo(() => {
     const tabs = ['history', 'activity', 'tasks', 'recurring'];
     if (parkingEligible) tabs.push('overview');
-    tabs.push('dashboard', 'edit');
+    tabs.push('proposals', 'dashboard', 'edit');
     return tabs;
   }, [parkingEligible]);
 
@@ -619,6 +629,15 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab }
             <ProfileTab
               currentUser={currentUser}
               onToast={(msg, type) => setToast({ message: msg, type })}
+            />
+          )}
+
+          {/* ── Change Requests Tab ── */}
+          {activeTab === 'proposals' && (
+            <ChangeRequestsTab
+              currentUser={currentUser}
+              onToast={(msg, type) => setToast({ message: msg, type })}
+              highlightId={initialParam}
             />
           )}
 

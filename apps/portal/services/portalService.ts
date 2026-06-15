@@ -2,6 +2,7 @@ import { supabase } from '@/services/supabaseClient';
 import type {
   HrEmployee, HrDepartment, HrParkingRegistration, HrParkingVehicleType,
   PayPayrollRecord, PayPayrollSheet, AttMonthlyRecord, AttMonthlySheet,
+  HrChangeRequest,
 } from '@/types';
 
 type DirectoryEmployee = Pick<
@@ -209,4 +210,15 @@ export async function updateMyProfile(employeeId: string, updates: Record<string
     .update(safeUpdates)
     .eq('id', employeeId);
   if (error) throw error;
+}
+
+// ── Change Requests (employee self-view) ─────────────────────
+export async function fetchMyChangeRequests(employeeId: string): Promise<HrChangeRequest[]> {
+  const { data, error } = await supabase
+    .from('hr_change_requests')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 }

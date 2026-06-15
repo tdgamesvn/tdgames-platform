@@ -110,9 +110,9 @@ BEGIN
       || '<strong>Ghi chú:</strong> ' || NEW.approval_note;
   END IF;
 
-  -- Deep link to exact change request card
+  -- Deep link to employee portal → change requests tab → specific card
   INSERT INTO public.notifications (recipient_user_id, type, title, body, link)
-  VALUES (_user_id, _ntype, _title, _body, '#hr/changeRequests/' || NEW.id::text);
+  VALUES (_user_id, _ntype, _title, _body, '#portal/proposals/' || NEW.id::text);
 
   RETURN NEW;
 END;
