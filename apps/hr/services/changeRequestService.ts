@@ -104,6 +104,36 @@ export async function rejectChangeRequest(
 // ── Auto-apply (private) ─────────────────────────────────
 // ══════════════════════════════════════════════════════════
 
+/** Close old salary record and insert new one for a component */
+async function rotateSalary(
+  empId: string, componentId: string, newAmount: number,
+  effectiveFrom: string, note: string,
+): Promise<void> {
+  // Close the currently-active record (effective_to = null) for this component
+  const { data: existing } = await supabase
+    .from('hr_employee_salary')
+    .select('id')
+    .eq('employee_id', empId)
+    .eq('component_id', componentId)
+    .is('effective_to', null);
+  if (existing?.length) {
+    for (const old of existing) {
+      await supabase
+        .from('hr_employee_salary')
+        .update({ effective_to: effectiveFrom })
+        .eq('id', old.id);
+    }
+  }
+  // Insert new active record
+  if (newAmount > 0) {
+    await hrSvc.saveEmployeeSalary({
+      employee_id: empId, component_id: componentId,
+      amount: newAmount, note,
+      effective_from: effectiveFrom, effective_to: null,
+    });
+  }
+}
+
 async function applyChanges(req: HrChangeRequest): Promise<void> {
   const c = req.changes;
   const empId = req.employee_id;
@@ -114,13 +144,7 @@ async function applyChanges(req: HrChangeRequest): Promise<void> {
       await hrSvc.updateEmployee(empId, { official_date: c.official_date } as any);
       if (c.salary_components?.length) {
         for (const sc of c.salary_components) {
-          if (sc.new_amount > 0) {
-            await hrSvc.saveEmployeeSalary({
-              employee_id: empId, component_id: sc.component_id,
-              amount: sc.new_amount, note: 'Lương chính thức (qua đề xuất)',
-              effective_from: effDate, effective_to: null,
-            });
-          }
+          await rotateSalary(empId, sc.component_id, sc.new_amount, effDate, 'Lương chính thức (qua đề xuất)');
         }
         const oldTotal = c.salary_components.reduce((s: number, x: any) => s + (x.old_amount || 0), 0);
         const newTotal = c.salary_components.reduce((s: number, x: any) => s + (x.new_amount || 0), 0);
@@ -137,13 +161,7 @@ async function applyChanges(req: HrChangeRequest): Promise<void> {
     case 'salary_change': {
       if (c.salary_components?.length) {
         for (const sc of c.salary_components) {
-          if (sc.new_amount > 0) {
-            await hrSvc.saveEmployeeSalary({
-              employee_id: empId, component_id: sc.component_id,
-              amount: sc.new_amount, note: 'Điều chỉnh lương (qua đề xuất)',
-              effective_from: effDate, effective_to: null,
-            });
-          }
+          await rotateSalary(empId, sc.component_id, sc.new_amount, effDate, 'Điều chỉnh lương (qua đề xuất)');
         }
         const oldTotal = c.salary_components.reduce((s: number, x: any) => s + (x.old_amount || 0), 0);
         const newTotal = c.salary_components.reduce((s: number, x: any) => s + (x.new_amount || 0), 0);
@@ -166,13 +184,7 @@ async function applyChanges(req: HrChangeRequest): Promise<void> {
       }
       if (c.salary_components?.length) {
         for (const sc of c.salary_components) {
-          if (sc.new_amount > 0) {
-            await hrSvc.saveEmployeeSalary({
-              employee_id: empId, component_id: sc.component_id,
-              amount: sc.new_amount, note: 'Thăng chức (qua đề xuất)',
-              effective_from: effDate, effective_to: null,
-            });
-          }
+          await rotateSalary(empId, sc.component_id, sc.new_amount, effDate, 'Thăng chức (qua đề xuất)');
         }
       }
       const snap = req.current_snapshot;
