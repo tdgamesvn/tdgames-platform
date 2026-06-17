@@ -32,7 +32,7 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({
   if (hasNoData) {
     return (
       <div className="text-center py-16">
-        <p className="text-4xl mb-3">{agentEmoji}</p>
+        <p className="text-2xl mb-3">{agentEmoji}</p>
         <p className="text-neutral-500 text-sm font-semibold mb-1">{agentName} chưa có dữ liệu</p>
         <p className="text-xs text-neutral-700 mb-6">Chạy phân tích để bắt đầu nhận insights</p>
         <button onClick={onTrigger} disabled={triggerLoading}
@@ -93,7 +93,7 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({
       {/* List */}
       {paginated.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-3xl mb-3">{agentEmoji}</p>
+          <p className="text-2xl mb-3">{agentEmoji}</p>
           <p className="text-neutral-600 text-sm">{agentName} chưa có insight nào</p>
           <p className="text-xs mt-1 text-neutral-700">Chạy agent để phân tích dữ liệu</p>
         </div>
