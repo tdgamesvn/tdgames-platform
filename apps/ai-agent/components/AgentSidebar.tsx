@@ -43,7 +43,7 @@ const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, on
       </div>
 
       {/* Agent list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
         {agents.map(a => {
           const isActive = a.id === selectedAgentId;
           return (
@@ -51,20 +51,26 @@ const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, on
               key={a.id}
               onClick={() => onSelectAgent(a.id)}
               title={collapsed ? a.name : undefined}
-              className={`w-full flex items-center transition-all rounded-xl ${collapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-2'}`}
+              className={`w-full flex items-center transition-all rounded-xl overflow-hidden ${collapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-2'}`}
               style={isActive
-                ? { background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.2)' }
+                ? { background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.25)', boxShadow: '0 2px 12px rgba(255,149,0,0.1)' }
                 : { background: 'transparent', border: '1px solid transparent' }
               }
             >
-              <span className="text-xl shrink-0">{a.avatar_emoji}</span>
+              {/* Active left indicator */}
+              {!collapsed && isActive && (
+                <span className="absolute left-2 w-[2px] h-5 rounded-full bg-primary" />
+              )}
+              <span className={`shrink-0 transition-all ${collapsed ? 'text-xl' : 'text-base'} ${isActive ? 'drop-shadow-[0_0_6px_rgba(255,149,0,0.5)]' : ''}`}>
+                {a.avatar_emoji}
+              </span>
               {!collapsed && (
                 <>
-                  <span className={`text-xs font-semibold truncate flex-1 text-left ${isActive ? 'text-white' : 'text-neutral-400'}`}>
+                  <span className={`text-xs truncate flex-1 text-left ${isActive ? 'text-white font-black' : 'text-neutral-500 font-semibold hover:text-neutral-300'}`}>
                     {a.name.replace('Agent ', '')}
                   </span>
                   {!a.is_active && (
-                    <span className="text-[8px] font-black uppercase tracking-widest text-neutral-600 shrink-0">OFF</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-neutral-700 shrink-0">off</span>
                   )}
                 </>
               )}

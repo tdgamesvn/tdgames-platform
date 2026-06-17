@@ -201,40 +201,58 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             </div>
           ) : (
             <>
-              {/* ═══ AgentHeader ═══ */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0"
-                    style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
-                    {agent?.avatar_emoji || '🤖'}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h1 className="text-base sm:text-lg font-black text-white">{agent?.name || 'AI Agent'}</h1>
+              {/* ═══ AgentHeader — Hero Card ═══ */}
+              <div className="rounded-2xl overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, rgba(255,149,0,0.07) 0%, rgba(255,255,255,0.02) 55%)', border: '1px solid rgba(255,149,0,0.18)' }}>
+                {/* Orange top accent line */}
+                <div className="h-[2px]" style={{ background: 'linear-gradient(90deg, #FF9500 0%, rgba(255,149,0,0.2) 60%, transparent 100%)' }} />
+                <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar with glow */}
+                    <div className="relative shrink-0">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
+                        style={{ background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.3)', boxShadow: '0 0 24px rgba(255,149,0,0.18)' }}>
+                        {agent?.avatar_emoji || '🤖'}
+                      </div>
                       {agent?.is_active && (
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Active</span>
-                        </span>
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 animate-pulse"
+                          style={{ borderColor: '#0F0F0F', boxShadow: '0 0 8px rgba(76,175,80,0.7)' }} />
                       )}
                     </div>
-                    <p className="text-xs text-neutral-medium">
-                      {agent?.role_title || 'AI Assistant'} • Model: <span className="text-white/60 font-mono text-[11px]">{agent?.model}</span>
-                    </p>
-                    {agent?.personality && (
-                      <p className="text-xs text-neutral-600 mt-0.5 line-clamp-1 max-w-xl">{agent.personality}</p>
-                    )}
-                    <p className="text-[10px] text-neutral-700 mt-0.5">cập nhật {timeAgoShort(lastUpdatedAt)}</p>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h1 className="text-lg font-black text-white tracking-tight">{agent?.name || 'AI Agent'}</h1>
+                        {agent?.is_active && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg tracking-wider"
+                            style={{ background: 'rgba(76,175,80,0.15)', color: '#4CAF50', border: '1px solid rgba(76,175,80,0.2)' }}>
+                            ● Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-neutral-medium">
+                        {agent?.role_title || 'AI Assistant'}
+                        <span className="mx-1.5 text-white/20">•</span>
+                        <span className="font-mono text-[11px] text-white/40">{agent?.model}</span>
+                      </p>
+                      {agent?.personality && (
+                        <p className="text-[11px] text-neutral-600 mt-1 line-clamp-1 max-w-md leading-relaxed">{agent.personality}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="text-[10px] font-semibold text-neutral-700 hidden sm:block">
+                      sync {timeAgoShort(lastUpdatedAt)}
+                    </span>
+                    <button
+                      onClick={handleTrigger}
+                      disabled={triggerLoading}
+                      className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)', boxShadow: triggerLoading ? 'none' : '0 4px 16px rgba(255,149,0,0.35)' }}
+                    >
+                      {triggerLoading ? '⟳ Đang chạy...' : '▶ Chạy phân tích'}
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={handleTrigger}
-                  disabled={triggerLoading}
-                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50 shrink-0 self-start"
-                  style={{ background: '#FF9500' }}
-                >
-                  {triggerLoading ? 'Đang chạy...' : '▶ Chạy phân tích ngay'}
-                </button>
               </div>
 
               {/* Agent switching spinner */}
@@ -277,19 +295,26 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                           sub: undefined, isText: true, delta: undefined, deltaPos: null,
                         },
                       ].map((kpi, i) => (
-                        <div key={i} className="rounded-2xl border border-white/8 p-4 space-y-2"
-                          style={{ background: 'rgba(255,255,255,0.02)' }}>
-                          <div className="flex items-center justify-between">
-                            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{kpi.label}</p>
-                            <KpiIcon emoji={kpi.icon} color={kpi.iconColor} />
+                        <div key={i} className="rounded-2xl border border-white/8 overflow-hidden"
+                          style={{ background: 'rgba(255,255,255,0.025)' }}>
+                          {/* Top color accent */}
+                          <div className="h-[2px]" style={{ background: `linear-gradient(90deg, ${kpi.iconColor}, transparent)` }} />
+                          <div className="p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{kpi.label}</p>
+                              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0"
+                                style={{ background: `${kpi.iconColor}18` }}>
+                                <span>{kpi.icon}</span>
+                              </div>
+                            </div>
+                            <p className={`${kpi.isText ? 'text-base' : 'text-[26px] leading-none'} font-black text-white`}>{kpi.value}</p>
+                            {kpi.sub && <p className="text-[10px] text-neutral-600">{kpi.sub}</p>}
+                            {kpi.delta !== undefined && (
+                              <p className={`text-[10px] font-semibold ${kpi.deltaPos === true ? 'text-green-400' : kpi.deltaPos === false ? 'text-red-400' : 'text-neutral-600'}`}>
+                                {kpi.delta}
+                              </p>
+                            )}
                           </div>
-                          <p className={`${kpi.isText ? 'text-sm' : 'text-2xl'} font-black text-white`}>{kpi.value}</p>
-                          {kpi.sub && <p className="text-[10px] text-neutral-600">{kpi.sub}</p>}
-                          {kpi.delta !== undefined && (
-                            <p className={`text-[10px] font-semibold ${kpi.deltaPos === true ? 'text-green-400' : kpi.deltaPos === false ? 'text-red-400' : 'text-neutral-600'}`}>
-                              {kpi.delta}
-                            </p>
-                          )}
                         </div>
                       ))}
                     </div>

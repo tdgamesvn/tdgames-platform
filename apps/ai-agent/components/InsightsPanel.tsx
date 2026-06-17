@@ -109,68 +109,79 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
             return (
               <div key={insight.id}
-                className="rounded-2xl border p-5 transition-all"
+                className="rounded-2xl border overflow-hidden transition-all hover:border-white/15"
                 style={{
-                  background:   insight.status === 'new' ? 'rgba(255,149,0,0.03)' : 'rgba(255,255,255,0.02)',
-                  borderColor:  insight.status === 'new' ? 'rgba(255,149,0,0.12)' : 'rgba(255,255,255,0.08)',
+                  background:  insight.status === 'new' ? 'rgba(255,149,0,0.025)' : 'rgba(255,255,255,0.02)',
+                  borderColor: insight.status === 'new' ? 'rgba(255,149,0,0.15)' : 'rgba(255,255,255,0.08)',
                 }}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
-                        style={{ background: `${typeConf.color}20`, color: typeConf.color }}>
-                        {typeConf.icon} {typeConf.label}
-                      </span>
-                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
-                        style={{ background: `${statusConf.color}20`, color: statusConf.color }}>
-                        {statusConf.label}
-                      </span>
-                      <span className="text-[9px] font-bold text-neutral-600">P{insight.priority}</span>
-                    </div>
-                    <div className={canExpand ? 'cursor-pointer' : ''} onClick={() => { if (canExpand) setExpandedId(prev => prev === insight.id ? null : insight.id); }}>
-                      <h3 className="text-sm font-semibold text-white mb-1">{insight.title}</h3>
-                      <p className="text-xs text-neutral-medium leading-relaxed">
-                        {!isExpanded && bodyIsLong ? insight.body.slice(0, BODY_TRUNCATE) + '...' : insight.body}
-                      </p>
-                      {canExpand && !isExpanded && (
-                        <span className="text-[10px] text-primary/60 mt-1 inline-block">Xem thêm</span>
+                <div className="flex">
+                  {/* Left color stripe — instantly shows type */}
+                  <div className="w-[3px] shrink-0 rounded-l-2xl"
+                    style={{ background: `linear-gradient(180deg, ${typeConf.color}, ${typeConf.color}44)` }} />
+
+                  <div className="flex-1 p-4 sm:p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        {/* Badges row */}
+                        <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+                          <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider"
+                            style={{ background: `${typeConf.color}18`, color: typeConf.color, border: `1px solid ${typeConf.color}30` }}>
+                            {typeConf.icon} {typeConf.label}
+                          </span>
+                          <span className="text-[9px] font-black uppercase px-2.5 py-1 rounded-lg tracking-wider"
+                            style={{ background: `${statusConf.color}15`, color: statusConf.color }}>
+                            {statusConf.label}
+                          </span>
+                          <span className="text-[9px] font-bold text-neutral-700 ml-auto">P{insight.priority}</span>
+                        </div>
+
+                        {/* Title + body */}
+                        <div className={canExpand ? 'cursor-pointer' : ''} onClick={() => { if (canExpand) setExpandedId(prev => prev === insight.id ? null : insight.id); }}>
+                          <h3 className="text-sm font-black text-white mb-1.5 leading-snug">{insight.title}</h3>
+                          <p className="text-xs text-neutral-medium leading-relaxed">
+                            {!isExpanded && bodyIsLong ? insight.body.slice(0, BODY_TRUNCATE) + '...' : insight.body}
+                          </p>
+                          {canExpand && !isExpanded && (
+                            <span className="text-[10px] text-primary/70 mt-1.5 inline-block font-semibold">Xem thêm →</span>
+                          )}
+                        </div>
+
+                        {/* Suggested action (expanded) */}
+                        {isExpanded && insight.suggested_action && (
+                          <div className="mt-3 flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs border"
+                            style={{ background: 'rgba(255,149,0,0.06)', borderColor: 'rgba(255,149,0,0.15)' }}>
+                            <span className="text-primary shrink-0 mt-0.5">→</span>
+                            <span className="text-primary/80 leading-relaxed">
+                              <span className="font-black text-primary">Gợi ý: </span>
+                              {insight.suggested_action}
+                            </span>
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-neutral-700 mt-2.5 font-medium">{fmtDate(insight.created_at)}</p>
+                      </div>
+
+                      {/* Action buttons */}
+                      {insight.status === 'new' && (
+                        <div className="flex flex-col gap-1.5 shrink-0">
+                          <button
+                            onClick={() => onAction(insight.id, 'reviewed')}
+                            title="Đánh dấu đã xem"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs text-green-400 border border-green-500/25 hover:bg-green-500/12 transition-all"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            disabled
+                            title="Sắp có"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-xs text-neutral-700 border border-white/6 cursor-not-allowed"
+                          >
+                            ···
+                          </button>
+                        </div>
                       )}
                     </div>
-                    {isExpanded && insight.suggested_action && (
-                      <div className="mt-3 px-3 py-2 rounded-xl text-xs text-primary/80 border border-primary/10"
-                        style={{ background: 'rgba(255,149,0,0.05)' }}>
-                        <span className="font-semibold">Gợi ý:</span> {insight.suggested_action}
-                      </div>
-                    )}
-                    <p className="text-[10px] text-neutral-700 mt-2">{fmtDate(insight.created_at)}</p>
                   </div>
-
-                  {/* Icon action buttons (replaces old text buttons) */}
-                  {insight.status === 'new' && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => onAction(insight.id, 'reviewed')}
-                        title="Đánh dấu đã xem"
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-sm text-green-400 border border-green-500/20 hover:bg-green-500/10 transition-all"
-                      >
-                        👁
-                      </button>
-                      <button
-                        disabled
-                        title="Bookmark (sắp có)"
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-sm text-neutral-600 border border-white/8 cursor-not-allowed opacity-40"
-                      >
-                        🔖
-                      </button>
-                      <button
-                        disabled
-                        title="Thêm tùy chọn (sắp có)"
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-sm text-neutral-600 border border-white/8 cursor-not-allowed opacity-40"
-                      >
-                        ⋯
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             );
