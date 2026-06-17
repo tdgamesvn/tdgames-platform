@@ -1,0 +1,4 @@
+-- AI Agent System — applied via Supabase MCP
+-- Tables: ai_agents, ai_agent_episodes, ai_agent_knowledge, ai_agent_insights, ai_agent_conversations, ai_agent_runs
+-- See docs/superpowers/plans/2026-06-16-ai-agent-system-phase1.md
+-- Migration applied remotely — this file is for local tracking only

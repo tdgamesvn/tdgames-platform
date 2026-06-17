@@ -118,4 +118,13 @@ export const APPS: AppConfig[] = [
     gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
     roles: ['admin', 'ke_toan'],
   },
+  {
+    id: 'ai-agent',
+    name: 'AI Agent',
+    icon: '🤖',
+    description: 'CHRO Agent — phân tích HR tự động',
+    color: '#8B5CF6',
+    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+    roles: ['admin', 'hr'],
+  },
 ];

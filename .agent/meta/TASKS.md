@@ -1,6 +1,6 @@
 # TASKS
 
-_Cập nhật: 2026-06-08_
+_Cập nhật: 2026-06-17_
 
 ---
 
@@ -34,11 +34,19 @@ _Cập nhật: 2026-06-08_
 
 ## Doing
 
-_(trống — không có task đang chạy)_
+- [ ] AI Agent System — Steps 1-2 done, deploy + remaining steps pending
+  - Plan: `docs/AI_AGENT_PLAN.md`
+  - Done: Backend (DB + edge function + 4 agents + pg_cron), Frontend (app module + multi-agent UI)
+  - Remaining: commit/deploy, RLS, extended tools for CFO/CEO/CTO, Telegram bot, polish
 
 ---
 
 ## Recently Completed
+
+- [x] HR Change Request approval workflow
+  - Done: 2026-06-17
+  - Commits: 1db1433 → 169fb7f (10 commits on main)
+  - Result: `hr_change_requests` table + 5 request types (probation_end, salary_change, promotion, department_transfer, termination); ChangeRequestTab + ChangeRequestForm trong HR; Portal Change Requests tab cho NV; auto-apply on approve (salary, position, department); email notification deep-link; delete button + old salary modal removed. Build ✅
 
 - [x] Mid-month salary proration (tháng chuyển giao + tăng lương)
   - Done: 2026-06-12

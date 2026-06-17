@@ -1,5 +1,66 @@
 # LOG
 
+## 2026-06-17 (session 2)
+### Task
+AI Agent System — Backend, Frontend, Multi-agent
+
+### Work Done
+- **Backend**: Created DB schema (6 tables: ai_agents, ai_agent_runs, ai_agent_insights, ai_agent_episodes, ai_agent_knowledge, ai_agent_conversations + 5 views). Deployed edge function `agent-run` v7 with LLM loop, tool calling, and proper error handling
+- **Infra**: Fixed 9Router DNS (Cloudflare A record), nginx config (already existed), Docker container restart (was exited 3 weeks), model selection (cx/gpt-5.5 works)
+- **Agents**: Created 4 agents — CHRO (HR analysis), CEO (cross-functional), CFO (finance), CTO (tech/resource)
+- **pg_cron**: 4 scheduled jobs for morning reports (08:30-09:00 VN, Mon-Fri)
+- **Frontend**: Created `apps/ai-agent/` module — multi-agent selector, Insights/Runs/Memory tabs, manual trigger, review/dismiss actions. Registered in config/apps.ts + App.tsx
+- **CHRO test run**: Successful — 43s duration, 4 insights generated (probation alerts, pending leave requests, unpaid leave patterns)
+- **Plan doc**: Created `docs/AI_AGENT_PLAN.md` with full architecture, steps, and remaining work
+
+### Validation
+- `npm run build` succeeded
+- CHRO agent completed run: 4 insights, 9308 input tokens, 1620 output tokens
+- Edge function error handling verified: failed runs properly recorded
+
+### Result
+- AI Agent backend fully operational (CHRO tested, CFO/CEO/CTO created)
+- Frontend app module ready (not yet deployed to production)
+
+### Blockers
+- CFO/CEO/CTO agents only have HR tools — need extended tool sets for finance/workforce data
+- Not yet deployed to production (uncommitted changes)
+
+### Next Step
+- Commit and deploy to production
+- Add RLS policies for ai_agent_* tables
+- Extend edge function tools for CFO/CEO/CTO
+- Telegram bot integration
+
+---
+
+## 2026-06-17
+### Task
+HR Change Request approval workflow — quy trình đề xuất và duyệt thay đổi nhân sự
+
+### Work Done
+- Thiết kế + implement `hr_change_requests` table (JSONB changes, current_snapshot)
+- 5 loại đề xuất: lên chính thức, điều chỉnh lương, thăng chức, chuyển phòng ban, nghỉ việc
+- `changeRequestService.ts`: CRUD + approve/reject + auto-apply logic
+- `ChangeRequestTab.tsx`: list + filter (pending/approved/rejected) + detail expand + approve/reject UI
+- `ChangeRequestForm.tsx`: modal chọn NV → chọn loại → form động theo type → submit
+- `EmployeeForm.tsx`: khóa fields nhạy cảm (lương/chức vụ/phòng ban), link "Tạo đề xuất →"
+- Portal: thêm tab "Đề xuất" cho NV xem đơn của mình
+- Email notification deep-link: click email → mở thẳng đơn đề xuất cụ thể
+- Fix: close old salary record trước khi insert mới khi approve; xóa orphan official salary modal
+- 10 commits: 1db1433 → 169fb7f
+
+### Validation
+- `npm run build` ✅
+- Deployed trên main
+
+### Result
+- HR tạo đề xuất → CEO duyệt → hệ thống tự cập nhật NV/lương/lịch sử
+- NV thấy đơn đề xuất liên quan trong Portal
+- Fields nhạy cảm trong EmployeeForm bị khóa, chỉ thay đổi qua đề xuất
+
+---
+
 ## 2026-06-12
 ### Task
 Mid-month salary proration — tính lương chính xác khi nhân viên lên chính thức giữa tháng + tăng lương

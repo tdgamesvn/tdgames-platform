@@ -1,5 +1,53 @@
 # DECISIONS
 
+## 2026-06-17 — AI Agent as separate app module, not HR tab
+
+Decision:
+- AI Agent is a standalone app module (`apps/ai-agent/`), not a tab within the HR app.
+
+Reason:
+- Agents span multiple domains (HR, Finance, Tech, Executive)
+- Independent access control (admin + hr roles)
+- Will grow into its own feature set (chat, config editor, analytics)
+
+Impact:
+- New route `#ai-agent` in the platform
+- Separate entry in HomeScreen app grid
+
+---
+
+## 2026-06-17 — LLM via 9Router, not direct API
+
+Decision:
+- Use 9Router (`9router.tdgamestudio.com`) as LLM gateway, not direct OpenAI/Anthropic API.
+
+Reason:
+- Consolidates LLM credit usage across the company
+- Model switching without code changes (just update DB `model` field)
+- Already deployed on vps6core as Docker container
+
+Impact:
+- Dependency on 9Router uptime (Docker container must be running)
+- Model names use provider prefix (e.g. `cx/gpt-5.5`, `skymavis/claude-sonnet-4-6`)
+- LLM_API_KEY Supabase secret must match 9Router auth
+
+---
+
+## 2026-06-17 — Edge Function with verify_jwt: false
+
+Decision:
+- Deploy `agent-run` edge function with `verify_jwt: false`.
+
+Reason:
+- pg_cron triggers via `net.http_post` cannot attach a JWT
+- The function is not exposed to end-users directly (manual triggers go through authenticated frontend)
+
+Impact:
+- Function is technically callable without auth
+- Mitigated by: no destructive actions (read-only + create_insight), rate limiting via pg_cron
+
+---
+
 ## 2026-05-14 — Project memory will be file-based first
 Decision:
 - Use repository files as the canonical memory source for this project.
