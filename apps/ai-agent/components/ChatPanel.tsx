@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { AiConversation, sendChatMessage } from '../services/aiAgentService';
 
+// #2196F3 = status-info token value (matches text-status-info in style guide)
+const STATUS_INFO_COLOR = '#2196F3';
+
 const CHANNEL_CONFIG = {
   app:      { label: 'APP',      color: '#FF9500' },
-  telegram: { label: 'TELEGRAM', color: '#2196F3' },
+  telegram: { label: 'TELEGRAM', color: STATUS_INFO_COLOR },
 } as const;
 
 const chatDateKey = (iso: string) =>
@@ -96,7 +99,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversations, setConversations, 
                       {agentEmoji}
                     </div>
                   )}
-                  <div className={`max-w-[75%] ${isUser ? 'items-end' : 'items-start'}`}>
+                  <div className={`${isUser ? 'items-end' : 'items-start'}`} style={{ maxWidth: '75%' }}>
                     <div className={`flex items-center gap-2 mb-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
                       <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
                         style={{ background: `${chConf.color}20`, color: chConf.color }}>{chConf.label}</span>
