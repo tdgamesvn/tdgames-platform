@@ -127,6 +127,11 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  { type: 'function' as const, function: { name: 'query_outreach_leads', description: 'Query outreach leads pipeline (for BD). Returns: studio, contact, status, tier, open/click count.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter by outreach_status' }, tier: { type: 'string', description: 'Filter by tier (A/B/C)' }, limit: { type: 'number', description: 'Max rows (default 30)' } } } } },
+  { type: 'function' as const, function: { name: 'query_outreach_stats', description: 'Query outreach statistics grouped by status. Returns: count, avg_score, opens, clicks, replied.', parameters: { type: 'object', properties: {} } } },
+  { type: 'function' as const, function: { name: 'query_email_log', description: 'Query email sending log (for BD). Returns: recipient, template, status, sent_at.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter: delivered, bounced, failed' }, limit: { type: 'number', description: 'Max rows (default 30)' } } } } },
+  { type: 'function' as const, function: { name: 'query_clients', description: 'Query CRM clients. Returns: name, type, country, status, lead_source.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter by status' }, country: { type: 'string', description: 'Filter by country (partial match)' }, limit: { type: 'number', description: 'Max rows (default 30)' } } } } },
+  { type: 'function' as const, function: { name: 'query_projects', description: 'Query CRM projects. Returns: name, client, status, budget, dates.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter by status' }, limit: { type: 'number', description: 'Max rows (default 20)' } } } } },
   {
     type: 'function' as const,
     function: {
@@ -212,6 +217,41 @@ async function executeTool(
         const { data, error } = await supabase
           .from('v_agent_departments').select('*')
           .limit(args.limit || 20);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify(data);
+      }
+      case 'query_outreach_leads': {
+        let q = supabase.from('v_agent_outreach_leads').select('*');
+        if (args.status) q = q.eq('outreach_status', args.status);
+        if (args.tier) q = q.eq('tier', args.tier);
+        const { data, error } = await q.limit(args.limit || 30);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify(data);
+      }
+      case 'query_outreach_stats': {
+        const { data, error } = await supabase.from('v_agent_outreach_stats').select('*');
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify(data);
+      }
+      case 'query_email_log': {
+        let q = supabase.from('v_agent_email_log').select('*');
+        if (args.status) q = q.eq('status', args.status);
+        const { data, error } = await q.limit(args.limit || 30);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify(data);
+      }
+      case 'query_clients': {
+        let q = supabase.from('v_agent_clients').select('*');
+        if (args.status) q = q.eq('status', args.status);
+        if (args.country) q = q.ilike('country', `%${args.country}%`);
+        const { data, error } = await q.limit(args.limit || 30);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify(data);
+      }
+      case 'query_projects': {
+        let q = supabase.from('v_agent_projects').select('*');
+        if (args.status) q = q.eq('status', args.status);
+        const { data, error } = await q.limit(args.limit || 20);
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify(data);
       }
@@ -319,6 +359,7 @@ ${knowledgeSection}
     pm: 'Chạy phân tích project hàng ngày. Kiểm tra: (1) nhân viên nào đang quá tải hoặc rảnh, (2) ai nghỉ phép tuần này ảnh hưởng delivery, (3) đánh giá chưa hoàn thành, (4) phân bổ nhân lực theo phòng ban. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     ops: 'Chạy phân tích vận hành tuần này. Kiểm tra: (1) hợp đồng/thử việc sắp hết hạn, (2) chi phí vận hành bất thường, (3) deadline thuế/BHXH/báo cáo sắp tới, (4) đề xuất nhân sự chưa xử lý. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     data: 'Chạy phân tích dữ liệu tuần này. Kiểm tra: (1) doanh thu theo client và billing entity, (2) chi phí lương vs doanh thu (profit margin), (3) trend doanh thu 3 tháng gần nhất, (4) burn rate hiện tại. Tạo insight cho mỗi phát hiện. Dùng số liệu cụ thể.',
+    bd: 'Chạy phân tích BD hàng ngày. Kiểm tra: (1) outreach pipeline stats (sent/opened/replied), (2) leads nóng cần follow-up (opened nhiều lần), (3) email bounced/failed gần đây, (4) client hiện tại có dự án sắp kết thúc, (5) conversion rate tuần này. Tạo insight cho mỗi phát hiện.',
     support: 'Sẵn sàng hỗ trợ nhân viên về quy trình và chính sách công ty TD Games.',
   };
 

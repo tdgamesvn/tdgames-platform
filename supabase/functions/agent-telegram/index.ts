@@ -29,7 +29,7 @@ Deno.serve(async (req: Request) => {
     // Parse agent command: /cfo message, /ceo message, etc.
     let agentId = 'chro'; // default
     let userMessage = text;
-    const agentMatch = text.match(/^\/(chro|cfo|ceo|cto|sales|pm|ops|data|support)\s*(.*)/i);
+    const agentMatch = text.match(/^\/(chro|cfo|ceo|cto|sales|pm|ops|data|support|bd)\s*(.*)/i);
     if (agentMatch) {
       agentId = agentMatch[1].toLowerCase();
       userMessage = agentMatch[2] || 'Phân tích nhanh hôm nay';
@@ -50,6 +50,7 @@ Deno.serve(async (req: Request) => {
         '/pm - 🎯 Product Manager\n' +
         '/ops - ⚡ Operations\n' +
         '/data - 📊 Data Analyst\n' +
+        '/bd - 🚀 BD & Marketing\n' +
         '/support - 💬 Internal Support\n\n' +
         'Ví dụ: <code>/cfo Kiểm tra hoá đơn quá hạn</code>'
       );
