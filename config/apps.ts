@@ -127,4 +127,13 @@ export const APPS: AppConfig[] = [
     gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
     roles: ['admin'],
   },
+  {
+    id: 'system-monitor',
+    name: 'System Monitor',
+    icon: '📡',
+    description: 'Giám sát uptime & sức khoẻ hệ thống',
+    color: '#06B6D4',
+    gradient: 'linear-gradient(135deg, #06B6D4 0%, #0284C7 100%)',
+    roles: ['admin'],
+  },
 ];

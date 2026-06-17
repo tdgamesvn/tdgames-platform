@@ -18,12 +18,13 @@ import FreelancerPortalApp from './apps/freelancer-portal/components/FreelancerP
 import AccountingApp from './apps/accounting/components/AccountingApp';
 import CompanyApp from './apps/company/components/CompanyApp';
 import AiAgentApp from './apps/ai-agent/components/AiAgentApp';
+import SystemMonitorApp from './apps/system-monitor/components/SystemMonitorApp';
 import { supabase } from './services/supabaseClient';
 import { ExchangeRateProvider } from './services/ExchangeRateContext';
 
 const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
-const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent'];
+const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent', 'system-monitor'];
 
 /** Parse hash like #workforce/tasks or #hr/requests/uuid → { app, tab, param } */
 const parseHash = (): { app: string | null; tab: string | null; param: string | null } => {
@@ -290,6 +291,9 @@ const App: React.FC = () => {
     return <CompanyApp currentUser={currentUser} onBack={handleBack} />;
   }
 
+  if (activeApp === 'system-monitor') {
+    return <SystemMonitorApp currentUser={currentUser} onBack={handleBack} />;
+  }
   if (activeApp === 'ai-agent') {
     return <AiAgentApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
   }
