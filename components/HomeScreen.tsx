@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AccountUser } from '@/types';
 import { APPS, AppConfig } from '@/config/apps';
+import { fetchTotalNewInsights } from '@/apps/ai-agent/services/aiAgentService';
 
 interface HomeScreenProps {
   currentUser: AccountUser;
@@ -10,6 +11,13 @@ interface HomeScreenProps {
 
 const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLogout }) => {
   const [hoveredApp, setHoveredApp] = useState<string | null>(null);
+  const [agentBadge, setAgentBadge] = useState<number>(0);
+
+  useEffect(() => {
+    if (currentUser.role === 'admin') {
+      fetchTotalNewInsights().then(setAgentBadge);
+    }
+  }, [currentUser.role]);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -60,6 +68,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
               isHovered={hoveredApp === app.id}
               onHover={setHoveredApp}
               onClick={() => onSelectApp(app.id)}
+              badgeCount={app.id === 'ai-agent' ? agentBadge : 0}
             />
           ))}
         </div>
@@ -81,9 +90,10 @@ interface AppCardProps {
   isHovered: boolean;
   onHover: (id: string | null) => void;
   onClick: () => void;
+  badgeCount?: number;
 }
 
-const AppCard: React.FC<AppCardProps> = ({ app, isHovered, onHover, onClick }) => (
+const AppCard: React.FC<AppCardProps> = ({ app, isHovered, onHover, onClick, badgeCount = 0 }) => (
   <button
     onClick={onClick}
     onMouseEnter={() => onHover(app.id)}
@@ -95,15 +105,26 @@ const AppCard: React.FC<AppCardProps> = ({ app, isHovered, onHover, onClick }) =
       boxShadow: isHovered ? `0 20px 60px ${app.color}15, 0 0 0 1px ${app.color}10` : 'none',
     }}
   >
-    {/* Icon */}
-    <div
-      className="w-20 h-20 rounded-[22px] flex items-center justify-center text-4xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
-      style={{
-        background: app.gradient,
-        boxShadow: isHovered ? `0 12px 32px ${app.color}40` : `0 4px 12px ${app.color}20`,
-      }}
-    >
-      {app.icon}
+    {/* Icon + badge wrapper */}
+    <div className="relative">
+      <div
+        className="w-20 h-20 rounded-[22px] flex items-center justify-center text-4xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3"
+        style={{
+          background: app.gradient,
+          boxShadow: isHovered ? `0 12px 32px ${app.color}40` : `0 4px 12px ${app.color}20`,
+        }}
+      >
+        {app.icon}
+      </div>
+      {/* Notification badge */}
+      {badgeCount > 0 && (
+        <div
+          className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center text-[10px] font-black text-white"
+          style={{ background: '#F44336', boxShadow: '0 2px 8px rgba(244,67,54,0.5)' }}
+        >
+          {badgeCount > 9 ? '9+' : badgeCount}
+        </div>
+      )}
     </div>
 
     {/* Name */}

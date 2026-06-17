@@ -241,6 +241,29 @@ export async function sendChatMessage(
   return { ok: true, reply: result.summary };
 }
 
+// ── Fetch total new insights across all agents (for Home badge) ─
+export async function fetchTotalNewInsights(): Promise<number> {
+  const { count, error } = await supabase
+    .from('ai_agent_insights')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'new');
+  if (error) { console.error('fetchTotalNewInsights:', error); return 0; }
+  return count || 0;
+}
+
+// ── Update agent profile ────────────────────────────────────────
+export async function updateAgent(
+  agentId: string,
+  updates: Partial<Pick<AiAgent, 'name' | 'avatar_emoji' | 'role_title' | 'personality' | 'model' | 'temperature' | 'is_active'>>,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('ai_agents')
+    .update(updates)
+    .eq('id', agentId);
+  if (error) { console.error('updateAgent:', error); return false; }
+  return true;
+}
+
 // ── Stats helper ────────────────────────────────────────────────
 export interface AgentStats {
   totalRuns: number;

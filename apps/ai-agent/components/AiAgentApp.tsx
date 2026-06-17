@@ -5,7 +5,7 @@ import { AccountUser } from '@/types';
 import {
   fetchAgent, fetchAllAgents, fetchInsights, fetchRuns, fetchEpisodes, fetchAgentStats,
   fetchConversations, sendChatMessage,
-  updateInsightStatus, triggerManualRun,
+  updateInsightStatus, triggerManualRun, updateAgent,
   AiAgent, AiInsight, AiRun, AiEpisode, AiConversation, AgentStats,
 } from '../services/aiAgentService';
 
@@ -187,6 +187,7 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     runs: 'Lịch sử chạy',
     memory: 'Bộ nhớ',
     chat: 'Chat',
+    config: 'Cài đặt',
   };
 
   return (
@@ -358,6 +359,17 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                     agentId={selectedAgentId}
                     agentEmoji={agent?.avatar_emoji || AGENT_EMPTY_STATE[selectedAgentId]?.emoji || '🤖'}
                     agentName={agent?.name || 'Agent'}
+                  />
+                )}
+
+                {activeTab === 'config' && agent && (
+                  <ConfigPanel
+                    agent={agent}
+                    onSaved={(updated) => {
+                      setAgent(updated);
+                      setToast({ msg: 'Đã lưu cấu hình agent', type: 'success' });
+                    }}
+                    onError={() => setToast({ msg: 'Lưu thất bại, thử lại', type: 'error' })}
                   />
                 )}
               </>
@@ -852,6 +864,166 @@ const ChatPanel: React.FC<{
           </button>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── Config Panel ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+const ConfigPanel: React.FC<{
+  agent: AiAgent;
+  onSaved: (updated: AiAgent) => void;
+  onError: () => void;
+}> = ({ agent, onSaved, onError }) => {
+  const [form, setForm] = useState({
+    name: agent.name,
+    avatar_emoji: agent.avatar_emoji,
+    role_title: agent.role_title,
+    model: agent.model,
+    temperature: agent.temperature,
+    personality: agent.personality,
+    is_active: agent.is_active,
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Sync form when agent changes (e.g. switching agents)
+  React.useEffect(() => {
+    setForm({
+      name: agent.name,
+      avatar_emoji: agent.avatar_emoji,
+      role_title: agent.role_title,
+      model: agent.model,
+      temperature: agent.temperature,
+      personality: agent.personality,
+      is_active: agent.is_active,
+    });
+  }, [agent.id]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const ok = await updateAgent(agent.id, form);
+    setSaving(false);
+    if (ok) {
+      onSaved({ ...agent, ...form });
+    } else {
+      onError();
+    }
+  };
+
+  const fieldClass = "w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-primary/50 transition-colors";
+  const fieldStyle = { background: '#1a1a1a' };
+  const labelClass = "text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1.5 block";
+
+  return (
+    <div className="space-y-6 max-w-xl">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-base font-black text-white uppercase tracking-wider">⚙️ Cấu hình Agent</span>
+      </div>
+
+      <div className="rounded-2xl border border-white/8 p-5 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        {/* Active toggle */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className={labelClass}>Trạng thái</p>
+            <p className="text-xs text-neutral-600">Agent có được chạy theo lịch không</p>
+          </div>
+          <button
+            onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
+            className={`relative w-12 h-6 rounded-full transition-all duration-200 ${form.is_active ? 'bg-primary' : 'bg-white/10'}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200 ${form.is_active ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+
+        <div className="h-px bg-white/5" />
+
+        {/* Avatar + Name row */}
+        <div className="grid grid-cols-[80px_1fr] gap-3">
+          <div>
+            <label className={labelClass}>Emoji</label>
+            <input
+              type="text"
+              value={form.avatar_emoji}
+              onChange={e => setForm(f => ({ ...f, avatar_emoji: e.target.value }))}
+              className={fieldClass}
+              style={fieldStyle}
+              maxLength={4}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Tên Agent</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              className={fieldClass}
+              style={fieldStyle}
+            />
+          </div>
+        </div>
+
+        {/* Role title */}
+        <div>
+          <label className={labelClass}>Chức danh</label>
+          <input
+            type="text"
+            value={form.role_title}
+            onChange={e => setForm(f => ({ ...f, role_title: e.target.value }))}
+            className={fieldClass}
+            style={fieldStyle}
+          />
+        </div>
+
+        {/* Model + Temperature row */}
+        <div className="grid grid-cols-[1fr_120px] gap-3">
+          <div>
+            <label className={labelClass}>Model</label>
+            <input
+              type="text"
+              value={form.model}
+              onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
+              className={fieldClass}
+              style={fieldStyle}
+              placeholder="cx/gpt-5.5"
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Temperature</label>
+            <input
+              type="number"
+              min={0}
+              max={1}
+              step={0.05}
+              value={form.temperature}
+              onChange={e => setForm(f => ({ ...f, temperature: parseFloat(e.target.value) || 0 }))}
+              className={fieldClass}
+              style={fieldStyle}
+            />
+          </div>
+        </div>
+
+        {/* Personality */}
+        <div>
+          <label className={labelClass}>Personality / System Prompt thêm</label>
+          <textarea
+            value={form.personality}
+            onChange={e => setForm(f => ({ ...f, personality: e.target.value }))}
+            rows={5}
+            className={`${fieldClass} resize-none`}
+            style={fieldStyle}
+          />
+        </div>
+      </div>
+
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+        style={{ background: '#FF9500' }}
+      >
+        {saving ? 'Đang lưu...' : '💾 Lưu cấu hình'}
+      </button>
     </div>
   );
 };
