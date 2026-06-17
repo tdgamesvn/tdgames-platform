@@ -278,13 +278,19 @@ async function sendTelegram(text: string): Promise<void> {
   const token = Deno.env.get('TELEGRAM_BOT_TOKEN');
   const chatId = Deno.env.get('TELEGRAM_CHAT_ID');
   if (!token || !chatId) return;
-  // Telegram limits 4096 chars
-  const truncated = text.length > 4000 ? text.slice(0, 4000) + '\n\n⚠️ (truncated)' : text;
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: truncated, parse_mode: 'HTML' }),
-  }).catch(e => console.error('Telegram send error:', e));
+  // Telegram limits 4096 chars — split into chunks instead of truncating
+  const CHUNK = 4000;
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += CHUNK) {
+    chunks.push(text.slice(i, i + CHUNK));
+  }
+  for (const chunk of chunks) {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: chunk, parse_mode: 'HTML' }),
+    }).catch(e => console.error('Telegram send error:', e));
+  }
 }
 
 // ── Main agent loop ──────────────────────────────────────────
@@ -415,7 +421,7 @@ ${guidelines}`;
           ],
           tools: TOOL_DEFINITIONS,
           temperature: agent.temperature || 0.3,
-          max_tokens: 4096,
+          max_tokens: 16000,
         }),
       });
 
@@ -454,7 +460,11 @@ ${guidelines}`;
       }
 
       // Agent finished — extract text summary
-      const summary = assistantMsg.content || 'No summary';
+      const rawSummary = assistantMsg.content || 'No summary';
+      // Warn if response was cut by token limit
+      const summary = choice.finish_reason === 'length'
+        ? rawSummary + '\n\n⚠️ Phản hồi bị giới hạn token — có thể thiếu nội dung cuối.'
+        : rawSummary;
 
       // 7. Save episode
       await supabase.from('ai_agent_episodes').insert({
