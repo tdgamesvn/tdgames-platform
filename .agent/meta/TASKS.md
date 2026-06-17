@@ -34,14 +34,16 @@ _Cập nhật: 2026-06-17_
 
 ## Doing
 
-- [ ] AI Agent System — Steps 1-2 done, deploy + remaining steps pending
-  - Plan: `docs/AI_AGENT_PLAN.md`
-  - Done: Backend (DB + edge function + 4 agents + pg_cron), Frontend (app module + multi-agent UI)
-  - Remaining: commit/deploy, RLS, extended tools for CFO/CEO/CTO, Telegram bot, polish
+_(trống)_
 
 ---
 
 ## Recently Completed
+
+- [x] AI Agent System — All 7 steps completed
+  - Done: 2026-06-17
+  - Commits: 57e5e22 → f147c82
+  - Result: Step 1-6 (Backend, Frontend, Deploy, RLS, Extended Tools × 9 agents, Telegram + in-app chat). Step 7 Polish: notification badge trên Home (red dot count new insights), Agent Config Editor tab (edit model/temperature/personality/is_active/emoji). Build ✅
 
 - [x] HR Change Request approval workflow
   - Done: 2026-06-17

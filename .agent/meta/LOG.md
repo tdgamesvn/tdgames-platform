@@ -1,5 +1,54 @@
 # LOG
 
+## 2026-06-17 (session 4)
+### Task
+Bug fix: Employee Portal — nhân viên submit đơn nghỉ thành công nhưng không thấy danh sách đơn đã gửi
+
+### Root Cause
+`loadData()` trong `LeaveTab.tsx` gọi `ensureBalancesForYear()` trước khi gọi `fetchMyLeaveRequests()`.
+
+`ensureBalancesForYear()` gọi `upsertLeaveBalance()` — thực hiện INSERT vào bảng `leave_balances`. Nhưng RLS policy `leave_balances_insert` chỉ cho phép `is_staff()`, nhân viên thường bị block. Lỗi RLS throw exception, `catch` block trong `loadData` bắt lỗi và exit sớm — `setRequests(reqs)` không bao giờ được gọi, `requests` luôn là `[]`.
+
+**Bằng chứng:** `att_requests` có đủ dữ liệu (kiểm tra trực tiếp qua SQL), RLS SELECT policy đúng, chỉ balance INSERT bị block.
+
+### Fix
+`apps/portal/components/LeaveTab.tsx` — wrap `ensureBalancesForYear` trong try-catch riêng:
+- Balance creation lỗi → log warning, không block flow chính
+- `fetchMyLeaveRequests` luôn được gọi sau đó
+
+### Validation
+- `npm run build` succeeded (7.54s)
+
+### Result
+Nhân viên sẽ thấy danh sách đơn nghỉ sau khi fix deploy.
+Balance cards sẽ hiển thị 0 cho nhân viên chưa có record trong `leave_balances` (HR tạo thủ công hoặc qua admin).
+
+---
+
+## 2026-06-17 (session 3)
+### Task
+AI Agent System — Step 7 Polish: notification badge + agent config editor
+
+### Work Done
+- Added `fetchTotalNewInsights()` to aiAgentService — counts all `status='new'` insights across all agents in 1 query
+- Added `updateAgent()` to aiAgentService — partial update of agent profile fields
+- Updated `HomeScreen.tsx`: fetch badge count on mount (admin only), pass `badgeCount` prop to AppCard for `ai-agent`
+- Updated `AppCard`: new optional `badgeCount` prop renders a red overlay badge (≤9 shows number, >9 shows "9+") on icon top-right
+- Updated `AiAgentApp.tsx`: added 5th tab "Cài đặt" with ConfigPanel component
+- `ConfigPanel`: inline form with is_active toggle, avatar_emoji, name, role_title, model, temperature, personality — save via updateAgent()
+
+### Validation
+- `npm run build` ✅ (7.67s, 250 modules, no new errors)
+- Commit: f147c82
+
+### Result
+- AI Agent System fully complete — all 7 steps done
+- Home Screen now shows red badge count on AI Agent card when new insights exist
+- Admins can edit agent config directly in UI without touching Supabase
+
+### Next Step
+- Deploy to production (push to main → GitHub Actions)
+
 ## 2026-06-17 (session 2)
 ### Task
 AI Agent System — Backend, Frontend, Multi-agent
