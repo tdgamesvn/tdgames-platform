@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AiRun } from '../services/aiAgentService';
-import { timeAgo, fmtDate, fmtDuration, RUN_STATUS } from '../utils';
+import { timeAgo, fmtDuration, RUN_STATUS } from '../utils';
 
 const RUN_TRUNCATE = 120;
 
@@ -19,7 +19,7 @@ const RunsPanel: React.FC<RunsPanelProps> = ({ runs, agentEmoji, agentName, onTr
     <div className="space-y-3">
       {runs.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-3xl mb-3">{agentEmoji}</p>
+          <p className="text-2xl mb-3">{agentEmoji}</p>
           <p className="text-neutral-600 text-sm">{agentName} chưa có lần chạy nào</p>
           <p className="text-xs mt-1 text-neutral-700 mb-5">Nhấn nút bên dưới để chạy lần đầu</p>
           <button

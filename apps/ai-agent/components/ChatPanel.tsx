@@ -69,7 +69,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ conversations, setConversations, 
       <div className="flex-1 overflow-y-auto space-y-3 pr-2 pb-4" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
         {conversations.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-3xl mb-3">{agentEmoji}</p>
+            <p className="text-2xl mb-3">{agentEmoji}</p>
             <p className="text-neutral-600 text-sm">Chưa có cuộc trò chuyện nào với {agentName}</p>
             <p className="text-xs mt-1 text-neutral-700">Gửi tin nhắn để bắt đầu chat</p>
           </div>

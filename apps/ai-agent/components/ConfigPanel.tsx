@@ -35,7 +35,7 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({ agent, onSaved, onError }) =>
   const lc = "text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1.5 block";
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-base font-black text-white uppercase tracking-wider">⚙️ Cấu hình Agent</span>
       </div>

@@ -14,7 +14,7 @@ const MemoryPanel: React.FC<MemoryPanelProps> = ({ episodes }) => (
     </div>
     {episodes.length === 0 ? (
       <div className="text-center py-16">
-        <p className="text-3xl mb-3">🧠</p>
+        <p className="text-2xl mb-3">🧠</p>
         <p className="text-neutral-600 text-sm">Agent chưa có ký ức nào</p>
       </div>
     ) : (
