@@ -42,7 +42,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   const [showExcluded, setShowExcluded] = useState(false);
   const [localExcluded, setLocalExcluded] = useState<Set<string>>(new Set());
   const [selAccountType, setSelAccountType] = useState<'company' | 'personal'>('company');
-  const [showAllUnpaid, setShowAllUnpaid] = useState(false);
+  const [showAllMonths, setShowAllMonths] = useState(false);
 
   // Load task IDs that are already accepted (on mount)
   useEffect(() => {
@@ -64,17 +64,8 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
     setSelTaskIds(prev => prev.filter(id => id !== taskId));
   };
 
-  // Filter out already-accepted + excluded tasks from the full list.
-  // showAllUnpaid mode: also include tasks from past acceptances if still unpaid.
-  const availableTasks = tasks.filter(t => {
-    if (localExcluded.has(t.id!)) return false;
-    if (acceptedTaskIds.has(t.id!)) {
-      // Include in "show all unpaid" mode only if task is still unpaid
-      return showAllUnpaid && t.payment_status === 'unpaid';
-    }
-    // Default: exclude paid tasks from normal pool too
-    return true;
-  });
+  // Filter out already-accepted + excluded tasks from the full list (original behaviour)
+  const availableTasks = tasks.filter(t => !acceptedTaskIds.has(t.id!) && !localExcluded.has(t.id!));
   const excludedTasks = tasks.filter(t => localExcluded.has(t.id!) && !acceptedTaskIds.has(t.id!));
 
   // Unique clients & projects (from available tasks only)
@@ -96,8 +87,14 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   const availableClickupStatuses = [...new Set(scopedTasks.map(t => t.clickup_status).filter(Boolean))].sort() as string[];
 
   const eligibleTasks = scopedTasks.filter(t => {
-    if (selClickupStatusFilter.length === 0) return true;
-    return selClickupStatusFilter.includes(t.clickup_status || '');
+    // Period-based date filter (when a period is selected and showAllMonths is OFF)
+    if (selPeriod && !showAllMonths) {
+      const refDate = t.closed_date || t.completed_at || t.approved_at;
+      if (!refDate || !refDate.startsWith(selPeriod)) return false;
+    }
+    // ClickUp status filter
+    if (selClickupStatusFilter.length > 0 && !selClickupStatusFilter.includes(t.clickup_status || '')) return false;
+    return true;
   });
 
   const toggleStatusFilter = (status: string) => {
@@ -206,52 +203,68 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
           </div>
         </div>
 
-        {/* ── All-unpaid toggle ── */}
-        <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-primary/10 bg-white/[0.015]">
+        {/* ClickUp Status Filter + All-months toggle */}
+        {(selProject || selClient) && (
           <div>
-            <p className="text-xs font-black uppercase tracking-widest text-white">📋 Toàn bộ task chưa thanh toán</p>
-            <p className="text-[10px] text-neutral-medium/60 mt-0.5">
-              Bao gồm task đã có trong nghiệm thu cũ nhưng chưa thu được tiền&nbsp;
-              <span className="text-yellow-400/70">(có thể tạo bổ sung do miss)</span>
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => { setShowAllUnpaid(v => !v); setSelTaskIds([]); setCustomPrices({}); setSelClickupStatusFilter([]); }}
-            className={`relative w-12 h-6 rounded-full transition-all duration-200 shrink-0 ml-4 ${showAllUnpaid ? 'bg-yellow-500' : 'bg-white/10'}`}
-          >
-            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200 ${showAllUnpaid ? 'left-7' : 'left-1'}`} />
-          </button>
-        </div>
-
-        {/* ClickUp Status Filter */}
-        {(selProject || selClient) && availableClickupStatuses.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className={labelCls + ' !mb-0'}>Filter by ClickUp Status ({selClickupStatusFilter.length}/{availableClickupStatuses.length})</label>
-              <div className="flex gap-2">
-                <button onClick={selectAllStatuses} className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-bold">Select all</button>
-                <span className="text-neutral-medium/30">|</span>
-                <button onClick={deselectAllStatuses} className="text-[10px] text-neutral-medium hover:text-white transition-colors font-bold">Clear</button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {availableClickupStatuses.map((status, idx) => {
-                const isActive = selClickupStatusFilter.includes(status);
-                const colorCls = CLICKUP_STATUS_PALETTE[idx % CLICKUP_STATUS_PALETTE.length];
-                const count = scopedTasks.filter(t => t.clickup_status === status).length;
-                return (
-                  <button key={status} onClick={() => toggleStatusFilter(status)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider transition-all border ${
-                      isActive ? colorCls : 'text-neutral-medium/50 border-primary/10 hover:text-white hover:bg-white/5'
-                    }`}>
-                    {isActive ? '✓ ' : ''}{status} <span className="opacity-50 ml-1">({count})</span>
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className={labelCls + ' !mb-0'}>
+                  Filter by ClickUp Status ({selClickupStatusFilter.length}/{availableClickupStatuses.length})
+                </label>
+                {/* Show-all-months toggle */}
+                {selPeriod && (
+                  <button
+                    onClick={() => { setShowAllMonths(v => !v); setSelTaskIds([]); setCustomPrices({}); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      showAllMonths
+                        ? 'bg-orange-500/15 text-orange-400 border-orange-500/30'
+                        : 'text-neutral-medium border-white/10 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <span className="text-[10px]">{showAllMonths ? '✓' : '○'}</span>
+                    Hiện tất cả tháng
                   </button>
-                );
-              })}
+                )}
+                {selPeriod && !showAllMonths && (
+                  <span className="text-[10px] text-neutral-medium/50">
+                    💡 Chỉ hiện task có ngày đóng trong tháng {selPeriod}
+                  </span>
+                )}
+                {showAllMonths && (
+                  <span className="text-[10px] text-orange-400/60">
+                    ⚡ Bỏ giới hạn tháng — hiện tất cả task chưa nghiệm thu
+                  </span>
+                )}
+              </div>
+              {availableClickupStatuses.length > 0 && (
+                <div className="flex gap-2">
+                  <button onClick={selectAllStatuses} className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors font-bold">Select all</button>
+                  <span className="text-neutral-medium/30">|</span>
+                  <button onClick={deselectAllStatuses} className="text-[10px] text-neutral-medium hover:text-white transition-colors font-bold">Clear</button>
+                </div>
+              )}
             </div>
-            {selClickupStatusFilter.length === 0 && (
-              <p className="text-neutral-medium/40 text-[10px] mt-1.5">💡 No filter applied — showing all {scopedTasks.length} tasks</p>
+            {availableClickupStatuses.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {availableClickupStatuses.map((status, idx) => {
+                  const isActive = selClickupStatusFilter.includes(status);
+                  const colorCls = CLICKUP_STATUS_PALETTE[idx % CLICKUP_STATUS_PALETTE.length];
+                  const count = scopedTasks.filter(t => t.clickup_status === status).length;
+                  return (
+                    <button key={status} onClick={() => toggleStatusFilter(status)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider transition-all border ${
+                        isActive ? colorCls : 'text-neutral-medium/50 border-primary/10 hover:text-white hover:bg-white/5'
+                      }`}>
+                      {isActive ? '✓ ' : ''}{status} <span className="opacity-50 ml-1">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {selClickupStatusFilter.length === 0 && availableClickupStatuses.length > 0 && (
+              <p className="text-neutral-medium/40 text-[10px] mt-1.5">
+                💡 No status filter — showing all {eligibleTasks.length} eligible tasks
+              </p>
             )}
           </div>
         )}
@@ -298,25 +311,16 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                           const statusStyle = getClickupStatusStyle(clickupStatus);
                           return (
                             <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                              isSelected
-                                ? 'border-blue-500/40 bg-blue-500/5'
-                                : acceptedTaskIds.has(t.id!)
-                                  ? 'border-yellow-500/20 bg-yellow-500/5 hover:border-yellow-500/30'
-                                  : 'border-primary/10 hover:border-primary/20'
+                              isSelected ? 'border-blue-500/40 bg-blue-500/5' : 'border-primary/10 hover:border-primary/20'
                             }`}>
                               <input type="checkbox" checked={isSelected} onChange={() => toggleTask(t.id!)}
                                 className="accent-blue-500 w-4 h-4 shrink-0 cursor-pointer" />
                               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTask(t.id!)}>
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-2">
                                   <p className="text-white text-sm font-medium truncate">{t.title}</p>
                                   <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-md capitalize ${statusStyle.className}`}>
                                     {clickupStatus}
                                   </span>
-                                  {acceptedTaskIds.has(t.id!) && (
-                                    <span className="shrink-0 text-[9px] font-black px-2 py-0.5 rounded-md bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 uppercase tracking-wide">
-                                      ⚠ Đã nghiệm thu cũ
-                                    </span>
-                                  )}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[10px] text-neutral-medium/50 mt-0.5">
                                   {t.closed_date && <span>Closed: {t.closed_date}</span>}
