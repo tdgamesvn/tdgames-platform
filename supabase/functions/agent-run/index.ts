@@ -334,20 +334,29 @@ async function runAgent(
       ).join('\n')}`
     : '';
 
+  const isChatMode = triggerType === 'chat';
+  const guidelines = isChatMode
+    ? `- Trả lời bằng tiếng Việt, tự nhiên và thân thiện
+- Dùng tools để lấy dữ liệu thực trước khi trả lời
+- Trình bày rõ ràng, có số liệu cụ thể khi có dữ liệu
+- Không cần tạo insight hay viết tóm tắt cuối
+- Nếu câu hỏi không liên quan đến dữ liệu, trả lời thẳng`
+    : `- Dùng tools để query data trước khi đưa ra nhận xét
+- Tạo insight cho mỗi phát hiện quan trọng (dùng tool create_insight)
+- Trả lời bằng tiếng Việt, súc tích, có số liệu
+- Kết thúc bằng bản tóm tắt executive ngắn`;
+
   const systemPrompt = `${agent.personality}
 
 ## Thông tin hệ thống:
 - Hôm nay: ${today}
 - Agent ID: ${agentId}
-- Trigger: ${triggerType}
+- Mode: ${isChatMode ? 'chat trực tiếp' : 'phân tích tự động'}
 ${memorySection}
 ${knowledgeSection}
 
 ## Hướng dẫn:
-- Dùng tools để query data trước khi đưa ra nhận xét
-- Tạo insight cho mỗi phát hiện quan trọng (dùng tool create_insight)
-- Trả lời bằng tiếng Việt, ngắn gọn, có số liệu
-- Kết thúc bằng bản tóm tắt ngắn`;
+${guidelines}`;
 
   // 5. Build messages — agent-specific default prompts
   const DEFAULT_PROMPTS: Record<string, string> = {
@@ -535,7 +544,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         ok: true, agent_id: agentId,
-        summary: result.summary.slice(0, 500),
+        summary: result.summary,           // full text — caller handles display truncation
         insights_created: result.insightsCreated,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } },

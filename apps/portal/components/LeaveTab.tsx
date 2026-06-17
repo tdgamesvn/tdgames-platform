@@ -4,7 +4,7 @@ import {
   fetchMyLeaveRequests,
   submitLeaveRequest,
   deleteLeaveRequest,
-  ensureBalancesForYear,
+  fetchLeaveBalances,
   getAvailableLeaveDays,
   getCurrentQuarter,
 } from '../services/leaveService';
@@ -116,10 +116,17 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         .eq('id', currentUser.employee_id).single();
       setEmployee(emp);
       if (emp) {
-        const { yearlyBalance: yb, carryOverBalance: cob } = await ensureBalancesForYear(emp, currentYear);
-        setYearlyBalance(yb);
-        setCarryOverBalance(cob);
+        // Balance creation requires is_staff() RLS — employees can only READ existing balances.
+        // Wrap separately so a missing balance record doesn't block the leave request list.
+        try {
+          const { yearlyBalance: yb, carryOverBalance: cob } = await ensureBalancesForYear(emp, currentYear);
+          setYearlyBalance(yb);
+          setCarryOverBalance(cob);
+        } catch (balErr) {
+          console.warn('LeaveTab: không thể tạo bản ghi leave_balances (HR cần tạo thủ công):', balErr);
+        }
       }
+      // Luôn load danh sách đơn nghỉ, kể cả khi balance lỗi
       const reqs = await fetchMyLeaveRequests(currentUser.employee_id);
       setRequests(reqs);
     } catch (err: any) {
