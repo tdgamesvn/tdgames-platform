@@ -1,5 +1,27 @@
 # LOG
 
+## 2026-06-17 (session 5)
+### Task
+Deploy tất cả pending changes lên production
+
+### Work Done
+- Verified build ✅ (7.72s)
+- Committed `fix(portal): wrap ensureBalancesForYear in try-catch` + `fix(agent-run): chat mode system prompt` → commit 9bdb688
+- Committed memory files + AI Agent UI redesign plan docs → commit 7f32edd
+- Pushed to main → GitHub Actions auto-deploy triggered
+
+### Validation
+- `npm run build` ✅ (7.72s)
+- `git push origin main` ✅ — 5db3762..7f32edd pushed
+
+### Result
+- Production cập nhật với: AI Agent 3-column UI, LeaveTab bug fix, agent-run chat mode
+
+### Next Step
+- Kiểm tra production live tại https://app.tdgamestudio.com
+
+---
+
 ## 2026-06-17 (session 4)
 ### Task
 Bug fix: Employee Portal — nhân viên submit đơn nghỉ thành công nhưng không thấy danh sách đơn đã gửi
