@@ -42,6 +42,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   const [showExcluded, setShowExcluded] = useState(false);
   const [localExcluded, setLocalExcluded] = useState<Set<string>>(new Set());
   const [selAccountType, setSelAccountType] = useState<'company' | 'personal'>('company');
+  const [showAllUnpaid, setShowAllUnpaid] = useState(false);
 
   // Load task IDs that are already accepted (on mount)
   useEffect(() => {
@@ -63,8 +64,17 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
     setSelTaskIds(prev => prev.filter(id => id !== taskId));
   };
 
-  // Filter out already-accepted + excluded tasks from the full list
-  const availableTasks = tasks.filter(t => !acceptedTaskIds.has(t.id!) && !localExcluded.has(t.id!));
+  // Filter out already-accepted + excluded tasks from the full list.
+  // showAllUnpaid mode: also include tasks from past acceptances if still unpaid.
+  const availableTasks = tasks.filter(t => {
+    if (localExcluded.has(t.id!)) return false;
+    if (acceptedTaskIds.has(t.id!)) {
+      // Include in "show all unpaid" mode only if task is still unpaid
+      return showAllUnpaid && t.payment_status === 'unpaid';
+    }
+    // Default: exclude paid tasks from normal pool too
+    return true;
+  });
   const excludedTasks = tasks.filter(t => localExcluded.has(t.id!) && !acceptedTaskIds.has(t.id!));
 
   // Unique clients & projects (from available tasks only)
@@ -196,6 +206,24 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
           </div>
         </div>
 
+        {/* ── All-unpaid toggle ── */}
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-primary/10 bg-white/[0.015]">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-white">📋 Toàn bộ task chưa thanh toán</p>
+            <p className="text-[10px] text-neutral-medium/60 mt-0.5">
+              Bao gồm task đã có trong nghiệm thu cũ nhưng chưa thu được tiền&nbsp;
+              <span className="text-yellow-400/70">(có thể tạo bổ sung do miss)</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setShowAllUnpaid(v => !v); setSelTaskIds([]); setCustomPrices({}); setSelClickupStatusFilter([]); }}
+            className={`relative w-12 h-6 rounded-full transition-all duration-200 shrink-0 ml-4 ${showAllUnpaid ? 'bg-yellow-500' : 'bg-white/10'}`}
+          >
+            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200 ${showAllUnpaid ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+
         {/* ClickUp Status Filter */}
         {(selProject || selClient) && availableClickupStatuses.length > 0 && (
           <div>
@@ -270,16 +298,25 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                           const statusStyle = getClickupStatusStyle(clickupStatus);
                           return (
                             <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                              isSelected ? 'border-blue-500/40 bg-blue-500/5' : 'border-primary/10 hover:border-primary/20'
+                              isSelected
+                                ? 'border-blue-500/40 bg-blue-500/5'
+                                : acceptedTaskIds.has(t.id!)
+                                  ? 'border-yellow-500/20 bg-yellow-500/5 hover:border-yellow-500/30'
+                                  : 'border-primary/10 hover:border-primary/20'
                             }`}>
                               <input type="checkbox" checked={isSelected} onChange={() => toggleTask(t.id!)}
                                 className="accent-blue-500 w-4 h-4 shrink-0 cursor-pointer" />
                               <div className="flex-1 min-w-0 cursor-pointer" onClick={() => toggleTask(t.id!)}>
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <p className="text-white text-sm font-medium truncate">{t.title}</p>
                                   <span className={`shrink-0 text-[10px] font-bold px-2.5 py-0.5 rounded-md capitalize ${statusStyle.className}`}>
                                     {clickupStatus}
                                   </span>
+                                  {acceptedTaskIds.has(t.id!) && (
+                                    <span className="shrink-0 text-[9px] font-black px-2 py-0.5 rounded-md bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 uppercase tracking-wide">
+                                      ⚠ Đã nghiệm thu cũ
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[10px] text-neutral-medium/50 mt-0.5">
                                   {t.closed_date && <span>Closed: {t.closed_date}</span>}
