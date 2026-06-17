@@ -29,23 +29,29 @@ Deno.serve(async (req: Request) => {
     // Parse agent command: /cfo message, /ceo message, etc.
     let agentId = 'chro'; // default
     let userMessage = text;
-    const agentMatch = text.match(/^\/(chro|cfo|ceo|cto)\s*(.*)/i);
+    const agentMatch = text.match(/^\/(chro|cfo|ceo|cto|sales|pm|ops|data|support)\s*(.*)/i);
     if (agentMatch) {
       agentId = agentMatch[1].toLowerCase();
-      userMessage = agentMatch[2] || `Phan tich nhanh hom nay`;
+      userMessage = agentMatch[2] || 'Phân tích nhanh hôm nay';
     }
 
-    // Also handle /start command
+    // Handle /start command
     if (text.startsWith('/start')) {
       await sendTelegram(BOT_TOKEN, chatId,
-        '<b>TD Games AI Agent Bot</b>\n\n' +
-        'Gui tin nhan de chat voi Agent CHRO (mac dinh).\n\n' +
-        '<b>Chon agent:</b>\n' +
-        '/chro - HR Agent\n' +
-        '/cfo - Finance Agent\n' +
-        '/ceo - Executive Agent\n' +
-        '/cto - Tech Agent\n\n' +
-        'Vi du: <code>/cfo Kiem tra hoa don qua han</code>'
+        '🤖 <b>TD Games AI Agent Bot</b>\n\n' +
+        'Gửi tin nhắn để chat với Agent CHRO (mặc định).\n\n' +
+        '<b>C-Suite:</b>\n' +
+        '/chro - 👥 HR Agent\n' +
+        '/cfo - 💰 Finance Agent\n' +
+        '/ceo - 👔 Executive Agent\n' +
+        '/cto - ⚙️ Tech Agent\n\n' +
+        '<b>Specialist:</b>\n' +
+        '/sales - 📈 Sales & BD\n' +
+        '/pm - 🎯 Product Manager\n' +
+        '/ops - ⚡ Operations\n' +
+        '/data - 📊 Data Analyst\n' +
+        '/support - 💬 Internal Support\n\n' +
+        'Ví dụ: <code>/cfo Kiểm tra hoá đơn quá hạn</code>'
       );
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     }

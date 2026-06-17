@@ -315,6 +315,11 @@ ${knowledgeSection}
     cfo: 'Chạy phân tích tài chính hàng ngày. Kiểm tra: (1) hoá đơn quá hạn chưa thanh toán, (2) chi phí bất thường, (3) tổng chi lương vs doanh thu, (4) dòng tiền tháng này. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     ceo: 'Chạy phân tích tổng quan công ty hàng ngày. Kiểm tra: (1) tình hình nhân sự (probation, nghỉ phép, đánh giá), (2) đề xuất chưa xử lý, (3) sức khoẻ tài chính, (4) rủi ro cross-functional. Tạo insight cho mỗi phát hiện quan trọng. Cuối cùng tóm tắt executive summary.',
     cto: 'Chạy phân tích kỹ thuật hàng ngày. Kiểm tra: (1) phân bổ nhân lực theo phòng ban, (2) NV kỹ thuật key sắp hết thử việc hoặc nghỉ phép, (3) tỷ lệ fulltime vs freelancer, (4) rủi ro bottleneck. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
+    sales: 'Chạy phân tích sales hàng ngày. Kiểm tra: (1) hoá đơn quá hạn chưa thu tiền, (2) doanh thu tháng này vs tháng trước, (3) client nào đang active/inactive, (4) pipeline health. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
+    pm: 'Chạy phân tích project hàng ngày. Kiểm tra: (1) nhân viên nào đang quá tải hoặc rảnh, (2) ai nghỉ phép tuần này ảnh hưởng delivery, (3) đánh giá chưa hoàn thành, (4) phân bổ nhân lực theo phòng ban. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
+    ops: 'Chạy phân tích vận hành tuần này. Kiểm tra: (1) hợp đồng/thử việc sắp hết hạn, (2) chi phí vận hành bất thường, (3) deadline thuế/BHXH/báo cáo sắp tới, (4) đề xuất nhân sự chưa xử lý. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
+    data: 'Chạy phân tích dữ liệu tuần này. Kiểm tra: (1) doanh thu theo client và billing entity, (2) chi phí lương vs doanh thu (profit margin), (3) trend doanh thu 3 tháng gần nhất, (4) burn rate hiện tại. Tạo insight cho mỗi phát hiện. Dùng số liệu cụ thể.',
+    support: 'Sẵn sàng hỗ trợ nhân viên về quy trình và chính sách công ty TD Games.',
   };
 
   const messages: any[] = [];
