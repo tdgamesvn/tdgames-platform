@@ -421,8 +421,8 @@ const InsightsPanel: React.FC<{
       ) : (
         <div className="space-y-3">
           {insights.map(insight => {
-            const typeConf = TYPE_CONFIG[insight.type];
-            const statusConf = STATUS_CONFIG[insight.status];
+            const typeConf   = TYPE_CONFIG[insight.type   as keyof typeof TYPE_CONFIG]   ?? TYPE_CONFIG.info;
+            const statusConf = STATUS_CONFIG[insight.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.new;
             const isExpanded = expandedId === insight.id;
             const bodyIsLong = insight.body.length > BODY_TRUNCATE;
             const hasSuggestedAction = !!insight.suggested_action;
