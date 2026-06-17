@@ -202,58 +202,39 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           ) : (
             <>
               {/* ═══ AgentHeader ═══ */}
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0"
-                  style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
-                  {agent?.avatar_emoji || '🤖'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <h1 className="text-base sm:text-lg font-black text-white">{agent?.name || 'AI Agent'}</h1>
-                    {agent?.is_active && (
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Active</span>
-                      </span>
-                    )}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0"
+                    style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
+                    {agent?.avatar_emoji || '🤖'}
                   </div>
-                  <p className="text-xs text-neutral-medium">
-                    {agent?.role_title || 'AI Assistant'} • Model: <span className="text-white/60 font-mono text-[11px]">{agent?.model}</span>
-                  </p>
-                  {agent?.personality && (
-                    <p className="text-xs text-neutral-600 mt-0.5 line-clamp-1 max-w-xl">{agent.personality}</p>
-                  )}
-                  <p className="text-[10px] text-neutral-700 mt-0.5">cập nhật {timeAgoShort(lastUpdatedAt)}</p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h1 className="text-base sm:text-lg font-black text-white">{agent?.name || 'AI Agent'}</h1>
+                      {agent?.is_active && (
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Active</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-neutral-medium">
+                      {agent?.role_title || 'AI Assistant'} • Model: <span className="text-white/60 font-mono text-[11px]">{agent?.model}</span>
+                    </p>
+                    {agent?.personality && (
+                      <p className="text-xs text-neutral-600 mt-0.5 line-clamp-1 max-w-xl">{agent.personality}</p>
+                    )}
+                    <p className="text-[10px] text-neutral-700 mt-0.5">cập nhật {timeAgoShort(lastUpdatedAt)}</p>
+                  </div>
                 </div>
-              </div>
-
-              {/* ═══ Quick Actions Bar ═══ */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {[
-                  { emoji: '▶', label: 'Chạy phân tích', primary: true, onClick: handleTrigger, disabled: triggerLoading, loadingLabel: 'Đang chạy...' },
-                  { emoji: '💬', label: 'Chat', onClick: () => setActiveTab('chat') },
-                  { emoji: '🧠', label: 'Bộ nhớ',        onClick: () => setActiveTab('memory') },
-                  { emoji: '📋', label: 'Lịch sử chạy',  onClick: () => setActiveTab('runs') },
-                  { emoji: '⚙️', label: 'Cài đặt Agent', onClick: () => setActiveTab('config') },
-                ].map((a, i) => (
-                  <button
-                    key={i}
-                    onClick={a.onClick}
-                    disabled={'disabled' in a ? a.disabled : false}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
-                      a.primary
-                        ? 'text-white font-black'
-                        : 'text-neutral-300 hover:text-white'
-                    }`}
-                    style={a.primary
-                      ? { background: '#FF9500' }
-                      : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }
-                    }
-                  >
-                    <span className="text-sm">{a.emoji}</span>
-                    <span>{'loadingLabel' in a && a.disabled ? a.loadingLabel : a.label}</span>
-                  </button>
-                ))}
+                <button
+                  onClick={handleTrigger}
+                  disabled={triggerLoading}
+                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50 shrink-0 self-start"
+                  style={{ background: '#FF9500' }}
+                >
+                  {triggerLoading ? 'Đang chạy...' : '▶ Chạy phân tích ngay'}
+                </button>
               </div>
 
               {/* Agent switching spinner */}
