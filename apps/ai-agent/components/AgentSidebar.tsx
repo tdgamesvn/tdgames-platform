@@ -73,28 +73,6 @@ const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, on
         })}
       </div>
 
-      {/* Plan info (expanded only) */}
-      {!collapsed && (
-        <div className="p-3 border-t border-white/5">
-          <div className="rounded-xl p-3 space-y-2" style={{ background: 'rgba(255,149,0,0.03)', border: '1px solid rgba(255,149,0,0.08)' }}>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm">👑</span>
-              <span className="text-[9px] font-black uppercase tracking-widest text-primary">Enterprise Plan</span>
-            </div>
-            <p className="text-[9px] text-neutral-600">Hiệu lực đến 12/08/2026</p>
-            <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-              <div className="h-full rounded-full bg-primary" style={{ width: '78%' }} />
-            </div>
-            <button
-              className="w-full px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white transition-all"
-              style={{ background: '#FF9500' }}
-            >
-              Nâng cấp gói
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Collapse toggle */}
       <button
         onClick={toggle}
