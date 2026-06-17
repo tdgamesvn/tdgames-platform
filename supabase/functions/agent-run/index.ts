@@ -132,6 +132,9 @@ const TOOL_DEFINITIONS = [
   { type: 'function' as const, function: { name: 'query_email_log', description: 'Query email sending log (for BD). Returns: recipient, template, status, sent_at.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter: delivered, bounced, failed' }, limit: { type: 'number', description: 'Max rows (default 30)' } } } } },
   { type: 'function' as const, function: { name: 'query_clients', description: 'Query CRM clients. Returns: name, type, country, status, lead_source.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter by status' }, country: { type: 'string', description: 'Filter by country (partial match)' }, limit: { type: 'number', description: 'Max rows (default 30)' } } } } },
   { type: 'function' as const, function: { name: 'query_projects', description: 'Query CRM projects. Returns: name, client, status, budget, dates.', parameters: { type: 'object', properties: { status: { type: 'string', description: 'Filter by status' }, limit: { type: 'number', description: 'Max rows (default 20)' } } } } },
+  { type: 'function' as const, function: { name: 'query_ai_system_health', description: 'Kiểm tra sức khoẻ hệ thống AI: tỷ lệ thành công, lỗi, thời gian chạy của các agent. Dùng để giám sát AI pipeline.', parameters: { type: 'object', properties: { agent_id: { type: 'string', description: 'Filter theo agent cụ thể (chro/cfo/ceo/cto...). Bỏ trống = tất cả.' }, days: { type: 'number', description: 'Số ngày nhìn lại (mặc định 7)' } } } } },
+  { type: 'function' as const, function: { name: 'query_data_integrity', description: 'Kiểm tra tính toàn vẹn dữ liệu: nhân viên thiếu lương, leave balance sai, payroll record bất thường, orphaned records.', parameters: { type: 'object', properties: {} } } },
+  { type: 'function' as const, function: { name: 'query_notifications_health', description: 'Kiểm tra tình trạng notification: delivery rate, unread count, lỗi gửi. Dùng để monitor hệ thống thông báo.', parameters: { type: 'object', properties: { days: { type: 'number', description: 'Số ngày nhìn lại (mặc định 7)' } } } } },
   {
     type: 'function' as const,
     function: {
@@ -281,6 +284,73 @@ async function executeTool(
         }).select('id').single();
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ success: true, insight_id: data.id });
+      }
+      case 'query_ai_system_health': {
+        const days = args.days || 7;
+        const since = new Date(Date.now() - days * 86400000).toISOString();
+        let q = supabase.from('ai_agent_runs')
+          .select('agent_id, status, duration_ms, error, created_at, completed_at')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(200);
+        if (args.agent_id) q = q.eq('agent_id', args.agent_id);
+        const { data, error } = await q;
+        if (error) return JSON.stringify({ error: error.message });
+        // Aggregate stats per agent
+        const stats: Record<string, { total: number; completed: number; failed: number; avg_ms: number; last_run: string | null; last_error: string | null }> = {};
+        for (const r of (data || [])) {
+          if (!stats[r.agent_id]) stats[r.agent_id] = { total: 0, completed: 0, failed: 0, avg_ms: 0, last_run: null, last_error: null };
+          const s = stats[r.agent_id];
+          s.total++;
+          if (r.status === 'completed') { s.completed++; if (r.duration_ms) s.avg_ms = Math.round((s.avg_ms * (s.completed - 1) + r.duration_ms) / s.completed); }
+          if (r.status === 'failed') { s.failed++; s.last_error = r.error?.slice(0, 100) || null; }
+          if (!s.last_run) s.last_run = r.created_at;
+        }
+        return JSON.stringify({ period_days: days, agents: stats });
+      }
+      case 'query_data_integrity': {
+        const results: Record<string, unknown> = {};
+        // Employees without salary record
+        const { data: noSalary } = await supabase.rpc('query_data_integrity_no_salary').catch(() => ({ data: null }));
+        // Fallback: manual check
+        const { data: empCount } = await supabase.from('hr_employees').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('type', 'fulltime');
+        const { data: salaryCount } = await supabase.from('hr_employee_salary').select('employee_id', { count: 'exact', head: true });
+        const { data: noBalance } = await supabase
+          .from('hr_employees')
+          .select('id, full_name, employee_code')
+          .eq('status', 'active').eq('type', 'fulltime')
+          .not('id', 'in', `(SELECT employee_id FROM leave_balances WHERE year = ${new Date().getFullYear()} AND quarter = 0)`)
+          .limit(20);
+        const { data: noPayroll } = await supabase
+          .from('hr_employees')
+          .select('id, full_name, employee_code')
+          .eq('status', 'active').eq('type', 'fulltime')
+          .not('id', 'in', `(SELECT employee_id FROM hr_employee_salary)`)
+          .limit(20);
+        results.active_fulltime_count = (empCount as any)?.length ?? 'unknown';
+        results.salary_records_count = (salaryCount as any)?.length ?? 'unknown';
+        results.fulltime_missing_leave_balance_2026 = noBalance || [];
+        results.fulltime_missing_salary_record = noPayroll || [];
+        return JSON.stringify(results);
+      }
+      case 'query_notifications_health': {
+        const days = args.days || 7;
+        const since = new Date(Date.now() - days * 86400000).toISOString();
+        const { data: notifStats, error: ne } = await supabase
+          .from('notifications')
+          .select('type, is_read, created_at')
+          .gte('created_at', since)
+          .limit(500);
+        if (ne) return JSON.stringify({ error: ne.message });
+        const total = (notifStats || []).length;
+        const unread = (notifStats || []).filter(n => !n.is_read).length;
+        const byType: Record<string, { total: number; unread: number }> = {};
+        for (const n of (notifStats || [])) {
+          if (!byType[n.type]) byType[n.type] = { total: 0, unread: 0 };
+          byType[n.type].total++;
+          if (!n.is_read) byType[n.type].unread++;
+        }
+        return JSON.stringify({ period_days: days, total_notifications: total, unread, read_rate_pct: total > 0 ? Math.round(((total - unread) / total) * 100) : 0, by_type: byType });
       }
       case 'check_system_health': {
         const DEFAULT_SERVICES = [
@@ -465,7 +535,7 @@ ${guidelines}`;
     chro: 'Chạy phân tích HR hàng ngày. Kiểm tra: (1) NV sắp hết thử việc, (2) đề xuất đang chờ duyệt, (3) đánh giá chưa hoàn thành, (4) nghỉ phép bất thường. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     cfo: 'Chạy phân tích tài chính hàng ngày. Kiểm tra: (1) hoá đơn quá hạn chưa thanh toán, (2) chi phí bất thường, (3) tổng chi lương vs doanh thu, (4) dòng tiền tháng này. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     ceo: 'Chạy phân tích tổng quan công ty hàng ngày. Kiểm tra: (1) tình hình nhân sự (probation, nghỉ phép, đánh giá), (2) đề xuất chưa xử lý, (3) sức khoẻ tài chính, (4) rủi ro cross-functional. Tạo insight cho mỗi phát hiện quan trọng. Cuối cùng tóm tắt executive summary.',
-    cto: 'Chạy phân tích kỹ thuật hàng ngày. Kiểm tra: (1) phân bổ nhân lực theo phòng ban, (2) NV kỹ thuật key sắp hết thử việc hoặc nghỉ phép, (3) tỷ lệ fulltime vs freelancer, (4) rủi ro bottleneck. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
+    cto: 'Chạy phân tích kỹ thuật toàn diện hàng ngày theo 4 bước: (1) Gọi check_system_health() — kiểm tra uptime tất cả domains và Supabase, tạo insight nếu có service down/degraded. (2) Gọi query_ai_system_health() — kiểm tra tất cả AI agents 7 ngày qua, phát hiện agent lỗi cao hoặc không chạy. (3) Gọi query_data_integrity() — phát hiện nhân viên thiếu lương/leave balance. (4) Gọi query_notifications_health() — kiểm tra delivery rate. Tạo insight cho mỗi phát hiện quan trọng. Cuối cùng viết executive summary về sức khoẻ kỹ thuật tổng thể.',
     sales: 'Chạy phân tích sales hàng ngày. Kiểm tra: (1) hoá đơn quá hạn chưa thu tiền, (2) doanh thu tháng này vs tháng trước, (3) client nào đang active/inactive, (4) pipeline health. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     pm: 'Chạy phân tích project hàng ngày. Kiểm tra: (1) nhân viên nào đang quá tải hoặc rảnh, (2) ai nghỉ phép tuần này ảnh hưởng delivery, (3) đánh giá chưa hoàn thành, (4) phân bổ nhân lực theo phòng ban. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     ops: 'Chạy phân tích vận hành tuần này. Kiểm tra: (1) hợp đồng/thử việc sắp hết hạn, (2) chi phí vận hành bất thường, (3) deadline thuế/BHXH/báo cáo sắp tới, (4) đề xuất nhân sự chưa xử lý. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
