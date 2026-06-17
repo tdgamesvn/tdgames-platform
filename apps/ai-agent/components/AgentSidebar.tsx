@@ -23,7 +23,7 @@ const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, on
 
   return (
     <aside
-      className="flex flex-col shrink-0 border-r border-white/8 transition-all duration-200 overflow-hidden"
+      className="hidden lg:flex flex-col shrink-0 border-r border-white/8 transition-all duration-200 overflow-hidden"
       style={{ width: collapsed ? 60 : 168, background: 'rgba(255,255,255,0.01)' }}
     >
       {/* Logo area */}

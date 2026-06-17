@@ -10,7 +10,6 @@ import {
 } from '../services/aiAgentService';
 import { timeAgo, timeAgoShort, fmtDuration, AGENT_EMPTY_STATE } from '../utils';
 import AgentSidebar from './AgentSidebar';
-import AgentRightPanel from './AgentRightPanel';
 import InsightsPanel from './InsightsPanel';
 import RunsPanel from './RunsPanel';
 import MemoryPanel from './MemoryPanel';
@@ -158,10 +157,36 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         tabLabels={tabs}
       />
 
-      {/* 3-column body */}
+      {/* Mobile agent bar — horizontal scroll, hidden on lg+ */}
+      {allAgents.length > 0 && (
+        <div className="lg:hidden flex items-center gap-2 px-3 py-2 border-b border-white/8 overflow-x-auto shrink-0 relative z-10"
+          style={{ background: 'rgba(255,255,255,0.01)' }}>
+          {allAgents.map(a => {
+            const isActive = a.id === selectedAgentId;
+            return (
+              <button
+                key={a.id}
+                onClick={() => switchAgent(a.id)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 transition-all"
+                style={isActive
+                  ? { background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.3)' }
+                  : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }
+                }
+              >
+                <span className="text-base">{a.avatar_emoji}</span>
+                <span className={`text-[11px] font-semibold whitespace-nowrap ${isActive ? 'text-white' : 'text-neutral-400'}`}>
+                  {a.name.replace('Agent ', '')}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* 2-column body */}
       <div className="flex flex-1 overflow-hidden relative z-10">
 
-        {/* Left sidebar */}
+        {/* Left sidebar — hidden on mobile/tablet, shown on lg+ */}
         <AgentSidebar
           agents={allAgents}
           selectedAgentId={selectedAgentId}
@@ -169,7 +194,7 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         />
 
         {/* Main scrollable content */}
-        <main className="flex-1 overflow-y-auto p-6 space-y-5">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 space-y-4 lg:space-y-5">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -177,39 +202,58 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           ) : (
             <>
               {/* ═══ AgentHeader ═══ */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0"
-                    style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
-                    {agent?.avatar_emoji || '🤖'}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h1 className="text-lg font-black text-white">{agent?.name || 'AI Agent'}</h1>
-                      {agent?.is_active && (
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Active</span>
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-neutral-medium">
-                      {agent?.role_title || 'AI Assistant'} • Model: <span className="text-white/60 font-mono">{agent?.model}</span>
-                    </p>
-                    {agent?.personality && (
-                      <p className="text-xs text-neutral-600 mt-0.5 truncate max-w-lg">{agent.personality}</p>
-                    )}
-                    <p className="text-[10px] text-neutral-700 mt-1">cập nhật {timeAgoShort(lastUpdatedAt)}</p>
-                  </div>
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0"
+                  style={{ background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.2)' }}>
+                  {agent?.avatar_emoji || '🤖'}
                 </div>
-                <button
-                  onClick={handleTrigger}
-                  disabled={triggerLoading}
-                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50 shrink-0"
-                  style={{ background: '#FF9500' }}
-                >
-                  {triggerLoading ? 'Đang chạy...' : '▶ Chạy phân tích ngay'}
-                </button>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h1 className="text-base sm:text-lg font-black text-white">{agent?.name || 'AI Agent'}</h1>
+                    {agent?.is_active && (
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-green-400">Active</span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-medium">
+                    {agent?.role_title || 'AI Assistant'} • Model: <span className="text-white/60 font-mono text-[11px]">{agent?.model}</span>
+                  </p>
+                  {agent?.personality && (
+                    <p className="text-xs text-neutral-600 mt-0.5 line-clamp-1 max-w-xl">{agent.personality}</p>
+                  )}
+                  <p className="text-[10px] text-neutral-700 mt-0.5">cập nhật {timeAgoShort(lastUpdatedAt)}</p>
+                </div>
+              </div>
+
+              {/* ═══ Quick Actions Bar ═══ */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { emoji: '▶', label: 'Chạy phân tích', primary: true, onClick: handleTrigger, disabled: triggerLoading, loadingLabel: 'Đang chạy...' },
+                  { emoji: '💬', label: 'Chat', onClick: () => setActiveTab('chat') },
+                  { emoji: '🧠', label: 'Bộ nhớ',        onClick: () => setActiveTab('memory') },
+                  { emoji: '📋', label: 'Lịch sử chạy',  onClick: () => setActiveTab('runs') },
+                  { emoji: '⚙️', label: 'Cài đặt Agent', onClick: () => setActiveTab('config') },
+                ].map((a, i) => (
+                  <button
+                    key={i}
+                    onClick={a.onClick}
+                    disabled={'disabled' in a ? a.disabled : false}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
+                      a.primary
+                        ? 'text-white font-black'
+                        : 'text-neutral-300 hover:text-white'
+                    }`}
+                    style={a.primary
+                      ? { background: '#FF9500' }
+                      : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }
+                    }
+                  >
+                    <span className="text-sm">{a.emoji}</span>
+                    <span>{'loadingLabel' in a && a.disabled ? a.loadingLabel : a.label}</span>
+                  </button>
+                ))}
               </div>
 
               {/* Agent switching spinner */}
@@ -222,7 +266,7 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 <>
                   {/* ═══ KPI Strip ═══ */}
                   {stats && !hasNoData && (
-                    <div className="grid grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                       {[
                         {
                           label: 'Tổng lần chạy', icon: '▶', iconColor: '#2196F3',
@@ -320,16 +364,6 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           )}
         </main>
 
-        {/* Right panel — Insights tab only */}
-        {activeTab === 'insights' && !loading && !agentSwitching && (
-          <AgentRightPanel
-            runs={runs}
-            insights={insights}
-            stats={stats}
-            onTabChange={setActiveTab}
-            onTrigger={handleTrigger}
-          />
-        )}
       </div>
     </div>
   );

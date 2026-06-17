@@ -130,7 +130,7 @@ const AgentRightPanel: React.FC<AgentRightPanelProps> = ({ runs, insights, onTab
   ];
 
   return (
-    <aside className="w-60 shrink-0 border-l border-white/8 overflow-y-auto p-3 space-y-3"
+    <aside className="hidden lg:block w-60 shrink-0 border-l border-white/8 overflow-y-auto p-3 space-y-3"
       style={{ background: 'rgba(255,255,255,0.005)' }}>
 
       {/* 5a. Weekly overview */}
