@@ -128,16 +128,10 @@ async function sendAlert(results: CheckResult[]): Promise<void> {
 }
 
 // ── Main handler ──────────────────────────────────────────────────
-Deno.serve(async (req) => {
-  // Auth check — only service role or internal cron
-  const authHeader = req.headers.get('Authorization');
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!authHeader || authHeader !== `Bearer ${serviceKey}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
-  }
-
+Deno.serve(async (_req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabase = createClient(supabaseUrl, serviceKey!);
+  const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, serviceKey);
 
   // Run all checks in parallel
   const [supabaseResult, ...httpResults] = await Promise.all([
