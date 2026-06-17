@@ -135,6 +135,23 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
+      name: 'check_system_health',
+      description: 'Kiểm tra uptime và latency của các dịch vụ TD Games (HTTP ping + Supabase health). Dùng khi cần giám sát hệ thống.',
+      parameters: {
+        type: 'object',
+        properties: {
+          services: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Danh sách URL cần kiểm tra. Mặc định: tất cả services TD Games.',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'create_insight',
       description: 'Create an insight/recommendation for admin review.',
       parameters: {
@@ -264,6 +281,85 @@ async function executeTool(
         }).select('id').single();
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ success: true, insight_id: data.id });
+      }
+      case 'check_system_health': {
+        const DEFAULT_SERVICES = [
+          { name: 'app.tdgamestudio.com',      url: 'https://app.tdgamestudio.com' },
+          { name: '9router.tdgamestudio.com',  url: 'https://9router.tdgamestudio.com' },
+          { name: 'cliproxy.tdgamestudio.com', url: 'https://cliproxy.tdgamestudio.com' },
+          { name: 'gog.tdgamestudio.com',      url: 'https://gog.tdgamestudio.com' },
+          { name: 'openclaw.tdgamestudio.com', url: 'https://openclaw.tdgamestudio.com' },
+          { name: 'zalo.tdconsulting.vn',      url: 'https://zalo.tdconsulting.vn' },
+        ];
+
+        const targets = args.services?.length
+          ? args.services.map((url: string) => ({ name: url.replace(/^https?:\/\//, ''), url }))
+          : DEFAULT_SERVICES;
+
+        const TIMEOUT = 8000;
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+
+        // HTTP ping per service
+        const checks = await Promise.all([
+          // Supabase health
+          (async () => {
+            const start = Date.now();
+            try {
+              const ctrl = new AbortController();
+              setTimeout(() => ctrl.abort(), TIMEOUT);
+              const res = await fetch(`${supabaseUrl}/health`, { signal: ctrl.signal });
+              return { service_name: 'supabase', service_type: 'supabase',
+                status: res.ok ? 'up' : 'degraded', latency_ms: Date.now() - start,
+                status_code: res.status, error_msg: res.ok ? null : `HTTP ${res.status}`,
+                metadata: null, checked_at: new Date().toISOString() };
+            } catch(e) {
+              return { service_name: 'supabase', service_type: 'supabase', status: 'down',
+                latency_ms: Date.now() - start, status_code: null,
+                error_msg: String(e).slice(0, 150), metadata: null,
+                checked_at: new Date().toISOString() };
+            }
+          })(),
+          // HTTP services
+          ...targets.map(async (svc: { name: string; url: string }) => {
+            const start = Date.now();
+            try {
+              const ctrl = new AbortController();
+              setTimeout(() => ctrl.abort(), TIMEOUT);
+              const res = await fetch(svc.url, { signal: ctrl.signal, method: 'GET', headers: { 'User-Agent': 'TDGames-CTO-Agent/1.0' } });
+              return { service_name: svc.name, service_type: 'http',
+                status: res.ok ? 'up' : res.status >= 500 ? 'down' : 'degraded',
+                latency_ms: Date.now() - start, status_code: res.status,
+                error_msg: res.ok ? null : `HTTP ${res.status}`,
+                metadata: { url: svc.url }, checked_at: new Date().toISOString() };
+            } catch(e) {
+              return { service_name: svc.name, service_type: 'http', status: 'down',
+                latency_ms: Date.now() - start, status_code: null,
+                error_msg: String(e).slice(0, 150),
+                metadata: { url: svc.url }, checked_at: new Date().toISOString() };
+            }
+          }),
+        ]);
+
+        // Persist to system_health_checks
+        await supabase.from('system_health_checks').insert(checks).catch(() => {});
+
+        const summary = checks.map(c => ({
+          service: c.service_name,
+          status: c.status,
+          latency_ms: c.latency_ms,
+          error: c.error_msg,
+        }));
+        const down = checks.filter(c => c.status === 'down');
+        const degraded = checks.filter(c => c.status === 'degraded');
+        return JSON.stringify({
+          checked_at: new Date().toISOString(),
+          total: checks.length,
+          up: checks.filter(c => c.status === 'up').length,
+          down: down.length,
+          degraded: degraded.length,
+          issues: [...down, ...degraded].map(c => ({ service: c.service_name, status: c.status, error: c.error_msg })),
+          details: summary,
+        });
       }
       default:
         return JSON.stringify({ error: `Unknown tool: ${toolName}` });
