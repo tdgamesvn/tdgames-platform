@@ -122,7 +122,7 @@ export const APPS: AppConfig[] = [
     id: 'ai-agent',
     name: 'AI Agent',
     icon: '🤖',
-    description: 'CHRO Agent — phân tích HR tự động',
+    description: 'Hệ thống AI Agent cho TDGames',
     color: '#8B5CF6',
     gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
     roles: ['admin'],
