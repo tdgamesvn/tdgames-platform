@@ -285,31 +285,10 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
               </div>
             )}
 
-            {/* ═══ Empty state for agent with no data ═══ */}
-            {!agentSwitching && hasNoData ? (
-              <div className="text-center py-16 text-neutral-700 text-sm">
-                <p className="text-3xl mb-3">
-                  {agent?.avatar_emoji || AGENT_EMPTY_STATE[selectedAgentId]?.emoji || '🤖'}
-                </p>
-                <p className="text-neutral-600 text-sm">
-                  {agent?.name || 'Agent'} chưa có dữ liệu
-                </p>
-                <p className="text-xs mt-1 text-neutral-700">
-                  {AGENT_EMPTY_STATE[selectedAgentId]?.prompt || 'Chạy phân tích để bắt đầu nhận insights'}
-                </p>
-                <button
-                  onClick={handleTrigger}
-                  disabled={triggerLoading}
-                  className="mt-5 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
-                  style={{ background: '#FF9500' }}
-                >
-                  {triggerLoading ? 'Đang chạy...' : '▶ Chạy phân tích ngay'}
-                </button>
-              </div>
-            ) : !agentSwitching && (
+            {!agentSwitching && (
               <>
-                {/* ═══ KPI Strip ═══ */}
-                {stats && (
+                {/* ═══ KPI Strip (only when has data) ═══ */}
+                {stats && !hasNoData && (
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {[
                       { label: 'Tổng lần chạy', value: stats.totalRuns, sub: `${stats.completedRuns} thành công` },
@@ -339,6 +318,9 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                     onAction={handleInsightAction}
                     agentEmoji={agent?.avatar_emoji || AGENT_EMPTY_STATE[selectedAgentId]?.emoji || '🤖'}
                     agentName={agent?.name || 'Agent'}
+                    onTrigger={handleTrigger}
+                    triggerLoading={triggerLoading}
+                    hasNoData={hasNoData}
                   />
                 )}
 
@@ -347,6 +329,8 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                     runs={runs}
                     agentEmoji={agent?.avatar_emoji || AGENT_EMPTY_STATE[selectedAgentId]?.emoji || '🤖'}
                     agentName={agent?.name || 'Agent'}
+                    onTrigger={handleTrigger}
+                    triggerLoading={triggerLoading}
                   />
                 )}
 
@@ -393,12 +377,34 @@ const InsightsPanel: React.FC<{
   onAction: (id: string, action: 'reviewed' | 'dismissed') => void;
   agentEmoji: string;
   agentName: string;
-}> = ({ insights, filter, onFilterChange, onAction, agentEmoji, agentName }) => {
+  onTrigger: () => void;
+  triggerLoading: boolean;
+  hasNoData: boolean;
+}> = ({ insights, filter, onFilterChange, onAction, agentEmoji, agentName, onTrigger, triggerLoading, hasNoData }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
   };
+
+  // hasNoData = agent never ran at all → show big CTA, no filter bar
+  if (hasNoData) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-4xl mb-3">{agentEmoji}</p>
+        <p className="text-neutral-500 text-sm font-semibold mb-1">{agentName} chưa có dữ liệu</p>
+        <p className="text-xs text-neutral-700 mb-6">Chạy phân tích để bắt đầu nhận insights</p>
+        <button
+          onClick={onTrigger}
+          disabled={triggerLoading}
+          className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+          style={{ background: '#FF9500' }}
+        >
+          {triggerLoading ? 'Đang chạy...' : '▶ Chạy phân tích ngay'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -522,7 +528,7 @@ const InsightsPanel: React.FC<{
 // ═══════════════════════════════════════════════════════════════
 const RUN_TRUNCATE = 120;
 
-const RunsPanel: React.FC<{ runs: AiRun[]; agentEmoji: string; agentName: string }> = ({ runs, agentEmoji, agentName }) => {
+const RunsPanel: React.FC<{ runs: AiRun[]; agentEmoji: string; agentName: string; onTrigger: () => void; triggerLoading: boolean }> = ({ runs, agentEmoji, agentName, onTrigger, triggerLoading }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
@@ -531,7 +537,15 @@ const RunsPanel: React.FC<{ runs: AiRun[]; agentEmoji: string; agentName: string
         <div className="text-center py-16 text-neutral-700 text-sm">
           <p className="text-3xl mb-3">{agentEmoji}</p>
           <p className="text-neutral-600 text-sm">{agentName} chưa có lần chạy nào</p>
-          <p className="text-xs mt-1 text-neutral-700">Nhấn "Chạy phân tích ngay" để bắt đầu</p>
+          <p className="text-xs mt-1 text-neutral-700 mb-5">Nhấn nút bên dưới để chạy lần đầu</p>
+          <button
+            onClick={onTrigger}
+            disabled={triggerLoading}
+            className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+            style={{ background: '#FF9500' }}
+          >
+            {triggerLoading ? 'Đang chạy...' : '▶ Chạy phân tích ngay'}
+          </button>
         </div>
       ) : (
         runs.map(run => {
