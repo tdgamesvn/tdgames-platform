@@ -8,7 +8,6 @@ import { supabase } from '@/services/supabaseClient';
 import DocumentManager from './DocumentManager';
 import ContractGenerator from './ContractGenerator';
 import EquipmentHandoverSection from './EquipmentHandoverSection';
-import ParkingRegistrationSection from './ParkingRegistrationSection';
 
 interface Props {
   employee: HrEmployee;
@@ -18,7 +17,7 @@ interface Props {
   onEdit: (e: HrEmployee) => void;
 }
 
-type DetailTab = 'info' | 'tasks' | 'contracts' | 'equipment' | 'parking' | 'evaluations' | 'projects' | 'documents' | 'timeline';
+type DetailTab = 'info' | 'tasks' | 'contracts' | 'equipment' | 'evaluations' | 'projects' | 'documents' | 'timeline';
 
 const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, onBack, onEdit }) => {
   const [activeTab, setActiveTab] = useState<DetailTab>('info');
@@ -43,7 +42,6 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   const [recentKPI, setRecentKPI] = useState<FulltimeKPI | null>(null);
   const [loading, setLoading] = useState(false);
   const [equipmentCount, setEquipmentCount] = useState(0);
-  const [parkingCount, setParkingCount] = useState(0);
 
   // Role change state
   const [currentRole, setCurrentRole] = useState<string>('');
@@ -129,18 +127,16 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       setLoading(true);
       try {
         const office = employee.type === 'fulltime' || employee.type === 'parttime';
-        const [c, e, p, handovers, parking] = await Promise.all([
+        const [c, e, p, handovers] = await Promise.all([
           svc.fetchContracts(employee.id),
           svc.fetchEvaluations(employee.id),
           svc.fetchProjectHistory(employee.id),
           office ? svc.fetchEquipmentHandovers(employee.id) : Promise.resolve([]),
-          office ? svc.fetchParkingRegistrations(employee.id) : Promise.resolve([]),
         ]);
         setContracts(c);
         setEvaluations(e);
         setProjectHistory(p);
         setEquipmentCount(office ? handovers.length : 0);
-        setParkingCount(office ? parking.length : 0);
 
         if (employee.worker_id) {
           // Fetch tasks for this worker
@@ -425,22 +421,18 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
     rejected: 'Từ chối',
   };
 
-  const reloadEquipmentParkingCounts = useCallback(async () => {
+  const reloadEquipmentCount = useCallback(async () => {
     if (!isOfficeStaffType) return;
     try {
-      const [h, pk] = await Promise.all([
-        svc.fetchEquipmentHandovers(employee.id),
-        svc.fetchParkingRegistrations(employee.id),
-      ]);
+      const h = await svc.fetchEquipmentHandovers(employee.id);
       setEquipmentCount(h.length);
-      setParkingCount(pk.length);
     } catch {
       /* ignore */
     }
   }, [employee.id, isOfficeStaffType]);
 
   useEffect(() => {
-    if (!isOfficeStaffType && (activeTab === 'equipment' || activeTab === 'parking')) {
+    if (!isOfficeStaffType && activeTab === 'equipment') {
       setActiveTab('info');
     }
   }, [employee.type, activeTab, isOfficeStaffType]);
@@ -617,7 +609,6 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         {isOfficeStaffType && (
           <>
             <button className={tabCls('equipment')} onClick={() => setActiveTab('equipment')}>🧰 Bàn giao dụng cụ ({equipmentCount})</button>
-            <button className={tabCls('parking')} onClick={() => setActiveTab('parking')}>🅿️ Gửi xe ({parkingCount})</button>
           </>
         )}
         <button className={tabCls('evaluations')} onClick={() => setActiveTab('evaluations')}>⭐ Đánh giá ({evaluations.length})</button>
@@ -729,6 +720,18 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
             {infoPair('Số TK', employee.bank_account)}
             {infoPair('Tên chủ TK', employee.bank_branch)}
           </div>
+          {(employee.license_plate || employee.vehicle_type) && (
+            <div className="rounded-[20px] border border-primary/10 bg-surface p-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">🚗 Xe & Gửi xe</h3>
+              {infoPair('Loại xe', ({
+                motorcycle: 'Xe máy', car: 'Ô tô', bicycle: 'Xe đạp',
+                electric_bike: 'Xe máy điện', other: 'Khác',
+              } as Record<string, string>)[employee.vehicle_type] || employee.vehicle_type)}
+              {infoPair('Nhãn hiệu', employee.vehicle_brand)}
+              {infoPair('Màu xe', employee.vehicle_color)}
+              {infoPair('Biển số', employee.license_plate)}
+            </div>
+          )}
           {employee.notes && (
             <div className="rounded-[20px] border border-primary/10 bg-surface p-6">
               <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">Ghi chú</h3>
@@ -866,14 +869,10 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         <EquipmentHandoverSection
           employee={employee}
           department={dept}
-          onListChange={reloadEquipmentParkingCounts}
+          onListChange={reloadEquipmentCount}
         />
       )}
 
-      {/* Parking Tab — chỉ FT/PT */}
-      {!loading && isOfficeStaffType && activeTab === 'parking' && (
-        <ParkingRegistrationSection employee={employee} onListChange={reloadEquipmentParkingCounts} />
-      )}
 
       {/* Contracts Tab */}
       {!loading && activeTab === 'contracts' && (

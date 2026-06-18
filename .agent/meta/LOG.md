@@ -1,5 +1,47 @@
 # LOG
 
+## 2026-06-18
+### Task
+Đơn giản hóa parking: thay tab "Gửi xe" riêng (bảng `hr_parking_registrations`) bằng 4 field inline trong `hr_employees` — đúng pattern bank info
+
+### Work Done
+- Apply Supabase migration: thêm 4 cột `vehicle_type`, `license_plate`, `vehicle_brand`, `vehicle_color` vào `hr_employees` (NOT NULL DEFAULT '')
+- `portalService.ts`: thêm 4 vehicle fields vào `EMPLOYEE_EDITABLE_FIELDS` để `updateMyProfile` cho phép lưu
+- `ProfileTab.tsx` (Portal): thêm section 🚗 Xe & Gửi xe inline sau section 🏦 bank info
+- `PortalApp.tsx`: xóa toàn bộ parking tab (import, type, TAB_MAP/LABELS/REVERSE, accessibleTabs, useEffect, rendering block)
+- `EmployeeForm.tsx` (HR): thêm section 🚗 sau section 🏦 (vehicle fields đã có trong initial state)
+- `EmployeeDetail.tsx` (HR): xóa parking tab (type, button, content, reloadEquipmentParkingCounts → reloadEquipmentCount), thêm vehicle display inline sau bank info
+- Xóa file `ParkingTab.tsx` và `ParkingRegistrationSection.tsx` (không còn được dùng)
+
+### Validation
+- `npm run build` thành công sau tất cả thay đổi
+- `npm run build` thành công sau cleanup
+
+### Result
+- Thông tin xe nhân viên giờ lưu trực tiếp trong `hr_employees` (1 xe/nhân viên)
+- UI: section inline trong cả Portal (ProfileTab) và HR (EmployeeForm + EmployeeDetail view)
+- Tab "Gửi xe" đã bị xóa khỏi Portal navigation
+- Bảng `hr_parking_registrations` vẫn còn trong DB (không drop) nhưng UI không dùng nữa
+
+## 2026-06-17 (session 6)
+### Task
+Fix bug `query_data_integrity` trong Edge Function `agent-run` — TypeError khi gọi `.catch()` trên PostgrestBuilder
+
+### Root Cause
+`supabase.rpc('query_data_integrity_no_salary').catch(...)` — `PostgrestBuilder` trong Deno là "thenable" (implement `.then()`) nhưng không implement `.catch()`. Kết quả: `TypeError: ... .catch is not a function` → tool crash → agent report thiếu data integrity section.
+
+### Fix
+- Thay `.catch(() => ({ data: null }))` bằng `try/catch` block tại line 328 trong `supabase/functions/agent-run/index.ts`
+- Xác nhận 2 `.catch()` còn lại (line 523 trên `fetch()`, line 759 trên `req.json()`) là native Promise — OK
+
+### Validation
+- Deployed lên Supabase Edge Functions thành công → version 17 ACTIVE
+
+### Result
+- `query_data_integrity` tool hoạt động đúng — không còn crash khi RPC call thất bại
+
+---
+
 ## 2026-06-17 (session 5)
 ### Task
 Deploy tất cả pending changes lên production

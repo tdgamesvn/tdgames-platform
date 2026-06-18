@@ -13,6 +13,15 @@ const readOnlyCls = "w-full bg-white/[0.02] border border-white/[0.06] rounded-x
 const labelCls = "text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2 block";
 const sectionCls = "rounded-[20px] border border-primary/10 bg-[#161616] p-6 md:p-8 space-y-6";
 
+const VEHICLE_LABELS: Record<string, string> = {
+  '': '-- Chọn --',
+  motorcycle: 'Xe máy',
+  car: 'Ô tô',
+  bicycle: 'Xe đạp',
+  electric_bike: 'Xe máy điện',
+  other: 'Khác',
+};
+
 // Fields that employees can edit
 const EDITABLE_FIELDS = [
   'full_name', 'email', 'phone', 'date_of_birth', 'gender', 'nationality',
@@ -20,6 +29,7 @@ const EDITABLE_FIELDS = [
   'avatar_url', 'id_card_front_url', 'id_card_back_url',
   'tax_code', 'insurance_number',
   'bank_name', 'bank_account', 'bank_branch',
+  'vehicle_type', 'license_plate', 'vehicle_brand', 'vehicle_color',
 ];
 
 // Fields used for completion calculation
@@ -380,6 +390,53 @@ const ProfileTab: React.FC<Props> = ({ currentUser, onToast }) => {
           <div>
             <label className={labelCls}>Chi nhánh</label>
             <input className={inputCls} value={form.bank_branch || ''} onChange={e => updateField('bank_branch', e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section: Vehicle Info ── */}
+      <div className={sectionCls}>
+        <h3 className="text-lg font-black text-white uppercase tracking-tight">🚗 Xe & Gửi xe</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className={labelCls}>Loại xe</label>
+            <select
+              className={inputCls}
+              style={{ colorScheme: 'dark' }}
+              value={form.vehicle_type || ''}
+              onChange={e => updateField('vehicle_type', e.target.value)}
+            >
+              {Object.entries(VEHICLE_LABELS).map(([k, v]) => (
+                <option key={k} value={k} style={{ background: '#1A1A1A' }}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls}>Nhãn hiệu xe</label>
+            <input
+              className={inputCls}
+              value={form.vehicle_brand || ''}
+              onChange={e => updateField('vehicle_brand', e.target.value)}
+              placeholder="Honda, Yamaha, Toyota…"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Màu xe</label>
+            <input
+              className={inputCls}
+              value={form.vehicle_color || ''}
+              onChange={e => updateField('vehicle_color', e.target.value)}
+              placeholder="Đen, Trắng, Xám…"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Biển số xe</label>
+            <input
+              className={inputCls}
+              value={form.license_plate || ''}
+              onChange={e => updateField('license_plate', e.target.value.toUpperCase())}
+              placeholder="59A1-123.45"
+            />
           </div>
         </div>
       </div>

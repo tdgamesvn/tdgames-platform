@@ -42,8 +42,19 @@ const emptyEmployee = {
   payment_method: '', payment_details: {} as Record<string, any>,
   // Bank
   bank_name: '', bank_account: '', bank_branch: '',
+  // Vehicle
+  vehicle_type: '', license_plate: '', vehicle_brand: '', vehicle_color: '',
   // Meta
   notes: '', tags: [] as string[],
+};
+
+const VEHICLE_LABELS: Record<string, string> = {
+  '': '-- Không có --',
+  motorcycle: 'Xe máy',
+  car: 'Ô tô',
+  bicycle: 'Xe đạp',
+  electric_bike: 'Xe máy điện',
+  other: 'Khác',
 };
 
 const emptyContract: Omit<HrContract, 'id' | 'created_at'> = {
@@ -959,6 +970,53 @@ const EmployeeForm: React.FC<Props> = ({
             <div>
               <label className={labelCls}>Tên chủ tài khoản</label>
               <input className={inputCls} value={form.bank_branch} onChange={e => setForm(f => ({ ...f, bank_branch: e.target.value }))} />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Section: Vehicle Info ── */}
+        <div className={sectionCls}>
+          <h3 className="text-lg font-black text-white uppercase tracking-tight">🚗 Xe & Gửi xe</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className={labelCls}>Loại xe</label>
+              <select
+                className={inputCls}
+                style={{ colorScheme: 'dark' }}
+                value={form.vehicle_type}
+                onChange={e => setForm(f => ({ ...f, vehicle_type: e.target.value }))}
+              >
+                {Object.entries(VEHICLE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Nhãn hiệu xe</label>
+              <input
+                className={inputCls}
+                value={form.vehicle_brand}
+                onChange={e => setForm(f => ({ ...f, vehicle_brand: e.target.value }))}
+                placeholder="Honda, Yamaha, Toyota…"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Màu xe</label>
+              <input
+                className={inputCls}
+                value={form.vehicle_color}
+                onChange={e => setForm(f => ({ ...f, vehicle_color: e.target.value }))}
+                placeholder="Đen, Trắng, Xám…"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Biển số xe</label>
+              <input
+                className={inputCls}
+                value={form.license_plate}
+                onChange={e => setForm(f => ({ ...f, license_plate: e.target.value.toUpperCase() }))}
+                placeholder="59A1-123.45"
+              />
             </div>
           </div>
         </div>

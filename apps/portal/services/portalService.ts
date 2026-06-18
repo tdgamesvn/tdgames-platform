@@ -129,6 +129,7 @@ const EMPLOYEE_EDITABLE_FIELDS = [
   'avatar_url', 'id_card_front_url', 'id_card_back_url',
   'tax_code', 'insurance_number',
   'bank_name', 'bank_account', 'bank_branch',
+  'vehicle_type', 'license_plate', 'vehicle_brand', 'vehicle_color',
 ];
 
 /** Đăng ký gửi xe — chỉ 3 trường chính (còn lại để trống / mặc định trong DB). */
