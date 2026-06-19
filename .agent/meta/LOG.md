@@ -1,5 +1,26 @@
 # LOG
 
+## 2026-06-19
+### Task
+Thêm nút "Điều chỉnh lương" trên card đề xuất đã duyệt (HR)
+
+### Work Done
+- Phân tích luồng: `approveChangeRequest` → `rotateSalary` → DB cập nhật ngay, không cần truyền prefill salary
+- Sửa `ChangeRequestTab.tsx`:
+  - Thêm prop `onAdjustSalary` vào `CardProps` + `RequestCard`
+  - Thêm button "💰 Điều chỉnh lương" (SM outline orange) trong expanded section — chỉ hiện khi `status=approved && type=salary_change && isAdmin`
+  - Thay `showForm: boolean` → `formInit: { employeeId, type } | null`
+  - Truyền `onAdjustSalary` callback từ list xuống từng card
+  - Modal `ChangeRequestForm` dùng `formInit.employeeId` + `formInit.type`
+- `ChangeRequestForm.tsx`: không cần sửa (đã có `initialEmployeeId` + `initialType`)
+
+### Validation
+- `npm run build` ✅ pass (7.79s)
+
+### Result
+- HR/admin click "Điều chỉnh lương" trên card approved → modal mở sẵn nhân viên + type salary_change
+- Lương hiện tại load từ DB (đã được cập nhật sau approve) → HR chỉ sửa số, submit → pending mới
+
 ## 2026-06-18
 ### Task
 Đơn giản hóa parking: thay tab "Gửi xe" riêng (bảng `hr_parking_registrations`) bằng 4 field inline trong `hr_employees` — đúng pattern bank info

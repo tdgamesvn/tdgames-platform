@@ -451,6 +451,12 @@ export interface HrEmployee {
   bank_account: string;
   bank_branch: string;
 
+  // Vehicle info
+  vehicle_type: string;
+  license_plate: string;
+  vehicle_brand: string;
+  vehicle_color: string;
+
   // Meta
   notes: string;
   tags: string[];

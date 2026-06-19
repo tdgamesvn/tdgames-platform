@@ -138,6 +138,20 @@ const TOOL_DEFINITIONS = [
   {
     type: 'function' as const,
     function: {
+      name: 'query_system_health_history',
+      description: 'Truy vấn lịch sử uptime từ bảng system_health_checks. Trả về uptime % theo từng service, latency trung bình, số lần incident, và dịch vụ hay bị lỗi lặp lại. Dùng để phân tích SLA và uptime trend.',
+      parameters: {
+        type: 'object',
+        properties: {
+          days: { type: 'number', description: 'Số ngày nhìn lại (mặc định 7)' },
+          service_name: { type: 'string', description: 'Lọc theo tên service cụ thể (bỏ trống = tất cả)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
       name: 'check_system_health',
       description: 'Kiểm tra uptime và latency của các dịch vụ TD Games (HTTP ping + Supabase health). Dùng khi cần giám sát hệ thống.',
       parameters: {
@@ -311,7 +325,8 @@ async function executeTool(
       case 'query_data_integrity': {
         const results: Record<string, unknown> = {};
         // Employees without salary record
-        const { data: noSalary } = await supabase.rpc('query_data_integrity_no_salary').catch(() => ({ data: null }));
+        let noSalary: unknown = null;
+        try { const { data } = await supabase.rpc('query_data_integrity_no_salary'); noSalary = data; } catch (_) { /* ignore */ }
         // Fallback: manual check
         const { data: empCount } = await supabase.from('hr_employees').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('type', 'fulltime');
         const { data: salaryCount } = await supabase.from('hr_employee_salary').select('employee_id', { count: 'exact', head: true });
@@ -352,6 +367,54 @@ async function executeTool(
         }
         return JSON.stringify({ period_days: days, total_notifications: total, unread, read_rate_pct: total > 0 ? Math.round(((total - unread) / total) * 100) : 0, by_type: byType });
       }
+      case 'query_system_health_history': {
+        const days = args.days || 7;
+        const since = new Date(Date.now() - days * 86400000).toISOString();
+        let q = supabase
+          .from('system_health_checks')
+          .select('service_name, service_type, status, latency_ms, error_msg, checked_at')
+          .gte('checked_at', since)
+          .order('checked_at', { ascending: false })
+          .limit(1000);
+        if (args.service_name) q = q.eq('service_name', args.service_name);
+        const { data, error } = await q;
+        if (error) return JSON.stringify({ error: error.message });
+        // Aggregate per service
+        const services: Record<string, { total: number; up: number; down: number; degraded: number; latencies: number[]; last_incident: string | null; errors: string[] }> = {};
+        for (const r of (data || [])) {
+          if (!services[r.service_name]) {
+            services[r.service_name] = { total: 0, up: 0, down: 0, degraded: 0, latencies: [], last_incident: null, errors: [] };
+          }
+          const s = services[r.service_name];
+          s.total++;
+          if (r.status === 'up') s.up++;
+          else if (r.status === 'down') {
+            s.down++;
+            if (!s.last_incident) s.last_incident = r.checked_at;
+            if (r.error_msg && s.errors.length < 3) s.errors.push(r.error_msg);
+          } else if (r.status === 'degraded') {
+            s.degraded++;
+            if (!s.last_incident) s.last_incident = r.checked_at;
+          }
+          if (r.latency_ms) s.latencies.push(r.latency_ms);
+        }
+        const result = Object.entries(services).map(([name, s]) => ({
+          service: name,
+          total_checks: s.total,
+          uptime_pct: s.total > 0 ? Math.round((s.up / s.total) * 1000) / 10 : null,
+          incident_count: s.down + s.degraded,
+          down_count: s.down,
+          degraded_count: s.degraded,
+          avg_latency_ms: s.latencies.length > 0 ? Math.round(s.latencies.reduce((a, b) => a + b, 0) / s.latencies.length) : null,
+          max_latency_ms: s.latencies.length > 0 ? Math.max(...s.latencies) : null,
+          last_incident_at: s.last_incident,
+          sample_errors: s.errors,
+        }));
+        // Flag services with SLA miss (<99.5%) or recurring issues (>3 incidents)
+        const sla_target = 99.5;
+        const alerts = result.filter(s => (s.uptime_pct !== null && s.uptime_pct < sla_target) || s.incident_count > 3);
+        return JSON.stringify({ period_days: days, sla_target_pct: sla_target, services: result, sla_alerts: alerts });
+      }
       case 'check_system_health': {
         const DEFAULT_SERVICES = [
           { name: 'app.tdgamestudio.com',      url: 'https://app.tdgamestudio.com' },
@@ -377,7 +440,11 @@ async function executeTool(
             try {
               const ctrl = new AbortController();
               setTimeout(() => ctrl.abort(), TIMEOUT);
-              const res = await fetch(`${supabaseUrl}/health`, { signal: ctrl.signal });
+              const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+              const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
+                signal: ctrl.signal,
+                headers: { 'apikey': anonKey },
+              });
               return { service_name: 'supabase', service_type: 'supabase',
                 status: res.ok ? 'up' : 'degraded', latency_ms: Date.now() - start,
                 status_code: res.status, error_msg: res.ok ? null : `HTTP ${res.status}`,
@@ -411,7 +478,9 @@ async function executeTool(
         ]);
 
         // Persist to system_health_checks
-        await supabase.from('system_health_checks').insert(checks).catch(() => {});
+        try {
+          await supabase.from('system_health_checks').insert(checks);
+        } catch (_) { /* ignore persist errors */ }
 
         const summary = checks.map(c => ({
           service: c.service_name,
@@ -535,7 +604,7 @@ ${guidelines}`;
     chro: 'Chạy phân tích HR hàng ngày. Kiểm tra: (1) NV sắp hết thử việc, (2) đề xuất đang chờ duyệt, (3) đánh giá chưa hoàn thành, (4) nghỉ phép bất thường. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     cfo: 'Chạy phân tích tài chính hàng ngày. Kiểm tra: (1) hoá đơn quá hạn chưa thanh toán, (2) chi phí bất thường, (3) tổng chi lương vs doanh thu, (4) dòng tiền tháng này. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     ceo: 'Chạy phân tích tổng quan công ty hàng ngày. Kiểm tra: (1) tình hình nhân sự (probation, nghỉ phép, đánh giá), (2) đề xuất chưa xử lý, (3) sức khoẻ tài chính, (4) rủi ro cross-functional. Tạo insight cho mỗi phát hiện quan trọng. Cuối cùng tóm tắt executive summary.',
-    cto: 'Chạy phân tích kỹ thuật toàn diện hàng ngày theo 4 bước: (1) Gọi check_system_health() — kiểm tra uptime tất cả domains và Supabase, tạo insight nếu có service down/degraded. (2) Gọi query_ai_system_health() — kiểm tra tất cả AI agents 7 ngày qua, phát hiện agent lỗi cao hoặc không chạy. (3) Gọi query_data_integrity() — phát hiện nhân viên thiếu lương/leave balance. (4) Gọi query_notifications_health() — kiểm tra delivery rate. Tạo insight cho mỗi phát hiện quan trọng. Cuối cùng viết executive summary về sức khoẻ kỹ thuật tổng thể.',
+    cto: 'Chạy phân tích kỹ thuật toàn diện theo 5 bước. Bước 1: check_system_health() — ping tất cả domains + Supabase ngay bây giờ, tạo P1 insight (action_required, priority 9) nếu service down, P2 (warning, priority 6) nếu degraded hoặc latency >3s. Bước 2: query_system_health_history(days=7) — xem uptime trend tuần qua, tính uptime % từng service, tạo P2 insight nếu có service uptime <99.5% hoặc >3 incidents. Bước 3: query_ai_system_health(days=7) — kiểm tra tất cả AI agents, tạo insight nếu fail rate >20% hoặc agent không chạy >24h. Bước 4: query_data_integrity() — phát hiện nhân viên thiếu lương/leave balance, tạo insight nếu có. Bước 5: query_notifications_health() — kiểm tra delivery rate, cảnh báo nếu unread backlog >50 hoặc read rate <70%. Sau mỗi bước gọi create_insight() cho từng phát hiện quan trọng. Kết thúc viết executive summary: tổng kết sức khoẻ hệ thống theo màu 🟢/🟡/🔴 cho từng lĩnh vực.',
     sales: 'Chạy phân tích sales hàng ngày. Kiểm tra: (1) hoá đơn quá hạn chưa thu tiền, (2) doanh thu tháng này vs tháng trước, (3) client nào đang active/inactive, (4) pipeline health. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     pm: 'Chạy phân tích project hàng ngày. Kiểm tra: (1) nhân viên nào đang quá tải hoặc rảnh, (2) ai nghỉ phép tuần này ảnh hưởng delivery, (3) đánh giá chưa hoàn thành, (4) phân bổ nhân lực theo phòng ban. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',
     ops: 'Chạy phân tích vận hành tuần này. Kiểm tra: (1) hợp đồng/thử việc sắp hết hạn, (2) chi phí vận hành bất thường, (3) deadline thuế/BHXH/báo cáo sắp tới, (4) đề xuất nhân sự chưa xử lý. Tạo insight cho mỗi phát hiện. Cuối cùng tóm tắt ngắn gọn.',

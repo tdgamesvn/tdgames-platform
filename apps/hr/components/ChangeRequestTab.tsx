@@ -100,9 +100,10 @@ interface CardProps {
   onRefresh: () => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
   isHighlighted?: boolean;
+  onAdjustSalary?: (employeeId: string) => void;
 }
 
-const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast, isHighlighted }) => {
+const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast, isHighlighted, onAdjustSalary }) => {
   const [expanded, setExpanded] = useState(!!isHighlighted);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -336,6 +337,18 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
             )}
           </div>
 
+          {/* ── Adjust salary shortcut (approved salary_change only) ── */}
+          {req.status === 'approved' && req.request_type === 'salary_change' && isAdmin && onAdjustSalary && (
+            <div className="pt-1 border-t border-white/5">
+              <button
+                onClick={() => onAdjustSalary(req.employee_id)}
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
+              >
+                💰 Điều chỉnh lương
+              </button>
+            </div>
+          )}
+
           {/* ── Action buttons for pending ── */}
           {req.status === 'pending' && (
             <div className="space-y-3 pt-1">
@@ -407,7 +420,7 @@ const ChangeRequestTab: React.FC<Props> = ({
   highlightId,
 }) => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
-  const [showForm, setShowForm] = useState(false);
+  const [formInit, setFormInit] = useState<{ employeeId: string | null; type: HrChangeRequestType | null } | null>(null);
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
@@ -434,7 +447,7 @@ const ChangeRequestTab: React.FC<Props> = ({
           <p className="text-neutral-medium text-sm mt-1">Quản lý & duyệt các đề xuất thay đổi</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => setFormInit({ employeeId: null, type: null })}
           className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all"
           style={{ background: 'linear-gradient(135deg, #FF9500 0%, #FF6B00 100%)' }}
         >
@@ -495,24 +508,25 @@ const ChangeRequestTab: React.FC<Props> = ({
               onRefresh={onRefresh}
               onToast={onToast}
               isHighlighted={req.id === highlightId}
+              onAdjustSalary={(empId) => setFormInit({ employeeId: empId, type: 'salary_change' })}
             />
           ))}
         </div>
       )}
 
-      {/* ── Create form modal ── */}
-      {showForm && (
+      {/* ── Create / Adjust form modal ── */}
+      {formInit !== null && (
         <ChangeRequestForm
           employees={employees}
           departments={departments}
-          initialEmployeeId={null}
-          initialType={null}
+          initialEmployeeId={formInit.employeeId}
+          initialType={formInit.type}
           onSubmit={() => {
-            setShowForm(false);
+            setFormInit(null);
             onRefresh();
             onToast('Đã tạo đề xuất thành công', 'success');
           }}
-          onClose={() => setShowForm(false)}
+          onClose={() => setFormInit(null)}
         />
       )}
     </div>

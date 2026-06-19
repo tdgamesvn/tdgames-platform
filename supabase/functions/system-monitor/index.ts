@@ -71,7 +71,11 @@ async function checkSupabase(supabaseUrl: string): Promise<CheckResult> {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const res = await fetch(`${supabaseUrl}/health`, { signal: ctrl.signal });
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
+    const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
+      signal: ctrl.signal,
+      headers: { 'apikey': anonKey },
+    });
     clearTimeout(timer);
     const latency = Date.now() - start;
     const body = await res.json().catch(() => ({}));
