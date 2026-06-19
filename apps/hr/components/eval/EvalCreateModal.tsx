@@ -70,9 +70,9 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
     const base = employees.filter(e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime'));
 
     if (periodType === 'probation') {
-      // Only employees still in probation (probation_end is in the future, or up to 14 days past)
+      // Only employees still in probation (probation_end is in the future, or up to 60 days past)
       return base
-        .filter(e => e.probation_end && daysUntil(e.probation_end) !== null && daysUntil(e.probation_end)! > -14)
+        .filter(e => e.probation_end && daysUntil(e.probation_end) !== null && daysUntil(e.probation_end)! > -60)
         .map(e => ({ emp: e, days: daysUntil(e.probation_end), dateLabel: e.probation_end! }))
         .sort((a, b) => (a.days ?? 999) - (b.days ?? 999)); // sắp xếp gần nhất lên trên
     } else {
@@ -161,7 +161,7 @@ const EvalCreateModal: React.FC<EvalCreateModalProps> = ({ employees, currentUse
                     icon: '🧪',
                     title: 'Đánh giá hết thử việc',
                     desc: 'Dành cho nhân viên đang trong giai đoạn thử việc',
-                    count: employees.filter(e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime') && e.probation_end && daysUntil(e.probation_end)! > -14).length,
+                    count: employees.filter(e => e.status === 'active' && (e.type === 'fulltime' || e.type === 'parttime') && e.probation_end && daysUntil(e.probation_end)! > -60).length,
                     countLabel: 'NV đang thử việc',
                   },
                   {
