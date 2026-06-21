@@ -22,7 +22,7 @@ import SystemMonitorApp from './apps/system-monitor/components/SystemMonitorApp'
 import { supabase } from './services/supabaseClient';
 import { ExchangeRateProvider } from './services/ExchangeRateContext';
 
-const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer'] as const;
+const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
 const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent', 'system-monitor'];
 

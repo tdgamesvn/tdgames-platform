@@ -53,7 +53,7 @@ export const APPS: AppConfig[] = [
     description: 'Quản lý khách hàng tập trung',
     color: '#0A84FF',
     gradient: 'linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%)',
-    roles: ['admin', 'ke_toan'],
+    roles: ['admin', 'ke_toan', 'bd'],
   },
   {
     id: 'hr',
@@ -89,7 +89,7 @@ export const APPS: AppConfig[] = [
     description: 'Thông tin cá nhân & bảng lương',
     color: '#06B6D4',
     gradient: 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-    roles: ['member'],
+    roles: ['member', 'bd'],
   },
   {
     id: 'freelancer-portal',
