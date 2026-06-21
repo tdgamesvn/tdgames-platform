@@ -337,8 +337,8 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
             )}
           </div>
 
-          {/* ── Adjust salary shortcut (approved salary_change only) ── */}
-          {req.status === 'approved' && req.request_type === 'salary_change' && isAdmin && onAdjustSalary && (
+          {/* ── Adjust salary shortcut (approved salary_change or probation_end) ── */}
+          {req.status === 'approved' && (req.request_type === 'salary_change' || req.request_type === 'probation_end') && isAdmin && onAdjustSalary && (
             <div className="pt-1 border-t border-white/5">
               <button
                 onClick={() => onAdjustSalary(req.employee_id)}

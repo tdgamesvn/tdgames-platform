@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
 import { AccountUser } from '@/types';
 
-const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member'] as const;
+const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd'] as const;
 type ValidRole = typeof VALID_ROLES[number];
 const parseRole = (r: string): ValidRole =>
   VALID_ROLES.includes(r as ValidRole) ? (r as ValidRole) : 'member';
