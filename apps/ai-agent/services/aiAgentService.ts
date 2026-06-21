@@ -58,8 +58,24 @@ export async function fetchAllAgents(): Promise<AiAgent[]> {
   const { data, error } = await supabase
     .from('ai_agents')
     .select('*')
+    .eq('is_active', true)
     .order('created_at');
   if (error) { console.error('fetchAllAgents:', error); return []; }
+  return data || [];
+}
+
+// ── Fetch all insights across agents (unified feed) ─────────────
+export async function fetchAllInsights(
+  opts?: { status?: string; limit?: number },
+): Promise<AiInsight[]> {
+  let q = supabase
+    .from('ai_agent_insights')
+    .select('*')
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: false });
+  if (opts?.status) q = q.eq('status', opts.status);
+  const { data, error } = await q.limit(opts?.limit || 100);
+  if (error) { console.error('fetchAllInsights:', error); return []; }
   return data || [];
 }
 

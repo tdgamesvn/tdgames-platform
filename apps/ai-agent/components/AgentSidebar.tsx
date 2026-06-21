@@ -8,9 +8,11 @@ interface AgentSidebarProps {
   agents: AiAgent[];
   selectedAgentId: string;
   onSelectAgent: (id: string) => void;
+  isFeedView: boolean;
+  onSelectFeed: () => void;
 }
 
-const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, onSelectAgent }) => {
+const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, onSelectAgent, isFeedView, onSelectFeed }) => {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(SIDEBAR_KEY) === 'true'; } catch { return false; }
   });
@@ -44,6 +46,28 @@ const AgentSidebar: React.FC<AgentSidebarProps> = ({ agents, selectedAgentId, on
 
       {/* Agent list */}
       <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+        {/* Feed entry — always first */}
+        <button
+          onClick={onSelectFeed}
+          title={collapsed ? 'Feed' : undefined}
+          className={`w-full flex items-center transition-all rounded-xl overflow-hidden ${collapsed ? 'justify-center p-2' : 'gap-2.5 px-2.5 py-2'}`}
+          style={isFeedView
+            ? { background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.25)', boxShadow: '0 2px 12px rgba(255,149,0,0.1)' }
+            : { background: 'transparent', border: '1px solid transparent' }
+          }
+        >
+          <span className={`shrink-0 transition-all ${collapsed ? 'text-xl' : 'text-base'} ${isFeedView ? 'drop-shadow-[0_0_6px_rgba(255,149,0,0.5)]' : ''}`}>
+            📋
+          </span>
+          {!collapsed && (
+            <span className={`text-xs truncate flex-1 text-left ${isFeedView ? 'text-white font-black' : 'text-neutral-500 font-semibold hover:text-neutral-300'}`}>
+              Feed
+            </span>
+          )}
+        </button>
+        {/* Separator */}
+        <div className="my-1 border-t border-white/5" />
+
         {agents.map(a => {
           const isActive = a.id === selectedAgentId;
           return (

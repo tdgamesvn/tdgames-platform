@@ -4,12 +4,13 @@ import AppBackground from '@/components/AppBackground';
 import { Navbar } from '@/components/Navbar';
 import { AccountUser } from '@/types';
 import {
-  fetchAgent, fetchAllAgents, fetchInsights, fetchRuns, fetchEpisodes,
+  fetchAgent, fetchAllAgents, fetchAllInsights, fetchInsights, fetchRuns, fetchEpisodes,
   fetchAgentStats, fetchConversations, updateInsightStatus, triggerManualRun,
   AiAgent, AiInsight, AiRun, AiEpisode, AiConversation, AgentStats,
 } from '../services/aiAgentService';
 import { timeAgo, timeAgoShort, fmtDuration, AGENT_EMPTY_STATE } from '../utils';
 import AgentSidebar from './AgentSidebar';
+import FeedPanel from './FeedPanel';
 import InsightsPanel from './InsightsPanel';
 import RunsPanel from './RunsPanel';
 import MemoryPanel from './MemoryPanel';
@@ -34,6 +35,8 @@ const KpiIcon: React.FC<{ emoji: string; color: string }> = ({ emoji, color }) =
 
 const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [activeTab, setActiveTab]           = useState<string>(initialTab || 'insights');
+  const [isFeedView, setIsFeedView]         = useState<boolean>(true);
+  const [feedInsights, setFeedInsights]     = useState<AiInsight[]>([]);
   const [allAgents, setAllAgents]           = useState<AiAgent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('chro');
   const [agent, setAgent]                   = useState<AiAgent | null>(null);
@@ -55,17 +58,22 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     if (!silent) {
       if (isFirstLoad.current) setLoading(true); else setAgentSwitching(true);
     }
-    const [agents, ag, st, ins, rns, eps, convs] = await Promise.all([
-      fetchAllAgents(), fetchAgent(selectedAgentId), fetchAgentStats(selectedAgentId),
-      fetchInsights(selectedAgentId), fetchRuns(selectedAgentId),
-      fetchEpisodes(selectedAgentId), fetchConversations(selectedAgentId),
-    ]);
-    setAllAgents(agents); setAgent(ag); setStats(st);
-    setInsights(ins); setRuns(rns); setEpisodes(eps); setConversations(convs);
+    if (isFeedView) {
+      const [agents, allIns] = await Promise.all([fetchAllAgents(), fetchAllInsights()]);
+      setAllAgents(agents); setFeedInsights(allIns);
+    } else {
+      const [agents, ag, st, ins, rns, eps, convs] = await Promise.all([
+        fetchAllAgents(), fetchAgent(selectedAgentId), fetchAgentStats(selectedAgentId),
+        fetchInsights(selectedAgentId), fetchRuns(selectedAgentId),
+        fetchEpisodes(selectedAgentId), fetchConversations(selectedAgentId),
+      ]);
+      setAllAgents(agents); setAgent(ag); setStats(st);
+      setInsights(ins); setRuns(rns); setEpisodes(eps); setConversations(convs);
+    }
     setLastUpdatedAt(Date.now());
     isFirstLoad.current = false;
     setLoading(false); setAgentSwitching(false);
-  }, [selectedAgentId]);
+  }, [selectedAgentId, isFeedView]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -86,8 +94,14 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   }, [toast]);
 
   const switchAgent = (id: string) => {
+    setIsFeedView(false);
     setSelectedAgentId(id);
     setInsightFilter('all');
+  };
+
+  const switchToFeed = () => {
+    setIsFeedView(true);
+    setSelectedAgentId('');
   };
 
   const handleTrigger = async () => {
@@ -106,6 +120,7 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     const ok = await updateInsightStatus(id, action, currentUser.id);
     if (ok) {
       setInsights(prev => prev.map(i => i.id === id ? { ...i, status: action } : i));
+      setFeedInsights(prev => prev.map(i => i.id === id ? { ...i, status: action } : i));
       setToast({ msg: action === 'reviewed' ? 'Đã đánh dấu xem xét' : 'Đã bỏ qua', type: 'success' });
     }
   };
@@ -161,8 +176,22 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       {allAgents.length > 0 && (
         <div className="lg:hidden flex items-center gap-2 px-3 py-2 border-b border-white/8 overflow-x-auto shrink-0 relative z-10"
           style={{ background: 'rgba(255,255,255,0.01)' }}>
+          {/* Feed pill — always first */}
+          <button
+            onClick={switchToFeed}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shrink-0 transition-all"
+            style={isFeedView
+              ? { background: 'rgba(255,149,0,0.12)', border: '1px solid rgba(255,149,0,0.3)' }
+              : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }
+            }
+          >
+            <span className="text-base">📋</span>
+            <span className={`text-[11px] font-semibold whitespace-nowrap ${isFeedView ? 'text-white' : 'text-neutral-400'}`}>
+              Feed
+            </span>
+          </button>
           {allAgents.map(a => {
-            const isActive = a.id === selectedAgentId;
+            const isActive = !isFeedView && a.id === selectedAgentId;
             return (
               <button
                 key={a.id}
@@ -191,6 +220,8 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           agents={allAgents}
           selectedAgentId={selectedAgentId}
           onSelectAgent={switchAgent}
+          isFeedView={isFeedView}
+          onSelectFeed={switchToFeed}
         />
 
         {/* Main scrollable content */}
@@ -199,6 +230,12 @@ const AiAgentApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             <div className="flex justify-center py-20">
               <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
+          ) : isFeedView ? (
+            <FeedPanel
+              insights={feedInsights}
+              allAgents={allAgents}
+              onAction={handleInsightAction}
+            />
           ) : (
             <>
               {/* ═══ AgentHeader — Hero Card ═══ */}

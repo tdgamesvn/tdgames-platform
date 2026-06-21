@@ -290,6 +290,19 @@ async function executeTool(
         return JSON.stringify(data);
       }
       case 'create_insight': {
+        // Dedup check — skip if same agent+title inserted in the last 24h
+        const since24h = new Date(Date.now() - 86400000).toISOString();
+        const { data: existing } = await supabase
+          .from('ai_agent_insights')
+          .select('id')
+          .eq('agent_id', agentId)
+          .eq('title', args.title)
+          .gte('created_at', since24h)
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          return JSON.stringify({ skipped: true, reason: 'duplicate in 24h', existing_id: existing.id });
+        }
         const { data, error } = await supabase.from('ai_agent_insights').insert({
           agent_id: agentId, run_id: runId,
           type: args.type, priority: args.priority || 5,
