@@ -4,6 +4,40 @@
 
 ## 2026-06-22
 ### Task
+Implement multi-role support (helper function approach)
+
+### Work Done
+- Added `secondary_roles?: string[]` to AccountUser type
+- Created `utils/roleUtils.ts` with `hasRole()`, `hasAnyRole()`, `getUserRoles()` helpers
+- Updated `authService.ts` to parse `secondary_roles` from user_metadata
+- Updated `App.tsx` to parse + use `hasRole()` for routing
+- Updated `HomeScreen.tsx` with `hasAnyRole()` for app filtering, badge shows all roles
+- Replaced ALL `currentUser.role === 'X'` checks across 7 feature files with `hasRole()`/`hasAnyRole()`:
+  - Invoice (useInvoiceState.ts), Expense (ExpenseList.tsx), Company (CompanyApp.tsx)
+  - Payroll (PayrollFormulaPanel.tsx), HR (ChangeRequestTab.tsx, EmployeeDetail.tsx, EvalCycleDetail.tsx)
+  - Navbar.tsx
+- Added secondary roles toggle UI (pill buttons) in EmployeeDetail Role Changer section
+- Updated edge function `create-employee-auth`:
+  - New `update_secondary_roles` action
+  - `check_email` now returns `secondary_roles` array
+- Backward compatible: users with only primary role work unchanged
+
+### Validation
+- `npm run build` succeeded
+- Zero remaining `currentUser.role ===` patterns in codebase
+- Only 1 safe `.role ===` left (ProfileCompletionScreen reads raw session metadata, not AccountUser)
+
+### Result
+- A user can now have multiple roles (e.g. hr + ke_toan)
+- App visibility, feature access, and routing all respect combined roles
+- Admin can toggle secondary roles via UI in employee detail
+
+### Next Step
+- Deploy updated edge function to Supabase
+- Test with real user: assign secondary role, verify app visibility changes
+
+## 2026-06-22
+### Task
 Implement inline salary editing on HR Change Requests (pending + approved)
 
 ### Work Done

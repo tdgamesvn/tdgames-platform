@@ -8,6 +8,7 @@ import { supabase } from '@/services/supabaseClient';
 import DocumentManager from './DocumentManager';
 import ContractGenerator from './ContractGenerator';
 import EquipmentHandoverSection from './EquipmentHandoverSection';
+import { hasRole } from '@/utils/roleUtils';
 
 interface Props {
   employee: HrEmployee;
@@ -78,7 +79,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   const [avatarLightbox, setAvatarLightbox] = useState(false);
   const [downloadingAvatar, setDownloadingAvatar] = useState(false);
 
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = hasRole(currentUser, 'admin');
 
   const handleDownloadAvatar = async () => {
     if (!avatarUrl) return;
@@ -193,6 +194,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         const result = await res.json();
         if (result.success && result.exists) {
           setCurrentRole(result.role || 'member');
+          if (Array.isArray(result.secondary_roles)) setSecondaryRoles(result.secondary_roles);
         } else {
           setCurrentRole('no_account');
         }
@@ -202,6 +204,45 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
     };
     checkRole();
   }, [employee.id]);
+
+  // Secondary roles state
+  const [secondaryRoles, setSecondaryRoles] = useState<string[]>([]);
+  const [savingSecondary, setSavingSecondary] = useState(false);
+
+  const handleToggleSecondaryRole = async (toggleRole: string) => {
+    const authEmail = employee.type === 'freelancer' ? employee.email : employee.work_email;
+    if (!authEmail) return;
+
+    const newRoles = secondaryRoles.includes(toggleRole)
+      ? secondaryRoles.filter(r => r !== toggleRole)
+      : [...secondaryRoles, toggleRole];
+
+    setSavingSecondary(true);
+    try {
+      const { data: { session } } = await (await import('@/services/supabaseClient')).supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-employee-auth`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ action: 'update_secondary_roles', email: authEmail, secondary_roles: newRoles }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setSecondaryRoles(newRoles);
+        setRoleToast({ msg: `✅ Cập nhật roles phụ thành công`, type: 'success' });
+      } else {
+        throw new Error(result.error || 'Lỗi cập nhật');
+      }
+    } catch (err: any) {
+      setRoleToast({ msg: err.message || 'Lỗi cập nhật roles phụ', type: 'error' });
+    } finally {
+      setSavingSecondary(false);
+      setTimeout(() => setRoleToast(null), 3000);
+    }
+  };
 
   const handleRoleChange = async (newRole: string) => {
     const authEmail = employee.type === 'freelancer' ? employee.email : employee.work_email;
@@ -520,7 +561,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                   <button onClick={() => setShowContractGen(true)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80" style={{ background: employee.type === 'freelancer' ? 'linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%)' : 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' }}>📝 Xuất hợp đồng</button>
                 )}
                 <button onClick={() => onEdit(employee)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>✏️ Sửa</button>
-                {currentUser.role === 'admin' && (
+                {hasRole(currentUser, 'admin') && (
                   hardDeleteConfirm ? (
                     <div className="flex items-center gap-1">
                       <button
@@ -589,6 +630,30 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                       </select>
                       {changingRole && <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />}
                     </>
+                  )}
+                  {/* Secondary roles checkboxes */}
+                  {currentRole && currentRole !== 'no_account' && (
+                    <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">+</span>
+                      {ROLE_OPTIONS.filter(r => r.value !== currentRole).map(r => {
+                        const active = secondaryRoles.includes(r.value);
+                        return (
+                          <button
+                            key={r.value}
+                            onClick={() => handleToggleSecondaryRole(r.value)}
+                            disabled={savingSecondary}
+                            className="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
+                            style={{
+                              background: active ? `${r.color}20` : 'rgba(255,255,255,0.04)',
+                              color: active ? r.color : '#666',
+                              border: `1px solid ${active ? `${r.color}40` : 'rgba(255,255,255,0.08)'}`,
+                            }}
+                          >
+                            {r.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                   {roleToast && (
                     <span className={`text-[11px] font-bold ${roleToast.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>

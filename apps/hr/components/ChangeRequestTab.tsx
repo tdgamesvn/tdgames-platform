@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HrChangeRequest, HrEmployee, HrDepartment, AccountUser, HrChangeRequestType } from '@/types';
 import { approveChangeRequest, rejectChangeRequest, deleteChangeRequest, updateChangeRequestChanges, editApprovedSalary } from '../services/changeRequestService';
+import { hasAnyRole } from '@/utils/roleUtils';
 import ChangeRequestForm from './ChangeRequestForm';
 import SalaryEditor from './SalaryEditor';
 import type { SalaryRow } from './SalaryEditor';
@@ -120,7 +121,7 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const isAdmin = currentUser.role === 'admin' || currentUser.role === 'hr';
+  const isAdmin = hasAnyRole(currentUser, ['admin', 'hr']);
 
   // ── Inline salary edit mode ──
   const [editingSalary, setEditingSalary] = useState(false);

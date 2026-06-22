@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { HrEvaluationCycle, HrEvaluationSubmission, EvalGroup, AccountUser } from '@/types';
+import { hasRole } from '@/utils/roleUtils';
 import {
   fetchSubmissions, markComplete1on1, deleteCycle, STATUS_LABELS,
   getGroupsConfig, calcTotalScore, calcRating, calcGroupAvg, submitEvaluation,
@@ -157,7 +158,7 @@ const EvalCycleDetail: React.FC<EvalCycleDetailProps> = ({ cycle, currentUser, o
             </button>
           )}
 
-          {currentUser.role === 'admin' && (
+          {hasRole(currentUser, 'admin') && (
             <button onClick={() => setConfirmDelete(true)}
               className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all">
               🗑 Xóa

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AccountUser } from '@/types';
 import { APPS, AppConfig } from '@/config/apps';
 import { fetchTotalNewInsights } from '@/apps/ai-agent/services/aiAgentService';
+import { hasRole, hasAnyRole, getUserRoles } from '@/utils/roleUtils';
 
 interface HomeScreenProps {
   currentUser: AccountUser;
@@ -14,10 +15,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
   const [agentBadge, setAgentBadge] = useState<number>(0);
 
   useEffect(() => {
-    if (currentUser.role === 'admin') {
+    if (hasRole(currentUser, 'admin')) {
       fetchTotalNewInsights().then(setAgentBadge);
     }
-  }, [currentUser.role]);
+  }, [currentUser.role, currentUser.secondary_roles]);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -37,7 +38,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
         <div className="flex items-center gap-3">
           <div className="hidden md:flex flex-col items-end leading-none">
             <span className="text-[11px] font-black uppercase tracking-widest text-white">{currentUser.username}</span>
-            <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md mt-0.5 ${currentUser.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-blue-500/20 text-blue-400'}`}>{currentUser.role}</span>
+            <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md mt-0.5 ${hasRole(currentUser, 'admin') ? 'bg-primary/20 text-primary' : 'bg-blue-500/20 text-blue-400'}`}>{getUserRoles(currentUser).join(' + ')}</span>
           </div>
           <button onClick={onLogout} title="Logout" className="p-2 rounded-xl text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all hover:scale-110">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +62,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
 
         {/* App Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-3xl w-full">
-          {APPS.filter(app => !app.roles || app.roles.includes(currentUser.role)).map((app) => (
+          {APPS.filter(app => !app.roles || hasAnyRole(currentUser, app.roles)).map((app) => (
             <AppCard
               key={app.id}
               app={app}

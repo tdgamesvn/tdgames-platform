@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
+import { hasAnyRole } from '@/utils/roleUtils';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
@@ -45,7 +46,7 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
   const [helpOpen, setHelpOpen] = useState(false);
 
   const { rate: vcbRate, loading: vcbRateLoading } = useExchangeRate();
-  const canEdit = currentUser.role === 'admin' || currentUser.role === 'ke_toan';
+  const canEdit = hasAnyRole(currentUser, ['admin', 'ke_toan']);
   const navbarTab = TAB_MAP[activeTab];
 
   useEffect(() => {

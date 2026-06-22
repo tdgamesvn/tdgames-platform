@@ -1,5 +1,6 @@
 import React from 'react';
 import { AccountUser } from '@/types';
+import { hasRole, getUserRoles } from '@/utils/roleUtils';
 import { ExchangeRateData } from '@/services/exchangeRateService';
 import { NotificationBell } from './NotificationBell';
 
@@ -107,10 +108,10 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
       <div className="flex items-center gap-2 ml-2">
         <div className={`hidden md:flex flex-col items-end leading-none`}>
           <span className={`text-[11px] font-black uppercase tracking-widest ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{currentUser.username}</span>
-          <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md mt-0.5 ${currentUser.role === 'admin'
+          <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md mt-0.5 ${hasRole(currentUser, 'admin')
             ? 'bg-primary/20 text-primary'
             : 'bg-blue-500/20 text-blue-400'
-            }`}>{currentUser.role}</span>
+            }`}>{getUserRoles(currentUser).join(' + ')}</span>
         </div>
         <button
           onClick={onLogout}

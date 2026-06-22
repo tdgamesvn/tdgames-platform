@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ExpenseRecord, ExpenseCategory, AccountUser } from '@/types';
+import { hasAnyRole } from '@/utils/roleUtils';
 import { Button } from '@/components/Button';
 
 interface Props {
@@ -73,7 +74,7 @@ const ExpenseList: React.FC<Props> = ({
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [rejectModal, setRejectModal] = useState<{ id: string; note: string } | null>(null);
-  const canApprove = currentUser.role === 'admin' || currentUser.role === 'ke_toan';
+  const canApprove = hasAnyRole(currentUser, ['admin', 'ke_toan']);
   const toVND = (amount: number, currency: string) => currency === 'USD' ? amount * vcbAvgRate : amount;
   const fmtVND = (n: number) => Math.round(n).toLocaleString('vi-VN') + ' ₫';
 

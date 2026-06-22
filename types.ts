@@ -82,6 +82,7 @@ export interface AccountUser {
   id: string;
   username: string;
   role: 'admin' | 'ke_toan' | 'hr' | 'member' | 'freelancer' | 'bd';
+  secondary_roles?: string[]; // Additional roles (e.g. user can be both hr + ke_toan)
   employee_id?: string; // Links to hr_employees.id for Employee Portal
   worker_id?: string;   // Links to wf_workers.id for Freelancer Portal
 }

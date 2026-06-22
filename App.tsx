@@ -21,9 +21,15 @@ import AiAgentApp from './apps/ai-agent/components/AiAgentApp';
 import SystemMonitorApp from './apps/system-monitor/components/SystemMonitorApp';
 import { supabase } from './services/supabaseClient';
 import { ExchangeRateProvider } from './services/ExchangeRateContext';
+import { hasRole, hasAnyRole } from './utils/roleUtils';
 
 const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
+const parseSecondaryRoles = (raw: unknown): string[] | undefined => {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const valid = raw.filter(r => typeof r === 'string' && VALID_ROLES.includes(r as any));
+  return valid.length > 0 ? valid : undefined;
+};
 const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent', 'system-monitor'];
 
 /** Parse hash like #workforce/tasks or #hr/requests/uuid → { app, tab, param } */
@@ -113,7 +119,7 @@ const App: React.FC = () => {
     const role = parseRole(meta.role || 'member');
     const employeeId = meta.employee_id;
     if ((role === 'member' || role === 'freelancer') && employeeId) {
-      await checkProfileCompletion(employeeId, role);
+      await checkProfileCompletion(employeeId, role as string);
     }
   };
 
@@ -126,6 +132,7 @@ const App: React.FC = () => {
           id: session.user.id,
           username: meta.username || session.user.email?.split('@')[0] || 'unknown',
           role: parseRole(meta.role || 'member'),
+          secondary_roles: parseSecondaryRoles(meta.secondary_roles),
           employee_id: meta.employee_id || undefined,
           worker_id: meta.worker_id || undefined,
         });
@@ -143,6 +150,7 @@ const App: React.FC = () => {
           id: session.user.id,
           username: meta.username || session.user.email?.split('@')[0] || 'unknown',
           role: parseRole(meta.role || 'member'),
+          secondary_roles: parseSecondaryRoles(meta.secondary_roles),
           employee_id: meta.employee_id || undefined,
           worker_id: meta.worker_id || undefined,
         });
@@ -214,11 +222,11 @@ const App: React.FC = () => {
         onComplete={() => {
           setNeedsPasswordSet(false);
           // After setting password, check if profile needs completion
-          if (currentUser.employee_id && (currentUser.role === 'member' || currentUser.role === 'freelancer')) {
+          if (currentUser.employee_id && (hasRole(currentUser, 'member') || hasRole(currentUser, 'freelancer'))) {
             setNeedsProfileCompletion(true);
-          } else if (currentUser.role === 'member') {
+          } else if (hasRole(currentUser, 'member')) {
             setActiveApp('portal');
-          } else if (currentUser.role === 'freelancer') {
+          } else if (hasRole(currentUser, 'freelancer')) {
             setActiveApp('freelancer-portal');
           }
         }}
@@ -233,7 +241,7 @@ const App: React.FC = () => {
         currentUser={currentUser}
         onComplete={() => {
           setNeedsProfileCompletion(false);
-          setActiveApp(currentUser.role === 'freelancer' ? 'freelancer-portal' : 'portal');
+          setActiveApp(hasRole(currentUser, 'freelancer') ? 'freelancer-portal' : 'portal');
         }}
       />
     );

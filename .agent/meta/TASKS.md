@@ -40,6 +40,10 @@ _(trống)_
 
 ## Recently Completed
 
+- [x] Multi-role support (helper function approach)
+  - Done: 2026-06-22
+  - Result: Users can now have primary role + secondary_roles[]. Created hasRole/hasAnyRole/getUserRoles utils. Updated all 12 feature files. Added secondary roles toggle UI in EmployeeDetail. Updated edge function with update_secondary_roles action + check_email returns secondary_roles. Build passed ✅
+
 - [x] Chỉnh sửa lương trên đề xuất HR (pending + approved)
   - Done: 2026-06-22
   - Result: Inline edit salary trên ChangeRequestTab — pending chỉ cập nhật request, approved cập nhật request + re-apply lương thực tế (rotateSalary + employee.salary + position history). Build passed ✅

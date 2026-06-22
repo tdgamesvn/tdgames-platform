@@ -176,7 +176,7 @@ Deno.serve(async (req: Request) => {
       const user = await findAuthUserByEmail(supabaseAdmin, email);
 
       return new Response(
-        JSON.stringify({ success: true, exists: !!user, user_id: user?.id || null, role: user?.user_metadata?.role || null }),
+        JSON.stringify({ success: true, exists: !!user, user_id: user?.id || null, role: user?.user_metadata?.role || null, secondary_roles: user?.user_metadata?.secondary_roles || [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -211,6 +211,40 @@ Deno.serve(async (req: Request) => {
       });
       return new Response(
         JSON.stringify({ success: true, updated: true, message: `Role updated to '${role}' for ${email}`, previous_role: user.user_metadata?.role || "member" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── UPDATE_SECONDARY_ROLES ACTION: Set additional roles ──
+    if (action === "update_secondary_roles") {
+      const { email, secondary_roles } = body;
+      if (!email || !Array.isArray(secondary_roles)) {
+        return new Response(
+          JSON.stringify({ success: false, error: "Missing email or secondary_roles (array) for update_secondary_roles action" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const user = await findAuthUserByEmail(supabaseAdmin, email);
+      if (!user) {
+        return new Response(
+          JSON.stringify({ success: false, error: `No auth user found for ${email}` }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+        user.id,
+        { user_metadata: { ...user.user_metadata, secondary_roles } }
+      );
+      if (updateErr) throw updateErr;
+
+      await discordAdminEvent("update_secondary_roles", email, {
+        "🔙 Trước": JSON.stringify(user.user_metadata?.secondary_roles || []),
+        "🔜 Sau": JSON.stringify(secondary_roles),
+      });
+      return new Response(
+        JSON.stringify({ success: true, updated: true, message: `Secondary roles updated for ${email}`, secondary_roles }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

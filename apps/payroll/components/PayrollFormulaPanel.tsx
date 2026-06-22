@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AccountUser, PayPayrollFormulaSettings, PayrollTaxBracketRow } from '@/types';
+import { hasAnyRole } from '@/utils/roleUtils';
 import {
   FALLBACK_PAYROLL_FORMULA,
   fetchAllPayrollFormulas,
@@ -9,7 +10,7 @@ import {
   settingsRowToConfig,
 } from '../services/payrollFormulaService';
 
-const canEditFormula = (u: AccountUser) => u.role === 'admin' || u.role === 'ke_toan';
+const canEditFormula = (u: AccountUser) => hasAnyRole(u, ['admin', 'ke_toan']);
 
 const defaultBrackets = (): PayrollTaxBracketRow[] => [
   { limit: 10_000_000, rate: 0.05, deduction: 0 },

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_INVOICE } from '@/constants';
 import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioInfo, AccountUser } from '@/types';
 import { supabase } from '@/services/supabaseClient';
+import { hasAnyRole } from '@/utils/roleUtils';
 import { createAndPollDraft, getEInvoiceDetail } from '../services/sePayService';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
 import {
@@ -41,7 +42,7 @@ export function useInvoiceState(initialTab?: string | null) {
   }, []);
 
   const accessibleTabs: Array<'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring' | 'aging'> =
-    currentUser?.role === 'admin' || currentUser?.role === 'ke_toan'
+    currentUser && hasAnyRole(currentUser, ['admin', 'ke_toan'])
       ? ['edit', 'preview', 'history', 'dashboard', 'aging', 'activity', 'recurring']
       : ['edit', 'preview'];
 
