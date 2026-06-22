@@ -144,6 +144,9 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
       bankAccountName: selectedBank?.name || undefined,
       bankName: selectedBank?.bank_name || undefined,
       bankAccountNumber: selectedBank?.account_number || undefined,
+      bankSwiftCode: selectedBank?.swift_code || undefined,
+      bankCitadCode: selectedBank?.citad_code || undefined,
+      bankAddress: selectedBank?.bank_address || undefined,
     };
     setPreviewHtml(generateClientContract(data));
   }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, totalValue, currency, phases, selectedBankId, bankAccounts]);

@@ -7,6 +7,9 @@ interface BankAccount {
   name: string;
   bank_name: string;
   account_number: string;
+  swift_code?: string;
+  citad_code?: string;
+  bank_address?: string;
   currency: string;
   account_type: string;
   entity: string;
@@ -81,6 +84,13 @@ export default function BankTab({ company }: Props) {
                 </div>
                 <p className="text-neutral-300 font-mono text-sm mt-0.5 tracking-wider">{acc.account_number}</p>
                 <p className="text-neutral-500 text-xs mt-0.5">{acc.name}</p>
+                {(acc.swift_code || acc.citad_code || acc.bank_address) && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                    {acc.swift_code && <span className="text-[10px] text-neutral-600">SWIFT: <span className="text-neutral-400 font-mono">{acc.swift_code}</span></span>}
+                    {acc.citad_code && <span className="text-[10px] text-neutral-600">CITAD: <span className="text-neutral-400 font-mono">{acc.citad_code}</span></span>}
+                    {acc.bank_address && <span className="text-[10px] text-neutral-600">{acc.bank_address}</span>}
+                  </div>
+                )}
               </div>
             </div>
           ))}

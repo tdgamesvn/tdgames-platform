@@ -5,6 +5,9 @@ export interface BankAccount {
   name: string;
   bank_name: string;
   account_number?: string;
+  swift_code?: string;
+  citad_code?: string;
+  bank_address?: string;
   currency: string;
   account_type: 'company' | 'personal';
   entity: 'TD GAMES' | 'TD CONSULTING' | 'Cá nhân';

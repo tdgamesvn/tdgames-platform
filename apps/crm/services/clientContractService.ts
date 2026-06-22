@@ -44,6 +44,7 @@ export interface ClientContractData {
   bankName?: string;
   bankAccountNumber?: string;
   bankSwiftCode?: string;
+  bankCitadCode?: string;
   bankAddress?: string;
 }
 
@@ -289,6 +290,7 @@ export function generateClientContract(data: ClientContractData): string {
     <tr><td class="label">Bank Name:</td><td class="value">${data.bankName || '..........'}</td></tr>
     <tr><td class="label">Bank Account No.:</td><td class="value">${data.bankAccountNumber || '..........'}</td></tr>
     ${data.bankSwiftCode ? `<tr><td class="label">Bank Swift Code:</td><td class="value">${data.bankSwiftCode}</td></tr>` : ''}
+    ${data.bankCitadCode ? `<tr><td class="label">Bank CITAD Code:</td><td class="value">${data.bankCitadCode}</td></tr>` : ''}
     ${data.bankAddress ? `<tr><td class="label">Bank Address:</td><td class="value">${data.bankAddress}</td></tr>` : ''}
   </table>
   <div class="bilingual" style="margin-top:4px">
