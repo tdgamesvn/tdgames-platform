@@ -133,7 +133,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
           { label: 'Đã quyết toán', value: `${advances.filter(a => a.status === 'settled').length} phiếu`, sub: '', color: '#30D158' },
           { label: 'Tổng phiếu', value: `${advances.length}`, sub: '', color: '#0A84FF' },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border border-white/8 p-5 space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div key={c.label} className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
             <p className="text-2xl font-black" style={{ color: c.color }}>{c.value}</p>
             {c.sub && <p className="text-neutral-500 text-xs">{c.sub}</p>}
@@ -165,7 +165,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
           const st = STATUS_STYLES[a.status];
           const returned = a.returned_amount ?? 0;
           return (
-            <div key={a.id} className="rounded-[16px] border border-white/5 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div key={a.id} className="rounded-[20px] border border-primary/10 bg-surface p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">

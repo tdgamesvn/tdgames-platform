@@ -64,7 +64,7 @@ function PivotTable({
   showTaxCode?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-white/8 overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)' }}>
+    <div className="rounded-[20px] border border-primary/10 bg-surface overflow-x-auto">
       <table className="text-xs" style={{ minWidth: '900px' }}>
         <thead>
           <tr className="border-b border-white/5">
@@ -245,7 +245,7 @@ export default function TncnTab({ records, employees, freelancerSettlements, vcb
           { label: 'Tổng TNCN phải nộp', value: fmt(totalAllPit), unit: 'VND', color: 'text-orange-300' },
           { label: 'Số freelancer', value: String(freelancerPivot.length), unit: 'người', color: 'text-white' },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+          <div key={c.label} className="rounded-[20px] border border-primary/10 bg-surface p-4">
             <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-neutral-600">{c.label}</p>
             <p className={`text-2xl font-black ${c.color}`}>{c.value} <span className="text-xs font-normal text-neutral-600">{c.unit}</span></p>
           </div>

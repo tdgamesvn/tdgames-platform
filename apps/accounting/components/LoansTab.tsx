@@ -313,7 +313,7 @@ export default function LoansTab({ loans, currentUser, onReload, onToast }: Prop
           { label: 'Gốc vay (VND)', value: fmt(totalPrincipal), unit: 'đ', color: 'text-orange-400' },
           { label: 'Số khoản active', value: String(activeLoans.length), unit: 'khoản', color: 'text-white' },
         ].map(card => (
-          <div key={card.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div key={card.label} className="rounded-[20px] border border-primary/10 bg-surface p-4">
             <div className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2">{card.label}</div>
             <div className={`text-2xl font-black ${card.color}`}>{card.value}</div>
             <div className="text-[10px] text-neutral-600 mt-0.5">{card.unit}</div>
@@ -323,14 +323,13 @@ export default function LoansTab({ loans, currentUser, onReload, onToast }: Prop
 
       {/* Table */}
       {loans.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-white/8"
-          style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="text-center py-16 rounded-[20px] border border-primary/10 bg-surface">
           <p className="text-3xl mb-3">🏧</p>
           <p className="text-neutral-600 text-sm">Chưa có khoản vay nào</p>
           <p className="text-xs mt-1 text-neutral-700">Nhấn "+ Thêm khoản vay" để theo dõi</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/8 overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface overflow-x-auto">
           <table className="text-xs w-full" style={{ minWidth: '960px' }}>
             <thead>
               <tr className="border-b border-white/5">

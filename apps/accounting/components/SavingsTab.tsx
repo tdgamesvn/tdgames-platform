@@ -451,7 +451,7 @@ export default function SavingsTab({ savings, currentUser, onReload, onToast }: 
           { label: 'Số khoản active', value: String(activeSavings.length), unit: 'khoản', color: 'text-white' },
           { label: 'Lãi đã nhận (VND)', value: fmt(totalInterestEarned), unit: 'đ', color: 'text-green-400' },
         ].map(card => (
-          <div key={card.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div key={card.label} className="rounded-[20px] border border-primary/10 bg-surface p-4">
             <div className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2">{card.label}</div>
             <div className={`text-2xl font-black ${card.color}`}>{card.value}</div>
             <div className="text-[10px] text-neutral-600 mt-0.5">{card.unit}</div>
@@ -461,14 +461,13 @@ export default function SavingsTab({ savings, currentUser, onReload, onToast }: 
 
       {/* Table */}
       {savings.length === 0 ? (
-        <div className="text-center py-16 text-neutral-700 text-sm rounded-2xl border border-white/8"
-          style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="text-center py-16 text-neutral-700 text-sm rounded-[20px] border border-primary/10 bg-surface">
           <p className="text-3xl mb-3">💰</p>
           <p className="text-neutral-600 text-sm">Chưa có khoản gửi tiết kiệm nào</p>
           <p className="text-xs mt-1 text-neutral-700">Nhấn "+ Thêm khoản gửi" để bắt đầu theo dõi</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/8 overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface overflow-x-auto">
           <table className="text-xs w-full" style={{ minWidth: '900px' }}>
             <thead>
               <tr className="border-b border-white/5">

@@ -105,8 +105,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
           { label: 'Giá trị còn lại', value: `${fmt(Math.round(totalBookValue))} ₫`, color: '#30D158' },
           { label: 'Khấu hao / tháng', value: `${fmt(Math.round(totalMonthlyDep))} ₫`, color: '#FF375F' },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border border-white/8 p-5 space-y-1"
-            style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div key={c.label} className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
             <p className="text-2xl font-black" style={{ color: c.color }}>{c.value}</p>
           </div>

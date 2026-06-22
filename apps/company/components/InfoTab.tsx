@@ -113,7 +113,7 @@ export default function InfoTab({ company, canEdit, onUpdated }: Props) {
 
       {/* ── Edit mode: full-width form ── */}
       {editing ? (
-        <div className="rounded-2xl border border-white/8 p-6 space-y-6" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface p-6 space-y-6">
           <p className="text-neutral-500 text-[10px] font-black uppercase tracking-wider border-b border-white/5 pb-3">
             Thông tin pháp lý
           </p>
@@ -191,8 +191,7 @@ export default function InfoTab({ company, canEdit, onUpdated }: Props) {
 
             {/* Address card */}
             {company.address && (
-              <div className="rounded-2xl border border-white/5 p-5 space-y-2"
-                style={{ background: 'rgba(255,255,255,0.02)' }}>
+              <div className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-2">
                 <p className="text-neutral-600 text-[10px] font-black uppercase tracking-wider">📍 Địa chỉ</p>
                 <p className="text-neutral-300 text-sm leading-relaxed">{company.address}</p>
               </div>

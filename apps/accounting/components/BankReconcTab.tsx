@@ -255,7 +255,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
           { label: 'Đã khớp', value: String(matched), color: 'text-sky-400' },
           { label: 'Chưa khớp', value: String(unmatched), color: unmatched > 0 ? 'text-yellow-400' : 'text-neutral-500' },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+          <div key={c.label} className="rounded-[20px] border border-primary/10 bg-surface p-4">
             <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-neutral-600">{c.label}</p>
             <p className={`text-2xl font-black ${c.color}`}>{c.value}</p>
           </div>
@@ -284,7 +284,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
           {statements.length === 0 ? 'Chưa có giao dịch. Import file CSV để bắt đầu.' : 'Không có giao dịch phù hợp bộ lọc.'}
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-white/5">

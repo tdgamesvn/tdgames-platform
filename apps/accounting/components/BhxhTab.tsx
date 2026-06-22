@@ -368,7 +368,7 @@ export default function BhxhTab({ employees, currentUser }: Props) {
           { label: `Công ty đóng (${(formula.bhCompanyRate * 100).toFixed(2)}%)`, value: fmt(totalComp), unit: 'đ', color: 'text-blue-400' },
           { label: 'Tổng nộp', value: fmt(totalAll), unit: 'đ', color: 'text-green-400' },
         ].map(card => (
-          <div key={card.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div key={card.label} className="rounded-[20px] border border-primary/10 bg-surface p-4">
             <div className="text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-2">{card.label}</div>
             <div className={`text-xl font-black ${card.color}`}>{card.value}</div>
             <div className="text-[10px] text-neutral-600 mt-0.5">{card.unit}</div>
@@ -389,13 +389,13 @@ export default function BhxhTab({ employees, currentUser }: Props) {
 
       {/* Table */}
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-white/8 py-20 text-center" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface py-20 text-center">
           <div className="text-3xl mb-3">🛡️</div>
           <div className="text-sm font-semibold text-neutral-400">Không có nhân viên chính thức trong tháng này</div>
           <div className="text-xs text-neutral-600 mt-1">Kiểm tra lại ngày chính thức trong HR</div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-white/8 overflow-x-auto" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface overflow-x-auto">
           <table className="text-xs w-full" style={{ minWidth: '900px' }}>
             <thead>
               <tr className="border-b border-white/5">

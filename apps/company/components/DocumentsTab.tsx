@@ -159,8 +159,7 @@ export default function DocumentsTab({ company, canEdit, username }: Props) {
         <div className="space-y-2">
           {docs.map(doc => (
             <div key={doc.id}
-              className="flex items-center gap-4 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-all"
-              style={{ background: 'rgba(255,255,255,0.02)' }}>
+              className="flex items-center gap-4 p-4 rounded-[20px] border border-primary/10 bg-surface hover:border-primary/25 transition-all">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                 style={{ background: `${typeColor[doc.doc_type] || '#666'}15` }}>
                 {doc.mime_type?.includes('pdf') ? '📄' : doc.mime_type?.includes('image') ? '🖼' : '📎'}
