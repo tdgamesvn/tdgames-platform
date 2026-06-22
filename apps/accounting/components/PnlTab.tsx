@@ -144,7 +144,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
       </div>
 
       {/* View switcher */}
-      <div className="flex gap-1 border-b border-white/8 pb-4">
+      <div className="flex gap-1 border-b border-primary/10 pb-4">
         {VIEWS.map(v => (
           <button key={v.id} onClick={() => setView(v.id)}
             className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${view === v.id ? 'bg-white/10 text-white' : 'text-neutral-500 hover:text-white'}`}>
@@ -164,7 +164,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
               { label: 'Lợi nhuận', value: netProfit, color: netProfit >= 0 ? 'text-emerald-400' : 'text-red-400', prefix: netProfit < 0 ? '' : '' },
               { label: 'Biên lợi nhuận', value: margin, color: margin >= 0 ? 'text-sky-400' : 'text-red-400', suffix: '%', isPercent: true },
             ].map(c => (
-              <div key={c.label} className="rounded-2xl border border-white/8 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <div key={c.label} className="rounded-[20px] border border-primary/10 bg-surface p-4">
                 <p className="text-[10px] font-black uppercase tracking-wider mb-1 text-neutral-600">{c.label}</p>
                 <p className={`text-2xl font-black ${c.color}`}>
                   {(c as any).isPercent ? `${margin.toFixed(1)}%` : fmtB(c.value)}
@@ -175,7 +175,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
           </div>
 
           {/* Visual bar chart (CSS only) */}
-          <div className="rounded-2xl border border-white/8 p-6 space-y-4" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="rounded-[20px] border border-primary/10 bg-surface p-6 space-y-4">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Biểu đồ so sánh</p>
             {[
               { label: 'Doanh thu', value: totalRevenue, color: '#10b981' },
@@ -199,7 +199,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
           </div>
 
           {/* Invoice list */}
-          <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
             <div className="px-5 py-3 border-b border-white/5">
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Hoá đơn phát sinh trong kỳ ({revenueRows.length})</p>
             </div>
@@ -236,7 +236,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
 
       {/* By Category */}
       {view === 'byCategory' && (
-        <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
           <div className="px-5 py-3 border-b border-white/5">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Chi phí theo danh mục</p>
           </div>
@@ -267,7 +267,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
 
       {/* By Client */}
       {view === 'byClient' && (
-        <div className="rounded-2xl border border-white/8 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
           <div className="px-5 py-3 border-b border-white/5">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-400">Theo client / dự án</p>
           </div>
