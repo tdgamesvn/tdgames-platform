@@ -211,8 +211,8 @@ export default function TncnTab({ records, employees, freelancerSettlements, vcb
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-white font-black text-lg uppercase tracking-wider">💼 Quyết toán TNCN</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">Năm {year} • Nhân viên + Freelancer • Tỷ giá: {fmt(rate)} VND/USD</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Quyết toán TNCN</h2>
+          <p className="text-neutral-medium text-sm mt-1">Năm {year} • Nhân viên + Freelancer • Tỷ giá: {fmt(rate)} VND/USD</p>
         </div>
         <div className="flex gap-2">
           <select value={year} onChange={e => setYear(Number(e.target.value))}

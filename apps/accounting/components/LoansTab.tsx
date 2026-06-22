@@ -295,8 +295,8 @@ export default function LoansTab({ loans, currentUser, onReload, onToast }: Prop
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-base font-black uppercase tracking-wider text-white">Vay nợ</h2>
-          <p className="text-xs text-neutral-500 mt-1">Theo dõi dư nợ và lịch trả nợ</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Vay nợ</h2>
+          <p className="text-neutral-medium text-sm mt-1">Theo dõi dư nợ và lịch trả nợ</p>
         </div>
         <button onClick={() => setShowAdd(true)}
           className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"

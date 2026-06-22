@@ -88,8 +88,8 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-black uppercase tracking-wider text-white">🏢 Tài sản cố định</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">Theo dõi & khấu hao đường thẳng</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài sản cố định</h2>
+          <p className="text-neutral-medium text-sm mt-1">Theo dõi & khấu hao đường thẳng</p>
         </div>
         <button onClick={openAdd}
           className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"

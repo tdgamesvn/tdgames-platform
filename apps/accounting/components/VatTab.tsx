@@ -123,8 +123,8 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-white font-black text-lg uppercase tracking-wider">🧾 Bảng kê VAT (Thuế GTGT)</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">{label} • Pháp nhân: TD GAMES • Tỷ giá: {fmt(rate)} VND/USD</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Bảng kê VAT (Thuế GTGT)</h2>
+          <p className="text-neutral-medium text-sm mt-1">{label} • Pháp nhân: TD GAMES • Tỷ giá: {fmt(rate)} VND/USD</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           {/* Year */}

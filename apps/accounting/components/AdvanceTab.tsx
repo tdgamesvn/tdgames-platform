@@ -116,8 +116,8 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-white font-black text-lg uppercase tracking-wider">💳 Tạm ứng</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">Phiếu tạm ứng & quyết toán</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tạm ứng</h2>
+          <p className="text-neutral-medium text-sm mt-1">Phiếu tạm ứng & quyết toán</p>
         </div>
         <button onClick={() => setShowForm(true)}
           className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"
@@ -165,7 +165,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
           const st = STATUS_STYLES[a.status];
           const returned = a.returned_amount ?? 0;
           return (
-            <div key={a.id} className="rounded-[16px] border border-white/5 bg-white/3 p-4">
+            <div key={a.id} className="rounded-[16px] border border-white/5 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">

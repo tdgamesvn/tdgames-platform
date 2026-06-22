@@ -317,8 +317,8 @@ export default function BhxhTab({ employees, currentUser }: Props) {
       {/* Header row */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-base font-black uppercase tracking-wider text-white">Bảng kê nộp BHXH</h2>
-          <p className="text-xs text-neutral-500 mt-1">Hạn nộp: trước ngày 25 hàng tháng · Chỉ nhân viên chính thức</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Bảng kê nộp BHXH</h2>
+          <p className="text-neutral-medium text-sm mt-1">Hạn nộp: trước ngày 25 hàng tháng · Chỉ nhân viên chính thức</p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">

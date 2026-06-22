@@ -433,8 +433,8 @@ export default function SavingsTab({ savings, currentUser, onReload, onToast }: 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-base font-black uppercase tracking-wider text-white">Gửi tiết kiệm</h2>
-          <p className="text-xs text-neutral-500 mt-1">Theo dõi các khoản tiền gửi có kỳ hạn</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Gửi tiết kiệm</h2>
+          <p className="text-neutral-medium text-sm mt-1">Theo dõi các khoản tiền gửi có kỳ hạn</p>
         </div>
         <button onClick={() => setShowAdd(true)}
           className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"

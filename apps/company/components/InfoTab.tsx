@@ -80,8 +80,8 @@ export default function InfoTab({ company, canEdit, onUpdated }: Props) {
         <div className="flex items-center gap-3">
           <span className="text-3xl">🏢</span>
           <div>
-            <h2 className="text-white font-black text-lg">{company.entity_name_vn}</h2>
-            <p className="text-neutral-500 text-xs">{company.entity_name_en}</p>
+            <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{company.entity_name_vn}</h2>
+            <p className="text-neutral-medium text-sm mt-1">{company.entity_name_en}</p>
           </div>
         </div>
         <div className="flex gap-2">

@@ -93,8 +93,8 @@ export default function DocumentsTab({ company, canEdit, username }: Props) {
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-white font-black text-base uppercase tracking-wider">📁 Giấy tờ & Hồ sơ</h2>
-          <p className="text-neutral-500 text-xs mt-0.5">{company.entity_short} • {docs.length} tài liệu</p>
+          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Giấy tờ & Hồ sơ</h2>
+          <p className="text-neutral-medium text-sm mt-1">{company.entity_short} • {docs.length} tài liệu</p>
         </div>
         {canEdit && (
           <button onClick={() => setShowForm(!showForm)}
