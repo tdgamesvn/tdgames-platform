@@ -67,13 +67,16 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
   // Contract generator state
   const [contractGenClient, setContractGenClient] = useState<CrmClient | null>(null);
   const [contractGenContacts, setContractGenContacts] = useState<CrmContact[]>([]);
+  const [showContractPicker, setShowContractPicker] = useState(false);
+  const [pickerClientId, setPickerClientId] = useState('');
+  const [pickerProjectId, setPickerProjectId] = useState('');
 
-  const openContractGenerator = async (clientId: string) => {
-    const client = clients.find(c => c.id === clientId);
+  const openContractGenerator = () => {
+    const client = clients.find(c => c.id === pickerClientId);
     if (!client) return;
-    const contacts = client.contacts || [];
-    setContractGenContacts(contacts);
+    setContractGenContacts(client.contacts || []);
     setContractGenClient(client);
+    setShowContractPicker(false);
   };
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -267,11 +270,7 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
           <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => {
-            const clientId = filterClient || clients[0]?.id;
-            if (clientId) openContractGenerator(clientId);
-            else alert('Vui lòng chọn khách hàng');
-          }} style={{
+          <button onClick={() => { setPickerClientId(''); setPickerProjectId(''); setShowContractPicker(true); }} style={{
             padding: '12px 24px', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '10px', background: 'rgba(16,185,129,0.1)',
             color: '#10b981', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
           }}>📋 Tạo hợp đồng</button>
@@ -498,6 +497,69 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
       )}
 
       <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+
+      {/* Contract Picker — Select Client + Project before generating */}
+      {showContractPicker && ReactDOM.createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowContractPicker(false); }}>
+          <div style={{ background: '#1A1A1A', border: '1px solid #333', borderRadius: 20, width: '100%', maxWidth: 480, padding: 32 }}
+            className="animate-scaleIn" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 18, fontWeight: 900, color: '#FF9500', marginBottom: 4 }}>Tạo hợp đồng khách hàng</h3>
+            <p style={{ fontSize: 12, color: '#888', marginBottom: 24 }}>Chọn khách hàng và dự án trước khi tạo hợp đồng</p>
+
+            {/* Client select */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: 6 }}>Khách hàng *</label>
+              <select value={pickerClientId} onChange={e => { setPickerClientId(e.target.value); setPickerProjectId(''); }}
+                style={{ width: '100%', padding: '10px 14px', background: '#111', border: '1px solid #333', borderRadius: 10, color: '#F5F5F5', fontSize: 13, outline: 'none', colorScheme: 'dark' }}>
+                <option value="">— Chọn khách hàng —</option>
+                {clients.filter(c => c.status === 'active' || c.status === 'contracting' || c.status === 'negotiating').map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              {!pickerClientId && (
+                <p style={{ fontSize: 11, color: '#666', marginTop: 6, fontStyle: 'italic' }}>Cần tạo thông tin khách hàng trong tab Clients trước</p>
+              )}
+            </div>
+
+            {/* Project select */}
+            {pickerClientId && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: 6 }}>Dự án</label>
+                {(() => {
+                  const clientProjects = allProjects.filter(p => p.client_id === pickerClientId);
+                  return clientProjects.length > 0 ? (
+                    <select value={pickerProjectId} onChange={e => setPickerProjectId(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', background: '#111', border: '1px solid #333', borderRadius: 10, color: '#F5F5F5', fontSize: 13, outline: 'none', colorScheme: 'dark' }}>
+                      <option value="">— Không chọn dự án —</option>
+                      {clientProjects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name} ({p.status})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <p style={{ fontSize: 12, color: '#666', padding: '10px 14px', background: '#111', border: '1px solid #333', borderRadius: 10 }}>
+                      Chưa có dự án nào. Bạn có thể tạo dự án trong tab Projects, hoặc nhập tên dự án thủ công trong hợp đồng.
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
+              <button onClick={() => setShowContractPicker(false)}
+                style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #333', background: 'transparent', color: '#888', fontWeight: 800, fontSize: 12, cursor: 'pointer', textTransform: 'uppercase' }}>
+                Huỷ
+              </button>
+              <button onClick={openContractGenerator} disabled={!pickerClientId}
+                style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: pickerClientId ? '#10b981' : '#333', color: pickerClientId ? '#fff' : '#666', fontWeight: 800, fontSize: 12, cursor: pickerClientId ? 'pointer' : 'not-allowed', textTransform: 'uppercase' }}>
+                Tiếp tục
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Contract Generator Modal */}
       {contractGenClient && (
