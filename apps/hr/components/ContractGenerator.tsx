@@ -4,7 +4,7 @@ import { HrEmployee, HrDepartment, HrEmployeeSalary, HrContract } from '@/types'
 import { fetchEmployeeSalary, saveContract } from '../services/hrService';
 import {
   generateHDLD, generateHDTV, generateNDA,
-  generateHDKV, generateNDA_CTV,
+  generateHDKV, generateNDA_CTV, generateHDCTV,
   printContract, CONTRACT_TYPES_FULLTIME, CONTRACT_TYPES_FREELANCER, ContractType,
   CompanyKey, COMPANY_OPTIONS,
 } from '../services/contractService';
@@ -100,6 +100,9 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
       case 'nda_ctv':
         html = generateNDA_CTV(employee, signingDate, companyKey);
         break;
+      case 'hdctv':
+        html = generateHDCTV(employee, signingDate, contractNumber, workScope, companyKey);
+        break;
     }
     setPreviewHtml(html);
   }, [selectedType, contractNumber, signingDate, projectName, workScope, companyKey, salaryComponents, loading, employee, department]);
@@ -127,7 +130,7 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
       ];
 
   // Required field validation for freelancer contracts
-  const freelancerFieldsMissing = isFreelancer && selectedType === 'hdkv' && (!projectName.trim() || !workScope.trim());
+  const freelancerFieldsMissing = isFreelancer && (selectedType === 'hdkv' || selectedType === 'hdctv') && (!projectName.trim() || !workScope.trim());
 
   // Employee data validation (both fulltime & freelancer)
   const missingDataFields = dataChecks.filter(([, v]) => !v).map(([label]) => label) as string[];

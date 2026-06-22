@@ -657,7 +657,7 @@ export function printContract(html: string) {
   };
 }
 
-export type ContractType = 'hdld' | 'hdtv' | 'nda' | 'hdkv' | 'nda_ctv';
+export type ContractType = 'hdld' | 'hdtv' | 'nda' | 'hdkv' | 'nda_ctv' | 'hdctv';
 
 export const CONTRACT_TYPES_FULLTIME: { key: ContractType; label: string; icon: string; description: string }[] = [
   { key: 'hdld', label: 'Hợp đồng Lao động', icon: '📋', description: 'HĐLĐ – Hợp đồng chính thức 12 tháng' },
@@ -667,6 +667,7 @@ export const CONTRACT_TYPES_FULLTIME: { key: ContractType; label: string; icon: 
 
 export const CONTRACT_TYPES_FREELANCER: { key: ContractType; label: string; icon: string; description: string }[] = [
   { key: 'hdkv', label: 'Hợp đồng Khoán việc', icon: '📄', description: 'HĐKV – Hợp đồng dịch vụ CTV/Freelancer' },
+  { key: 'hdctv', label: 'HĐ Cộng tác viên', icon: '🎓', description: 'HĐCTV – Hợp đồng CTV thiết kế (Intern)' },
   { key: 'nda_ctv', label: 'Thỏa thuận Bảo mật', icon: '🔐', description: 'NDA CTV – Bảo mật thông tin chi tiết' },
 ];
 
@@ -997,6 +998,164 @@ ${nationalHeader()}
 </div>
 
 ${signatureBlock('ĐẠI DIỆN BÊN A', '(Ký, ghi rõ họ tên, đóng dấu)', 'ĐẠI DIỆN BÊN B', '(Ký, ghi rõ họ tên)')}
+
+</body></html>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── 6. HĐCTV – Hợp đồng Cộng tác viên Thiết kế (Intern) ────
+// ══════════════════════════════════════════════════════════════
+
+export function generateHDCTV(
+  employee: HrEmployee,
+  signingDate: string,
+  contractNumber: string,
+  workScope: string,
+  companyKey: CompanyKey = 'tdgames',
+): string {
+  const d = fmtDateParts(signingDate);
+  const c = COMPANY_OPTIONS[companyKey];
+
+  const rateDisplay = employee.rate_amount > 0
+    ? `${fmt(employee.rate_amount)} ${employee.rate_currency || 'VNĐ'}/${employee.rate_type === 'hourly' ? 'giờ' : employee.rate_type === 'monthly' ? 'tháng' : 'gói'}`
+    : '……………………… đồng/gói';
+
+  return `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><title>HĐCTV - ${employee.full_name}</title>
+<style>${PRINT_CSS}</style></head><body>
+
+${nationalHeader()}
+<div class="contract-title">HỢP ĐỒNG CỘNG TÁC VIÊN THIẾT KẾ</div>
+<div class="contract-number">(Hợp đồng dịch vụ theo Bộ luật Dân sự 2015)</div>
+<div class="contract-number">Số: ${contractNumber || '……'}/HĐCTV-TK/${d.year}</div>
+
+<div class="article">
+  <p><strong>Căn cứ:</strong></p>
+  <ul>
+    <li>Bộ luật Dân sự nước CHXHCN Việt Nam số 91/2015/QH13 ngày 24/11/2015;</li>
+    <li>Luật Sở hữu trí tuệ số 50/2005/QH11 và các văn bản sửa đổi, bổ sung;</li>
+    <li>Luật Thuế thu nhập cá nhân số 04/2007/QH12 và Thông tư 111/2013/TT-BTC;</li>
+    <li>Thông tư 40/2021/TT-BTC về thuế đối với cá nhân kinh doanh, cộng tác viên;</li>
+    <li>Nhu cầu và năng lực thực tế của hai bên.</li>
+  </ul>
+  <p>Hôm nay, ngày ${d.day} tháng ${d.month} năm ${d.year}, hợp đồng cộng tác viên này (sau đây gọi là "Hợp đồng") được ký kết bởi các bên:</p>
+</div>
+
+<div class="party-header">BÊN SỬ DỤNG DỊCH VỤ (BÊN A):</div>
+<table class="info-table">
+  <tr><td class="label">Tên công ty</td><td class="colon">:</td><td class="value">${c.nameShort}</td></tr>
+  <tr><td class="label">Đại diện</td><td class="colon">:</td><td class="value">${c.gender} ${c.representative}</td></tr>
+  <tr><td class="label">Chức vụ</td><td class="colon">:</td><td class="value">${c.representativeTitle}</td></tr>
+  <tr><td class="label">Địa chỉ</td><td class="colon">:</td><td class="value">${c.address}</td></tr>
+  <tr><td class="label">Mã số thuế</td><td class="colon">:</td><td class="value">${c.taxCode}</td></tr>
+  <tr><td class="label">Email</td><td class="colon">:</td><td class="value">tdgames.vn@gmail.com</td></tr>
+</table>
+
+<div class="party-header">CỘNG TÁC VIÊN (BÊN B):</div>
+<table class="info-table">
+  <tr><td class="label">Họ và tên</td><td class="colon">:</td><td class="value"><strong>${blank(employee.full_name)}</strong></td></tr>
+  <tr><td class="label">Ngày tháng năm sinh</td><td class="colon">:</td><td class="value">${fmtDate(employee.date_of_birth)}</td></tr>
+  <tr><td class="label">Giới tính</td><td class="colon">:</td><td class="value">${genderVi(employee.gender)}</td></tr>
+  <tr><td class="label">Địa chỉ thường trú</td><td class="colon">:</td><td class="value">${blank(employee.address)}</td></tr>
+  <tr><td class="label">Số CCCD/CMND</td><td class="colon">:</td><td class="value">${blank(employee.id_number)}</td></tr>
+  <tr><td class="label">Điện thoại</td><td class="colon">:</td><td class="value">${blank(employee.phone)}</td></tr>
+  <tr><td class="label">Email</td><td class="colon">:</td><td class="value">${blank(employee.email)}</td></tr>
+  <tr><td class="label">Số tài khoản</td><td class="colon">:</td><td class="value">${blank(employee.bank_account)}</td></tr>
+  <tr><td class="label">Ngân hàng</td><td class="colon">:</td><td class="value">${blank(employee.bank_name)}</td></tr>
+</table>
+
+<p class="called-as">Sau khi thỏa thuận, hai bên nhất trí ký kết hợp đồng với các điều khoản như sau:</p>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 1: PHẠM VI CÔNG VIỆC VÀ THỜI HẠN HỢP ĐỒNG</div>
+  <p>1.1. Loại hợp đồng: Hợp đồng cộng tác viên thiết kế (Hợp đồng dịch vụ).</p>
+  <p>1.2. Thời hạn hợp đồng: 03 (ba) tháng kể từ ngày ký. Hợp đồng có thể được gia hạn bằng văn bản thỏa thuận của hai bên trước khi hết hạn.</p>
+  <p>1.3. Địa điểm thực hiện: Làm việc từ xa (remote) hoặc tại văn phòng công ty.</p>
+  <p>1.4. Vị trí công việc: Cộng tác viên Thiết kế (Designer).</p>
+  <p>1.5. Phạm vi công việc cụ thể: ${workScope || '...................................................'}</p>
+  <p>1.6. Sản phẩm bàn giao, tiến độ và tiêu chuẩn chất lượng sẽ được chi tiết hóa tại Phụ lục đính kèm hoặc trong các trao đổi bằng văn bản được hai bên xác nhận.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 2: THỜI GIỜ VÀ PHƯƠNG THỨC LÀM VIỆC</div>
+  <p>2.1. Bên B được phép áp dụng thời gian làm việc linh hoạt, không bị ràng buộc theo giờ hành chính của Bên A.</p>
+  <p>2.2. Bên B sử dụng công cụ, thiết bị của chính mình. Trường hợp Bên A cấp phát thêm, hai bên lập biên bản bàn giao riêng.</p>
+  <p>2.3. Phương thức phối hợp: qua email, phần mềm quản lý dự án hoặc kênh liên lạc do hai bên thỏa thuận.</p>
+  <p>2.4. Bên B phản hồi yêu cầu trong vòng 01 ngày làm việc, trừ trường hợp bất khả kháng.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 3: PHÍ CỘNG TÁC VÀ PHƯƠNG THỨC THANH TOÁN</div>
+  <p>3.1. Mức phí cộng tác: ${rateDisplay}. Phí được tính dựa trên kết quả và chất lượng sản phẩm bàn giao được Bên A nghiệm thu.</p>
+  <p>3.2. Bên B có thể nhận thưởng khi sản phẩm vượt kỳ vọng. Mức thưởng do Bên A quyết định.</p>
+  <p>3.3. Phương thức: Chuyển khoản ngân hàng vào tài khoản Bên B đã đăng ký.</p>
+  <p>3.4. Chu kỳ: Trong vòng 07 ngày làm việc kể từ khi nghiệm thu.</p>
+  <p>3.5. Bên A chỉ thanh toán sau khi Bên B bàn giao đầy đủ sản phẩm/file nguồn đạt yêu cầu.</p>
+  <p>3.6. Thông tin tài khoản:</p>
+  <table class="info-table">
+    <tr><td class="label">Tên người thụ hưởng</td><td class="colon">:</td><td class="value">${blank(employee.bank_branch || employee.full_name)}</td></tr>
+    <tr><td class="label">Số tài khoản</td><td class="colon">:</td><td class="value">${blank(employee.bank_account)}</td></tr>
+    <tr><td class="label">Ngân hàng</td><td class="colon">:</td><td class="value">${blank(employee.bank_name)}</td></tr>
+  </table>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 4: QUYỀN SỞ HỮU TRÍ TUỆ</div>
+  <p>4.1. Toàn bộ sản phẩm do Bên B tạo ra thuộc quyền sở hữu hoàn toàn của Bên A kể từ thời điểm nghiệm thu.</p>
+  <p>4.2. Bên B chuyển nhượng toàn bộ quyền tài sản: sao chép, phân phối, chỉnh sửa, thương mại hóa trên toàn thế giới, không giới hạn thời gian.</p>
+  <p>4.3. Sau khi phát hành chính thức, Bên B được trưng bày trong portfolio cá nhân với ghi chú "Thực hiện cho ${c.nameShort}", trừ khi Bên A yêu cầu bảo mật.</p>
+  <p>4.4. Bên B đảm bảo Tác phẩm là nguyên gốc, không vi phạm bản quyền bên thứ ba.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 5: BẢO MẬT THÔNG TIN</div>
+  <p>5.1. Bên B bảo mật tuyệt đối mọi thông tin dự án, công nghệ, khách hàng, chiến lược, mã nguồn, dữ liệu nội bộ của Bên A.</p>
+  <p>5.2. Nghĩa vụ bảo mật duy trì trong 03 năm sau khi Hợp đồng chấm dứt.</p>
+  <p>5.3. Vi phạm bảo mật → Bên A được đơn phương chấm dứt và yêu cầu bồi thường.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 6: QUYỀN VÀ NGHĨA VỤ CỦA BÊN B</div>
+  <p><strong>6.1. Quyền:</strong> Nhận phí đúng hạn; yêu cầu brief và tài liệu; chủ động phương pháp; làm việc với đối tác không cạnh tranh.</p>
+  <p><strong>6.2. Nghĩa vụ:</strong> Đúng chất lượng và tiến độ; không giao người khác thực hiện; bàn giao đầy đủ file nguồn; hoàn trả thiết bị; chấp hành thuế.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 7: QUYỀN VÀ NGHĨA VỤ CỦA BÊN A</div>
+  <p><strong>7.1. Quyền:</strong> Yêu cầu đúng tiến độ; chấm dứt khi vi phạm nghiêm trọng; tạm hoãn thanh toán; yêu cầu sửa tối đa 02 lần miễn phí.</p>
+  <p><strong>7.2. Nghĩa vụ:</strong> Cung cấp brief, tài liệu, phần mềm; thanh toán đúng hạn; phản hồi nghiệm thu trong 05 ngày; khấu trừ thuế TNCN.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 8: KỸ THUẬT</div>
+  <p>8.1. Sản phẩm tuân thủ Style Guide và kỹ thuật số do Bên A quy định.</p>
+  <p>8.2. Công cụ: theo thỏa thuận (Figma, Adobe, Blender, Unity, Spine, v.v.).</p>
+  <p>8.3. Bên B không nhận việc cho đối thủ cạnh tranh trực tiếp mà không thông báo trước.</p>
+  <p>8.4. Sửa chữa ngoài brief ban đầu là phát sinh, có thể tính phí bổ sung.</p>
+  <p>8.5. Bảo hành lỗi kỹ thuật: 14 ngày sau nghiệm thu, miễn phí.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 9: CHẤM DỨT HỢP ĐỒNG</div>
+  <p>9.1. Chấm dứt khi: hoàn thành nghiệm thu; hết hạn không gia hạn; thỏa thuận văn bản; đơn phương theo 9.2.</p>
+  <p>9.2. Đơn phương: thông báo trước tối thiểu 07 ngày làm việc. Bên B bàn giao đầy đủ file nguồn, tài sản.</p>
+  <p>9.3. Chế tài: Bên B vi phạm báo trước → không nhận phí chưa thanh toán. Bên A vi phạm → thanh toán phần hoàn thành + bồi thường 07 ngày thù lao.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 10: GIẢI QUYẾT TRANH CHẤP</div>
+  <p>Ưu tiên thương lượng trong 15 ngày. Nếu không giải quyết được → Tòa án nhân dân có thẩm quyền tại nơi Bên A đặt trụ sở.</p>
+</div>
+
+<div class="article">
+  <div class="article-title">ĐIỀU 11: ĐIỀU KHOẢN CHUNG</div>
+  <p>11.1. Đây là Hợp đồng dịch vụ theo BLDS 2015, không hình thành quan hệ lao động.</p>
+  <p>11.2. Mọi thay đổi phải bằng văn bản có chữ ký hai bên.</p>
+  <p>11.3. Điều khoản vô hiệu không ảnh hưởng các điều khoản còn lại.</p>
+  <p>11.4. Phụ lục là bộ phận không tách rời.</p>
+  <p>11.5. Hợp đồng lập thành 02 bản, mỗi bên giữ 01 bản.</p>
+</div>
+
+${signatureBlock('CỘNG TÁC VIÊN (BÊN B)', '(Ký, ghi rõ họ và tên)', 'ĐẠI DIỆN BÊN A', '(Ký, đóng dấu, ghi rõ họ và tên)')}
 
 </body></html>`;
 }
