@@ -80,6 +80,34 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
   };
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingScanId, setUploadingScanId] = useState<string | null>(null);
+  const scanFileRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadScan = async (docId: string, file: File) => {
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`File quá lớn! Tối đa ${MAX_SIZE_MB}MB.`);
+      return;
+    }
+    setUploadingScanId(docId);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      await svc.updateDocument(docId, {
+        file_url: data.url,
+        file_name: file.name,
+        file_size: file.size,
+      });
+      load();
+    } catch (err: any) {
+      alert('Upload thất bại: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploadingScanId(null);
+      if (scanFileRef.current) scanFileRef.current.value = '';
+    }
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState(emptyForm);
@@ -468,6 +496,15 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
                 {hasFile && (
                   <button type="button" onClick={(e) => { e.stopPropagation(); handleDownload(toPublicUrl(doc.file_url), doc.file_name || doc.title); }} title="Tải về"
                     style={{ padding: '7px 12px', border: '1px solid #34C75930', borderRadius: '6px', background: 'rgba(52,199,89,0.1)', color: '#34C759', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⬇️ Tải</button>
+                )}
+                {!hasFile && (
+                  <label title="Upload bản scan đã ký"
+                    style={{ padding: '7px 12px', border: '1px solid #AF52DE30', borderRadius: '6px', background: 'rgba(175,82,222,0.1)', color: '#AF52DE', fontSize: '12px', fontWeight: 700, cursor: uploadingScanId === doc.id ? 'wait' : 'pointer', opacity: uploadingScanId === doc.id ? 0.6 : 1 }}>
+                    {uploadingScanId === doc.id ? '⏳ Đang upload...' : '📤 Upload scan'}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style={{ display: 'none' }}
+                      disabled={!!uploadingScanId}
+                      onChange={(e) => { e.stopPropagation(); const f = e.target.files?.[0]; if (f) handleUploadScan(doc.id, f); }} />
+                  </label>
                 )}
                 {deleteConfirmId === doc.id ? (
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
