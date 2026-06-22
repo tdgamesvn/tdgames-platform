@@ -7,6 +7,7 @@ import {
   getScopeTemplates, saveScopeTemplate, deleteScopeTemplate, ScopeTemplate,
 } from '../services/clientContractService';
 import { supabase } from '@/services/supabaseClient';
+import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
 
 interface Props {
   client: CrmClient;
@@ -26,6 +27,20 @@ const inputStyle = { background: '#111', colorScheme: 'dark' as const };
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-1';
 
 const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, onClose, onSaved }) => {
+  // ── Bank accounts ──
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [selectedBankId, setSelectedBankId] = useState('');
+
+  useEffect(() => {
+    fetchBankAccounts().then(accs => {
+      setBankAccounts(accs);
+      // Auto-select first matching account for the company
+      const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES', tdconsulting: 'TD CONSULTING' };
+      const match = accs.find(a => a.entity === entityMap[companyKey]);
+      if (match) setSelectedBankId(match.id);
+    }).catch(() => {});
+  }, []);
+
   // ── Contract info ──
   const [contractNumber, setContractNumber] = useState(generateContractNumber());
   const [signingDate, setSigningDate] = useState(todayStr());
@@ -102,6 +117,16 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
     setPhases(newPhases);
   }, [phaseCount]);
 
+  // ── Selected bank account ──
+  const selectedBank = bankAccounts.find(a => a.id === selectedBankId);
+
+  // ── Auto-switch bank when company changes ──
+  useEffect(() => {
+    const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES', tdconsulting: 'TD CONSULTING' };
+    const match = bankAccounts.find(a => a.entity === entityMap[companyKey]);
+    if (match) setSelectedBankId(match.id);
+  }, [companyKey, bankAccounts]);
+
   // ── Generate preview ──
   useEffect(() => {
     const data: ClientContractData = {
@@ -111,9 +136,12 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
       totalValue, currency, phases,
+      bankAccountName: selectedBank?.name || undefined,
+      bankName: selectedBank?.bank_name || undefined,
+      bankAccountNumber: selectedBank?.account_number || undefined,
     };
     setPreviewHtml(generateClientContract(data));
-  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, totalValue, currency, phases]);
+  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, totalValue, currency, phases, selectedBankId, bankAccounts]);
 
   // ── Write preview to iframe ──
   useEffect(() => {
@@ -203,6 +231,18 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
                 <option key={k} value={k}>{COMPANY_OPTIONS[k].nameShort}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <p className={labelCls}>Tài khoản ngân hàng</p>
+            <select value={selectedBankId} onChange={e => setSelectedBankId(e.target.value)} className={inputCls} style={inputStyle}>
+              <option value="">— Chọn tài khoản —</option>
+              {bankAccounts.map(a => (
+                <option key={a.id} value={a.id}>{a.name} — {a.bank_name} {a.account_number ? `(${a.account_number})` : ''}</option>
+              ))}
+            </select>
+            {selectedBank && (
+              <p style={{ fontSize: 10, color: '#666', marginTop: 4 }}>{selectedBank.bank_name} • {selectedBank.account_number} • {selectedBank.currency}</p>
+            )}
           </div>
 
           {/* Divider */}

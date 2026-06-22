@@ -39,6 +39,12 @@ export interface ClientContractData {
   totalValue: number;
   currency: string;
   phases: PaymentPhase[];
+  // Bank
+  bankAccountName?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankSwiftCode?: string;
+  bankAddress?: string;
 }
 
 export interface ScopeTemplate {
@@ -279,11 +285,11 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="vi">Thanh toán được thực hiện bằng hình thức chuyển khoản ngân hàng đến tài khoản sau:</p>
   </div>
   <table class="info-table" style="margin-top:4px">
-    <tr><td class="label">Account Name:</td><td class="value">${company.name}</td></tr>
-    <tr><td class="label">Bank Name:</td><td class="value">Joint Stock Commercial Bank for Investment and Development of Vietnam (BIDV)</td></tr>
-    <tr><td class="label">Bank Account No.:</td><td class="value">8630104093</td></tr>
-    <tr><td class="label">Bank Swift Code:</td><td class="value">BIDVVNVX</td></tr>
-    <tr><td class="label">Bank Address:</td><td class="value">BIDV Tower, 194 Tran Quang Khai, Hoan Kiem, Ha Noi</td></tr>
+    <tr><td class="label">Account Name:</td><td class="value">${data.bankAccountName || company.name}</td></tr>
+    <tr><td class="label">Bank Name:</td><td class="value">${data.bankName || '..........'}</td></tr>
+    <tr><td class="label">Bank Account No.:</td><td class="value">${data.bankAccountNumber || '..........'}</td></tr>
+    ${data.bankSwiftCode ? `<tr><td class="label">Bank Swift Code:</td><td class="value">${data.bankSwiftCode}</td></tr>` : ''}
+    ${data.bankAddress ? `<tr><td class="label">Bank Address:</td><td class="value">${data.bankAddress}</td></tr>` : ''}
   </table>
   <div class="bilingual" style="margin-top:4px">
     <p class="en">All bank transfer fees incurred outside of Vietnam shall be borne by Party A. Fees within Vietnam shall be borne by Party B.</p>
