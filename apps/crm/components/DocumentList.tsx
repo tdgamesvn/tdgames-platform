@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { CrmClient, CrmDocument, CrmProject } from '@/types';
+import { CrmClient, CrmDocument, CrmProject, CrmContact } from '@/types';
 import * as svc from '../services/crmService';
+import ClientContractGenerator from './ClientContractGenerator';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_URL || '';
@@ -62,6 +63,18 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState('');
+
+  // Contract generator state
+  const [contractGenClient, setContractGenClient] = useState<CrmClient | null>(null);
+  const [contractGenContacts, setContractGenContacts] = useState<CrmContact[]>([]);
+
+  const openContractGenerator = async (clientId: string) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+    const contacts = client.contacts || [];
+    setContractGenContacts(contacts);
+    setContractGenClient(client);
+  };
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -253,10 +266,20 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
           <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Tài liệu</h2>
           <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
         </div>
-        <button onClick={() => { setEditingDoc(null); setForm(emptyForm); setShowForm(!showForm); }} style={{
-          padding: '12px 24px', border: 'none', borderRadius: '10px', background: '#FF9500',
-          color: '#000', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
-        }}>＋ Thêm tài liệu</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => {
+            const clientId = filterClient || clients[0]?.id;
+            if (clientId) openContractGenerator(clientId);
+            else alert('Vui lòng chọn khách hàng');
+          }} style={{
+            padding: '12px 24px', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '10px', background: 'rgba(16,185,129,0.1)',
+            color: '#10b981', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
+          }}>📋 Tạo hợp đồng</button>
+          <button onClick={() => { setEditingDoc(null); setForm(emptyForm); setShowForm(!showForm); }} style={{
+            padding: '12px 24px', border: 'none', borderRadius: '10px', background: '#FF9500',
+            color: '#000', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
+          }}>＋ Thêm tài liệu</button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -475,6 +498,17 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
       )}
 
       <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+
+      {/* Contract Generator Modal */}
+      {contractGenClient && (
+        <ClientContractGenerator
+          client={contractGenClient}
+          contacts={contractGenContacts}
+          projects={allProjects.filter(p => p.client_id === contractGenClient.id)}
+          onClose={() => setContractGenClient(null)}
+          onSaved={() => { loadDocs(); }}
+        />
+      )}
     </div>
   );
 };

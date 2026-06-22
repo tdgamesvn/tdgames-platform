@@ -1,0 +1,392 @@
+import { CrmClient, CrmContact } from '@/types';
+import { COMPANY_OPTIONS, CompanyKey } from '@/apps/hr/services/contractService';
+
+// Re-export for convenience
+export { COMPANY_OPTIONS, printContract } from '@/apps/hr/services/contractService';
+export type { CompanyKey } from '@/apps/hr/services/contractService';
+
+// ══════════════════════════════════════════════════════════════
+// ── Types ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export interface PaymentPhase {
+  label: string;
+  percentage: number;
+  amount: number;
+  description: string;
+}
+
+export interface ClientContractData {
+  // Contract
+  contractNumber: string;
+  signingDate: string;
+  companyKey: CompanyKey;
+  // Party A (client)
+  clientName: string;
+  clientAddress: string;
+  clientTaxCode: string;
+  clientRepresentative: string;
+  clientRepresentativeTitle: string;
+  // Project
+  projectName: string;
+  // Scope
+  scopeContent: string;
+  // Timeline
+  startDate: string;
+  estimatedDuration: string;
+  estimatedCompletion: string;
+  // Payment
+  totalValue: number;
+  currency: string;
+  phases: PaymentPhase[];
+}
+
+export interface ScopeTemplate {
+  name: string;
+  content: string;
+  createdAt: string;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Helpers ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+const fmt = (n: number) => n.toLocaleString('vi-VN');
+
+const fmtDate = (d: string | null | undefined): string => {
+  if (!d) return '....../....../..........';
+  const dt = new Date(d);
+  return `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`;
+};
+
+const blank = (v: string | null | undefined, placeholder = '..........') => v || placeholder;
+
+const numberToWords = (n: number, currency: string): string => {
+  if (currency === 'USD') return `${fmt(n)} US Dollars`;
+  return `${fmt(n)} VNĐ`;
+};
+
+export function generateContractNumber(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  return `UASA/TDG-${yy}${mm}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Scope Templates (localStorage) ──────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+const SCOPE_STORAGE_KEY = 'crm_scope_templates';
+
+export function getScopeTemplates(): ScopeTemplate[] {
+  try {
+    const raw = localStorage.getItem(SCOPE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveScopeTemplate(name: string, content: string): void {
+  const templates = getScopeTemplates().filter(t => t.name !== name);
+  templates.unshift({ name, content, createdAt: new Date().toISOString() });
+  localStorage.setItem(SCOPE_STORAGE_KEY, JSON.stringify(templates));
+}
+
+export function deleteScopeTemplate(name: string): void {
+  const templates = getScopeTemplates().filter(t => t.name !== name);
+  localStorage.setItem(SCOPE_STORAGE_KEY, JSON.stringify(templates));
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── CSS (reuse HR pattern) ──────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+const PRINT_CSS = `
+@page { size: A4; margin: 18mm 22mm 18mm 22mm; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Times New Roman', 'Tinos', serif;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.header-national { text-align: center; margin-bottom: 14px; }
+.header-national .en { font-size: 13px; font-weight: bold; text-transform: uppercase; }
+.header-national .vi { font-size: 13px; font-weight: bold; text-transform: uppercase; }
+.header-national .motto-en { font-size: 13px; font-style: italic; }
+.header-national .motto-vi { font-size: 13px; font-weight: bold; font-style: italic; }
+.header-national .stars { font-size: 14px; letter-spacing: 4px; margin: 2px 0; }
+.contract-title { text-align: center; font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 10px 0 3px 0; }
+.contract-number { text-align: center; font-size: 13px; font-style: italic; margin-bottom: 10px; }
+.bilingual { margin-bottom: 4px; }
+.bilingual .en { }
+.bilingual .vi { font-style: italic; color: #444; }
+.info-table { width: 100%; border-collapse: collapse; margin: 4px 0 8px 0; }
+.info-table td { padding: 2px 4px; vertical-align: top; font-size: 13px; }
+.info-table .label { width: 220px; }
+.info-table .value { }
+.article { margin: 8px 0; }
+.article-title { font-weight: bold; font-size: 13px; margin-bottom: 4px; text-transform: uppercase; break-after: avoid; page-break-after: avoid; }
+.article p, .article li { text-align: justify; margin-bottom: 3px; orphans: 2; widows: 2; }
+.article ul, .article ol { padding-left: 20px; }
+.payment-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.payment-table th, .payment-table td { border: 1px solid #666; padding: 4px 8px; font-size: 12px; vertical-align: top; }
+.payment-table th { background: #f5f5f5; font-weight: bold; text-align: center; }
+.timeline-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.timeline-table td { padding: 3px 6px; font-size: 13px; vertical-align: top; }
+.timeline-table .tl-label { width: 200px; font-weight: bold; }
+.signature-block { display: flex; justify-content: space-between; margin-top: 40px; page-break-inside: avoid; }
+.signature-col { width: 45%; text-align: center; }
+.signature-col .sig-title { font-weight: bold; font-size: 13px; margin-bottom: 2px; }
+.signature-col .sig-subtitle { font-weight: bold; font-size: 12px; font-style: italic; margin-bottom: 2px; }
+.signature-col .sig-note { font-style: italic; font-size: 11px; color: #555; margin-bottom: 70px; }
+@media screen {
+  body { max-width: 210mm; margin: 0 auto; padding: 18mm 22mm; background: white; }
+}
+`;
+
+// ══════════════════════════════════════════════════════════════
+// ── Template Generator ──────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export function generateClientContract(data: ClientContractData): string {
+  const company = COMPANY_OPTIONS[data.companyKey];
+
+  const paymentScheduleRows = data.phases.map((p, i) => `
+    <tr>
+      <td style="text-align:center">${i + 1}</td>
+      <td>${p.label}<br><span style="font-style:italic;color:#444">${p.description}</span></td>
+      <td style="text-align:center">${p.percentage}%</td>
+      <td style="text-align:right">${fmt(p.amount)} ${data.currency}</td>
+    </tr>
+  `).join('');
+
+  return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <style>${PRINT_CSS}</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header-national">
+  <div class="en">SOCIALIST REPUBLIC OF VIETNAM</div>
+  <div class="vi">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+  <div class="motto-en">Independence – Freedom – Happiness</div>
+  <div class="motto-vi">Độc lập – Tự do – Hạnh phúc</div>
+  <div class="stars">***</div>
+</div>
+
+<div class="contract-title">
+  OUTSOURCING SERVICE AGREEMENT<br>
+  <span style="font-size:14px">HỢP ĐỒNG DỊCH VỤ THUÊ NGOÀI</span>
+</div>
+<div class="contract-number">
+  Contract No / Số hợp đồng: ${blank(data.contractNumber)}<br>
+  Date of Signing / Ngày ký: ${fmtDate(data.signingDate)}
+</div>
+
+<div class="bilingual">
+  <p class="en">Pursuant to the Civil Code of Vietnam 2015 and the Law on Commercial Transactions;</p>
+  <p class="vi">Căn cứ Bộ luật Dân sự Việt Nam năm 2015 và Luật Thương mại;</p>
+</div>
+<div class="bilingual">
+  <p class="en">Pursuant to the agreement and actual requirements of the parties;</p>
+  <p class="vi">Căn cứ thỏa thuận và nhu cầu thực tế của các bên;</p>
+</div>
+<div class="bilingual" style="margin-bottom:10px">
+  <p class="en">The parties listed below hereby enter into this Agreement under the following terms and conditions:</p>
+  <p class="vi">Các bên dưới đây cùng nhau ký kết Hợp đồng này với các điều khoản và điều kiện sau:</p>
+</div>
+
+<!-- ARTICLE I -->
+<div class="article">
+  <div class="article-title">ARTICLE I. PARTIES INFORMATION / ĐIỀU I. THÔNG TIN CÁC BÊN</div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">1.1 Party A (Client) / Bên A (Khách hàng)</p>
+  <table class="info-table">
+    <tr><td class="label">Company Name / Tên công ty:</td><td class="value">${blank(data.clientName)}</td></tr>
+    <tr><td class="label">Address / Địa chỉ:</td><td class="value">${blank(data.clientAddress)}</td></tr>
+    <tr><td class="label">Tax ID / Mã số thuế:</td><td class="value">${blank(data.clientTaxCode)}</td></tr>
+    <tr><td class="label">Representative / Người đại diện:</td><td class="value">${blank(data.clientRepresentative)}</td></tr>
+    <tr><td class="label">Position / Chức vụ:</td><td class="value">${blank(data.clientRepresentativeTitle)}</td></tr>
+  </table>
+
+  <p style="font-weight:bold;margin:6px 0 2px">1.2 Party B (Service Provider) / Bên B (Đơn vị cung cấp dịch vụ)</p>
+  <table class="info-table">
+    <tr><td class="label">Company Name / Tên công ty:</td><td class="value">${company.name}</td></tr>
+    <tr><td class="label">Address / Địa chỉ:</td><td class="value">${company.address}</td></tr>
+    <tr><td class="label">Email:</td><td class="value">tdgames.vn@gmail.com</td></tr>
+    <tr><td class="label">Tax ID / Mã số thuế:</td><td class="value">${company.taxCode}</td></tr>
+    <tr><td class="label">Representative / Người đại diện:</td><td class="value">${company.representative}</td></tr>
+    <tr><td class="label">Position / Chức vụ:</td><td class="value">${company.representativeTitle}</td></tr>
+  </table>
+
+  <p style="font-style:italic;margin:6px 0 10px">The parties referred to above collectively as "the Parties" hereby agree as follows: / Các bên nêu trên, gọi chung là "Các Bên", đồng ý với nhau như sau:</p>
+</div>
+
+<!-- ARTICLE II — SCOPE -->
+<div class="article">
+  <div class="article-title">ARTICLE II. SCOPE OF WORK / ĐIỀU II. PHẠM VI CÔNG VIỆC</div>
+  <p style="font-weight:bold;margin-bottom:4px">Project Name / Tên dự án: ${blank(data.projectName)}</p>
+  <div style="margin-top:6px">${data.scopeContent || '<p style="color:#999">[Scope of work will be defined here]</p>'}</div>
+  <div class="bilingual" style="margin-top:8px">
+    <p class="en"><strong>Out of Scope:</strong> Any assets, features, or requirements not explicitly listed in this Article shall be considered additional work outside the scope of this Agreement and may be quoted separately in accordance with Article 6.2.</p>
+    <p class="vi"><strong>Ngoài phạm vi:</strong> Bất kỳ tài sản, tính năng hoặc yêu cầu nào không được liệt kê rõ ràng trong Điều này đều được coi là công việc phát sinh ngoài phạm vi Hợp đồng và có thể được báo giá riêng theo Điều 6.2.</p>
+  </div>
+</div>
+
+<!-- ARTICLE III — TIMELINE -->
+<div class="article">
+  <div class="article-title">ARTICLE III. TIMELINE / ĐIỀU III. TIẾN ĐỘ THỰC HIỆN</div>
+  <table class="timeline-table">
+    <tr><td class="tl-label">Start Date / Ngày bắt đầu</td><td>${data.startDate ? fmtDate(data.startDate) : 'Within 3 business days after receipt of the prepayment. / Trong vòng 3 ngày làm việc sau khi nhận tạm ứng.'}</td></tr>
+    <tr><td class="tl-label">Estimated Duration / Thời gian dự kiến</td><td>${blank(data.estimatedDuration)}</td></tr>
+    <tr><td class="tl-label">Estimated Completion / Ngày hoàn thành dự kiến</td><td>${data.estimatedCompletion ? fmtDate(data.estimatedCompletion) : blank('')}</td></tr>
+  </table>
+  <div class="bilingual" style="margin-top:6px">
+    <p class="en">Any delay caused by late feedback, missing references, or change requests from Party A shall automatically extend the production schedule accordingly.</p>
+    <p class="vi">Trong trường hợp tiến độ bị ảnh hưởng do Bên A chậm phản hồi, thời hạn thực hiện sẽ được tự động gia hạn tương ứng.</p>
+  </div>
+</div>
+
+<!-- ARTICLE IV — PAYMENT -->
+<div class="article">
+  <div class="article-title">ARTICLE IV. PAYMENT TERMS / ĐIỀU IV. ĐIỀU KHOẢN THANH TOÁN</div>
+
+  <p style="font-weight:bold;margin:4px 0 2px">4.1 Total Contract Value / Tổng giá trị hợp đồng</p>
+  <table class="info-table">
+    <tr><td class="label">Amount (Figures) / Bằng số:</td><td class="value"><strong>${fmt(data.totalValue)} ${data.currency}</strong></td></tr>
+    <tr><td class="label">Amount (Words) / Bằng chữ:</td><td class="value">${numberToWords(data.totalValue, data.currency)}</td></tr>
+  </table>
+
+  <p style="font-weight:bold;margin:6px 0 2px">4.2 Payment Schedule / Lịch thanh toán</p>
+  <table class="payment-table">
+    <thead>
+      <tr><th>#</th><th>Description</th><th>%</th><th>Amount</th></tr>
+    </thead>
+    <tbody>${paymentScheduleRows}</tbody>
+  </table>
+
+  <p style="font-weight:bold;margin:8px 0 2px">4.3 Payment Method / Phương thức thanh toán</p>
+  <div class="bilingual">
+    <p class="en">Payment shall be made by bank transfer to the following account:</p>
+    <p class="vi">Thanh toán được thực hiện bằng hình thức chuyển khoản ngân hàng đến tài khoản sau:</p>
+  </div>
+  <table class="info-table" style="margin-top:4px">
+    <tr><td class="label">Account Name:</td><td class="value">${company.name}</td></tr>
+    <tr><td class="label">Bank Name:</td><td class="value">Joint Stock Commercial Bank for Investment and Development of Vietnam (BIDV)</td></tr>
+    <tr><td class="label">Bank Account No.:</td><td class="value">8630104093</td></tr>
+    <tr><td class="label">Bank Swift Code:</td><td class="value">BIDVVNVX</td></tr>
+    <tr><td class="label">Bank Address:</td><td class="value">BIDV Tower, 194 Tran Quang Khai, Hoan Kiem, Ha Noi</td></tr>
+  </table>
+  <div class="bilingual" style="margin-top:4px">
+    <p class="en">All bank transfer fees incurred outside of Vietnam shall be borne by Party A. Fees within Vietnam shall be borne by Party B.</p>
+    <p class="vi">Tất cả phí chuyển khoản phát sinh ngoài lãnh thổ Việt Nam do Bên A chịu. Phí trong nước do Bên B chịu.</p>
+  </div>
+</div>
+
+<!-- ARTICLE V — RIGHTS & OBLIGATIONS (BOILERPLATE) -->
+<div class="article">
+  <div class="article-title">ARTICLE V. RIGHTS AND OBLIGATIONS / ĐIỀU V. QUYỀN VÀ NGHĨA VỤ CÁC BÊN</div>
+
+  <p style="font-weight:bold;margin:4px 0 2px">5.1 Obligations of Party B (Service Provider) / Nghĩa vụ của Bên B</p>
+  <ul>
+    <li>Perform the agreed scope of work accurately and professionally. / Thực hiện đúng và chuyên nghiệp phạm vi công việc đã thỏa thuận.</li>
+    <li>Deliver all products on time and in compliance with the required quality standards. / Bàn giao tất cả sản phẩm đúng hạn và đáp ứng tiêu chuẩn chất lượng.</li>
+    <li>Maintain strict confidentiality of all project-related information. / Bảo mật nghiêm ngặt toàn bộ thông tin liên quan đến dự án.</li>
+    <li>Provide technical support within thirty (30) days following delivery. / Hỗ trợ kỹ thuật trong vòng 30 ngày sau khi bàn giao.</li>
+    <li>Delete all of Party A's source files within thirty (30) days after final delivery. / Xóa toàn bộ file gốc của Bên A trong vòng 30 ngày sau bàn giao cuối.</li>
+  </ul>
+
+  <p style="font-weight:bold;margin:6px 0 2px">5.2 Obligations of Party A (Client) / Nghĩa vụ của Bên A</p>
+  <ul>
+    <li>Provide all necessary source files, briefs, and references in a timely manner. / Cung cấp đầy đủ và kịp thời file gốc, brief và tài liệu tham khảo.</li>
+    <li>Make payments in accordance with the schedule set forth in Article IV. / Thanh toán đúng lịch quy định tại Điều IV.</li>
+    <li>Review and provide feedback within five (05) working days. / Xem xét và phản hồi trong vòng 5 ngày làm việc.</li>
+    <li>Provide all project-related information necessary for production. / Cung cấp toàn bộ thông tin cần thiết cho sản xuất.</li>
+  </ul>
+
+  <p style="font-weight:bold;margin:6px 0 2px">5.3 Intellectual Property Rights / Quyền sở hữu trí tuệ</p>
+  <div class="bilingual">
+    <p class="en">All intellectual property rights to the final deliverables shall be transferred to Party A upon completion of all payment obligations.</p>
+    <p class="vi">Toàn bộ quyền sở hữu trí tuệ đối với sản phẩm bàn giao cuối cùng sẽ được chuyển giao cho Bên A sau khi hoàn tất toàn bộ nghĩa vụ thanh toán.</p>
+  </div>
+  <div class="bilingual">
+    <p class="en">Following the public release, Party B may showcase the completed work in its portfolio only with the prior written approval of Party A.</p>
+    <p class="vi">Sau khi phát hành công khai, Bên B được quyền sử dụng sản phẩm để giới thiệu nếu được sự đồng ý của Bên A bằng văn bản.</p>
+  </div>
+</div>
+
+<!-- ARTICLE VI — GENERAL PROVISIONS (BOILERPLATE) -->
+<div class="article">
+  <div class="article-title">ARTICLE VI. GENERAL PROVISIONS / ĐIỀU VI. ĐIỀU KHOẢN CHUNG</div>
+
+  <p style="font-weight:bold;margin:4px 0 2px">6.1 Acceptance & Revision Policy / Tiêu chí nghiệm thu</p>
+  <div class="bilingual">
+    <p class="en">Deliverables shall be deemed accepted when conforming to agreed specifications. Party A shall notify rejection within five (05) working days. Each deliverable is subject to a maximum of two (02) rounds of revision free of charge.</p>
+    <p class="vi">Sản phẩm bàn giao được coi là đã nghiệm thu khi phù hợp với thông số đã thỏa thuận. Bên A phải thông báo từ chối trong vòng 5 ngày làm việc. Mỗi sản phẩm được chỉnh sửa tối đa 2 lần miễn phí.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.2 Additional Requests / Yêu cầu phát sinh</p>
+  <div class="bilingual">
+    <p class="en">Any task outside the scope defined in Article II shall constitute an additional request. Party B provides a quotation within two (02) working days. Production commences only upon Party A's written approval.</p>
+    <p class="vi">Bất kỳ công việc nào ngoài phạm vi Điều II đều là yêu cầu phát sinh. Bên B cung cấp báo giá trong 2 ngày làm việc. Sản xuất chỉ bắt đầu sau khi có phê duyệt của Bên A.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.3 Confidentiality / Bảo mật thông tin</p>
+  <div class="bilingual">
+    <p class="en">Both Parties agree to keep all project-related information strictly confidential. This obligation shall survive termination of this Agreement.</p>
+    <p class="vi">Các Bên cam kết giữ bí mật tuyệt đối toàn bộ thông tin liên quan đến dự án. Nghĩa vụ này tiếp tục có hiệu lực sau khi Hợp đồng chấm dứt.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.4 Governing Law / Luật điều chỉnh</p>
+  <div class="bilingual">
+    <p class="en">This Agreement shall be governed by the laws of Vietnam. Disputes shall be resolved through negotiation within thirty (30) days, failing which either Party may submit to the competent People's Court of Ha Noi.</p>
+    <p class="vi">Hợp đồng này được điều chỉnh theo pháp luật Việt Nam. Tranh chấp ưu tiên giải quyết thương lượng trong 30 ngày, nếu không giải quyết được có thể đưa ra Tòa án tại Hà Nội.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.5 Contract Termination / Chấm dứt hợp đồng</p>
+  <div class="bilingual">
+    <p class="en">Either Party may request termination with twenty (20) calendar days written notice. Party A shall pay for all completed work on a pro-rata basis. All payments already received are non-refundable.</p>
+    <p class="vi">Mỗi Bên có thể yêu cầu chấm dứt với 20 ngày thông báo bằng văn bản. Bên A thanh toán cho công việc đã hoàn thành theo tỷ lệ. Các khoản đã nhận không được hoàn lại.</p>
+  </div>
+</div>
+
+<!-- ARTICLE VII — FINAL PROVISIONS (BOILERPLATE) -->
+<div class="article">
+  <div class="article-title">ARTICLE VII. FINAL PROVISIONS / ĐIỀU VII. ĐIỀU KHOẢN CUỐI</div>
+  <ul>
+    <li>This Agreement takes effect from the date of signing. / Hợp đồng có hiệu lực kể từ ngày ký.</li>
+    <li>This Agreement terminates upon full performance of all obligations. / Hợp đồng chấm dứt khi hoàn thành toàn bộ nghĩa vụ.</li>
+    <li>This Agreement is made in two (02) original copies of equal legal validity. / Hợp đồng lập thành 2 bản gốc có giá trị pháp lý ngang nhau.</li>
+    <li>Any amendment shall be made in writing and signed by both Parties. / Mọi sửa đổi phải được lập bằng văn bản và ký bởi cả hai Bên.</li>
+  </ul>
+</div>
+
+<!-- SIGNATURE BLOCK -->
+<div class="signature-block">
+  <div class="signature-col">
+    <div class="sig-title">PARTY A (CLIENT)</div>
+    <div class="sig-subtitle">BÊN A (KHÁCH HÀNG)</div>
+    <div class="sig-note">Signature, Full Name and Seal<br>Chữ ký, Họ tên và Con dấu</div>
+    <div>___________________________</div>
+    <div style="margin-top:4px;font-weight:bold">${blank(data.clientRepresentative)}</div>
+  </div>
+  <div class="signature-col">
+    <div class="sig-title">PARTY B (SERVICE PROVIDER)</div>
+    <div class="sig-subtitle">BÊN B (ĐƠN VỊ CUNG CẤP DỊCH VỤ)</div>
+    <div class="sig-note">Signature, Full Name and Seal<br>Chữ ký, Họ tên và Con dấu</div>
+    <div>___________________________</div>
+    <div style="margin-top:4px;font-weight:bold">${company.representative}</div>
+  </div>
+</div>
+
+</body>
+</html>`;
+}
