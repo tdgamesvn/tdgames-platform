@@ -119,6 +119,23 @@ export default function BankTab({ company, canEdit = true }: Props) {
     }
   };
 
+  const handleSetPrimary = async (id: string) => {
+    try {
+      // Set all accounts of this entity to sort_order > 1
+      for (const acc of accounts) {
+        if (acc.id === id) {
+          await supabase.from('finance_bank_accounts').update({ sort_order: 1 }).eq('id', acc.id);
+        } else if (acc.sort_order === 1) {
+          await supabase.from('finance_bank_accounts').update({ sort_order: 2 }).eq('id', acc.id);
+        }
+      }
+      showToast('Đã đặt làm tài khoản chính', 'success');
+      loadAccounts();
+    } catch (err: any) {
+      showToast(err.message || 'Lỗi', 'error');
+    }
+  };
+
   const handleDeactivate = async (id: string) => {
     try {
       await supabase.from('finance_bank_accounts').update({ is_active: false }).eq('id', id);
@@ -245,6 +262,12 @@ export default function BankTab({ company, canEdit = true }: Props) {
               {/* Actions */}
               {canEdit && (
                 <div className="flex gap-2 mt-3 justify-end">
+                  {acc.sort_order !== 1 && (
+                    <button onClick={() => handleSetPrimary(acc.id)}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/10 transition-all">
+                      ⭐ Chính
+                    </button>
+                  )}
                   <button onClick={() => openEdit(acc)}
                     className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">
                     Sửa
