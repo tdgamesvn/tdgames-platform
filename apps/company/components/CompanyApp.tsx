@@ -135,7 +135,7 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
               />
             )}
             {activeTab === 'bank' && (
-              <BankTab company={selectedCompany} />
+              <BankTab company={selectedCompany} canEdit={canEdit} />
             )}
           </>
         )}
