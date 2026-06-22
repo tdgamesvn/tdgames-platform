@@ -40,6 +40,10 @@ _(trống)_
 
 ## Recently Completed
 
+- [x] Chỉnh sửa lương trên đề xuất HR (pending + approved)
+  - Done: 2026-06-22
+  - Result: Inline edit salary trên ChangeRequestTab — pending chỉ cập nhật request, approved cập nhật request + re-apply lương thực tế (rotateSalary + employee.salary + position history). Build passed ✅
+
 - [x] AI Agent System — All 7 steps completed
   - Done: 2026-06-17
   - Commits: 57e5e22 → f147c82

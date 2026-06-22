@@ -43,6 +43,71 @@ export async function createChangeRequest(
   return data;
 }
 
+export async function updateChangeRequestChanges(
+  id: string,
+  changes: Record<string, any>,
+): Promise<HrChangeRequest> {
+  const { data, error } = await supabase
+    .from('hr_change_requests')
+    .update({ changes })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select('*, employee:hr_employees(*)')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Edit salary on an already-approved request and re-apply to employee */
+export async function editApprovedSalary(
+  id: string,
+  newSalaryComponents: Array<{ component_id: string; name: string; old_amount: number; new_amount: number }>,
+): Promise<HrChangeRequest> {
+  // 1. Fetch the approved request
+  const { data: req, error: fetchErr } = await supabase
+    .from('hr_change_requests')
+    .select('*, employee:hr_employees(*)')
+    .eq('id', id)
+    .eq('status', 'approved')
+    .single();
+  if (fetchErr || !req) throw new Error(fetchErr?.message || 'Không tìm thấy đề xuất');
+
+  // 2. Update the changes on the request record
+  const updatedChanges = {
+    ...req.changes,
+    salary_components: newSalaryComponents,
+  };
+  const { error: updateErr } = await supabase
+    .from('hr_change_requests')
+    .update({ changes: updatedChanges })
+    .eq('id', id);
+  if (updateErr) throw updateErr;
+
+  // 3. Re-apply: rotate salary for each component
+  const empId = req.employee_id;
+  const effDate = req.effective_date;
+  for (const sc of newSalaryComponents) {
+    await rotateSalary(empId, sc.component_id, sc.new_amount, effDate, 'Điều chỉnh lương (sửa đề xuất đã duyệt)');
+  }
+
+  // 4. Update employee.salary with new total
+  const newTotal = newSalaryComponents.reduce((s, x) => s + x.new_amount, 0);
+  await hrSvc.updateEmployee(empId, { salary: newTotal } as any);
+
+  // 5. Add position history for the adjustment
+  const prevTotal = (req.changes.salary_components || []).reduce((s: number, x: any) => s + (x.new_amount || 0), 0);
+  await hrSvc.addPositionChange({
+    employee_id: empId,
+    change_type: 'salary',
+    old_value: prevTotal.toLocaleString() + ' VNĐ',
+    new_value: newTotal.toLocaleString() + ' VNĐ',
+    effective_date: effDate,
+    reason: 'Điều chỉnh lương (sửa đề xuất đã duyệt)',
+  });
+
+  return { ...req, changes: updatedChanges };
+}
+
 export async function deleteChangeRequest(id: string): Promise<void> {
   const { error } = await supabase
     .from('hr_change_requests')
@@ -98,6 +163,37 @@ export async function rejectChangeRequest(
     .single();
   if (error) throw error;
   return data;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── Direct Salary Adjust (no change request) ─────────────
+// ══════════════════════════════════════════════════════════
+
+export async function directSalaryAdjust(
+  empId: string,
+  changedComponents: Array<{ component_id: string; name: string; old_amount: number; new_amount: number }>,
+  effectiveDate: string,
+  reason?: string,
+): Promise<void> {
+  // 1. Rotate salary for each changed component
+  for (const sc of changedComponents) {
+    await rotateSalary(empId, sc.component_id, sc.new_amount, effectiveDate, reason || 'Điều chỉnh lương trực tiếp');
+  }
+
+  // 2. Insert position history record
+  const oldTotal = changedComponents.reduce((s, x) => s + x.old_amount, 0);
+  const newTotal = changedComponents.reduce((s, x) => s + x.new_amount, 0);
+  await hrSvc.addPositionChange({
+    employee_id: empId,
+    change_type: 'salary',
+    old_value: oldTotal.toLocaleString() + ' VNĐ',
+    new_value: newTotal.toLocaleString() + ' VNĐ',
+    effective_date: effectiveDate,
+    reason: reason || 'Điều chỉnh lương trực tiếp',
+  });
+
+  // 3. Update quick-access salary field on employee
+  await hrSvc.updateEmployee(empId, { salary: newTotal } as any);
 }
 
 // ══════════════════════════════════════════════════════════

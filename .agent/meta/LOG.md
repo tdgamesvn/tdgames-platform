@@ -1,5 +1,60 @@
 # LOG
 
+---
+
+## 2026-06-22
+### Task
+Implement inline salary editing on HR Change Requests (pending + approved)
+
+### Work Done
+- Added `updateChangeRequestChanges()` to changeRequestService.ts — updates pending request's salary_components
+- Added `editApprovedSalary()` to changeRequestService.ts — updates approved request + re-applies salary via rotateSalary + updates employee.salary + creates position history
+- Added `directSalaryAdjust()` to changeRequestService.ts — standalone salary adjustment bypassing change requests
+- Extracted `SalaryEditor` to standalone shared component (already done in prior session)
+- Created `SalaryAdjustModal.tsx` (standalone modal, not currently wired — available for future use)
+- Added inline edit mode to `RequestCard` in ChangeRequestTab.tsx — "Chỉnh sửa" button on salary-type requests (both pending and approved)
+- For pending: edit only updates the request record
+- For approved: edit updates request + re-applies salary to employee immediately
+- Fixed `formInit` state type to include `effectiveDate`
+- Added `onAdjustSalary` to `CardProps` interface
+
+### Validation
+- `npm run build` succeeded
+
+### Result
+- HR admin can now edit salary directly on existing change requests in the Đề xuất tab
+- Works for both pending (just record update) and approved (record + live salary re-apply)
+- Audit trail preserved via hr_position_history
+
+### Next Step
+- Test on live with real data
+- Consider whether SalaryAdjustModal on Info tab is also needed in future
+
+## 2026-06-21
+### Task
+AI Agent — Simplify roster to 4 core agents + unified Feed view
+
+### Work Done
+- Applied DB migration deactivating 6 agents (CEO, PM, Sales, Ops, Data, Support); CHRO, CFO, CTO, BD remain active
+- Added dedup check in Edge Function `create_insight` case: skips insert if same `agent_id + title` inserted within 24h
+- Added `fetchAllInsights()` to `aiAgentService.ts` (priority DESC + date sort)
+- Created `FeedPanel.tsx`: unified insights list with agent badge per card, status/agent filter bar, 10-item pagination
+- Updated `AgentSidebar.tsx`: Feed entry pinned above agent list with orange highlight when active
+- Updated `AiAgentApp.tsx`: `isFeedView=true` as default, `switchToFeed`/`switchAgent` nav, Feed pill in mobile bar
+
+### Validation
+- `npm run build` passed (no TS errors)
+- DB confirmed: 4 active (bd, cfo, chro, cto), 6 inactive (ceo, data, ops, pm, sales, support)
+
+### Result
+Spec `2026-06-21-ai-agent-simplify-design.md` fully implemented and committed (commit `7b6b0fd`). All 6 success criteria met.
+
+### Blockers
+none
+
+### Next Step
+Deploy to VPS (`vps-deploy-platforms.sh`) and verify Feed view loads correctly in production
+
 ## 2026-06-19
 ### Task
 Thêm nút "Điều chỉnh lương" trên card đề xuất đã duyệt (HR)

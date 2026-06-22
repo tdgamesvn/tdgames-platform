@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HrChangeRequest, HrEmployee, HrDepartment, AccountUser, HrChangeRequestType } from '@/types';
-import { approveChangeRequest, rejectChangeRequest, deleteChangeRequest } from '../services/changeRequestService';
+import { approveChangeRequest, rejectChangeRequest, deleteChangeRequest, updateChangeRequestChanges, editApprovedSalary } from '../services/changeRequestService';
 import ChangeRequestForm from './ChangeRequestForm';
+import SalaryEditor from './SalaryEditor';
+import type { SalaryRow } from './SalaryEditor';
 
 interface Props {
   requests: HrChangeRequest[];
@@ -100,7 +102,7 @@ interface CardProps {
   onRefresh: () => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
   isHighlighted?: boolean;
-  onAdjustSalary?: (employeeId: string) => void;
+  onAdjustSalary?: (empId: string, effDate: string) => void;
 }
 
 const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast, isHighlighted, onAdjustSalary }) => {
@@ -117,6 +119,65 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
   }, [isHighlighted]);
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const isAdmin = currentUser.role === 'admin' || currentUser.role === 'hr';
+
+  // ── Inline salary edit mode ──
+  const [editingSalary, setEditingSalary] = useState(false);
+  const [editRows, setEditRows] = useState<SalaryRow[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const hasSalaryComponents = (req.request_type === 'salary_change' || req.request_type === 'probation_end' || req.request_type === 'promotion') && req.changes?.salary_components?.length > 0;
+  const canEditSalary = (req.status === 'pending' || req.status === 'approved') && hasSalaryComponents && isAdmin;
+
+  const startEditSalary = () => {
+    const rows: SalaryRow[] = (req.changes.salary_components || []).map((sc: any) => ({
+      component_id: sc.component_id,
+      name: sc.name,
+      old_amount: sc.old_amount,
+      new_amount: sc.new_amount,
+    }));
+    setEditRows(rows);
+    setEditingSalary(true);
+  };
+
+  const cancelEditSalary = () => {
+    setEditingSalary(false);
+    setEditRows([]);
+  };
+
+  const saveEditSalary = async () => {
+    const salaryData = editRows.map(r => ({
+      component_id: r.component_id,
+      name: r.name,
+      old_amount: r.old_amount,
+      new_amount: r.new_amount,
+    }));
+    const hasAnyChange = salaryData.some(r => r.new_amount !== r.old_amount);
+    if (!hasAnyChange) {
+      onToast('Chưa có thay đổi lương nào', 'error');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      if (req.status === 'approved') {
+        // Approved: update request + re-apply salary to employee
+        await editApprovedSalary(req.id, salaryData);
+        onToast('Đã cập nhật lương (áp dụng ngay)', 'success');
+      } else {
+        // Pending: just update the request record
+        const updatedChanges = { ...req.changes, salary_components: salaryData };
+        await updateChangeRequestChanges(req.id, updatedChanges);
+        onToast('Đã cập nhật bảng lương đề xuất', 'success');
+      }
+      setEditingSalary(false);
+      onRefresh();
+    } catch (e: any) {
+      onToast(e.message || 'Lỗi cập nhật', 'error');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const meta = TYPE_META[req.request_type];
   const statusMeta = STATUS_META[req.status];
@@ -167,8 +228,6 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
       setSaving(false);
     }
   };
-
-  const isAdmin = currentUser.role === 'admin' || currentUser.role === 'hr';
 
   return (
     <div
@@ -226,10 +285,42 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
           {/* ── Salary table (probation_end, salary_change, promotion with salary) ── */}
           {(req.request_type === 'probation_end' || req.request_type === 'salary_change') && c.salary_components?.length > 0 && (
             <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">Điều chỉnh lương</p>
-              <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
-                <SalaryTable components={c.salary_components} />
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Điều chỉnh lương</p>
+                {canEditSalary && !editingSalary && (
+                  <button
+                    onClick={startEditSalary}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
+                  >
+                    Chỉnh sửa
+                  </button>
+                )}
               </div>
+              {editingSalary ? (
+                <div className="space-y-3">
+                  <SalaryEditor rows={editRows} onChange={setEditRows} />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={cancelEditSalary}
+                      className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
+                    >
+                      Huỷ
+                    </button>
+                    <button
+                      onClick={saveEditSalary}
+                      disabled={savingEdit}
+                      className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                      style={{ background: '#FF9500' }}
+                    >
+                      {savingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
+                  <SalaryTable components={c.salary_components} />
+                </div>
+              )}
             </div>
           )}
 
@@ -257,9 +348,43 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
                 </div>
               </div>
               {c.salary_components?.length > 0 && (
-                <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
-                  <p className="text-[10px] font-black text-neutral-medium mb-2">Điều chỉnh lương kèm theo</p>
-                  <SalaryTable components={c.salary_components} />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-black text-neutral-medium">Điều chỉnh lương kèm theo</p>
+                    {canEditSalary && !editingSalary && (
+                      <button
+                        onClick={startEditSalary}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
+                      >
+                        Chỉnh sửa
+                      </button>
+                    )}
+                  </div>
+                  {editingSalary ? (
+                    <div className="space-y-3">
+                      <SalaryEditor rows={editRows} onChange={setEditRows} />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={cancelEditSalary}
+                          className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
+                        >
+                          Huỷ
+                        </button>
+                        <button
+                          onClick={saveEditSalary}
+                          disabled={savingEdit}
+                          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                          style={{ background: '#FF9500' }}
+                        >
+                          {savingEdit ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-white/5 p-3" style={{ background: '#0F0F0F' }}>
+                      <SalaryTable components={c.salary_components} />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -337,18 +462,6 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
             )}
           </div>
 
-          {/* ── Adjust salary shortcut (approved salary_change or probation_end) ── */}
-          {req.status === 'approved' && (req.request_type === 'salary_change' || req.request_type === 'probation_end') && isAdmin && onAdjustSalary && (
-            <div className="pt-1 border-t border-white/5">
-              <button
-                onClick={() => onAdjustSalary(req.employee_id)}
-                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
-              >
-                💰 Điều chỉnh lương
-              </button>
-            </div>
-          )}
-
           {/* ── Action buttons for pending ── */}
           {req.status === 'pending' && (
             <div className="space-y-3 pt-1">
@@ -420,7 +533,7 @@ const ChangeRequestTab: React.FC<Props> = ({
   highlightId,
 }) => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
-  const [formInit, setFormInit] = useState<{ employeeId: string | null; type: HrChangeRequestType | null } | null>(null);
+  const [formInit, setFormInit] = useState<{ employeeId: string | null; type: HrChangeRequestType | null; effectiveDate?: string | null } | null>(null);
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
@@ -508,7 +621,7 @@ const ChangeRequestTab: React.FC<Props> = ({
               onRefresh={onRefresh}
               onToast={onToast}
               isHighlighted={req.id === highlightId}
-              onAdjustSalary={(empId) => setFormInit({ employeeId: empId, type: 'salary_change' })}
+              onAdjustSalary={(empId, effDate) => setFormInit({ employeeId: empId, type: 'salary_change', effectiveDate: effDate })}
             />
           ))}
         </div>
@@ -521,6 +634,7 @@ const ChangeRequestTab: React.FC<Props> = ({
           departments={departments}
           initialEmployeeId={formInit.employeeId}
           initialType={formInit.type}
+          initialEffectiveDate={formInit.effectiveDate}
           onSubmit={() => {
             setFormInit(null);
             onRefresh();
