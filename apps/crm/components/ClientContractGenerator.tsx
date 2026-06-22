@@ -34,10 +34,15 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
   useEffect(() => {
     fetchBankAccounts().then(accs => {
       setBankAccounts(accs);
-      // Auto-select first matching account for the company
-      const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES', tdconsulting: 'TD CONSULTING' };
-      const match = accs.find(a => a.entity === entityMap[companyKey]);
-      if (match) setSelectedBankId(match.id);
+      // Default: Techcombank TD GAMES (primary account for client contracts)
+      const techcom = accs.find(a => a.entity === 'TD GAMES' && a.bank_name?.toLowerCase().includes('techcom'));
+      if (techcom) {
+        setSelectedBankId(techcom.id);
+      } else {
+        // Fallback: first TD GAMES account
+        const fallback = accs.find(a => a.entity === 'TD GAMES');
+        if (fallback) setSelectedBankId(fallback.id);
+      }
     }).catch(() => {});
   }, []);
 
