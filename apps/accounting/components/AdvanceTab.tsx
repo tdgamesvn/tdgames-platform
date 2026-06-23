@@ -116,7 +116,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tạm ứng</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tạm ứng</h2>
           <p className="text-neutral-medium text-sm mt-1">Phiếu tạm ứng & quyết toán</p>
         </div>
         <button onClick={() => setShowForm(true)}
@@ -127,7 +127,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Đang tạm ứng', value: `${fmt(openTotal)} ₫`, sub: `${openCount} phiếu`, color: '#FF9500' },
           { label: 'Đã quyết toán', value: `${advances.filter(a => a.status === 'settled').length} phiếu`, sub: '', color: '#30D158' },

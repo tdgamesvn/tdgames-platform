@@ -222,7 +222,7 @@ const QuickAddEmployee: React.FC<Props> = ({ departments, onSave, onCancel }) =>
 
       {/* Header */}
       <div>
-        <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
           ⚡ Thêm nhanh
         </h2>
         <p className="text-neutral-medium text-sm mt-1">

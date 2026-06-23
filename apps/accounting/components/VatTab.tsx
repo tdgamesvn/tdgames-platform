@@ -123,7 +123,7 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Bảng kê VAT (Thuế GTGT)</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Bảng kê VAT (Thuế GTGT)</h2>
           <p className="text-neutral-medium text-sm mt-1">{label} • Pháp nhân: TD GAMES • Tỷ giá: {fmt(rate)} VND/USD</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -151,7 +151,7 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Doanh thu (chưa VAT)', value: totSubtotal, color: 'text-white' },
           { label: 'Thuế GTGT', value: totVat, color: 'text-orange-400' },

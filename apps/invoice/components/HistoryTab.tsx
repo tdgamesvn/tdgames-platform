@@ -42,7 +42,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   <div className="animate-fadeInUp space-y-8">
     <div className="flex justify-between items-end">
       <div>
-        <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">Invoice History</h2>
+        <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Invoice History</h2>
         <p className={`${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'} text-sm mt-2`}>Synced from Supabase</p>
       </div>
       <Button onClick={onSyncEInvoices} variant="ghost" size="sm" disabled={isLoading || isSyncingEInvoices}>

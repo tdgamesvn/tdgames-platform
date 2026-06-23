@@ -42,7 +42,7 @@ const SettlementListView: React.FC<SettlementListViewProps> = ({
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">Nghiệm Thu</h2>
+          <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Nghiệm Thu</h2>
           <p className="text-neutral-medium text-sm mt-1">Tổng hợp & thanh toán theo tháng</p>
         </div>
         <button onClick={onCreateNew}

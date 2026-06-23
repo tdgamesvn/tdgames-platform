@@ -126,7 +126,7 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
       {/* Page Header — consistent with HistoryTab / ExpenseList */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">
+          <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">
             {isEditing ? 'Edit Expense' : 'New Expense'}
           </h2>
           <p className="text-neutral-medium text-sm mt-2">

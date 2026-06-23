@@ -374,7 +374,7 @@ const EmployeeForm: React.FC<Props> = ({
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
           {isEdit ? 'Chỉnh sửa nhân sự' : 'Thêm nhân sự mới'}
         </h2>
         <p className="text-neutral-medium text-sm mt-1">

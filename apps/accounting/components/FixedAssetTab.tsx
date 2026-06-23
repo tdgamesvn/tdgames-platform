@@ -88,7 +88,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài sản cố định</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài sản cố định</h2>
           <p className="text-neutral-medium text-sm mt-1">Theo dõi & khấu hao đường thẳng</p>
         </div>
         <button onClick={openAdd}
@@ -99,7 +99,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Nguyên giá (đang dùng)', value: `${fmt(totalCost)} ₫`, color: '#FF9500' },
           { label: 'Giá trị còn lại', value: `${fmt(Math.round(totalBookValue))} ₫`, color: '#30D158' },
@@ -228,7 +228,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
                     style={{ background: '#0f0f0f' }} />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Nguyên giá (₫) *</label>
                   <input type="number" min="0" value={form.cost || ''} onChange={e => setForm(f => ({ ...f, cost: +e.target.value }))}

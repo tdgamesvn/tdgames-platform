@@ -339,7 +339,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
       {/* Bank info */}
       <div className="px-5 py-4 rounded-[16px] border border-primary/10 bg-surface">
         <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium mb-3">🏦 Thông tin thanh toán</p>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <p className="text-[10px] text-neutral-medium/60 uppercase tracking-wider">Ngân hàng</p>
             <p className="text-white font-bold text-sm mt-0.5">{workerObj?.bank_name || '—'}</p>

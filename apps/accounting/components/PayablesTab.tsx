@@ -84,7 +84,7 @@ export default function PayablesTab({ expenses, vcbRate }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Công nợ phải trả (AP)</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Công nợ phải trả (AP)</h2>
           <p className="text-neutral-medium text-sm mt-1">{getPeriodLabel(period)}</p>
         </div>
         <div className="flex gap-1">
@@ -99,7 +99,7 @@ export default function PayablesTab({ expenses, vcbRate }: Props) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Tổng phát sinh', value: totPayable + totPaid, color: 'text-white' },
           { label: 'Đã thanh toán', value: totPaid, color: 'text-emerald-400' },

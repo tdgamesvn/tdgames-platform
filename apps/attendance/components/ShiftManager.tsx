@@ -202,7 +202,7 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
                   </span>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 text-center">
                 <div className="text-[10px] text-neutral-medium"><span className="text-white font-bold block">{s.break_minutes}p</span>Nghỉ</div>
                 <div className="text-[10px] text-neutral-medium"><span className="text-white font-bold block">{s.late_threshold_minutes}p</span>Muộn</div>
                 <div className="text-[10px] text-neutral-medium"><span className="text-white font-bold block">{s.overtime_after_minutes}p</span>OT</div>

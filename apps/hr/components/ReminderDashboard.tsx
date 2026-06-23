@@ -47,7 +47,7 @@ const ReminderDashboard: React.FC<Props> = ({ reminders, onGenerate, onDismiss }
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>Nhắc việc</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>Nhắc việc</h2>
           <p className="text-neutral-medium text-sm mt-1">Cảnh báo & nhắc nhở tự động</p>
         </div>
         <button onClick={onGenerate} className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>
@@ -56,7 +56,7 @@ const ReminderDashboard: React.FC<Props> = ({ reminders, onGenerate, onDismiss }
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-[20px] border border-primary/10 bg-surface">
           <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">Tổng nhắc nhở</p>
           <p className="text-3xl font-black" style={{ color: '#FF375F' }}>{reminders.length}</p>

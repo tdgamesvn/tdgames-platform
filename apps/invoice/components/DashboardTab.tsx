@@ -73,7 +73,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     <div className="animate-fadeInUp space-y-10">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">📊 Dashboard</h2>
+          <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">📊 Dashboard</h2>
           <p className={`text-sm mt-2 ${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>Revenue & receivables overview</p>
         </div>
         <Button onClick={onRefresh} variant="ghost" size="sm" disabled={isLoading}>{isLoading ? 'Loading...' : 'Refresh'}</Button>

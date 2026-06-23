@@ -75,7 +75,7 @@ const WorkerForm: React.FC<WorkerFormProps> = ({
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">
+        <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">
           {isEdit ? 'Chỉnh sửa nhân sự' : 'Thêm nhân sự'}
         </h2>
         <p className="text-neutral-medium text-sm mt-1">

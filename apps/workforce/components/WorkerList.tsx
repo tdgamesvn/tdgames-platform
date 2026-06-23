@@ -33,7 +33,7 @@ const WorkerList: React.FC<WorkerListProps> = ({
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">Nhân Sự</h2>
+          <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Nhân Sự</h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý freelancer & inhouse</p>
         </div>
         <div className="flex items-center gap-3">
@@ -63,7 +63,7 @@ const WorkerList: React.FC<WorkerListProps> = ({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Tổng nhân sự', value: workers.length },
           { label: 'Freelancer', value: freelancerCount },

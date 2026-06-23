@@ -555,7 +555,7 @@ const ChangeRequestTab: React.FC<Props> = ({
       {/* ── Header ── */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
             Đề xuất nhân sự
           </h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý & duyệt các đề xuất thay đổi</p>

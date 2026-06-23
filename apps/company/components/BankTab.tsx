@@ -165,7 +165,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
     <div className="w-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài khoản ngân hàng</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài khoản ngân hàng</h2>
           <p className="text-neutral-medium text-sm mt-1">{company.entity_short} • {accounts.length} tài khoản</p>
         </div>
         {canEdit && (

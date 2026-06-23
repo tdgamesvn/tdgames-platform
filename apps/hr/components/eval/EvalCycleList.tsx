@@ -73,7 +73,7 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
             Đánh giá
           </h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý kỳ đánh giá nhân viên</p>
@@ -88,7 +88,7 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Tổng kỳ', value: cycles.length, color: '#FF9500' },
           { label: 'Đang chờ', value: pendingCount, color: '#FFA726' },

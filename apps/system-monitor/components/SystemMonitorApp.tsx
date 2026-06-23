@@ -161,7 +161,7 @@ const SystemMonitorApp: React.FC<Props> = ({ currentUser, onBack }) => {
 
         {/* ── Summary KPI strip ─────────────────────────────── */}
         {!loading && checks.length > 0 && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               { label: 'Hoạt động', value: up, color: '#4CAF50', icon: '✓' },
               { label: 'Có vấn đề', value: degraded, color: '#FFA726', icon: '⚠' },

@@ -59,7 +59,7 @@ const EmployeeList: React.FC<Props> = ({
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
             Nhân sự
           </h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý hồ sơ nhân sự toàn diện</p>

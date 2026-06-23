@@ -107,7 +107,7 @@ const ClickUpConfigComponent: React.FC<ClickUpConfigProps> = ({ onToast }) => {
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">ClickUp Config</h2>
+        <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">ClickUp Config</h2>
         <p className="text-neutral-medium text-sm mt-1">Kết nối ClickUp để đồng bộ task cho nhân sự</p>
       </div>
 

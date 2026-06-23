@@ -108,7 +108,7 @@ const PortalEvalList: React.FC<PortalEvalListProps> = ({ employeeId, userId, onT
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Đánh giá</h2>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Đánh giá</h2>
         <p className="text-neutral-medium text-sm mt-1">Kỳ đánh giá của bạn</p>
       </div>
 

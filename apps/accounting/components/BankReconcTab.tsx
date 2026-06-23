@@ -217,7 +217,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Đối chiếu ngân hàng</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Đối chiếu ngân hàng</h2>
           <p className="text-neutral-medium text-sm mt-1">Import sao kê CSV · Auto-match hoá đơn & chi phí</p>
         </div>
         <button

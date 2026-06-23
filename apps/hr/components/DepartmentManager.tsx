@@ -46,7 +46,7 @@ const DepartmentManager: React.FC<Props> = ({ departments, employees, onSave, on
     <div className="animate-fadeInUp space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>Phòng ban</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>Phòng ban</h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý cơ cấu tổ chức</p>
         </div>
         <button onClick={() => { resetForm(); setShowForm(true); }} className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>

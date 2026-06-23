@@ -59,7 +59,7 @@ export const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ theme }) => {
     <div className="animate-fadeInUp space-y-8">
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">📋 Activity Log</h2>
+          <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">📋 Activity Log</h2>
           <p className={`text-sm mt-2 ${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>Invoice operation history</p>
         </div>
         <div className="flex items-center gap-3">

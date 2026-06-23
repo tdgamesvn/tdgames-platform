@@ -98,7 +98,7 @@ const ExpenseReports: React.FC<Props> = ({ expenses, categories }) => {
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-4xl font-black text-primary uppercase tracking-tighter">Reports</h2>
+          <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Reports</h2>
           <p className="text-neutral-medium text-sm mt-2">Budget • Forecast • Export</p>
         </div>
         <div className="flex items-center gap-3">
