@@ -1013,21 +1013,29 @@ export function generateHDCTV(
   contractNumber: string,
   workScope: string,
   companyKey: CompanyKey = 'tdgames',
+  rateOverride?: { amount: number; type: string; currency: string },
 ): string {
   const d = fmtDateParts(signingDate);
   const c = COMPANY_OPTIONS[companyKey];
 
-  const rateDisplay = employee.rate_amount > 0
-    ? `${fmt(employee.rate_amount)} ${employee.rate_currency || 'VNĐ'}/${employee.rate_type === 'hourly' ? 'giờ' : employee.rate_type === 'monthly' ? 'tháng' : 'gói'}`
+  const rateAmount = rateOverride?.amount ?? employee.rate_amount;
+  const rateType = rateOverride?.type ?? employee.rate_type;
+  const rateCurrency = rateOverride?.currency ?? employee.rate_currency;
+
+  const rateDisplay = rateAmount > 0
+    ? `${fmt(rateAmount)} ${rateCurrency || 'VNĐ'}/${rateType === 'hourly' ? 'giờ' : rateType === 'monthly' ? 'tháng' : 'gói'}`
     : '……………………… đồng/gói';
+
+  // Derive position: prefer employee.position, fallback to first specialization, then generic
+  const positionDisplay = employee.position || (employee as any).specializations?.[0] || 'Thiết kế';
 
   return `<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><title>HĐCTV - ${employee.full_name}</title>
 <style>${PRINT_CSS}</style></head><body>
 
 ${nationalHeader()}
-<div class="contract-title">HỢP ĐỒNG CỘNG TÁC VIÊN THIẾT KẾ</div>
+<div class="contract-title">HỢP ĐỒNG CỘNG TÁC VIÊN ${positionDisplay.toUpperCase()}</div>
 <div class="contract-number">(Hợp đồng dịch vụ theo Bộ luật Dân sự 2015)</div>
-<div class="contract-number">Số: ${contractNumber || '……'}/HĐCTV-TK/${d.year}</div>
+<div class="contract-number">Số: ${contractNumber || '……'}/HĐCTV/${d.year}</div>
 
 <div class="article">
   <p><strong>Căn cứ:</strong></p>
@@ -1068,10 +1076,10 @@ ${nationalHeader()}
 
 <div class="article">
   <div class="article-title">ĐIỀU 1: PHẠM VI CÔNG VIỆC VÀ THỜI HẠN HỢP ĐỒNG</div>
-  <p>1.1. Loại hợp đồng: Hợp đồng cộng tác viên thiết kế (Hợp đồng dịch vụ).</p>
+  <p>1.1. Loại hợp đồng: Hợp đồng cộng tác viên ${positionDisplay.toLowerCase()} (Hợp đồng dịch vụ).</p>
   <p>1.2. Thời hạn hợp đồng: 03 (ba) tháng kể từ ngày ký. Hợp đồng có thể được gia hạn bằng văn bản thỏa thuận của hai bên trước khi hết hạn.</p>
   <p>1.3. Địa điểm thực hiện: Làm việc từ xa (remote) hoặc tại văn phòng công ty.</p>
-  <p>1.4. Vị trí công việc: Cộng tác viên Thiết kế (Designer).</p>
+  <p>1.4. Vị trí công việc: Cộng tác viên ${positionDisplay}.</p>
   <p>1.5. Phạm vi công việc cụ thể: ${workScope || '...................................................'}</p>
   <p>1.6. Sản phẩm bàn giao, tiến độ và tiêu chuẩn chất lượng sẽ được chi tiết hóa tại Phụ lục đính kèm hoặc trong các trao đổi bằng văn bản được hai bên xác nhận.</p>
 </div>

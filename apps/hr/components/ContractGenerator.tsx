@@ -57,6 +57,8 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
   const [workScope, setWorkScope] = useState(() => parseWorkScope());
   const [companyKey, setCompanyKey] = useState<CompanyKey>(() => parseCompanyKey());
   const [salaryComponents, setSalaryComponents] = useState<HrEmployeeSalary[]>([]);
+  const [ctvRateAmount, setCtvRateAmount] = useState<number>(0);
+  const [ctvRateType, setCtvRateType] = useState<string>('monthly');
   const [loading, setLoading] = useState(true);
   const [previewHtml, setPreviewHtml] = useState('');
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -65,20 +67,35 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
   const [savingContract, setSavingContract] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Load salary data (for fulltime only)
+  // Load salary data (for all employees — needed for HĐCTV rate auto-fill)
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        if (!isFreelancer) {
-          const sc = await fetchEmployeeSalary(employee.id);
-          setSalaryComponents(sc);
-        }
+        const sc = await fetchEmployeeSalary(employee.id);
+        setSalaryComponents(sc);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     load();
-  }, [employee.id, isFreelancer]);
+  }, [employee.id]);
+
+  // Auto-fill CTV rate from employee rate or base salary
+  useEffect(() => {
+    if (employee.rate_amount > 0) {
+      setCtvRateAmount(employee.rate_amount);
+      setCtvRateType(employee.rate_type || 'monthly');
+    } else if (salaryComponents.length > 0) {
+      const baseSalary = salaryComponents.find(sc =>
+        sc.component?.name?.toLowerCase().includes('lương cơ bản') ||
+        sc.component?.name?.toLowerCase().includes('base')
+      );
+      if (baseSalary) {
+        setCtvRateAmount(baseSalary.amount);
+        setCtvRateType('monthly');
+      }
+    }
+  }, [employee, salaryComponents]);
 
   // Generate preview on param change
   useEffect(() => {
@@ -101,11 +118,12 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
         html = generateNDA_CTV(employee, signingDate, companyKey);
         break;
       case 'hdctv':
-        html = generateHDCTV(employee, signingDate, contractNumber, workScope, companyKey);
+        html = generateHDCTV(employee, signingDate, contractNumber, workScope, companyKey,
+          ctvRateAmount > 0 ? { amount: ctvRateAmount, type: ctvRateType, currency: 'VNĐ' } : undefined);
         break;
     }
     setPreviewHtml(html);
-  }, [selectedType, contractNumber, signingDate, projectName, workScope, companyKey, salaryComponents, loading, employee, department]);
+  }, [selectedType, contractNumber, signingDate, projectName, workScope, companyKey, salaryComponents, loading, employee, department, ctvRateAmount, ctvRateType]);
 
   // Data fields to check based on employee type
   const dataChecks = isFreelancer
@@ -174,8 +192,8 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
         end_date: null,
         salary: 0,
         currency: employee.rate_currency || 'VND',
-        rate_type: employee.rate_type || '',
-        rate_amount: employee.rate_amount || 0,
+        rate_type: (selectedType === 'hdctv' && ctvRateType) ? ctvRateType : (employee.rate_type || ''),
+        rate_amount: (selectedType === 'hdctv' && ctvRateAmount > 0) ? ctvRateAmount : (employee.rate_amount || 0),
         file_url: '',
         status: 'active',
         notes: `Bên A: ${COMPANY_OPTIONS[companyKey].nameShort}${workScope ? ` | Loại CV: ${workScope}` : ''}`,
@@ -381,6 +399,52 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
                   </p>
                 </>
               )}
+              {/* CTV rate override - for hdctv contract */}
+              {selectedType === 'hdctv' && (
+                <div>
+                  <span style={{ display: 'block', fontSize: 11, color: '#777', marginBottom: 4 }}>
+                    💰 Mức phí cộng tác
+                  </span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="number"
+                      value={ctvRateAmount || ''}
+                      onChange={e => setCtvRateAmount(Number(e.target.value) || 0)}
+                      placeholder="Số tiền"
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 8,
+                        border: `1px solid ${ctvRateAmount > 0 ? '#34C75944' : '#FF453A66'}`,
+                        background: '#1a1a1a', color: '#F5F5F5', fontSize: 13,
+                        outline: 'none',
+                      }}
+                    />
+                    <select
+                      value={ctvRateType}
+                      onChange={e => setCtvRateType(e.target.value)}
+                      style={{
+                        width: 90, padding: '8px 8px', borderRadius: 8,
+                        border: '1px solid #333',
+                        background: '#1a1a1a', color: '#F5F5F5', fontSize: 12,
+                        outline: 'none',
+                      }}
+                    >
+                      <option value="monthly">/tháng</option>
+                      <option value="hourly">/giờ</option>
+                      <option value="package">/gói</option>
+                    </select>
+                  </div>
+                  {ctvRateAmount > 0 && (
+                    <p style={{ fontSize: 10, color: '#34C759', marginTop: 4, marginBottom: 0 }}>
+                      → {ctvRateAmount.toLocaleString('vi-VN')} VNĐ/{ctvRateType === 'hourly' ? 'giờ' : ctvRateType === 'monthly' ? 'tháng' : 'gói'}
+                    </p>
+                  )}
+                  {ctvRateAmount === 0 && (
+                    <p style={{ fontSize: 10, color: '#FF9500', marginTop: 4, marginBottom: 0 }}>
+                      ⚠️ Chưa có mức phí — hợp đồng sẽ để trống
+                    </p>
+                  )}
+                </div>
+              )}
               {/* Company selector - for CTV-type contracts */}
               {needsCompanySelector && (
                 <div>
@@ -414,7 +478,7 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
           </div>
 
           {/* Salary summary - only for fulltime */}
-          {!isFreelancer && !loading && (
+          {(!isFreelancer || selectedType === 'hdctv') && !loading && (
 
             <div>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 900, color: '#888', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>
