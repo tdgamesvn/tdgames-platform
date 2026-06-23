@@ -7,6 +7,7 @@ import { usePayrollState } from '../hooks/usePayrollState';
 import { FALLBACK_PAYROLL_FORMULA } from '../services/payrollFormulaService';
 import PayrollSheet from './PayrollSheet';
 import PayrollFormulaPanel from './PayrollFormulaPanel';
+import GrossNetCalculator from './GrossNetCalculator';
 import HelpPanel from '@/components/HelpPanel';
 import { PAYROLL_HELP } from '../helpContent';
 
@@ -25,11 +26,12 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
   } = state;
 
   const [helpOpen, setHelpOpen] = useState(false);
-  const [listTab, setListTab] = useState<'history' | 'formula'>(() =>
-    initialTab === 'formula' ? 'formula' : 'history',
+  const [listTab, setListTab] = useState<'history' | 'formula' | 'calculator'>(() =>
+    initialTab === 'formula' ? 'formula' : initialTab === 'calculator' ? 'calculator' : 'history',
   );
   useEffect(() => {
     if (initialTab === 'formula') setListTab('formula');
+    if (initialTab === 'calculator') setListTab('calculator');
   }, [initialTab]);
 
   const [newMonth, setNewMonth] = useState(new Date().getMonth() + 1);
@@ -68,17 +70,19 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
         theme="dark"
         currentUser={currentUser}
         activeTab={listTab}
-        accessibleTabs={['history', 'formula']}
-        onTabChange={t => setListTab(t as 'history' | 'formula')}
+        accessibleTabs={['history', 'formula', 'calculator']}
+        onTabChange={t => setListTab(t as 'history' | 'formula' | 'calculator')}
         onLogout={onBack}
         onBack={onBack}
         appName="Payroll"
-        tabLabels={{ history: 'Bảng lương', formula: 'Công thức' }}
+        tabLabels={{ history: 'Bảng lương', formula: 'Công thức', calculator: 'Gross-Net' }}
         onHelp={() => setHelpOpen(true)}
       />
       {toast && <ToastNotification message={{ text: toast.message, type: toast.type }} onDismiss={() => setToast(null)} />}
 
-      {listTab === 'formula' ? (
+      {listTab === 'calculator' ? (
+        <GrossNetCalculator />
+      ) : listTab === 'formula' ? (
         <PayrollFormulaPanel
           currentUser={currentUser}
           onNotify={(message, type) => setToast({ message, type })}

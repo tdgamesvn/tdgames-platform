@@ -138,6 +138,68 @@ export function calculatePayroll(
 }
 
 // ══════════════════════════════════════════════════════════
+// ── Gross-Net Calculator helpers ─────────────────────────
+// ══════════════════════════════════════════════════════════
+
+/** Simple Gross→Net for calculator (full month, no proration) */
+export function calcGrossToNet(
+  gross: number,
+  dependents: number,
+  isProbation: boolean,
+  hasBhxh: boolean,
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+): PayrollOutput {
+  return calculatePayroll({
+    workDays: formula.standardWorkDays,
+    baseSalary: gross,
+    lunchAllowance: 0,
+    transportAllowance: 0,
+    phoneAllowance: 0,
+    clothingAllowance: 0,
+    kpiAllowance: 0,
+    defaultOt: 0,
+    extraOtHours: 0,
+    dependentsCount: dependents,
+    isProbation,
+    bhxhExempt: !hasBhxh,
+  }, formula);
+}
+
+/** Net→Gross: binary search to find gross that yields target net */
+export function solveNetToGross(
+  targetNet: number,
+  dependents: number,
+  isProbation: boolean,
+  hasBhxh: boolean,
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+): PayrollOutput {
+  if (targetNet <= 0) return calcGrossToNet(0, dependents, isProbation, hasBhxh, formula);
+
+  let lo = targetNet;
+  let hi = targetNet * 2;
+
+  // Expand upper bound if needed
+  while (calcGrossToNet(hi, dependents, isProbation, hasBhxh, formula).netSalary < targetNet) {
+    hi *= 2;
+  }
+
+  // Binary search (precision: 1000 VND)
+  for (let i = 0; i < 50; i++) {
+    const mid = Math.round((lo + hi) / 2);
+    const result = calcGrossToNet(mid, dependents, isProbation, hasBhxh, formula);
+    if (Math.abs(result.netSalary - targetNet) <= 1000) {
+      return result;
+    }
+    if (result.netSalary < targetNet) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return calcGrossToNet(Math.round((lo + hi) / 2), dependents, isProbation, hasBhxh, formula);
+}
+
+// ══════════════════════════════════════════════════════════
 // ── CRUD: Payroll Sheets ─────────────────────────────────
 // ══════════════════════════════════════════════════════════
 
