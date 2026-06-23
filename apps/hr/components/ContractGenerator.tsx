@@ -129,14 +129,16 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
         ['Chức danh', employee.position],
       ];
 
-  // Required field validation for freelancer contracts
-  const freelancerFieldsMissing = isFreelancer && (selectedType === 'hdkv' || selectedType === 'hdctv') && (!projectName.trim() || !workScope.trim());
+  // Required field validation for CTV-type contracts (both fulltime & freelancer)
+  const needsCtvFields = selectedType === 'hdkv' || selectedType === 'hdctv';
+  const needsCompanySelector = selectedType === 'hdkv' || selectedType === 'hdctv' || selectedType === 'nda_ctv';
+  const ctvFieldsMissing = needsCtvFields && (!projectName.trim() || !workScope.trim());
 
   // Employee data validation (both fulltime & freelancer)
   const missingDataFields = dataChecks.filter(([, v]) => !v).map(([label]) => label) as string[];
   const hasDataMissing = missingDataFields.length > 0;
 
-  const canExport = !loading && !freelancerFieldsMissing && !hasDataMissing;
+  const canExport = !loading && !ctvFieldsMissing && !hasDataMissing;
 
   // Write preview to iframe
   useEffect(() => {
@@ -206,7 +208,7 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
           {employee.full_name} • {isFreelancer ? (employee.specializations?.join(', ') || 'Freelancer') : (employee.position || 'N/A')}
         </span>
         <div style={{ flex: 1 }} />
-        {(freelancerFieldsMissing || hasDataMissing) && (
+        {(ctvFieldsMissing || hasDataMissing) && (
           <span style={{ fontSize: 11, color: '#FF453A', fontWeight: 700, maxWidth: 400, textAlign: 'right' }}>
             ⚠️ {hasDataMissing ? `Thiếu: ${missingDataFields.join(', ')}` : 'Cần điền Tên dự án & Loại công việc'}
           </span>
@@ -339,8 +341,8 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
                   }}
                 />
               </div>
-              {/* Required fields for freelancer contracts */}
-              {isFreelancer && (
+              {/* Required fields for CTV-type contracts (hdkv, hdctv) */}
+              {needsCtvFields && (
                 <>
                   <div>
                     <span style={{ display: 'block', fontSize: 11, color: '#777', marginBottom: 4 }}>
@@ -379,8 +381,8 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
                   </p>
                 </>
               )}
-              {/* Company selector - only for freelancer contracts */}
-              {isFreelancer && (
+              {/* Company selector - for CTV-type contracts */}
+              {needsCompanySelector && (
                 <div>
                   <span style={{ display: 'block', fontSize: 11, color: '#777', marginBottom: 4 }}>
                     🏢 Bên A (Công ty ký)

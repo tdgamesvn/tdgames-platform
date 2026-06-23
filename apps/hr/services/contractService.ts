@@ -663,6 +663,7 @@ export const CONTRACT_TYPES_FULLTIME: { key: ContractType; label: string; icon: 
   { key: 'hdld', label: 'Hợp đồng Lao động', icon: '📋', description: 'HĐLĐ – Hợp đồng chính thức 12 tháng' },
   { key: 'hdtv', label: 'Hợp đồng Thử việc', icon: '📝', description: 'HĐTV – Thử việc 2 tháng, 100% lương' },
   { key: 'nda', label: 'Cam kết Bảo mật', icon: '🔒', description: 'NDA – Bảo mật thông tin dự án' },
+  { key: 'hdctv', label: 'HĐ Cộng tác viên', icon: '🎓', description: 'HĐCTV – Hợp đồng CTV thiết kế (Intern)' },
 ];
 
 export const CONTRACT_TYPES_FREELANCER: { key: ContractType; label: string; icon: string; description: string }[] = [
