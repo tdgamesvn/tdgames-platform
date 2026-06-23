@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-06-23
+### Task
+Upgrade GrossNet Calculator to support detailed salary component breakdown
+
+### Work Done
+- compared accountant's manual payroll calculation with app's GrossNet Calculator output
+- identified root cause: GrossNet Calculator treated entire gross as baseSalary, causing wrong BHXH base and taxable income
+- added "Chi tiết" (detailed) input mode with 7 component fields: Lương CB, Ăn trưa, Trang phục, Xăng xe, Điện thoại, OT, KPI
+- detailed mode calls `calculatePayroll()` directly (same engine as PayrollSheet), so BHXH is calculated on baseSalary only and lunch/clothing/OT are correctly excluded from taxable income
+- kept "Đơn giản" (simple) mode for quick single-number estimation
+- updated UI to follow STYLE_GUIDE.md patterns (cards, labels, badges)
+- verified calculation matches accountant's numbers exactly for all 3 employees (Bảo Anh, Hiếu, Tú)
+
+### Validation
+- `npm run build` succeeded
+- manual number verification: Net, BHXH NV, BHXH Cty, PIT, Total Company Cost all match accountant's sheet
+
+### Result
+- GrossNet Calculator now has 2 modes: Đơn giản (single gross) and Chi tiết (component breakdown)
+- Chi tiết mode produces results identical to accountant's manual calculation
+
+---
+
 ## 2026-06-22
 ### Task
 Implement multi-role support (helper function approach)

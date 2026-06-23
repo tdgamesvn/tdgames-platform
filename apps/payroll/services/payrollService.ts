@@ -37,6 +37,9 @@ interface PayrollInput {
    *  - true → BHXH = 0 (cả NV lẫn công ty)
    *  - false/undefined → đóng full BHXH (all-or-nothing, không prorate theo officialRatio) */
   bhxhExempt?: boolean;
+  /** Mức lương đóng BHXH (nếu khác baseSalary). Dùng cho GrossNetCalculator khi user muốn tách riêng mức đóng BHXH.
+   *  - undefined/null → dùng baseSalary làm mức đóng BHXH (mặc định) */
+  bhxhBaseSalary?: number | null;
 }
 
 interface PayrollOutput {
@@ -97,8 +100,9 @@ export function calculatePayroll(
   // - Miễn (bhxhExempt=true): full probation HOẶC ngày làm việc chính thức < 14 ngày trong tháng
   // - Đóng full (không prorate): ngày làm việc chính thức ≥ 14 ngày
   const bhxhExempt = input.bhxhExempt ?? (officialRatio === 0);
-  const employeeBhxh = bhxhExempt ? 0 : r(input.baseSalary * formula.bhEmployeeRate);
-  const companyBhxh = bhxhExempt ? 0 : r(input.baseSalary * formula.bhCompanyRate);
+  const bhxhBase = input.bhxhBaseSalary ?? input.baseSalary;
+  const employeeBhxh = bhxhExempt ? 0 : r(bhxhBase * formula.bhEmployeeRate);
+  const companyBhxh = bhxhExempt ? 0 : r(bhxhBase * formula.bhCompanyRate);
 
   // Thu nhập chịu thuế (không bao gồm lunch, clothing, OT)
   // Bonus (tiền thưởng từ HĐLĐ) tính vào TNCT theo TT 111/2013
@@ -141,13 +145,15 @@ export function calculatePayroll(
 // ── Gross-Net Calculator helpers ─────────────────────────
 // ══════════════════════════════════════════════════════════
 
-/** Simple Gross→Net for calculator (full month, no proration) */
+/** Simple Gross→Net for calculator (full month, no proration).
+ *  bhxhBase: mức lương đóng BHXH riêng (nếu khác gross). undefined/null/0 → dùng gross. */
 export function calcGrossToNet(
   gross: number,
   dependents: number,
   isProbation: boolean,
   hasBhxh: boolean,
   formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+  bhxhBase?: number | null,
 ): PayrollOutput {
   return calculatePayroll({
     workDays: formula.standardWorkDays,
@@ -162,31 +168,34 @@ export function calcGrossToNet(
     dependentsCount: dependents,
     isProbation,
     bhxhExempt: !hasBhxh,
+    bhxhBaseSalary: (bhxhBase && bhxhBase > 0) ? bhxhBase : null,
   }, formula);
 }
 
-/** Net→Gross: binary search to find gross that yields target net */
+/** Net→Gross: binary search to find gross that yields target net.
+ *  bhxhBase: mức lương đóng BHXH riêng (nếu khác gross). undefined/null/0 → dùng gross. */
 export function solveNetToGross(
   targetNet: number,
   dependents: number,
   isProbation: boolean,
   hasBhxh: boolean,
   formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+  bhxhBase?: number | null,
 ): PayrollOutput {
-  if (targetNet <= 0) return calcGrossToNet(0, dependents, isProbation, hasBhxh, formula);
+  if (targetNet <= 0) return calcGrossToNet(0, dependents, isProbation, hasBhxh, formula, bhxhBase);
 
   let lo = targetNet;
   let hi = targetNet * 2;
 
   // Expand upper bound if needed
-  while (calcGrossToNet(hi, dependents, isProbation, hasBhxh, formula).netSalary < targetNet) {
+  while (calcGrossToNet(hi, dependents, isProbation, hasBhxh, formula, bhxhBase).netSalary < targetNet) {
     hi *= 2;
   }
 
   // Binary search (precision: 1000 VND)
   for (let i = 0; i < 50; i++) {
     const mid = Math.round((lo + hi) / 2);
-    const result = calcGrossToNet(mid, dependents, isProbation, hasBhxh, formula);
+    const result = calcGrossToNet(mid, dependents, isProbation, hasBhxh, formula, bhxhBase);
     if (Math.abs(result.netSalary - targetNet) <= 1000) {
       return result;
     }
@@ -196,7 +205,7 @@ export function solveNetToGross(
       hi = mid;
     }
   }
-  return calcGrossToNet(Math.round((lo + hi) / 2), dependents, isProbation, hasBhxh, formula);
+  return calcGrossToNet(Math.round((lo + hi) / 2), dependents, isProbation, hasBhxh, formula, bhxhBase);
 }
 
 // ══════════════════════════════════════════════════════════
