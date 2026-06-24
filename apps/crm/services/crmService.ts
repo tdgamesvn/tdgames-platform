@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
-import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage } from '@/types';
+import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation } from '@/types';
 
 // ══════════════════════════════════════════════════════════════
 // ── Clients ───────────────────────────────────────────────────
@@ -305,5 +305,43 @@ export async function updateDealStage(id: string, stage: CrmDealStage): Promise<
 
 export async function deleteDeal(id: string): Promise<void> {
   const { error } = await supabase.from('crm_deals').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Quotations ────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export async function fetchQuotations(dealId: string): Promise<CrmQuotation[]> {
+  const { data, error } = await supabase
+    .from('crm_quotations')
+    .select('*, client:crm_clients(name)')
+    .eq('deal_id', dealId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((q: any) => ({
+    ...q,
+    client_name: q.client?.name || '',
+    client: undefined,
+  }));
+}
+
+export async function createQuotation(q: Omit<CrmQuotation, 'id' | 'created_at' | 'updated_at' | 'client_name'>): Promise<CrmQuotation> {
+  const { data, error } = await supabase.from('crm_quotations').insert(q).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateQuotation(id: string, updates: Partial<CrmQuotation>): Promise<void> {
+  const { client_name, ...clean } = updates as any;
+  const { error } = await supabase
+    .from('crm_quotations')
+    .update({ ...clean, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteQuotation(id: string): Promise<void> {
+  const { error } = await supabase.from('crm_quotations').delete().eq('id', id);
   if (error) throw error;
 }

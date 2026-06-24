@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import type { CrmDeal, CrmDealStage, CrmActivity, CrmDocument } from '@/types';
+import type { CrmDeal, CrmDealStage, CrmActivity, CrmDocument, CrmQuotation, CrmQuotationItem } from '@/types';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './constants';
 import StageBadge from './StageBadge';
-import { fetchActivities, createActivity, fetchDocuments } from '../../services/crmService';
+import { fetchActivities, createActivity, fetchDocuments, fetchQuotations, createQuotation, updateQuotation, deleteQuotation } from '../../services/crmService';
 
 // ── Types ─────────────────────────────────────────────────────
-type DetailTab = 'overview' | 'activity' | 'documents';
+type DetailTab = 'overview' | 'activity' | 'documents' | 'quotations';
 
 interface Props {
   deal: CrmDeal;
@@ -35,9 +35,10 @@ const DOC_TYPES: Record<string, { label: string; icon: string; color: string }> 
 
 // ── Tab definitions ───────────────────────────────────────────
 const TABS: { key: DetailTab; label: string; icon: string }[] = [
-  { key: 'overview',  label: 'Tổng quan',  icon: '📊' },
-  { key: 'activity',  label: 'Hoạt động',  icon: '📋' },
-  { key: 'documents', label: 'Tài liệu',   icon: '📁' },
+  { key: 'overview',    label: 'Tổng quan',  icon: '📊' },
+  { key: 'activity',    label: 'Hoạt động',  icon: '📋' },
+  { key: 'documents',   label: 'Tài liệu',   icon: '📁' },
+  { key: 'quotations',  label: 'Báo giá',    icon: '💰' },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -245,6 +246,245 @@ const MiniDocumentList: React.FC<{ clientId: string }> = ({ clientId }) => {
                 </div>
                 <span className="text-neutral-600 text-xs">↗</span>
               </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════
+// MINI QUOTATION LIST (embedded, create + list + status)
+// ═══════════════════════════════════════════════════════════════
+
+const STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  draft:    { label: 'Nháp',      color: '#9D9C9D' },
+  sent:     { label: 'Đã gửi',    color: '#0A84FF' },
+  accepted: { label: 'Chấp nhận', color: '#4CAF50' },
+  rejected: { label: 'Từ chối',   color: '#F44336' },
+  expired:  { label: 'Hết hạn',   color: '#FFA726' },
+};
+
+const emptyItem: CrmQuotationItem = { description: '', quantity: 1, unit: 'service', unit_price: 0 };
+
+const MiniQuotationList: React.FC<{
+  dealId: string; clientId: string; dealTitle: string; currency: 'USD' | 'VND'; dealValue: number;
+}> = ({ dealId, clientId, dealTitle, currency, dealValue }) => {
+  const [quotations, setQuotations] = useState<CrmQuotation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [items, setItems] = useState<CrmQuotationItem[]>([{ ...emptyItem }]);
+  const [title, setTitle] = useState(dealTitle);
+  const [notes, setNotes] = useState('');
+  const [validDays, setValidDays] = useState('30');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setQuotations(await fetchQuotations(dealId)); } catch { }
+    finally { setLoading(false); }
+  }, [dealId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+
+  const handleCreate = async () => {
+    if (!items.some(i => i.description.trim())) return;
+    setSaving(true);
+    const validItems = items.filter(i => i.description.trim());
+    const now = new Date();
+    const validUntil = new Date(now.getTime() + parseInt(validDays) * 86_400_000).toISOString().split('T')[0];
+    const num = `QT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${String(quotations.length + 1).padStart(3, '0')}`;
+    try {
+      await createQuotation({
+        deal_id: dealId,
+        client_id: clientId,
+        quotation_number: num,
+        title,
+        items: validItems,
+        currency,
+        discount: 0,
+        tax_rate: 0,
+        subtotal,
+        total: subtotal,
+        status: 'draft',
+        valid_until: validUntil,
+        notes,
+        created_by: '',
+      });
+      setShowForm(false);
+      setItems([{ ...emptyItem }]);
+      setNotes('');
+      await load();
+    } catch { }
+    finally { setSaving(false); }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await updateQuotation(id, { status } as any);
+      await load();
+    } catch { }
+  };
+
+  const updateItem = (idx: number, field: keyof CrmQuotationItem, value: any) => {
+    setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  };
+
+  const inputCls = 'px-2 py-1.5 rounded-lg text-xs text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-between items-center">
+        <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
+          Báo giá ({quotations.length})
+        </p>
+        <button onClick={() => setShowForm(!showForm)}
+          className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
+          + Tạo báo giá
+        </button>
+      </div>
+
+      {/* Create form */}
+      {showForm && (
+        <div className="rounded-xl border border-orange-500/20 p-4 space-y-3" style={{ background: 'rgba(255,149,0,0.03)' }}>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Tiêu đề báo giá"
+            className={`${inputCls} w-full`} style={{ background: '#1a1a1a' }} />
+
+          {/* Line items */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-12 gap-1">
+              <p className="col-span-5 text-[9px] font-black uppercase text-neutral-700">Mô tả</p>
+              <p className="col-span-2 text-[9px] font-black uppercase text-neutral-700">SL</p>
+              <p className="col-span-2 text-[9px] font-black uppercase text-neutral-700">ĐVT</p>
+              <p className="col-span-3 text-[9px] font-black uppercase text-neutral-700">Đơn giá</p>
+            </div>
+            {items.map((item, idx) => (
+              <div key={idx} className="grid grid-cols-12 gap-1">
+                <input className={`col-span-5 ${inputCls}`} style={{ background: '#1a1a1a' }}
+                  value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} placeholder="Dịch vụ..." />
+                <input type="number" className={`col-span-2 ${inputCls}`} style={{ background: '#1a1a1a' }}
+                  value={item.quantity} onChange={e => updateItem(idx, 'quantity', parseFloat(e.target.value) || 0)} />
+                <input className={`col-span-2 ${inputCls}`} style={{ background: '#1a1a1a' }}
+                  value={item.unit} onChange={e => updateItem(idx, 'unit', e.target.value)} />
+                <div className="col-span-3 flex gap-1">
+                  <input type="number" className={`flex-1 ${inputCls}`} style={{ background: '#1a1a1a' }}
+                    value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', parseFloat(e.target.value) || 0)} />
+                  {items.length > 1 && (
+                    <button onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))}
+                      className="text-red-400/50 hover:text-red-400 text-xs px-1">✕</button>
+                  )}
+                </div>
+              </div>
+            ))}
+            <button onClick={() => setItems(prev => [...prev, { ...emptyItem }])}
+              className="text-[10px] text-orange-400/60 hover:text-orange-400 font-semibold transition-colors">
+              + Thêm dòng
+            </button>
+          </div>
+
+          {/* Subtotal */}
+          <div className="flex justify-between items-center pt-2 border-t border-white/5">
+            <span className="text-[10px] font-black uppercase text-neutral-600">Tổng</span>
+            <span className="text-sm font-black text-white">{fmtValue(subtotal, currency)}</span>
+          </div>
+
+          {/* Valid days + notes */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-[9px] font-black uppercase text-neutral-700 mb-1">Hiệu lực (ngày)</p>
+              <input type="number" value={validDays} onChange={e => setValidDays(e.target.value)}
+                className={`w-full ${inputCls}`} style={{ background: '#1a1a1a' }} />
+            </div>
+            <div>
+              <p className="text-[9px] font-black uppercase text-neutral-700 mb-1">Ghi chú</p>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Điều khoản..."
+                className={`w-full ${inputCls}`} style={{ background: '#1a1a1a' }} />
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowForm(false)}
+              className="px-2 py-1 rounded-lg text-[10px] font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+              Huỷ
+            </button>
+            <button onClick={handleCreate} disabled={saving || !items.some(i => i.description.trim())}
+              className="px-3 py-1 rounded-lg text-[10px] font-black uppercase text-white transition-all disabled:opacity-50"
+              style={{ background: '#FF9500' }}>
+              {saving ? '...' : 'Tạo'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Quotation list */}
+      {loading ? (
+        <p className="text-xs text-neutral-600 animate-td-pulse py-4 text-center">Đang tải...</p>
+      ) : quotations.length === 0 && !showForm ? (
+        <div className="text-center py-6 text-neutral-700">
+          <p className="text-2xl mb-1">💰</p>
+          <p className="text-[10px] font-semibold">Chưa có báo giá</p>
+          <p className="text-[9px] text-neutral-700 mt-1">Tạo báo giá để gửi cho khách hàng</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {quotations.map(q => {
+            const sb = STATUS_BADGE[q.status] || STATUS_BADGE.draft;
+            return (
+              <div key={q.id} className="rounded-xl border border-white/5 p-3 hover:border-white/10 transition-all"
+                style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-white truncate">{q.title || q.quotation_number}</p>
+                    <p className="text-[10px] text-neutral-600">{q.quotation_number} • {fmtDate(q.created_at)}</p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
+                    style={{ background: `${sb.color}20`, color: sb.color }}>
+                    {sb.label}
+                  </span>
+                </div>
+
+                {/* Items summary */}
+                <div className="space-y-0.5 mb-2">
+                  {(q.items || []).slice(0, 3).map((item: CrmQuotationItem, i: number) => (
+                    <div key={i} className="flex justify-between text-[10px]">
+                      <span className="text-neutral-400 truncate">{item.description}</span>
+                      <span className="text-neutral-500 whitespace-nowrap ml-2">
+                        {item.quantity} × {fmtValue(item.unit_price, q.currency)}
+                      </span>
+                    </div>
+                  ))}
+                  {(q.items || []).length > 3 && (
+                    <p className="text-[9px] text-neutral-600">+{q.items.length - 3} dòng khác</p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-black text-white">{fmtValue(q.total, q.currency)}</span>
+                  {/* Status change buttons */}
+                  {q.status === 'draft' && (
+                    <button onClick={() => handleStatusChange(q.id, 'sent')}
+                      className="px-2 py-1 rounded-lg text-[9px] font-black uppercase text-blue-400 border border-blue-500/20 hover:bg-blue-500/10 transition-all">
+                      Đánh dấu đã gửi
+                    </button>
+                  )}
+                  {q.status === 'sent' && (
+                    <div className="flex gap-1">
+                      <button onClick={() => handleStatusChange(q.id, 'accepted')}
+                        className="px-2 py-1 rounded-lg text-[9px] font-black uppercase text-green-400 border border-green-500/20 hover:bg-green-500/10 transition-all">
+                        Chấp nhận
+                      </button>
+                      <button onClick={() => handleStatusChange(q.id, 'rejected')}
+                        className="px-2 py-1 rounded-lg text-[9px] font-black uppercase text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all">
+                        Từ chối
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -547,6 +787,11 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
           {/* ════ DOCUMENTS TAB ════ */}
           {activeTab === 'documents' && (
             <MiniDocumentList clientId={deal.client_id} />
+          )}
+
+          {/* ════ QUOTATIONS TAB ════ */}
+          {activeTab === 'quotations' && (
+            <MiniQuotationList dealId={deal.id} clientId={deal.client_id} dealTitle={deal.title} currency={deal.currency} dealValue={deal.value} />
           )}
         </div>
       </div>

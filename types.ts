@@ -370,6 +370,37 @@ export interface CrmDeal {
   updated_at: string;
 }
 
+// ── CRM Quotations ────────────────────────────────────────────
+export interface CrmQuotationItem {
+  description: string;
+  quantity: number;
+  unit: string;
+  unit_price: number;
+}
+
+export type CrmQuotationStatus = 'draft' | 'sent' | 'accepted' | 'rejected' | 'expired';
+
+export interface CrmQuotation {
+  id: string;
+  deal_id: string;
+  client_id: string;
+  client_name?: string;
+  quotation_number: string;
+  title: string;
+  items: CrmQuotationItem[];
+  currency: 'USD' | 'VND';
+  discount: number;
+  tax_rate: number;
+  subtotal: number;
+  total: number;
+  status: CrmQuotationStatus;
+  valid_until: string;
+  notes: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── CRM Outreach (Lead-centric) ───────────────────────────────
 export interface CrmOutreachLead {
   id: string;

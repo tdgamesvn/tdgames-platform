@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-07-01
+### Task
+CRM P2 — Quotation (Báo giá) — CRM ROADMAP COMPLETE
+
+### Work Done
+- Added `CrmQuotation` + `CrmQuotationItem` types to types.ts
+- DB migration `20260701000000_crm_quotations.sql`: table with items JSONB, status check, RLS policies, indexes
+- CRUD service: fetchQuotations(dealId), createQuotation, updateQuotation, deleteQuotation in crmService.ts
+- `MiniQuotationList` component in DealDetailPanel: create form with dynamic line items (add/remove rows), auto subtotal, validity period, notes; list view with items summary, status badges, status flow buttons (draft→sent→accepted/rejected)
+- Added "💰 Báo giá" as 4th tab in DealDetailPanel
+- Auto-generate quotation number (QT-YYYYMM-NNN)
+
+### Validation
+- `npm run build` ✅ (277 modules, 8.15s, 0 errors)
+
+### Result
+ALL CRM ROADMAP ITEMS COMPLETE:
+- P0: Deal Pipeline ✅, BD Dashboard ✅
+- P1: Follow-up Reminders ✅, Client Ownership ✅
+- P2: BD Performance Report ✅, Quotation ✅
+
+---
+
 ## 2026-06-30
 ### Task
 CRM P2 — BD Performance Report

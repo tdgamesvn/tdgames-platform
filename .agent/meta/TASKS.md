@@ -40,6 +40,10 @@ _(trống)_
 
 ## Recently Completed
 
+- [x] CRM P2 — Quotation (Báo giá)
+  - Done: 2026-07-01
+  - Result: CrmQuotation type + DB migration + CRUD service + "Báo giá" tab in DealDetailPanel. Create quotation with line items (desc/qty/unit/price), auto subtotal, validity period, status flow (draft→sent→accepted/rejected). Build ✅
+
 - [x] CRM P2 — BD Performance Report
   - Done: 2026-06-30
   - Result: Per-BD table in dashboard (Active/Won/Lost/Win Rate/Avg Days to Close), per-BD pipeline+won values, total row with aggregates. Build ✅
