@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { AccountUser, CrmClient, CrmDeal, CrmDealStage } from '@/types';
 import { STAGES, CURRENCIES } from './constants';
 
@@ -92,7 +93,7 @@ const DealFormModal: React.FC<Props> = ({ clients, currentUser, editDeal, onSave
   const inputCls = 'px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full';
   const labelCls = 'text-neutral-500 text-[10px] font-black uppercase tracking-wider';
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
       <div
         className="rounded-2xl border border-white/10 p-6 w-full max-w-lg animate-scaleIn max-h-[90vh] overflow-y-auto"
@@ -219,7 +220,8 @@ const DealFormModal: React.FC<Props> = ({ clients, currentUser, editDeal, onSave
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

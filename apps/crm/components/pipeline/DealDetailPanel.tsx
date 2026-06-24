@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { CrmDeal, CrmDealStage, CrmActivity, CrmDocument, CrmQuotation, CrmQuotationItem } from '@/types';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './constants';
 import StageBadge from './StageBadge';
@@ -602,7 +603,7 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
@@ -795,7 +796,8 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 
