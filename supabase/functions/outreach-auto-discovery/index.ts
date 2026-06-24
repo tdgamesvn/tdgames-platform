@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1506534440392982608/0jJN3a-2bngg4CNZBVPwPM2xh6Ruq7bw5vTf4fE_Na79PQ_iv3LV22zVwF2Ysd979AD6";
+const DISCORD_WEBHOOK = Deno.env.get("DISCORD_WEBHOOK_OUTREACH") ?? "";
 
 async function discordReport(ok: boolean, data: Record<string, unknown>, err?: string) {
   const color = ok ? 0x2196F3 : 0xF44336;

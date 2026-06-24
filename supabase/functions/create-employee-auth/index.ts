@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ADMIN_DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1506536432347516929/N74vGob7FrHrlK1wgxmoz0NOxOCK4WY4x2VQCZiafpRC4hHja8YcwcoqGL3CZuydjpML";
+const ADMIN_DISCORD_WEBHOOK = Deno.env.get("DISCORD_WEBHOOK_ADMIN") ?? "";
 
 async function discordAdminEvent(
   action: string,
