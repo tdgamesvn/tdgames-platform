@@ -131,7 +131,7 @@ export default function PayablesTab({ expenses, vcbRate }: Props) {
               {byVendor.map(v => (
                 <React.Fragment key={v.vendor}>
                   <tr
-                    className="border-b border-white/5 hover:bg-white/3 cursor-pointer transition-colors"
+                    className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
                     onClick={() => setExpandedVendor(expandedVendor === v.vendor ? null : v.vendor)}
                   >
                     <td className="px-5 py-3 text-white font-semibold flex items-center gap-2">
@@ -144,7 +144,7 @@ export default function PayablesTab({ expenses, vcbRate }: Props) {
                     <td className="px-5 py-3 text-center text-neutral-400">{v.rows.length}</td>
                   </tr>
                   {expandedVendor === v.vendor && v.rows.map(row => (
-                    <tr key={row.id} className="border-b border-white/3 bg-white/2">
+                    <tr key={row.id} className="border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
                       <td className="pl-12 pr-5 py-2 text-neutral-400 text-xs">{row.expense_date} — {row.title}</td>
                       <td className="px-5 py-2 text-right text-xs text-neutral-400">
                         {row.status !== 'paid' ? (

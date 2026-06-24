@@ -228,7 +228,7 @@ function SettleModal({ saving, currentUser, onDone, onClose }: SettleModalProps)
           <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500">{saving.bank_name}</p>
           <p className="text-sm font-semibold text-white">{fmt(saving.principal)} {saving.currency}</p>
           <p className="text-xs text-neutral-400">{saving.term_months}T · {saving.interest_rate}%/năm</p>
-          <p className="text-xs text-neutral-500">Lãi ước tính: {fmt(estimatedInterest)} {saving.currency}</p>
+          <p className="text-xs text-neutral-medium">Lãi ước tính: {fmt(estimatedInterest)} {saving.currency}</p>
         </div>
 
         <div className="flex flex-col gap-1">
@@ -478,7 +478,7 @@ export default function SavingsTab({ savings, currentUser, onReload, onToast }: 
             </thead>
             <tbody>
               {savings.map(s => (
-                <tr key={s.id} className="border-b border-white/3 hover:bg-white/2 transition-colors">
+                <tr key={s.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                   <td className="px-4 py-3">
                     <div className="font-semibold text-white">{s.bank_name}</div>
                     {s.account_number && <div className="text-neutral-600 font-mono text-[10px] mt-0.5">{s.account_number}</div>}

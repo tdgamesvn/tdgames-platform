@@ -1,6 +1,6 @@
 # TD GAMES PLATFORM — Dashboard UI/UX Style Guide
 
-_v1.0 — 2026-05-21 | Internal Dashboard, Desktop-first_
+_v1.2 — 2026-06-24 | Internal Dashboard, Desktop-first_
 
 > **AI INSTRUCTION:** Đọc file này TRƯỚC khi thiết kế hoặc viết bất kỳ UI component nào.
 > Mọi component mới phải tuân theo các pattern dưới đây. Không tự bịa pattern mới.
@@ -58,11 +58,24 @@ rgba(255,255,255,0.08)   → card border default  (= border-white/8)
 | Data value / body | 13–14px | 600 | `text-sm font-semibold text-white` |
 | Mono value (số, mã, STK) | 13–14px | 400 | `text-sm font-mono tracking-wider text-white` |
 | Section title | 14–16px | 800 | `text-base font-black uppercase tracking-wider text-white` |
-| Page heading | 18–20px | 800 | `text-lg font-black text-white` |
 | Caption / hint | 12px | 400–500 | `text-xs text-neutral-medium` |
+| Subtitle / description | 14px | 400 | `text-sm text-neutral-medium` |
 | KPI / big number | 24–28px | 800 | `text-2xl font-black text-white` (exception duy nhất cho số lớn) |
 
-**KHÔNG dùng:** `text-3xl` trở lên trong dashboard apps.
+### App-level Tab Heading (v1.2)
+Heading chính của mỗi tab (VD: "CÔNG NỢ PHẢI TRẢ", "GỬI TIẾT KIỆM", "TÀI KHOẢN NGÂN HÀNG"):
+```jsx
+<h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter"
+    style={{ color: '#FF9500' }}>
+  Tên Tab
+</h2>
+<p className="text-sm text-neutral-medium mt-1">Mô tả ngắn về tab này</p>
+```
+> - `text-2xl md:text-4xl` — responsive: 24px mobile, 36px desktop
+> - `uppercase tracking-tighter` — tất cả chữ hoa, letter-spacing chặt
+> - `color: '#FF9500'` — inline style, KHÔNG dùng `text-primary` (Tailwind không có giá trị này)
+> - Dùng `<h2>` không phải `<h1>` (app shell đã là h1)
+> - Subtitle ngay dưới: `text-sm text-neutral-medium` (KHÔNG dùng `text-xs`)
 
 ---
 
@@ -105,34 +118,57 @@ style={{ background: 'linear-gradient(135deg, #FF9500, #FF6B00)' }}
 
 ## 📦 Cards
 
-### Default card (thông tin, form section)
+> **v1.2 Update:** Dùng `rounded-[20px]` thay `rounded-2xl`, `border-primary/10` thay `border-white/8`.
+> Pattern mới đồng bộ với Expense app — border tinted cam mờ, không còn viền trắng rõ.
+
+### Default card (thông tin, form section) ✅ Pattern chuẩn
 ```jsx
-className="rounded-2xl border border-white/8 p-6"
-style={{ background: 'rgba(255,255,255,0.02)' }}
+className="rounded-[20px] border border-primary/10 p-6 bg-surface"
 ```
 
 ### Primary-tinted card (sidebar summary, highlight)
 ```jsx
-className="rounded-2xl border p-5"
+className="rounded-[20px] border p-5"
 style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}
 ```
 
 ### List item / row card
 ```jsx
-className="flex items-center gap-4 p-4 rounded-2xl border border-white/5
-           hover:border-white/10 transition-all"
-style={{ background: 'rgba(255,255,255,0.02)' }}
+className="flex items-center gap-4 p-4 rounded-[20px] border border-primary/10
+           hover:border-primary/20 transition-all bg-surface"
 ```
+
+### Table row (trong `<tbody>`)
+```jsx
+// Divider row chuẩn
+<tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+
+// Row có highlight động (e.g. selected/matching)
+<tr className="border-b border-white/5 hover:bg-white/5 transition-colors"
+    style={isActive ? { background: 'rgba(255,255,255,0.03)' } : {}}>
+
+// Sub-row (expand, indent)
+<tr className="border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+```
+> **KHÔNG dùng:** `bg-white/2`, `bg-white/3`, `border-white/3` — không có trong Tailwind scale mặc định.
+> Dùng `border-white/5` (0.05) cho divider. Hover: `hover:bg-white/5`. Highlight: inline `rgba(255,255,255,0.03)`.
 
 ### Stats / KPI card
 ```jsx
-className="rounded-2xl border border-white/8 p-5 space-y-1"
-style={{ background: 'rgba(255,255,255,0.02)' }}
+className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"
 // Label: text-[10px] font-black uppercase tracking-wider text-neutral-600
 // Value: text-2xl font-black text-white
 // Delta: text-xs font-semibold text-status-success / text-status-error
 ```
 
+### Quarter / Period selector card
+```jsx
+className="rounded-[20px] border border-primary/10 p-4 bg-surface cursor-pointer
+           hover:border-primary/30 transition-all"
+// Active state: border-primary/40 bg-orange-500/5
+```
+
+> **KHÔNG dùng:** `border-white/8` cho card (tạo viền trắng rõ, không khớp pattern Expense).
 > **KHÔNG dùng:** `hover:translateY(-8px)` — landing page pattern.
 
 ---
@@ -299,7 +335,8 @@ setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' });
 |----------|-------------|
 | `hover:scale-105` trên card/button | Chỉ đổi border-color hoặc bg |
 | `hover:translateY(-8px)` | — (bỏ hẳn trong dashboard) |
-| `text-3xl` trở lên | `text-lg` (18px) là max thông thường |
+| `text-3xl` trở lên (trừ app heading) | `text-lg` (18px) là max cho section title |
+| `text-4xl` trong nội dung tab | Chỉ dùng cho tiêu đề cấp app (1 lần) |
 | `max-w-3xl` hoặc `max-w-*` trong tab component | Bỏ, để parent `max-w-[1400px]` lo |
 | Tự tạo toast, modal overlay | Dùng `<ToastNotification>` có sẵn |
 | `font-sans`, `font-mono` làm default | Montserrat (`font-montserrat`) là font duy nhất |
@@ -307,7 +344,19 @@ setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' });
 | Section spacing 80–120px | `space-y-6` / `gap-6` (24px) |
 | `transition-all duration-500` | `transition-all` (150ms mặc định) |
 | `min-h-screen` trong tab component | Chỉ dùng ở root app wrapper |
+| `border-white/8` trên summary/KPI cards | `border-primary/10` (border cam mờ) |
+| `rounded-2xl` trên cards | `rounded-[20px]` |
+| `bg-white/3` (invalid Tailwind class) | `style={{ background: 'rgba(255,255,255,0.03)' }}` |
 
 ---
+
+---
+
+## 📋 Changelog
+
+| Version | Ngày | Thay đổi |
+|---------|------|---------|
+| v1.0 | 2026-05-21 | Initial style guide |
+| v1.2 | 2026-06-24 | Cards: `rounded-[20px]` + `border-primary/10` + `bg-surface` thay thế `rounded-2xl` + `border-white/8`. App heading pattern `text-4xl #FF9500`. Subtitle `text-sm text-neutral-medium`. |
 
 _Cập nhật file này bất cứ khi nào có pattern mới được chuẩn hoá._

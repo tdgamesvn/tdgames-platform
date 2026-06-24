@@ -112,7 +112,7 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
                     className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
                     style={selectedId === c.id
                       ? { background: '#FF9500', color: '#fff' }
-                      : { background: 'rgba(255,255,255,0.04)', color: '#888' }}>
+                      : { background: 'rgba(255,255,255,0.04)', color: '#9D9C9D' }}>
                     {c.entity_short || c.entity_name_vn}
                     {c.is_primary && <span className="ml-1 opacity-60">★</span>}
                   </button>

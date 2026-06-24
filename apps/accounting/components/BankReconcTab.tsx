@@ -232,7 +232,7 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
       </div>
 
       {/* Format hint */}
-      <div className="rounded-xl border border-white/5 p-4 text-xs text-neutral-500 space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>
+      <div className="rounded-xl border border-white/5 p-4 text-xs text-neutral-medium space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>
         <p className="font-bold text-neutral-400 mb-2">Định dạng CSV được hỗ trợ:</p>
         <p>• <span className="text-neutral-300">Techcombank:</span> Date, Description, Debit, Credit, Balance</p>
         <p>• <span className="text-neutral-300">BIDV:</span> STT, Ngày GD, Số tham chiếu, Mô tả, Phát sinh Nợ, Phát sinh Có, Số dư</p>
@@ -303,7 +303,8 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
                 const isMatchingThis = matchingId === stmt.id;
                 return (
                   <React.Fragment key={stmt.id}>
-                    <tr className={`border-b border-white/3 hover:bg-white/2 transition-colors ${isMatchingThis ? 'bg-white/3' : ''}`}>
+                    <tr className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                        style={isMatchingThis ? { background: 'rgba(255,255,255,0.03)' } : {}}>
                       <td className="px-4 py-2.5 text-neutral-400 font-mono">{stmt.transaction_date}</td>
                       <td className="px-4 py-2.5 text-neutral-300 max-w-xs truncate" title={stmt.description}>{stmt.description}</td>
                       <td className="px-4 py-2.5">
