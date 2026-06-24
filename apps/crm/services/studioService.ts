@@ -64,8 +64,15 @@ export async function fetchStudios(
   if (filters.country?.trim()) {
     query = query.ilike('country', `%${filters.country.trim()}%`);
   }
-  if (filters.source) {
-    query = query.eq('source', filters.source);
+  if (filters.source === 'discovered') {
+    // Apollo = studios found via Apollo (pure 'discovered' OR merged 'both')
+    query = query.in('source', ['discovered', 'both']);
+  } else if (filters.source === 'hiring') {
+    // Hiring = studios from hiring signals (pure 'hiring' OR merged 'both')
+    query = query.in('source', ['hiring', 'both']);
+  } else if (filters.source === 'both') {
+    // "Cả hai" = only studios that appear in BOTH sources
+    query = query.eq('source', 'both');
   }
   if (filters.bd_status) {
     query = query.eq('bd_status', filters.bd_status);
