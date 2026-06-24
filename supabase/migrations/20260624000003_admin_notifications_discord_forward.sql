@@ -30,6 +30,12 @@ BEGIN
     RETURN NEW;
   END IF;
 
+  -- Dedup: only send Discord ONCE per unique event (type + title) per transaction.
+  -- Prevents N Discord messages when N admin users each get the same notification.
+  IF NOT pg_try_advisory_xact_lock(hashtext(NEW.type || '|' || NEW.title)) THEN
+    RETURN NEW;
+  END IF;
+
   -- Read webhook URL from app_config
   SELECT value INTO _discord_url
   FROM   public.app_config
