@@ -14,6 +14,7 @@ import ActivityTimeline from './ActivityTimeline';
 import { fetchActivities } from '../services/crmService';
 import DealPipeline from './DealPipeline';
 import BdDashboard from './BdDashboard';
+import StudiosTab from './StudiosTab';
 import HelpPanel from '@/components/HelpPanel';
 import { CRM_HELP } from '../helpContent';
 
@@ -32,6 +33,7 @@ const TAB_MAP: Record<CrmTab, string> = {
   payments:   'activity',
   activities: 'board',
   outreach:   'outreach',
+  studios:    'studios',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -43,6 +45,7 @@ const TAB_LABELS: Record<string, string> = {
   activity: 'Thanh toán',
   board:    'Hoạt động',
   outreach: '📧 Outreach',
+  studios:  '🎮 Studios',
 };
 
 const REVERSE_TAB: Record<string, CrmTab> = {
@@ -54,6 +57,7 @@ const REVERSE_TAB: Record<string, CrmTab> = {
   activity:  'payments',
   board:     'activities',
   outreach:  'outreach',
+  studios:   'studios',
 };
 
 const TYPE_ICON: Record<string, { icon: string; label: string; color: string }> = {
@@ -90,26 +94,29 @@ const GlobalActivityFeed: React.FC<{ clients: any[]; actor: string }> = ({ clien
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => setFilterType('')}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${!filterType ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-neutral-300 border border-white/10 hover:text-white hover:border-white/20'}`}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${!filterType ? 'border transition-all' : 'text-neutral-300 border border-white/10 hover:text-white hover:border-white/20'}`}
+            style={!filterType ? { background: 'rgba(255,149,0,0.15)', color: '#FF9500', borderColor: 'rgba(255,149,0,0.3)' } : undefined}
           >Tất cả</button>
           {Object.entries(TYPE_ICON).filter(([k]) => k !== 'status_change').map(([key, meta]) => (
             <button
               key={key}
               onClick={() => setFilterType(filterType === key ? '' : key)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${filterType === key ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-neutral-300 border border-white/10 hover:text-white hover:border-white/20'}`}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${filterType === key ? 'border transition-all' : 'text-neutral-300 border border-white/10 hover:text-white hover:border-white/20'}`}
+              style={filterType === key ? { background: meta.color + '26', color: meta.color, borderColor: meta.color + '4D' } : undefined}
             >{meta.icon} {meta.label}</button>
           ))}
         </div>
       </div>
 
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <p className="animate-td-pulse" style={{ color: '#888', fontSize: '13px' }}>Đang tải hoạt động...</p>
+        <div className="text-center py-10">
+          <p className="text-neutral-500 text-sm animate-td-pulse">Đang tải hoạt động...</p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-neutral-700 text-sm">
-          <p className="text-3xl mb-3">📋</p>
-          <p className="text-neutral-600 text-sm">Chưa có hoạt động nào</p>
+          <p className="text-3xl mb-3">📭</p>
+          <p className="text-neutral-600 text-sm">Chưa có hoạt động</p>
+          <p className="text-xs mt-1 text-neutral-700">Hoạt động sẽ xuất hiện sau khi được ghi nhận</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -117,14 +124,10 @@ const GlobalActivityFeed: React.FC<{ clients: any[]; actor: string }> = ({ clien
             const meta = TYPE_ICON[act.activity_type] || TYPE_ICON.note;
             return (
               <div key={act.id}
-                className="rounded-[20px] border border-primary/10 bg-surface hover:border-primary/20 transition-all"
-                style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px 20px' }}
+                className="flex items-start gap-4 p-4 rounded-[20px] border border-primary/10 bg-surface hover:border-primary/20 transition-all"
               >
-                <div style={{
-                  width: '42px', height: '42px', flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
-                  background: meta.color + '15', border: `1px solid ${meta.color}25`,
-                }} className="rounded-xl">
+                <div className="rounded-xl w-10 h-10 flex items-center justify-center text-xl flex-shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.05)' }}>
                   {meta.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -170,8 +173,8 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   const navbarTab = TAB_MAP[state.activeTab];
   const isBd = currentUser.role === 'bd';
   const accessibleTabs = isBd
-    ? ['dashboard', 'deals', 'history', 'tasks', 'settings', 'board', 'outreach']
-    : ['dashboard', 'deals', 'history', 'tasks', 'settings', 'activity', 'board', 'outreach'];
+    ? ['dashboard', 'deals', 'history', 'tasks', 'settings', 'board', 'outreach', 'studios']
+    : ['dashboard', 'deals', 'history', 'tasks', 'settings', 'activity', 'board', 'outreach', 'studios'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -281,6 +284,11 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
         {/* ── Email Outreach Tab ── */}
         {state.activeTab === 'outreach' && (
           <EmailOutreach clients={state.clients} />
+        )}
+
+        {/* ── Studios Tab ── */}
+        {state.activeTab === 'studios' && (
+          <StudiosTab />
         )}
       </main>
 
