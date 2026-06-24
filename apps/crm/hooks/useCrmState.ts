@@ -9,7 +9,8 @@ export function useCrmState(initialTab?: string | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<CrmTab>(() => {
     if (initialTab === 'activities') return 'activities';
-    return 'clients';
+    if (initialTab === 'deals') return 'deals';
+    return 'dashboard';
   });
   const [editingClient, setEditingClient] = useState<CrmClient | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);

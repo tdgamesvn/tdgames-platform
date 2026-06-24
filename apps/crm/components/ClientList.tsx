@@ -138,6 +138,12 @@ const ClientList: React.FC<Props> = ({
                       👥 {client.contacts!.length} liên hệ
                     </span>
                   )}
+                  {client.assigned_bd_name && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
+                      background: 'rgba(175,82,222,0.12)', color: '#AF52DE' }}>
+                      BD: {client.assigned_bd_name}
+                    </span>
+                  )}
                 </div>
                 {/* Show contacts */}
                 {client.contacts && client.contacts.length > 0 ? (

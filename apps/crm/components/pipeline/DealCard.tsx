@@ -47,7 +47,23 @@ const DealCard: React.FC<Props> = ({ deal, onClick, onDragStart, onDragEnd }) =>
 
       {/* Bottom row */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-neutral-500">{fmtDate(deal.expected_close_date)}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-neutral-500">{fmtDate(deal.expected_close_date)}</span>
+          {deal.next_follow_up && (() => {
+            const fuDays = Math.floor((new Date(deal.next_follow_up).getTime() - Date.now()) / 86_400_000);
+            const isOverdue = fuDays < 0;
+            const isToday = fuDays === 0;
+            return (
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                isOverdue ? 'text-red-400 bg-red-500/10' :
+                isToday ? 'text-orange-400 bg-orange-500/10' :
+                'text-blue-400 bg-blue-500/10'
+              }`} title={`Follow-up: ${fmtDate(deal.next_follow_up)}`}>
+                📌{isOverdue ? `${Math.abs(fuDays)}d` : isToday ? '!' : `${fuDays}d`}
+              </span>
+            );
+          })()}
+        </div>
         <div className="flex items-center gap-1.5">
           {days > 0 && (
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${

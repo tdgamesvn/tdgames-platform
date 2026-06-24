@@ -40,6 +40,14 @@ _(trống)_
 
 ## Recently Completed
 
+- [x] CRM P1 — Follow-up Reminders + Client Ownership
+  - Done: 2026-06-29
+  - Result: Follow-up: next_follow_up date on deals (card indicator, form picker, detail panel inline edit, dashboard section). Client Ownership: assigned_bd_name on clients (ClientList badge, ClientForm input). Migration + types + UI. Build ✅
+
+- [x] BD Dashboard — CRM "Tổng quan" tab
+  - Done: 2026-06-28
+  - Result: KPI cards (Pipeline/Won/WinRate/Clients), pipeline funnel bar chart, deals needing attention (overdue + stale >14d), recent activities sidebar, won deals summary, quick action buttons. Default tab changed to dashboard. Build ✅
+
 - [x] CRM Deal Pipeline — Board + Detail Panel + Filters (4 phases)
   - Done: 2026-06-27
   - Result: Phase 1 (Foundation): tách 661→76 dòng, 14 files. Phase 2 (Features): 3-tab detail panel, inline edit, stage rules. Phase 3 (Filters): stage/owner/currency filters + responsive metrics. Phase 4 (Polish): drag feedback, toast, days-in-stage, drop indicator, refetch on focus. Build ✅

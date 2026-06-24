@@ -13,6 +13,7 @@ import PaymentTracker from './PaymentTracker';
 import ActivityTimeline from './ActivityTimeline';
 import { fetchActivities } from '../services/crmService';
 import DealPipeline from './DealPipeline';
+import BdDashboard from './BdDashboard';
 import HelpPanel from '@/components/HelpPanel';
 import { CRM_HELP } from '../helpContent';
 
@@ -221,6 +222,18 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
       {/* Main Content */}
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
+        {/* ── Dashboard Tab ── */}
+        {state.activeTab === 'dashboard' && (
+          <BdDashboard
+            currentUser={currentUser}
+            clients={state.clients}
+            onSwitchTab={(tab) => {
+              const crmTab = REVERSE_TAB[tab] || (tab as any);
+              if (crmTab) state.setActiveTab(crmTab);
+            }}
+          />
+        )}
+
         {/* ── Clients Tab ── */}
         {state.activeTab === 'clients' && (
           <>

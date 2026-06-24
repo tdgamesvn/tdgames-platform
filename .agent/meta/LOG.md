@@ -2,6 +2,70 @@
 
 ---
 
+## 2026-06-29
+### Task
+CRM P1 — Follow-up Reminders + Client Ownership
+
+### Work Done
+**Follow-up Reminders:**
+- DB migration: `next_follow_up DATE` column on `crm_deals` + index
+- `CrmDeal` type: added `next_follow_up?: string | null`
+- DealCard: follow-up indicator badge (📌 overdue=red, today=orange, upcoming=blue)
+- DealFormModal: "📌 Follow-up tiếp" date picker alongside "Dự kiến chốt"
+- DealDetailPanel: follow-up inline display with relative time (Quá hạn Xd / Hôm nay / Xd nữa), click-to-edit via native date picker
+- BdDashboard: "📌 Follow-up" section at top of left column showing overdue + today + next 3 days deals
+
+**Client Ownership:**
+- DB migration: `assigned_bd_id UUID` + `assigned_bd_name TEXT` on `crm_clients` + index
+- `CrmClient` type: added `assigned_bd_id`, `assigned_bd_name`
+- ClientList: purple "BD: Name" badge in client card header
+- ClientForm: "BD phụ trách" text input after Status field
+
+### Validation
+- `npm run build` ✅ (277 modules, 7.83s, 0 errors)
+
+### Result
+- BD can set follow-up dates on deals → visible on card, detail panel, dashboard
+- Dashboard highlights overdue + upcoming follow-ups
+- Clients can be assigned to a BD → visible in client list
+
+### Next Step
+- Apply migration to Supabase
+- Commit + push
+- Remaining: P2 (BD Performance Report, Quotation)
+
+---
+
+## 2026-06-28
+### Task
+BD Dashboard — CRM "Tổng quan" tab
+
+### Work Done
+- Created `apps/crm/components/BdDashboard.tsx` — full dashboard component
+  - **KPI Cards** (4): Pipeline Value, Total Won, Win Rate (W/L breakdown), Active Clients
+  - **Pipeline Funnel**: horizontal bar chart per stage (Lead→Contracting), count + value, proportional width
+  - **Deals Needing Attention**: overdue close dates (red), upcoming closes (next 14d), stale deals (>14d no update), clickable → goes to pipeline
+  - **Recent Activities** sidebar: last 6 activities with type icon + client name + date, link to all activities
+  - **Won Deals** sidebar: latest 4 won deals with value
+  - **Quick Actions**: buttons to create deal, view docs, open outreach
+- Wired into `CrmApp.tsx`: `dashboard` tab renders `<BdDashboard>` with `onSwitchTab` for navigation
+- Changed default CRM tab from `clients` → `dashboard` (BD sees dashboard first when opening CRM)
+- Layout: 2-column (main 2/3 + sidebar 1/3), follows STYLE_GUIDE.md patterns
+
+### Validation
+- `npm run build` ✅ (277 modules, 7.86s, 0 errors)
+
+### Result
+- CRM now opens to "Tổng quan" dashboard by default
+- BD gets pipeline overview, attention items, and recent activity at a glance
+- All sections clickable → navigate to relevant tabs
+
+### Next Step
+- Commit + push khi sếp sẵn sàng
+- Remaining CRM roadmap: Follow-up Reminders (P1), Client Ownership (P1), BD Performance Report (P2), Quotation (P2)
+
+---
+
 ## 2026-06-27
 ### Task
 CRM Deal Pipeline — Phase 4 (Polish) — FEATURE COMPLETE

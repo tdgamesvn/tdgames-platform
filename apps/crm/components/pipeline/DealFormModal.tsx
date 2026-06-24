@@ -19,6 +19,7 @@ const DealFormModal: React.FC<Props> = ({ clients, currentUser, editDeal, onSave
     stage: (editDeal?.stage || 'lead') as CrmDealStage,
     probability: editDeal?.probability?.toString() || '20',
     expected_close_date: editDeal?.expected_close_date || '',
+    next_follow_up: editDeal?.next_follow_up || '',
     notes: editDeal?.notes || '',
     lost_reason: editDeal?.lost_reason || '',
   });
@@ -160,12 +161,20 @@ const DealFormModal: React.FC<Props> = ({ clients, currentUser, editDeal, onSave
             </div>
           </div>
 
-          {/* Expected close date */}
-          <div className="flex flex-col gap-1">
-            <label className={labelCls}>Dự kiến chốt</label>
-            <input type="date" value={form.expected_close_date}
-              onChange={e => set('expected_close_date', e.target.value)}
-              className={inputCls} style={{ background: '#1a1a1a' }} />
+          {/* Expected close date + Follow-up */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>Dự kiến chốt</label>
+              <input type="date" value={form.expected_close_date}
+                onChange={e => set('expected_close_date', e.target.value)}
+                className={inputCls} style={{ background: '#1a1a1a' }} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className={labelCls}>📌 Follow-up tiếp</label>
+              <input type="date" value={form.next_follow_up}
+                onChange={e => set('next_follow_up', e.target.value)}
+                className={inputCls} style={{ background: '#1a1a1a' }} />
+            </div>
           </div>
 
           {/* Lost reason — only show when stage = lost */}

@@ -38,6 +38,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
     lead_source_detail: '',
     notes: '',
     tags: [] as string[],
+    assigned_bd_name: '',
   });
   const [tagInput, setTagInput] = useState('');
   const [newContact, setNewContact] = useState({ ...emptyContact });
@@ -64,6 +65,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         lead_source_detail: editingClient.lead_source_detail || '',
         notes: editingClient.notes || '',
         tags: editingClient.tags || [],
+        assigned_bd_name: editingClient.assigned_bd_name || '',
       });
     }
   }, [editingClient]);
@@ -204,6 +206,12 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
                 <option value="lost">❌ Mất khách</option>
               </optgroup>
             </select>
+          </div>
+          <div>
+            <label style={labelStyle}>BD phụ trách</label>
+            <input style={inputStyle} value={form.assigned_bd_name}
+              onChange={e => setForm({ ...form, assigned_bd_name: e.target.value })}
+              placeholder="Tên BD..." />
           </div>
         </div>
 

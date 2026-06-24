@@ -283,6 +283,8 @@ export interface CrmClient {
   lead_source_detail: string;
   notes: string;
   tags: string[];
+  assigned_bd_id?: string | null;
+  assigned_bd_name?: string;
   created_at: string;
   updated_at: string;
   contacts?: CrmContact[];
@@ -362,6 +364,7 @@ export interface CrmDeal {
   actual_close_date?: string | null;
   lost_reason?: string;
   probability: number;           // 0–100
+  next_follow_up?: string | null;
   notes: string;
   created_at: string;
   updated_at: string;

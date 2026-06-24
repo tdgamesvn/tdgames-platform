@@ -440,6 +440,37 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
                 onSave={async (v) => { await onUpdateField(deal.id, 'probability', parseInt(v) || 0); }}
               />
 
+              {/* Follow-up date — inline editable */}
+              <div className="group cursor-pointer" onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'date';
+                input.value = deal.next_follow_up || '';
+                input.onchange = () => { onUpdateField(deal.id, 'next_follow_up', input.value || null); };
+                input.click();
+              }}>
+                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">📌 Follow-up tiếp</p>
+                <div className="flex justify-between items-center p-2 rounded-lg hover:bg-white/5 transition-all -mx-2">
+                  {deal.next_follow_up ? (() => {
+                    const fuDays = Math.floor((new Date(deal.next_follow_up).getTime() - Date.now()) / 86_400_000);
+                    return (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-white">{fmtDate(deal.next_follow_up)}</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          fuDays < 0 ? 'text-red-400 bg-red-500/10' :
+                          fuDays === 0 ? 'text-orange-400 bg-orange-500/10' :
+                          'text-blue-400 bg-blue-500/10'
+                        }`}>
+                          {fuDays < 0 ? `Quá hạn ${Math.abs(fuDays)}d` : fuDays === 0 ? 'Hôm nay' : `${fuDays}d nữa`}
+                        </span>
+                      </div>
+                    );
+                  })() : (
+                    <span className="text-xs text-neutral-600 italic">Nhấn để đặt lịch...</span>
+                  )}
+                  <span className="text-[10px] text-neutral-700 opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+                </div>
+              </div>
+
               {/* Notes — inline editable */}
               <InlineEditField
                 label="Ghi chú"
