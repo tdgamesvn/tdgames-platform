@@ -57,6 +57,7 @@ const REVERSE_TAB: Record<string, CrmTab> = {
   activity:  'payments',
   board:     'activities',
   outreach:  'outreach',
+  studios:   'studios',
 };
 
 const TYPE_ICON: Record<string, { icon: string; label: string; color: string }> = {
@@ -172,8 +173,8 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   const navbarTab = TAB_MAP[state.activeTab];
   const isBd = currentUser.role === 'bd';
   const accessibleTabs = isBd
-    ? ['dashboard', 'deals', 'history', 'tasks', 'settings', 'board', 'outreach']
-    : ['dashboard', 'deals', 'history', 'tasks', 'settings', 'activity', 'board', 'outreach'];
+    ? ['dashboard', 'deals', 'history', 'tasks', 'settings', 'board', 'outreach', 'studios']
+    : ['dashboard', 'deals', 'history', 'tasks', 'settings', 'activity', 'board', 'outreach', 'studios'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -283,6 +284,11 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
         {/* ── Email Outreach Tab ── */}
         {state.activeTab === 'outreach' && (
           <EmailOutreach clients={state.clients} />
+        )}
+
+        {/* ── Studios Tab ── */}
+        {state.activeTab === 'studios' && (
+          <StudiosTab />
         )}
       </main>
 
