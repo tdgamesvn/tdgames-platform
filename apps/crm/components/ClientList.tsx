@@ -52,7 +52,7 @@ const ClientList: React.FC<Props> = ({
           <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
             Khách hàng
           </h2>
-          <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Quản lý thông tin khách hàng tập trung</p>
+          <p className="text-sm text-neutral-medium mt-1">Quản lý thông tin khách hàng tập trung</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <Button onClick={onAdd} variant="primary" size="sm">＋ Thêm khách hàng</Button>
@@ -65,7 +65,7 @@ const ClientList: React.FC<Props> = ({
       {/* Stats Cards — dynamic from actual data */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(Object.keys(statusCounts).length + 1, 6)}, 1fr)`, gap: '12px' }}>
         <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>Tổng khách hàng</p>
+          <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9D9C9D' }}>Tổng khách hàng</p>
           <p style={{ fontSize: '24px', fontWeight: 900, color: '#FF9500', marginTop: '4px' }}>{totalClients}</p>
         </div>
         {Object.entries(STATUS_CONFIG).filter(([k]) => (statusCounts[k] || 0) > 0).map(([key, cfg]) => (
@@ -73,7 +73,7 @@ const ClientList: React.FC<Props> = ({
             onClick={() => setFilterStatus(filterStatus === key ? '' : key)}
             onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.color)}
             onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}>
-            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>{cfg.icon} {cfg.label}</p>
+            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9D9C9D' }}>{cfg.icon} {cfg.label}</p>
             <p style={{ fontSize: '24px', fontWeight: 900, color: cfg.color, marginTop: '4px' }}>{statusCounts[key] || 0}</p>
           </div>
         ))}

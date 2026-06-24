@@ -50,7 +50,7 @@ const PipelineMetrics: React.FC<Props> = ({ deals, filteredDeals, hasActiveFilte
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map(c => (
-        <div key={c.label} className="rounded-2xl border border-white/8 p-4 space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>
+        <div key={c.label} className="rounded-[20px] border border-primary/10 p-4 space-y-1 bg-surface">
           <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
           <p className={`text-2xl font-black ${c.valueColor || 'text-white'}`}>{c.value}</p>
           {c.sub && <p className="text-xs font-semibold text-neutral-500">{c.sub}</p>}

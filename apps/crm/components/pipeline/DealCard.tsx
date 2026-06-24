@@ -26,7 +26,7 @@ const DealCard: React.FC<Props> = ({ deal, onClick, onDragStart, onDragEnd }) =>
       onDragStart={(e) => { setIsDragging(true); onDragStart(e); }}
       onDragEnd={() => { setIsDragging(false); onDragEnd(); }}
       onClick={onClick}
-      className="rounded-xl border border-white/8 p-3.5 cursor-grab hover:border-white/15 transition-all active:cursor-grabbing"
+      className="rounded-[20px] border border-primary/10 p-3.5 cursor-grab hover:border-primary/20 transition-all active:cursor-grabbing"
       style={{
         background: 'rgba(255,255,255,0.02)',
         opacity: isDragging ? 0.4 : 1,

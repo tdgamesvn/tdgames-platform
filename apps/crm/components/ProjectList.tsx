@@ -287,7 +287,7 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
           <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Dự án</h2>
-          <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Theo dõi dự án theo khách hàng</p>
+          <p className="text-sm text-neutral-medium mt-1">Theo dõi dự án theo khách hàng</p>
         </div>
         <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(!showForm); }} style={{
           padding: '12px 24px', border: 'none', borderRadius: '10px', background: '#FF9500',

@@ -55,7 +55,7 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
     <div className="animate-fadeInUp">
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Thanh toán</h2>
-        <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Theo dõi tình trạng thanh toán (đồng bộ từ Invoice app)</p>
+        <p className="text-sm text-neutral-medium mt-1">Theo dõi tình trạng thanh toán (đồng bộ từ Invoice app)</p>
       </div>
 
       {/* Client selector */}
@@ -81,7 +81,7 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
             <div key={card.label} style={{
               background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px',
             }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', marginBottom: '8px' }}>{card.label}</p>
+              <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9D9C9D', marginBottom: '8px' }}>{card.label}</p>
               <p style={{ fontSize: '24px', fontWeight: 900, color: card.color }}>{card.value}</p>
             </div>
           ))}

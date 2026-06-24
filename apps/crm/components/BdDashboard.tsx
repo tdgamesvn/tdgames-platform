@@ -158,10 +158,10 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     <div className="animate-fadeInUp space-y-6">
       {/* ── Greeting ── */}
       <div>
-        <h2 className="text-lg font-black text-white">
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
           Xin chào, {currentUser.username}
         </h2>
-        <p className="text-xs text-neutral-500 mt-1">Tổng quan CRM hôm nay</p>
+        <p className="text-sm text-neutral-medium mt-1">Tổng quan CRM hôm nay</p>
       </div>
 
       {/* ── KPI Cards ── */}
@@ -172,7 +172,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           { label: 'Win Rate', value: `${winRate}%`, sub: closedDeals.length > 0 ? `${wonDeals.length}W / ${closedDeals.length - wonDeals.length}L` : 'Chưa có data', color: 'text-white' },
           { label: 'Khách hàng', value: `${activeClients}`, sub: `/ ${clients.length} tổng`, color: 'text-white' },
         ].map(c => (
-          <div key={c.label} className="rounded-2xl border border-white/8 p-4 space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div key={c.label} className="rounded-[20px] border border-primary/10 p-4 space-y-1 bg-surface">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
             <p className={`text-2xl font-black ${c.color}`}>{c.value}</p>
             {c.sub && <p className="text-xs font-semibold text-neutral-500">{c.sub}</p>}
@@ -188,7 +188,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
 
           {/* Follow-up Reminders */}
           {followUpDeals.length > 0 && (
-            <div className="rounded-2xl border p-5" style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
+            <div className="rounded-[20px] border p-5" style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-3">
                 📌 Follow-up ({followUpDeals.length})
               </p>
@@ -224,7 +224,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           )}
 
           {/* Pipeline Funnel */}
-          <div className="rounded-2xl border border-white/8 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="rounded-[20px] border border-primary/10 p-5 bg-surface">
             <div className="flex items-center justify-between mb-4">
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Pipeline Funnel</p>
               <button
@@ -264,7 +264,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           </div>
 
           {/* Deals Needing Attention */}
-          <div className="rounded-2xl border border-white/8 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="rounded-[20px] border border-primary/10 p-5 bg-surface">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-4">
               Cần chú ý ({staleDeals.length + upcomingCloses.length})
             </p>
@@ -349,7 +349,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
 
           {/* BD Performance Report */}
           {bdPerf.length > 0 && (
-            <div className="rounded-2xl border border-white/8 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <div className="rounded-[20px] border border-primary/10 p-5 bg-surface">
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-4">📊 Hiệu suất BD</p>
 
               {/* Table header */}
@@ -401,7 +401,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
         <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-4">
 
           {/* Recent Activities */}
-          <div className="rounded-2xl border p-5" style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
+          <div className="rounded-[20px] border p-5" style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Hoạt động gần đây</p>
               <button
@@ -442,7 +442,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
 
           {/* Won deals summary */}
           {wonDeals.length > 0 && (
-            <div className="rounded-2xl border border-white/8 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+            <div className="rounded-[20px] border border-primary/10 p-5 bg-surface">
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-3">Deals đã thắng</p>
               <div className="space-y-2">
                 {wonDeals.slice(0, 4).map(deal => (
@@ -464,7 +464,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           )}
 
           {/* Quick actions */}
-          <div className="rounded-2xl border border-white/8 p-5 space-y-2" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="rounded-[20px] border border-primary/10 p-5 space-y-2 bg-surface">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-3">Hành động nhanh</p>
             {[
               { label: '+ Tạo deal mới', tab: 'deals', icon: '🎯' },

@@ -91,7 +91,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
           <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
             📧 Email Outreach
           </h2>
-          <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Lead Discovery + Cold Email Pipeline — TD Games Outsourcing</p>
+          <p className="text-sm text-neutral-medium mt-1">Lead Discovery + Cold Email Pipeline — TD Games Outsourcing</p>
         </div>
 
         {/* Sub-tabs */}

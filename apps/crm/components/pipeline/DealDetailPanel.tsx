@@ -656,7 +656,7 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
           {activeTab === 'overview' && (
             <>
               {/* Quick Info */}
-              <div className="rounded-xl border border-white/8 p-4 space-y-3" style={{ background: 'rgba(255,255,255,0.02)' }}>
+              <div className="rounded-[20px] border border-primary/10 p-4 space-y-3 bg-surface">
                 {[
                   { label: 'Owner', value: deal.owner_name || '—' },
                   { label: 'Dự kiến chốt', value: fmtDate(deal.expected_close_date) },

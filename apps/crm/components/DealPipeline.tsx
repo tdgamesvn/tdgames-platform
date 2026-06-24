@@ -24,7 +24,7 @@ const DealPipeline: React.FC<Props> = ({ currentUser, clients }) => {
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-lg font-black text-white">Deal Pipeline</h2>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Deal Pipeline</h2>
         <div className="flex items-center gap-3">
           <input
             value={p.filters.search}

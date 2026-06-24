@@ -340,7 +340,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
           <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Tài liệu</h2>
-          <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
+          <p className="text-sm text-neutral-medium mt-1">Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setPickerClientId(''); setPickerProjectId(''); setShowContractPicker(true); }} style={{
