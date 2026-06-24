@@ -1,6 +1,6 @@
 # TD GAMES PLATFORM — Dashboard UI/UX Style Guide
 
-_v1.2 — 2026-06-24 | Internal Dashboard, Desktop-first_
+_v1.3 — 2026-06-24 | Internal Dashboard, Desktop-first_
 
 > **AI INSTRUCTION:** Đọc file này TRƯỚC khi thiết kế hoặc viết bất kỳ UI component nào.
 > Mọi component mới phải tuân theo các pattern dưới đây. Không tự bịa pattern mới.
@@ -13,7 +13,7 @@ _v1.2 — 2026-06-24 | Internal Dashboard, Desktop-first_
 2. **Tailwind CDN + inline style.** Không có file CSS riêng cho component. Dùng Tailwind class + `style={{}}` cho giá trị không có trong config.
 3. **Dark-only.** Không có light theme cho apps nội bộ (Navbar có light prop cho legacy, không tạo mới).
 4. **Font: Montserrat.** Google Fonts, load `wght@400;500;600;700;800;900`. `font-black` = weight 900.
-5. **Không dùng `max-w-*` bên trong tab/page component** — để parent `max-w-[1400px]` trong `<main>` lo.
+5. **Không dùng `max-w-*` bên trong tab/page component** — để parent `max-w-[1400px]` trong `<main>` lo. Exception: tab cần full-bleed (kanban, board nhiều cột) → dùng conditional pattern (xem §Layout → Full-bleed tab).
 
 ---
 
@@ -237,15 +237,52 @@ className="p-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-5
   <AppBackground />
   <ToastNotification ... />   {/* nếu cần */}
   <Navbar ... />
+
+  {/* Trường hợp 1: tất cả tab đều dùng max-width bình thường */}
   <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
     {/* content — KHÔNG dùng max-w-* ở đây */}
   </main>
+
+  {/* Trường hợp 2: app có ít nhất 1 full-bleed tab (VD: kanban, board nhiều cột) */}
+  {/* <main className={`flex-1 p-6 md:p-12 w-full${activeTab !== 'deals' ? ' max-w-[1400px] mx-auto' : ''}`}> */}
+
   <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
     TD Games • Enterprise Platform • v3.0
   </footer>
   <HelpPanel ... />
 </div>
 ```
+
+### Full-bleed tab (Kanban / Board nhiều cột)
+
+> **Vấn đề:** Tab Kanban với 5+ cột bị ép vào `max-w-[1400px]` → mỗi cột chỉ ~267px, trông "bị bo trong ô".
+
+**Cách xử lý — 2 bước:**
+
+**Bước 1:** Trong `<App>.tsx`, bỏ `max-w-[1400px] mx-auto` ra khỏi `<main>` khi đang ở tab full-bleed:
+
+```jsx
+// Trong CrmApp.tsx (hoặc app tương tự)
+<main className={`flex-1 p-6 md:p-12 w-full${activeTab !== 'deals' ? ' max-w-[1400px] mx-auto' : ''}`}>
+```
+
+> Thêm vào condition mỗi khi có tab mới cần full-bleed:
+> `activeTab !== 'deals' && activeTab !== 'board'`
+
+**Bước 2:** Trong Board component, dùng **negative-margin trick** để board scroll edge-to-edge trong padding:
+
+```jsx
+// PipelineBoard.tsx (hoặc bất kỳ board nào)
+<div className="flex gap-4 overflow-x-auto pb-4 -mx-6 px-6 md:-mx-12 md:px-12"
+     style={{ minHeight: '400px' }}>
+  {columns.map(col => <Column key={col.key} ... />)}
+</div>
+```
+
+> `-mx-6 px-6` cancels out padding của `<main>` → board kéo đến tận cạnh màn, nội dung cột vẫn giữ padding.
+> `overflow-x-auto` cho phép scroll ngang khi cột quá nhiều.
+
+**⚠️ Lỗi phổ biến:** hardcode `max-w-[1400px] mx-auto` trên `<main>` khi app có board/kanban tab → đây là root cause gây layout "bị bo".
 
 ### Grid gaps chuẩn
 
@@ -338,6 +375,7 @@ setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' });
 | `text-3xl` trở lên (trừ app heading) | `text-lg` (18px) là max cho section title |
 | `text-4xl` trong nội dung tab | Chỉ dùng cho tiêu đề cấp app (1 lần) |
 | `max-w-3xl` hoặc `max-w-*` trong tab component | Bỏ, để parent `max-w-[1400px]` lo |
+| `max-w-[1400px] mx-auto` cứng trên `<main>` khi app có kanban/board tab | Dùng conditional: `activeTab !== 'deals' ? ' max-w-[1400px] mx-auto' : ''` |
 | Tự tạo toast, modal overlay | Dùng `<ToastNotification>` có sẵn |
 | `font-sans`, `font-mono` làm default | Montserrat (`font-montserrat`) là font duy nhất |
 | Hardcode màu ngoài token | Dùng rgba từ bảng token ở trên |
@@ -358,5 +396,6 @@ setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' });
 |---------|------|---------|
 | v1.0 | 2026-05-21 | Initial style guide |
 | v1.2 | 2026-06-24 | Cards: `rounded-[20px]` + `border-primary/10` + `bg-surface` thay thế `rounded-2xl` + `border-white/8`. App heading pattern `text-4xl #FF9500`. Subtitle `text-sm text-neutral-medium`. |
+| v1.3 | 2026-06-24 | Layout: thêm pattern Full-bleed tab cho Kanban/Board nhiều cột. App shell `<main>` cần conditional `max-w` khi có board tab. Negative-margin trick `-mx-6 px-6 md:-mx-12 md:px-12` cho horizontal scroll edge-to-edge. |
 
 _Cập nhật file này bất cứ khi nào có pattern mới được chuẩn hoá._

@@ -206,7 +206,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
+      <main className={`flex-1 p-6 md:p-12 w-full${state.activeTab !== 'deals' ? ' max-w-[1400px] mx-auto' : ''}`}>
         {/* ── Dashboard Tab ── */}
         {state.activeTab === 'dashboard' && (
           <BdDashboard
