@@ -107,26 +107,10 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
 
   const contacts = editingClient?.contacts || [];
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '12px 16px', background: '#1A1A1A', border: '1px solid #333',
-    borderRadius: '10px', color: '#F5F5F5', fontSize: '14px', outline: 'none',
-    transition: 'border-color 0.2s',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 700,
-    textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
-  };
-
-  const smallBtnStyle: React.CSSProperties = {
-    padding: '6px 12px', border: '1px solid #333', borderRadius: '8px', background: 'transparent',
-    color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-  };
-
   return (
     <div className="animate-fadeInUp">
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
           {editingClient ? 'Chỉnh sửa khách hàng' : 'Thêm khách hàng mới'}
         </h2>
         <p style={{ color: '#888', fontSize: '14px', marginTop: '8px' }}>
@@ -134,17 +118,23 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '32px' }}>
+      <form onSubmit={handleSubmit} className="rounded-[20px] border border-primary/10 bg-surface p-5">
         {/* Row 1: Name + Type */}
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
           <div>
-            <label style={labelStyle}>Tên khách hàng *</label>
-            <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên khách hàng *</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
               placeholder="Ví dụ: KABAM GAMES, INC" required />
           </div>
           <div>
-            <label style={labelStyle}>Loại khách hàng</label>
-            <select style={inputStyle} value={form.client_type} onChange={e => setForm({ ...form, client_type: e.target.value as any })}>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Loại khách hàng</label>
+            <select
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a' }}
+              value={form.client_type} onChange={e => setForm({ ...form, client_type: e.target.value as any })}>
               <option value="company">Công ty</option>
               <option value="individual">Cá nhân</option>
             </select>
@@ -153,26 +143,38 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
 
         {/* Row 2: Address */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={labelStyle}>Địa chỉ</label>
-          <input style={inputStyle} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
+          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Địa chỉ</label>
+          <input
+            className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+            style={{ background: '#1a1a1a' }}
+            value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
             placeholder="Địa chỉ đầy đủ..." />
         </div>
 
         {/* Row 3: Country + TaxCode + Industry */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
           <div>
-            <label style={labelStyle}>Quốc gia</label>
-            <input style={inputStyle} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })}
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Quốc gia</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.country} onChange={e => setForm({ ...form, country: e.target.value })}
               placeholder="Vietnam, USA..." />
           </div>
           <div>
-            <label style={labelStyle}>Mã số thuế</label>
-            <input style={inputStyle} value={form.tax_code} onChange={e => setForm({ ...form, tax_code: e.target.value })}
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Mã số thuế</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.tax_code} onChange={e => setForm({ ...form, tax_code: e.target.value })}
               placeholder="Tax ID..." />
           </div>
           <div>
-            <label style={labelStyle}>Ngành nghề</label>
-            <select style={inputStyle} value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })}>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ngành nghề</label>
+            <select
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a' }}
+              value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })}>
               <option value="">-- Chọn ngành --</option>
               {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
             </select>
@@ -182,13 +184,19 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         {/* Row 4: Website + Status */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
           <div>
-            <label style={labelStyle}>Website</label>
-            <input style={inputStyle} value={form.website} onChange={e => setForm({ ...form, website: e.target.value })}
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Website</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.website} onChange={e => setForm({ ...form, website: e.target.value })}
               placeholder="https://..." />
           </div>
           <div>
-            <label style={labelStyle}>Trạng thái</label>
-            <select style={inputStyle} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })}>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Trạng thái</label>
+            <select
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a' }}
+              value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })}>
               <optgroup label="Giai đoạn tiếp cận">
                 <option value="lead">⭐ Tiềm năng</option>
                 <option value="contacted">📨 Đã liên hệ</option>
@@ -208,8 +216,11 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
             </select>
           </div>
           <div>
-            <label style={labelStyle}>BD phụ trách</label>
-            <input style={inputStyle} value={form.assigned_bd_name}
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">BD phụ trách</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.assigned_bd_name}
               onChange={e => setForm({ ...form, assigned_bd_name: e.target.value })}
               placeholder="Tên BD..." />
           </div>
@@ -218,8 +229,11 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         {/* Lead Source */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
           <div>
-            <label style={labelStyle}>Nguồn khách hàng</label>
-            <select style={inputStyle} value={form.lead_source} onChange={e => setForm({ ...form, lead_source: e.target.value })}>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Nguồn khách hàng</label>
+            <select
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a' }}
+              value={form.lead_source} onChange={e => setForm({ ...form, lead_source: e.target.value })}>
               <option value="">-- Chọn nguồn --</option>
               <option value="Facebook">Facebook</option>
               <option value="Behance">Behance</option>
@@ -233,23 +247,29 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Hướng tiếp cận</label>
-            <select style={inputStyle} value={form.lead_direction} onChange={e => setForm({ ...form, lead_direction: e.target.value })}>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Hướng tiếp cận</label>
+            <select
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a' }}
+              value={form.lead_direction} onChange={e => setForm({ ...form, lead_direction: e.target.value })}>
               <option value="">-- Chọn --</option>
               <option value="inbound">📥 Khách tìm mình</option>
               <option value="outbound">📤 Mình tìm khách</option>
             </select>
           </div>
           <div>
-            <label style={labelStyle}>Chi tiết nguồn</label>
-            <input style={inputStyle} value={form.lead_source_detail} onChange={e => setForm({ ...form, lead_source_detail: e.target.value })}
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Chi tiết nguồn</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.lead_source_detail} onChange={e => setForm({ ...form, lead_source_detail: e.target.value })}
               placeholder="Link profile, người giới thiệu..." />
           </div>
         </div>
 
         {/* Tags */}
         <div style={{ marginBottom: '20px' }}>
-          <label style={labelStyle}>Tags</label>
+          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tags</label>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {form.tags.map(tag => (
               <span key={tag} style={{
@@ -259,7 +279,10 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
                 {tag} ×
               </span>
             ))}
-            <input style={{ ...inputStyle, flex: 1, minWidth: '120px' }} value={tagInput}
+            <input
+              className="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a' }}
+              value={tagInput}
               onChange={e => setTagInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
               placeholder="Nhập tag + Enter" />
@@ -268,23 +291,23 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
 
         {/* Notes */}
         <div style={{ marginBottom: '28px' }}>
-          <label style={labelStyle}>Ghi chú</label>
-          <textarea style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} value={form.notes}
+          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ghi chú</label>
+          <textarea
+            className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none"
+            style={{ background: '#1a1a1a', minHeight: '80px' }}
+            value={form.notes}
             onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú thêm..." />
         </div>
 
         {/* Save/Cancel */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <button type="button" onClick={onCancel} style={{
-            padding: '14px', border: '1px solid #333', borderRadius: '12px', background: 'transparent',
-            color: '#ccc', fontWeight: 700, fontSize: '14px', cursor: 'pointer', textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>Huỷ</button>
-          <button type="submit" style={{
-            padding: '14px', border: 'none', borderRadius: '12px', background: '#FF9500',
-            color: '#000', fontWeight: 800, fontSize: '14px', cursor: 'pointer', textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}>
+          <button type="button" onClick={onCancel}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+            Huỷ
+          </button>
+          <button type="submit"
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+            style={{ background: '#FF9500' }}>
             {editingClient ? '✏️ Cập nhật' : '＋ Thêm khách hàng'}
           </button>
         </div>
@@ -292,7 +315,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
 
       {/* ── Contacts Section (only when editing) ─────────────── */}
       {editingClient && (
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '32px', marginTop: '24px' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface p-5" style={{ marginTop: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
               <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -300,39 +323,48 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
               </h3>
               <p style={{ color: '#666', fontSize: '12px', marginTop: '4px' }}>Quản lý liên hệ của khách hàng</p>
             </div>
-            <button onClick={() => setShowNewContact(!showNewContact)} style={{
-              padding: '10px 18px', border: 'none', borderRadius: '10px', background: '#0A84FF',
-              color: '#fff', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-            }}>
+            <button onClick={() => setShowNewContact(!showNewContact)}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
               ＋ Thêm liên hệ
             </button>
           </div>
 
           {/* New contact form */}
           {showNewContact && (
-            <div style={{ background: '#1A1A1A', border: '1px solid #0A84FF', borderRadius: '12px', padding: '20px', marginBottom: '16px' }}>
+            <div className="rounded-[20px] border border-primary/10 p-6 bg-surface mb-4">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                 <div>
-                  <label style={labelStyle}>Tên *</label>
-                  <input style={inputStyle} value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })}
+                  <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên *</label>
+                  <input
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }}
+                    value={newContact.name} onChange={e => setNewContact({ ...newContact, name: e.target.value })}
                     placeholder="Tên người liên hệ" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Chức vụ</label>
-                  <input style={inputStyle} value={newContact.role} onChange={e => setNewContact({ ...newContact, role: e.target.value })}
+                  <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Chức vụ</label>
+                  <input
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }}
+                    value={newContact.role} onChange={e => setNewContact({ ...newContact, role: e.target.value })}
                     placeholder="CEO, PM, AP..." />
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
                 <div>
-                  <label style={labelStyle}>Email</label>
-                  <input style={inputStyle} type="email" value={newContact.email} onChange={e => setNewContact({ ...newContact, email: e.target.value })}
+                  <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Email</label>
+                  <input
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }}
+                    type="email" value={newContact.email} onChange={e => setNewContact({ ...newContact, email: e.target.value })}
                     placeholder="email@company.com" />
                 </div>
                 <div>
-                  <label style={labelStyle}>Số điện thoại</label>
-                  <input style={inputStyle} value={newContact.phone} onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
+                  <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Số điện thoại</label>
+                  <input
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }}
+                    value={newContact.phone} onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
                     placeholder="+84..." />
                 </div>
               </div>
@@ -342,11 +374,14 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
                   Liên hệ chính
                 </label>
                 <div style={{ flex: 1 }} />
-                <button type="button" onClick={() => setShowNewContact(false)} style={smallBtnStyle}>Huỷ</button>
-                <button type="button" onClick={handleAddContact} disabled={!newContact.name.trim()} style={{
-                  ...smallBtnStyle, background: '#0A84FF', color: '#fff', border: 'none',
-                  opacity: newContact.name.trim() ? 1 : 0.4,
-                }}>Lưu liên hệ</button>
+                <button type="button" onClick={() => setShowNewContact(false)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
+                  Huỷ
+                </button>
+                <button type="button" onClick={handleAddContact} disabled={!newContact.name.trim()}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all disabled:opacity-40">
+                  Lưu liên hệ
+                </button>
               </div>
             </div>
           )}
@@ -368,13 +403,25 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
                   /* Inline edit mode */
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                      <input style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px' }} value={editContactData.name}
+                      <input
+                        className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                        style={{ background: '#1a1a1a' }}
+                        value={editContactData.name}
                         onChange={e => setEditContactData({ ...editContactData, name: e.target.value })} placeholder="Tên" />
-                      <input style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px' }} value={editContactData.role}
+                      <input
+                        className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                        style={{ background: '#1a1a1a' }}
+                        value={editContactData.role}
                         onChange={e => setEditContactData({ ...editContactData, role: e.target.value })} placeholder="Chức vụ" />
-                      <input style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px' }} value={editContactData.email}
+                      <input
+                        className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                        style={{ background: '#1a1a1a' }}
+                        value={editContactData.email}
                         onChange={e => setEditContactData({ ...editContactData, email: e.target.value })} placeholder="Email" />
-                      <input style={{ ...inputStyle, padding: '8px 12px', fontSize: '13px' }} value={editContactData.phone}
+                      <input
+                        className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                        style={{ background: '#1a1a1a' }}
+                        value={editContactData.phone}
                         onChange={e => setEditContactData({ ...editContactData, phone: e.target.value })} placeholder="SĐT" />
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -384,8 +431,12 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
                         Liên hệ chính
                       </label>
                       <div style={{ flex: 1 }} />
-                      <button type="button" onClick={() => setEditContactId(null)} style={smallBtnStyle}>Huỷ</button>
-                      <button type="button" onClick={handleSaveEditContact} style={{ ...smallBtnStyle, background: '#34C759', color: '#fff', border: 'none' }}>
+                      <button type="button" onClick={() => setEditContactId(null)}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
+                        Huỷ
+                      </button>
+                      <button type="button" onClick={handleSaveEditContact}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
                         Lưu
                       </button>
                     </div>
@@ -413,8 +464,9 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
                       <button type="button" onClick={() => {
                         setEditContactId(ct.id);
                         setEditContactData({ name: ct.name, role: ct.role, email: ct.email, phone: ct.phone, is_primary: ct.is_primary, notes: ct.notes });
-                      }} style={smallBtnStyle}>✏️</button>
-                      <button type="button" onClick={() => onDeleteContact(ct.id)} style={{ ...smallBtnStyle, color: '#FF453A' }}>🗑️</button>
+                      }} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✏️</button>
+                      <button type="button" onClick={() => onDeleteContact(ct.id)}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">🗑️</button>
                     </div>
                   </>
                 )}
@@ -426,7 +478,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
 
       {/* ── Activity Timeline (only when editing) ──────────── */}
       {editingClient && (
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '32px', marginTop: '24px' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface p-5" style={{ marginTop: '24px' }}>
           <ActivityTimeline clientId={editingClient.id} clientName={editingClient.name} actor={actor} />
         </div>
       )}

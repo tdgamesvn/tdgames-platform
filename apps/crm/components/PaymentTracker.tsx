@@ -54,16 +54,16 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
   return (
     <div className="animate-fadeInUp">
       <div style={{ marginBottom: '28px' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Thanh toán</h2>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Thanh toán</h2>
         <p className="text-sm text-neutral-medium mt-1">Theo dõi tình trạng thanh toán (đồng bộ từ Invoice app)</p>
       </div>
 
       {/* Client selector */}
       <div style={{ marginBottom: '20px' }}>
-        <select style={{
-          width: '350px', padding: '12px 16px', background: '#1A1A1A', border: '1px solid #333',
-          borderRadius: '10px', color: '#F5F5F5', fontSize: '14px', outline: 'none',
-        }} value={selectedClient} onChange={e => handleClientChange(e.target.value)}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full max-w-xs"
+          style={{ background: '#1a1a1a' }}
+          value={selectedClient} onChange={e => handleClientChange(e.target.value)}>
           <option value="">Tất cả khách hàng</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -78,11 +78,9 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
             { label: 'Đã thanh toán', value: paidAmount.toLocaleString(), color: '#34C759' },
             { label: 'Chưa thanh toán', value: unpaidAmount.toLocaleString(), color: unpaidAmount > 0 ? '#FF453A' : '#34C759' },
           ].map(card => (
-            <div key={card.label} style={{
-              background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px',
-            }}>
-              <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9D9C9D', marginBottom: '8px' }}>{card.label}</p>
-              <p style={{ fontSize: '24px', fontWeight: 900, color: card.color }}>{card.value}</p>
+            <div key={card.label} className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{card.label}</p>
+              <p className="text-2xl font-black" style={{ color: card.color }}>{card.value}</p>
             </div>
           ))}
         </div>
@@ -92,7 +90,7 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
 
       {/* Invoice table */}
       {invoices.length > 0 && (
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#1A1A1A' }}>
@@ -140,9 +138,9 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
       )}
 
       {!isLoading && invoices.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#555' }}>
-          <p style={{ fontSize: '48px', marginBottom: '12px' }}>💳</p>
-          <p style={{ fontSize: '14px' }}>Chưa có hoá đơn nào{selectedClient ? ' cho khách hàng này' : ''}</p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">💳</p>
+          <p className="text-neutral-600 text-sm">Chưa có dữ liệu thanh toán</p>
         </div>
       )}
     </div>

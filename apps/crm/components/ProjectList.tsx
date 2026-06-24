@@ -29,14 +29,6 @@ const PROJECT_STATUS: Record<string, { label: string; color: string; bg: string 
   cancelled: { label: 'Đã huỷ', color: '#FF453A', bg: 'rgba(255,69,58,0.12)' },
 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', background: '#1A1A1A', border: '1px solid #333',
-  borderRadius: '8px', color: '#F5F5F5', fontSize: '13px', outline: 'none',
-};
-const labelStyle: React.CSSProperties = {
-  display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 700,
-  textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
-};
 
 const isPreviewable = (url: string) => /\.(jpg|jpeg|png|webp|gif|pdf|svg)/i.test(url);
 const isImageUrl = (url: string) => /\.(jpg|jpeg|png|webp|gif|svg)/i.test(url);
@@ -286,22 +278,21 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Dự án</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Dự án</h2>
           <p className="text-sm text-neutral-medium mt-1">Theo dõi dự án theo khách hàng</p>
         </div>
-        <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(!showForm); }} style={{
-          padding: '12px 24px', border: 'none', borderRadius: '10px', background: '#FF9500',
-          color: '#000', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
-        }}>＋ Thêm dự án</button>
+        <button onClick={() => { setEditingProject(null); setForm(emptyForm); setShowForm(!showForm); }}
+          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+          style={{ background: '#FF9500' }}>＋ Thêm dự án</button>
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-        <select style={{ ...inputStyle, flex: 1 }} value={filterClient} onChange={e => setFilterClient(e.target.value)}>
+        <select className="flex-1 px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={filterClient} onChange={e => setFilterClient(e.target.value)}>
           <option value="">Tất cả khách hàng</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: '180px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a', width: '180px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Tất cả trạng thái</option>
           {Object.entries(PROJECT_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
@@ -309,33 +300,36 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
 
       {/* New project form */}
       {showForm && (
-        <div style={{ background: '#161616', border: '1px solid #FF9500', borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
+        <div className="rounded-[20px] border border-primary/10 p-6 bg-surface" style={{ marginBottom: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-            <div><label style={labelStyle}>Khách hàng *</label>
-              <select style={inputStyle} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Khách hàng *</label>
+              <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}>
                 <option value="">-- Chọn --</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select></div>
-            <div><label style={labelStyle}>Tên dự án *</label>
-              <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Project Orca..." /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên dự án *</label>
+              <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Project Orca..." /></div>
           </div>
-          <div style={{ marginBottom: '14px' }}><label style={labelStyle}>Mô tả</label>
-            <textarea style={{ ...inputStyle, minHeight: '60px' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
+          <div style={{ marginBottom: '14px' }}><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Mô tả</label>
+            <textarea className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none" style={{ background: '#1a1a1a', minHeight: '60px' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-            <div><label style={labelStyle}>Ngày bắt đầu</label>
-              <input type="date" style={inputStyle} value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} /></div>
-            <div><label style={labelStyle}>Ngày kết thúc</label>
-              <input type="date" style={inputStyle} value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} /></div>
-            <div><label style={labelStyle}>Budget</label>
-              <input type="number" style={inputStyle} value={form.budget} onChange={e => setForm({ ...form, budget: +e.target.value })} /></div>
-            <div><label style={labelStyle}>Tiền tệ</label>
-              <select style={inputStyle} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ngày bắt đầu</label>
+              <input type="date" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ngày kết thúc</label>
+              <input type="date" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Budget</label>
+              <input type="number" className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={form.budget} onChange={e => setForm({ ...form, budget: +e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tiền tệ</label>
+              <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>
                 <option value="USD">USD</option><option value="VND">VND</option>
               </select></div>
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button type="button" onClick={() => { setShowForm(false); setEditingProject(null); setForm(emptyForm); }} style={{ padding: '8px 16px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
-            <button type="button" onClick={handleSave} style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', background: editingProject ? '#0A84FF' : '#FF9500', color: editingProject ? '#fff' : '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>{editingProject ? 'Cập nhật' : 'Lưu dự án'}</button>
+            <button type="button" onClick={() => { setShowForm(false); setEditingProject(null); setForm(emptyForm); }}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">Huỷ</button>
+            <button type="button" onClick={handleSave}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+              style={{ background: '#FF9500' }}>{editingProject ? 'Cập nhật' : 'Lưu dự án'}</button>
           </div>
         </div>
       )}
@@ -348,7 +342,7 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
           const st = PROJECT_STATUS[proj.status] || PROJECT_STATUS.active;
           const isExpanded = expandedId === proj.id;
           return (
-            <div key={proj.id} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
+            <div key={proj.id} className="rounded-[20px] border border-primary/10 p-4 bg-surface hover:border-primary/20 transition-all" style={{ overflow: 'hidden' }}>
               <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 onClick={() => { const next = isExpanded ? null : proj.id; setExpandedId(next); if (next) { loadBilling(next); loadProjectDocs(next); } }}>
                 <div style={{ flex: 1 }}>
@@ -386,28 +380,18 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
                       <span style={{ fontSize: '11px', color: '#FF453A', fontWeight: 700 }}>Xoá?</span>
                       <button type="button" disabled={deleting}
                         onClick={(e) => { e.stopPropagation(); handleDeleteProject(proj.id); }}
-                        style={{
-                          padding: '6px 10px', border: 'none', borderRadius: '6px',
-                          background: '#FF453A', color: '#fff', fontSize: '11px', fontWeight: 800,
-                          cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1,
-                        }}>{deleting ? '...' : '✓'}</button>
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                        style={{ background: '#FF453A' }}>{deleting ? '...' : '✓'}</button>
                       <button type="button"
                         onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                        style={{
-                          padding: '6px 8px', border: '1px solid #333', borderRadius: '6px',
-                          background: 'transparent', color: '#888', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                        }}>✕</button>
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✕</button>
                     </div>
                   ) : (
                     <>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); handleEditProject(proj); }} title="Sửa" style={{
-                        padding: '6px 10px', border: '1px solid #FF950030', borderRadius: '6px',
-                        background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                      }}>✏️ Sửa</button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(proj.id); }} style={{
-                        padding: '6px 10px', border: '1px solid #333', borderRadius: '6px', background: 'transparent',
-                        color: '#FF453A', fontSize: '12px', cursor: 'pointer',
-                      }}>🗑️</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); handleEditProject(proj); }} title="Sửa"
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✏️ Sửa</button>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(proj.id); }}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">🗑️</button>
                     </>
                   )}
                   <span style={{ padding: '6px 10px', fontSize: '12px', color: '#555' }}>{isExpanded ? '▲' : '▼'}</span>
@@ -575,20 +559,19 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
                     <h4 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>
                       📎 Tài liệu & Link ({proj.files?.length || 0})
                     </h4>
-                    <button onClick={() => { setNewFileForm(newFileForm === proj.id ? null : proj.id); setFileForm({ title: '', file_url: '', file_type: 'link', file_name: '', file_size: 0, notes: '' }); }} style={{
-                      padding: '6px 14px', border: 'none', borderRadius: '6px', background: '#0A84FF',
-                      color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                    }}>＋ Thêm</button>
+                    <button onClick={() => { setNewFileForm(newFileForm === proj.id ? null : proj.id); setFileForm({ title: '', file_url: '', file_type: 'link', file_name: '', file_size: 0, notes: '' }); }}
+                      className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                      style={{ background: '#FF9500' }}>＋ Thêm</button>
                   </div>
 
                   {/* New file form with drag-drop */}
                   {newFileForm === proj.id && (
-                    <div style={{ background: '#1A1A1A', border: '1px solid #0A84FF', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
+                    <div className="rounded-[20px] border border-primary/10 p-6 bg-surface" style={{ marginBottom: '12px' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                        <div><label style={labelStyle}>Tiêu đề *</label>
-                          <input style={inputStyle} value={fileForm.title} onChange={e => setFileForm({ ...fileForm, title: e.target.value })} placeholder="Tên tài liệu" /></div>
-                        <div><label style={labelStyle}>Loại</label>
-                          <select style={inputStyle} value={fileForm.file_type} onChange={e => setFileForm({ ...fileForm, file_type: e.target.value as any })}>
+                        <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tiêu đề *</label>
+                          <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={fileForm.title} onChange={e => setFileForm({ ...fileForm, title: e.target.value })} placeholder="Tên tài liệu" /></div>
+                        <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Loại</label>
+                          <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={fileForm.file_type} onChange={e => setFileForm({ ...fileForm, file_type: e.target.value as any })}>
                             <option value="link">🔗 Link</option><option value="document">📄 Tài liệu</option>
                             <option value="image">🖼️ Hình ảnh</option><option value="other">📦 Khác</option>
                           </select></div>
@@ -596,7 +579,7 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
 
                       {/* Upload or Link */}
                       <div style={{ marginBottom: '10px' }}>
-                        <label style={labelStyle}>Upload file hoặc dán link</label>
+                        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Upload file hoặc dán link</label>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                           <div ref={dropRef} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
                             <input type="file" ref={fileRef} accept={ACCEPTED_TYPES} onChange={handleFileInput}
@@ -630,7 +613,7 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
                             )}
                           </div>
                           <div>
-                            <input style={{ ...inputStyle, height: '100%' }}
+                            <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a', height: '100%' }}
                               value={!fileForm.file_name ? fileForm.file_url : ''} onChange={e => setFileForm({ ...fileForm, file_url: e.target.value, file_name: '', file_size: 0 })}
                               placeholder="Hoặc dán link (https://...)" disabled={!!fileForm.file_name} />
                           </div>
@@ -639,9 +622,10 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
 
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button onClick={() => { setNewFileForm(null); setFileForm({ title: '', file_url: '', file_type: 'link', file_name: '', file_size: 0, notes: '' }); }}
-                          style={{ padding: '6px 12px', border: '1px solid #333', borderRadius: '6px', background: 'transparent', color: '#ccc', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
+                          className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">Huỷ</button>
                         <button onClick={() => handleAddFile(proj.id)} disabled={uploading}
-                          style={{ padding: '6px 12px', border: 'none', borderRadius: '6px', background: '#0A84FF', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer', opacity: uploading ? 0.5 : 1 }}>Lưu</button>
+                          className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                          style={{ background: '#FF9500' }}>Lưu</button>
                       </div>
                     </div>
                   )}
@@ -690,23 +674,15 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
                                 <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
                                   <button type="button" disabled={deleting}
                                     onClick={(e) => { e.stopPropagation(); handleDeleteFile(f.id); }}
-                                    style={{
-                                      padding: '4px 8px', border: 'none', borderRadius: '4px',
-                                      background: '#FF453A', color: '#fff', fontSize: '11px', fontWeight: 800,
-                                      cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1,
-                                    }}>{deleting ? '...' : '✓'}</button>
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                                    style={{ background: '#FF453A' }}>{deleting ? '...' : '✓'}</button>
                                   <button type="button"
                                     onClick={(e) => { e.stopPropagation(); setDeleteFileConfirmId(null); }}
-                                    style={{
-                                      padding: '4px 6px', border: '1px solid #333', borderRadius: '4px',
-                                      background: 'transparent', color: '#888', fontSize: '11px', cursor: 'pointer',
-                                    }}>✕</button>
+                                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✕</button>
                                 </div>
                               ) : (
-                                <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteFileConfirmId(f.id); }} style={{
-                                  padding: '4px 8px', border: 'none', borderRadius: '4px', background: 'rgba(255,69,58,0.1)',
-                                  color: '#FF453A', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                                }}>✕</button>
+                                <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteFileConfirmId(f.id); }}
+                                  className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✕</button>
                               )}
                             </div>
                           </div>
@@ -722,9 +698,10 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
       </div>
 
       {!isLoading && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#555' }}>
-          <p style={{ fontSize: '48px', marginBottom: '12px' }}>📁</p>
-          <p style={{ fontSize: '14px' }}>Chưa có dự án nào</p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">📁</p>
+          <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
+          <p className="text-xs mt-1 text-neutral-700">Nhấn "Thêm dự án" để bắt đầu</p>
         </div>
       )}
       <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>

@@ -26,14 +26,6 @@ const TIER_CFG: Record<number, { label: string; color: string; icon: string; des
   3: { label: 'Tier 3', color: '#888',    icon: '☆',  desc: 'CEO / BD Manager' },
 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', background: '#1A1A1A', border: '1px solid #333',
-  borderRadius: '8px', color: '#F5F5F5', fontSize: '13px', outline: 'none',
-};
-const labelStyle: React.CSSProperties = {
-  display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 700,
-  textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
-};
 
 type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'auto' | 'settings';
 
@@ -88,22 +80,21 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
       <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Header */}
         <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
             📧 Email Outreach
           </h2>
           <p className="text-sm text-neutral-medium mt-1">Lead Discovery + Cold Email Pipeline — TD Games Outsourcing</p>
         </div>
 
         {/* Sub-tabs */}
-        <div style={{ display: 'flex', gap: '4px', borderBottom: '1px solid #222' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
           {tabs.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '10px 20px', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
-              background: tab === t.key ? '#222' : 'transparent',
-              color: tab === t.key ? '#FF9500' : '#888',
-              border: 'none', borderBottom: tab === t.key ? '2px solid #FF9500' : '2px solid transparent',
-              borderRadius: '8px 8px 0 0', transition: 'all 0.2s',
-            }}>{t.icon} {t.label}</button>
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={tab === t.key
+                ? 'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider bg-orange-500/15 text-orange-400 border border-orange-500/30 transition-all'
+                : 'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all'
+              }
+            >{t.icon} {t.label}</button>
           ))}
         </div>
 
@@ -187,15 +178,15 @@ const DashboardTab: React.FC<{ stats: PipelineStats; onSwitchTab: (t: SubTab) =>
           { label: '★ Tier 2', value: stats.tier2, color: '#FF9500' },
           { label: '☆ Tier 3', value: stats.tier3, color: '#888' },
         ].map((s, i) => (
-          <div key={i} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888' }}>{s.label}</p>
-            <p style={{ fontSize: '28px', fontWeight: 900, color: s.color, marginTop: '4px' }}>{s.value}</p>
+          <div key={i} className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{s.label}</p>
+            <p className="text-2xl font-black text-white" style={{ color: s.color }}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Pipeline Funnel */}
-      <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '24px' }}>
+      <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '24px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
           Pipeline Funnel
         </h3>
@@ -239,9 +230,9 @@ const DashboardTab: React.FC<{ stats: PipelineStats; onSwitchTab: (t: SubTab) =>
           { label: 'Reply Rate', value: stats.replied, total: stats.total - stats.pending || 1, color: '#34C759', isPct: true },
           { label: 'Bounce Rate', value: stats.bounced, total: stats.total - stats.pending || 1, color: '#FF453A', isPct: true },
         ].map((m, i) => (
-          <div key={i} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px', textAlign: 'center' }}>
-            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', marginBottom: '8px' }}>{m.label}</p>
-            <p style={{ fontSize: '32px', fontWeight: 900, color: m.color }}>
+          <div key={i} className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1" style={{ textAlign: 'center' }}>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600" style={{ marginBottom: '8px' }}>{m.label}</p>
+            <p className="text-2xl font-black text-white" style={{ fontSize: '32px', color: m.color }}>
               {m.isPct ? `${m.total > 0 ? ((m.value / m.total) * 100).toFixed(1) : 0}%` : m.value}
             </p>
             {!m.isPct && <p style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>/ {m.total} leads</p>}
@@ -252,14 +243,11 @@ const DashboardTab: React.FC<{ stats: PipelineStats; onSwitchTab: (t: SubTab) =>
       {/* ── Auto summary ── */}
       <div
         onClick={() => onSwitchTab('auto')}
+        className="rounded-[20px] border border-primary/10 bg-surface hover:border-orange-500/25 transition-colors"
         style={{
-          background: '#161616', border: '1px solid #2A2A2A', borderRadius: '12px',
           padding: '16px 20px', cursor: 'pointer', display: 'flex',
           justifyContent: 'space-between', alignItems: 'center',
-          transition: 'border-color 0.2s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = '#FF950040')}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = '#2A2A2A')}
       >
         <div>
           <span style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>🤖 Automation</span>
@@ -568,9 +556,8 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Quota Bar */}
       {quota && (
-        <div style={{
+        <div className="rounded-[20px] border border-primary/10 bg-surface" style={{
           display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 20px',
-          background: '#161616', border: '1px solid #222', borderRadius: '12px',
         }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#888' }}>📊 Quota hôm nay</span>
           <div style={{ flex: 1, height: '8px', background: '#222', borderRadius: '4px', overflow: 'hidden' }}>
@@ -609,39 +596,37 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-        <input style={{ ...inputStyle, flex: 1, minWidth: '220px' }} placeholder="🔍 Tìm tên, email, studio..."
+        <input
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+          style={{ background: '#1a1a1a', flex: 1, minWidth: '220px' }}
+          placeholder="🔍 Tìm tên, email, studio..."
           value={searchQ} onChange={e => setSearchQ(e.target.value)} />
-        <select style={{ ...inputStyle, width: '160px' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', width: '160px' }}
+          value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Tất cả trạng thái</option>
           {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: '120px' }} value={filterTier} onChange={e => setFilterTier(e.target.value ? +e.target.value : '')}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', width: '120px' }}
+          value={filterTier} onChange={e => setFilterTier(e.target.value ? +e.target.value : '')}>
           <option value="">Tất cả tier</option>
           {[1, 2, 3].map(t => <option key={t} value={t}>{TIER_CFG[t].icon} Tier {t}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: '150px' }} value={filterTrigger} onChange={e => setFilterTrigger(e.target.value)}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', width: '150px' }}
+          value={filterTrigger} onChange={e => setFilterTrigger(e.target.value)}>
           <option value="">Tất cả nguồn</option>
           <option value="hiring_signal">🔎 Hiring Signal</option>
           <option value="generic">Generic</option>
         </select>
-        <button onClick={() => setShowImport(!showImport)} style={{
-          padding: '10px 16px', border: 'none', borderRadius: '8px', background: '#0A84FF',
-          color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-        }}>📥 Import</button>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={{
-          padding: '10px 16px', border: 'none', borderRadius: '8px', background: '#FF9500',
-          color: '#000', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-        }}>＋ Thêm Lead</button>
-        <button type="button" onClick={handleVerifyEmails} disabled={verifying} style={{
-          padding: '10px 16px', border: 'none', borderRadius: '8px',
-          background: verifying ? '#555' : '#34C759',
-          color: '#fff', fontSize: '12px', fontWeight: 700, cursor: verifying ? 'not-allowed' : 'pointer',
-        }}>{verifying ? '⏳ Đang verify...' : '✅ Verify Emails'}</button>
-        <button type="button" onClick={handleCheckBounces} disabled={checkingBounces} style={{
-          padding: '10px 16px', border: 'none', borderRadius: '8px',
-          background: checkingBounces ? '#555' : '#FF453A',
-          color: '#fff', fontSize: '12px', fontWeight: 700, cursor: checkingBounces ? 'not-allowed' : 'pointer',
-        }}>{checkingBounces ? '⏳ Scanning...' : '📬 Check Bounces'}</button>
+        <button onClick={() => setShowImport(!showImport)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#0A84FF', border: 'none', cursor: 'pointer' }}>📥 Import</button>
+        <button onClick={() => setShowAddForm(!showAddForm)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>＋ Thêm Lead</button>
+        <button type="button" onClick={handleVerifyEmails} disabled={verifying} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: verifying ? '#555' : '#34C759', border: 'none', cursor: verifying ? 'not-allowed' : 'pointer' }}>{verifying ? '⏳ Đang verify...' : '✅ Verify Emails'}</button>
+        <button type="button" onClick={handleCheckBounces} disabled={checkingBounces} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: checkingBounces ? '#555' : '#FF453A', border: 'none', cursor: checkingBounces ? 'not-allowed' : 'pointer' }}>{checkingBounces ? '⏳ Scanning...' : '📬 Check Bounces'}</button>
       </div>
       {verifyResult && (
         <div style={{ padding: '8px 14px', background: 'rgba(52,199,89,0.1)', border: '1px solid rgba(52,199,89,0.3)', borderRadius: '8px', fontSize: '12px', color: '#34C759', marginTop: '8px' }}>
@@ -670,31 +655,25 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
       {/* Import Panel */}
       {showImport && (
-        <div style={{ background: '#161616', border: '1px solid #0A84FF', borderRadius: '12px', padding: '20px' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
           <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5', marginBottom: '16px' }}>Import Leads</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div style={{ background: '#1A1A1A', borderRadius: '10px', padding: '20px', border: '1px solid #333', textAlign: 'center' }}>
+            <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px', textAlign: 'center' }}>
               <p style={{ fontSize: '32px', marginBottom: '8px' }}>📄</p>
               <p style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5', marginBottom: '6px' }}>Upload CSV</p>
               <p style={{ fontSize: '11px', color: '#888', marginBottom: '14px', lineHeight: 1.5 }}>
                 Hỗ trợ SalesQL format: Studio, Contact_Name, Work_Email, Job_Title, Tier
               </p>
               <input type="file" ref={fileRef} accept=".csv" onChange={handleCsvImport} style={{ display: 'none' }} id="csv-imp" />
-              <label htmlFor="csv-imp" style={{
-                padding: '10px 20px', borderRadius: '8px', background: '#FF9500', color: '#000',
-                fontSize: '12px', fontWeight: 800, cursor: 'pointer', display: 'inline-block',
-              }}>Chọn file CSV</label>
+              <label htmlFor="csv-imp" className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', cursor: 'pointer', display: 'inline-block' }}>Chọn file CSV</label>
             </div>
-            <div style={{ background: '#1A1A1A', borderRadius: '10px', padding: '20px', border: '1px solid #333', textAlign: 'center' }}>
+            <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px', textAlign: 'center' }}>
               <p style={{ fontSize: '32px', marginBottom: '8px' }}>👥</p>
               <p style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5', marginBottom: '6px' }}>Từ CRM Clients</p>
               <p style={{ fontSize: '11px', color: '#888', marginBottom: '14px', lineHeight: 1.5 }}>
                 Import {clients.length} khách hàng + contacts (bỏ qua trùng email)
               </p>
-              <button onClick={handleCrmImport} style={{
-                padding: '10px 20px', borderRadius: '8px', background: '#0A84FF', color: '#fff',
-                fontSize: '12px', fontWeight: 800, cursor: 'pointer', border: 'none',
-              }}>Import từ CRM</button>
+              <button onClick={handleCrmImport} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#0A84FF', border: 'none', cursor: 'pointer' }}>Import từ CRM</button>
             </div>
           </div>
         </div>
@@ -702,24 +681,24 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
 
       {/* Add Lead Form */}
       {showAddForm && (
-        <div style={{ background: '#161616', border: '1px solid #FF9500', borderRadius: '12px', padding: '20px' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div><label style={labelStyle}>Studio *</label><input style={inputStyle} value={addForm.studio_name} onChange={e => setAddForm({ ...addForm, studio_name: e.target.value })} /></div>
-            <div><label style={labelStyle}>Contact Name *</label><input style={inputStyle} value={addForm.contact_name} onChange={e => setAddForm({ ...addForm, contact_name: e.target.value, first_name: e.target.value.split(' ')[0] })} /></div>
-            <div><label style={labelStyle}>Email *</label><input style={inputStyle} value={addForm.email} onChange={e => setAddForm({ ...addForm, email: e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Studio *</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.studio_name} onChange={e => setAddForm({ ...addForm, studio_name: e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Contact Name *</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.contact_name} onChange={e => setAddForm({ ...addForm, contact_name: e.target.value, first_name: e.target.value.split(' ')[0] })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Email *</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.email} onChange={e => setAddForm({ ...addForm, email: e.target.value })} /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div><label style={labelStyle}>Job Title</label><input style={inputStyle} value={addForm.job_title} onChange={e => setAddForm({ ...addForm, job_title: e.target.value })} /></div>
-            <div><label style={labelStyle}>LinkedIn URL</label><input style={inputStyle} value={addForm.linkedin_url} onChange={e => setAddForm({ ...addForm, linkedin_url: e.target.value })} /></div>
-            <div><label style={labelStyle}>Tier</label>
-              <select style={inputStyle} value={addForm.tier} onChange={e => setAddForm({ ...addForm, tier: +e.target.value })}>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Job Title</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.job_title} onChange={e => setAddForm({ ...addForm, job_title: e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">LinkedIn URL</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.linkedin_url} onChange={e => setAddForm({ ...addForm, linkedin_url: e.target.value })} /></div>
+            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tier</label>
+              <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={addForm.tier} onChange={e => setAddForm({ ...addForm, tier: +e.target.value })}>
                 {[1, 2, 3].map(t => <option key={t} value={t}>{TIER_CFG[t].icon} {TIER_CFG[t].label} — {TIER_CFG[t].desc}</option>)}
               </select>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button onClick={() => setShowAddForm(false)} style={{ padding: '8px 16px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
-            <button onClick={handleAdd} style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', background: '#FF9500', color: '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>Thêm Lead</button>
+            <button onClick={() => setShowAddForm(false)} className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all" style={{ cursor: 'pointer' }}>Huỷ</button>
+            <button onClick={handleAdd} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>Thêm Lead</button>
           </div>
         </div>
       )}
@@ -746,9 +725,10 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       {isLoading ? (
         <p style={{ color: '#666', textAlign: 'center', padding: '40px' }}>Đang tải...</p>
       ) : leads.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', background: '#161616', border: '1px solid #222', borderRadius: '12px' }}>
-          <p style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.4 }}>👥</p>
-          <p style={{ fontSize: '14px', color: '#888', fontWeight: 700 }}>Chưa có leads</p>
+        <div className="rounded-[20px] border border-primary/10 bg-surface text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">👥</p>
+          <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
+          <p className="text-xs mt-1 text-neutral-700">Import CSV hoặc thêm lead thủ công</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -1161,7 +1141,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Single Discovery */}
-      <div style={{ background: '#161616', border: '1px solid #FF950030', borderRadius: '12px', padding: '20px' }}>
+      <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
         <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5', marginBottom: '8px' }}>🔍 Lead Discovery Pipeline</h4>
         <p style={{ fontSize: '13px', color: '#888', lineHeight: 1.6, marginBottom: '16px' }}>
           Nhập tên công ty + domain → Hệ thống tự động tìm contacts qua Web Scraping, Google CSE, và SalesQL Enrichment.
@@ -1170,9 +1150,10 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr auto', gap: '12px', alignItems: 'end' }}>
           <div style={{ position: 'relative' }}>
-            <label style={labelStyle}>Company Name *</label>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Company Name *</label>
             <input
-              style={inputStyle} value={company}
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }} value={company}
               onChange={e => { setCompany(e.target.value); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
@@ -1201,8 +1182,8 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
               </div>
             )}
           </div>
-          <div><label style={labelStyle}>Domain (optional)</label>
-            <input style={inputStyle} value={domain} onChange={e => setDomain(e.target.value)} placeholder="supercell.com" /></div>
+          <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Domain (optional)</label>
+            <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={domain} onChange={e => setDomain(e.target.value)} placeholder="supercell.com" /></div>
           <button onClick={handleDiscover} disabled={discovering || !company.trim()} style={{
             padding: '10px 24px', border: 'none', borderRadius: '8px',
             background: discovering ? '#333' : '#FF9500', color: discovering ? '#888' : '#000',
@@ -1213,7 +1194,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
       </div>
 
       {/* ── Batch Import Section ── */}
-      <div style={{ background: '#161616', border: '1px solid #0A84FF30', borderRadius: '12px', padding: '20px' }}>
+      <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
           <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5' }}>
             {importMode === 'country' ? '🌍 Tìm studio theo quốc gia' : '📋 Batch Discovery — Import danh sách công ty'}
@@ -1243,8 +1224,8 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'end', flexWrap: 'wrap' }}>
               <div style={{ flex: '0 0 220px' }}>
-                <label style={labelStyle}>Quốc gia</label>
-                <select value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)} style={{ ...inputStyle }}>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Quốc gia</label>
+                <select value={selectedCountry} onChange={e => setSelectedCountry(e.target.value)} className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }}>
                   {[
                     // High-cost markets — prime outsource clients for Vietnam studios
                     'United States','Canada','United Kingdom','Australia',
@@ -1352,19 +1333,19 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
             {/* CSV Upload + Manual add */}
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'end' }}>
               <div>
-                <label style={labelStyle}>📥 Upload CSV</label>
-                <input ref={importRef} type="file" accept=".csv,.txt,.tsv" onChange={handleCsvImport} style={{
-                  ...inputStyle, padding: '8px', fontSize: '12px',
-                }} />
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">📥 Upload CSV</label>
+                <input ref={importRef} type="file" accept=".csv,.txt,.tsv" onChange={handleCsvImport}
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a', fontSize: '12px' }} />
               </div>
               <div style={{ flex: 1, minWidth: '160px' }}>
-                <label style={labelStyle}>Thêm thủ công - Company</label>
-                <input style={inputStyle} value={manualAdd.company} onChange={e => setManualAdd(p => ({ ...p, company: e.target.value }))}
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Thêm thủ công - Company</label>
+                <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={manualAdd.company} onChange={e => setManualAdd(p => ({ ...p, company: e.target.value }))}
                   placeholder="Zynga" onKeyDown={e => e.key === 'Enter' && handleManualAdd()} />
               </div>
               <div style={{ flex: 1, minWidth: '140px' }}>
-                <label style={labelStyle}>Domain</label>
-                <input style={inputStyle} value={manualAdd.domain} onChange={e => setManualAdd(p => ({ ...p, domain: e.target.value }))}
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Domain</label>
+                <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={manualAdd.domain} onChange={e => setManualAdd(p => ({ ...p, domain: e.target.value }))}
                   placeholder="zynga.com" onKeyDown={e => e.key === 'Enter' && handleManualAdd()} />
               </div>
               <button onClick={handleManualAdd} style={{
@@ -1457,7 +1438,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
 
       {/* Batch Results */}
       {batchResults.length > 0 && (
-        <div style={{ background: '#161616', border: '1px solid #34C75930', borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>
               {(() => {
@@ -1545,7 +1526,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
         <div style={{ textAlign: 'center', padding: '40px', color: '#555' }}>Không tìm thấy contacts</div>
       )}
       {results && results.length > 0 && (
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
+        <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>Kết quả: {results.length} contacts — <span style={{ color: '#888', fontWeight: 400 }}>{company}</span></h4>
             <button onClick={handleAddAllSingle} style={{
@@ -1677,9 +1658,7 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
           const isEditing = editingId === tpl.id;
 
           return (
-            <div key={tpl.id} style={{
-              background: '#161616', border: `1px solid ${isEditing ? '#FF9500' : '#222'}`, borderRadius: '12px', overflow: 'hidden',
-            }}>
+            <div key={tpl.id} className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden', ...(isEditing ? { borderColor: '#FF9500' } : {}) }}>
               {/* Header */}
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px 20px' }}>
                 {/* Step number */}
@@ -1732,10 +1711,10 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
               {isEditing && (
                 <div style={{ borderTop: '1px solid #222', padding: '20px', background: '#111' }}>
                   <div style={{ marginBottom: '14px' }}>
-                    <label style={labelStyle}>Subject Lines (A/B test)</label>
+                    <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Subject Lines (A/B test)</label>
                     {editForm.subject_lines.map((s, i) => (
                       <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
-                        <input style={{ ...inputStyle, flex: 1 }} value={s}
+                        <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a', flex: 1 }} value={s}
                           onChange={e => { const arr = [...editForm.subject_lines]; arr[i] = e.target.value; setEditForm({ ...editForm, subject_lines: arr }); }}
                           placeholder={`Subject variant ${i + 1}...`} />
                         {editForm.subject_lines.length > 1 && (
@@ -1749,11 +1728,11 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
                   </div>
 
                   <div style={{ display: 'flex', gap: '14px', marginBottom: '14px' }}>
-                    <div style={{ width: '120px' }}><label style={labelStyle}>Delay (ngày)</label>
-                      <input type="number" min={0} style={inputStyle} value={editForm.delay_days} onChange={e => setEditForm({ ...editForm, delay_days: +e.target.value })} /></div>
+                    <div style={{ width: '120px' }}><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Delay (ngày)</label>
+                      <input type="number" min={0} className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={editForm.delay_days} onChange={e => setEditForm({ ...editForm, delay_days: +e.target.value })} /></div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                        <label style={{ ...labelStyle, marginBottom: 0 }}>HTML Content</label>
+                        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">HTML Content</label>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           {['{contact_name}', '{studio_name}', '{company}'].map(v => (
                             <button key={v} onClick={() => setEditForm({ ...editForm, html_content: editForm.html_content + v })} style={{
@@ -1763,17 +1742,17 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
                           ))}
                         </div>
                       </div>
-                      <textarea style={{ ...inputStyle, minHeight: '160px', fontFamily: 'monospace', fontSize: '11px' }}
+                      <textarea className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none" style={{ background: '#1a1a1a', minHeight: '160px', fontFamily: 'monospace', fontSize: '11px' }}
                         value={editForm.html_content} onChange={e => setEditForm({ ...editForm, html_content: e.target.value })} />
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button onClick={() => setEditingId(null)} style={{ padding: '8px 16px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
+                    <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all" style={{ cursor: 'pointer' }}>Huỷ</button>
                     {editForm.html_content && editForm.html_content !== 'placeholder' && (
-                      <button onClick={() => onPreview(editForm.html_content)} style={{ padding: '8px 16px', border: '1px solid #0A84FF', borderRadius: '8px', background: 'transparent', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>👁️ Preview</button>
+                      <button onClick={() => onPreview(editForm.html_content)} className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all" style={{ cursor: 'pointer' }}>👁️ Preview</button>
                     )}
-                    <button onClick={handleSave} style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', background: '#FF9500', color: '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>💾 Lưu</button>
+                    <button onClick={handleSave} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>💾 Lưu</button>
                   </div>
                 </div>
               )}
@@ -1784,9 +1763,10 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
 
       {/* Arrow connectors between steps */}
       {templates.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#555' }}>
-          <p style={{ fontSize: '40px', marginBottom: '12px', opacity: 0.4 }}>📝</p>
-          <p style={{ fontSize: '14px', fontWeight: 700, color: '#888' }}>Chưa có template nào</p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">📝</p>
+          <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
+          <p className="text-xs mt-1 text-neutral-700">Chưa có template nào</p>
         </div>
       )}
 
@@ -1978,7 +1958,7 @@ const SettingsTab: React.FC = () => {
   );
 
   if (!draft) return (
-    <div style={{ padding: '20px', background: '#1A1A1A', border: '1px solid #FF453A40', borderRadius: '12px', color: '#FF453A' }}>
+    <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px', color: '#FF453A' }}>
       Lỗi tải settings: {error || 'unknown'}
     </div>
   );
@@ -2002,9 +1982,10 @@ const SettingsTab: React.FC = () => {
 
       {/* From */}
       <div>
-        <label style={labelStyle}>📤 Email gửi đi (From)</label>
+        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">📤 Email gửi đi (From)</label>
         <input
-          style={inputStyle} type="text"
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+          style={{ background: '#1a1a1a' }} type="text"
           placeholder='Tony Dang <tony@tdgamestudio.com>'
           value={draft.resend_from}
           onChange={e => set('resend_from', e.target.value)}
@@ -2016,9 +1997,10 @@ const SettingsTab: React.FC = () => {
 
       {/* Reply-To */}
       <div>
-        <label style={labelStyle}>↩️ Email nhận reply (Reply-To)</label>
+        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">↩️ Email nhận reply (Reply-To)</label>
         <input
-          style={inputStyle} type="email"
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+          style={{ background: '#1a1a1a' }} type="email"
           placeholder='toan.dang@tdgamestudio.com'
           value={draft.resend_reply_to}
           onChange={e => set('resend_reply_to', e.target.value)}
@@ -2030,9 +2012,10 @@ const SettingsTab: React.FC = () => {
 
       {/* Campaign tag */}
       <div>
-        <label style={labelStyle}>🏷️ Campaign tag (Resend dashboard)</label>
+        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">🏷️ Campaign tag (Resend dashboard)</label>
         <input
-          style={inputStyle} type="text"
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+          style={{ background: '#1a1a1a' }} type="text"
           placeholder='outreach'
           value={draft.resend_tag_campaign}
           onChange={e => set('resend_tag_campaign', e.target.value)}
@@ -2041,9 +2024,10 @@ const SettingsTab: React.FC = () => {
 
       {/* Daily limit */}
       <div>
-        <label style={labelStyle}>📊 Giới hạn email/ngày</label>
+        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">📊 Giới hạn email/ngày</label>
         <input
-          style={{ ...inputStyle, width: '140px' }} type="number" min={0} max={1000}
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', width: '140px' }} type="number" min={0} max={1000}
           value={draft.daily_limit}
           onChange={e => set('daily_limit', Number(e.target.value) || 0)}
         />

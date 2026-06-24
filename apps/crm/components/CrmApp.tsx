@@ -84,29 +84,19 @@ const GlobalActivityFeed: React.FC<{ clients: any[]; actor: string }> = ({ clien
   return (
     <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
+        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
           Hoạt động gần đây
         </h2>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => setFilterType('')}
-            style={{
-              padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
-              background: !filterType ? 'rgba(255,149,0,0.15)' : 'transparent',
-              border: `1px solid ${!filterType ? 'rgba(255,149,0,0.3)' : 'rgba(255,255,255,0.08)'}`,
-              color: !filterType ? '#FF9500' : '#888', cursor: 'pointer',
-            }}
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${!filterType ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-neutral-300 border border-white/10 hover:text-white hover:border-white/20'}`}
           >Tất cả</button>
           {Object.entries(TYPE_ICON).filter(([k]) => k !== 'status_change').map(([key, meta]) => (
             <button
               key={key}
               onClick={() => setFilterType(filterType === key ? '' : key)}
-              style={{
-                padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
-                background: filterType === key ? meta.color + '15' : 'transparent',
-                border: `1px solid ${filterType === key ? meta.color + '30' : 'rgba(255,255,255,0.08)'}`,
-                color: filterType === key ? meta.color : '#888', cursor: 'pointer',
-              }}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${filterType === key ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : 'text-neutral-300 border border-white/10 hover:text-white hover:border-white/20'}`}
             >{meta.icon} {meta.label}</button>
           ))}
         </div>
@@ -114,32 +104,27 @@ const GlobalActivityFeed: React.FC<{ clients: any[]; actor: string }> = ({ clien
 
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}>
-          <p style={{ color: '#888', fontSize: '13px' }} className="animate-pulse">Đang tải hoạt động...</p>
+          <p className="animate-td-pulse" style={{ color: '#888', fontSize: '13px' }}>Đang tải hoạt động...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', background: '#161616', border: '1px solid #222', borderRadius: '16px' }}>
-          <p style={{ fontSize: '48px', marginBottom: '12px' }}>📋</p>
-          <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>Chưa có hoạt động nào</p>
-          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '4px' }}>Mở chi tiết khách hàng để thêm ghi chú, cuộc gọi, meeting...</p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">📋</p>
+          <p className="text-neutral-600 text-sm">Chưa có hoạt động nào</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {filtered.map(act => {
             const meta = TYPE_ICON[act.activity_type] || TYPE_ICON.note;
             return (
-              <div key={act.id} style={{
-                display: 'flex', gap: '16px', alignItems: 'flex-start',
-                padding: '16px 20px', background: '#161616', border: '1px solid #222',
-                borderRadius: '12px', transition: 'border-color 0.2s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = meta.color + '40')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}
+              <div key={act.id}
+                className="rounded-[20px] border border-primary/10 bg-surface hover:border-primary/20 transition-all"
+                style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px 20px' }}
               >
                 <div style={{
-                  width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
+                  width: '42px', height: '42px', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
                   background: meta.color + '15', border: `1px solid ${meta.color}25`,
-                }}>
+                }} className="rounded-xl">
                   {meta.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>

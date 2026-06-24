@@ -39,17 +39,12 @@ const ClientList: React.FC<Props> = ({
   const canDelete = currentUser?.role !== 'bd';
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-  const selectStyle: React.CSSProperties = {
-    padding: '10px 14px', background: '#1A1A1A', border: '1px solid #333',
-    borderRadius: '10px', color: '#ccc', fontSize: '13px', outline: 'none', minWidth: '150px',
-  };
-
   return (
     <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
             Khách hàng
           </h2>
           <p className="text-sm text-neutral-medium mt-1">Quản lý thông tin khách hàng tập trung</p>
@@ -64,17 +59,17 @@ const ClientList: React.FC<Props> = ({
 
       {/* Stats Cards — dynamic from actual data */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(Object.keys(statusCounts).length + 1, 6)}, 1fr)`, gap: '12px' }}>
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9D9C9D' }}>Tổng khách hàng</p>
-          <p style={{ fontSize: '24px', fontWeight: 900, color: '#FF9500', marginTop: '4px' }}>{totalClients}</p>
+        <div className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1">
+          <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Tổng khách hàng</p>
+          <p className="text-2xl font-black" style={{ color: '#FF9500' }}>{totalClients}</p>
         </div>
         {Object.entries(STATUS_CONFIG).filter(([k]) => (statusCounts[k] || 0) > 0).map(([key, cfg]) => (
-          <div key={key} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '16px', cursor: 'pointer', transition: 'border-color 0.2s' }}
+          <div key={key} className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1 cursor-pointer transition-all"
             onClick={() => setFilterStatus(filterStatus === key ? '' : key)}
             onMouseEnter={e => (e.currentTarget.style.borderColor = cfg.color)}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = '#222')}>
-            <p style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9D9C9D' }}>{cfg.icon} {cfg.label}</p>
-            <p style={{ fontSize: '24px', fontWeight: 900, color: cfg.color, marginTop: '4px' }}>{statusCounts[key] || 0}</p>
+            onMouseLeave={e => (e.currentTarget.style.borderColor = '')}>
+            <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{cfg.icon} {cfg.label}</p>
+            <p className="text-2xl font-black text-white">{statusCounts[key] || 0}</p>
           </div>
         ))}
       </div>
@@ -82,18 +77,27 @@ const ClientList: React.FC<Props> = ({
       {/* Filters */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <input
-          style={{ ...selectStyle, flex: 1, minWidth: '250px' }}
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', flex: 1, minWidth: '250px' }}
           placeholder="🔍 Tìm theo tên, email, liên hệ, SĐT..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
-        <select style={selectStyle} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+          style={{ background: '#1a1a1a', minWidth: '150px', width: 'auto' }}
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Tất cả trạng thái</option>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
             <option key={key} value={key}>{cfg.icon} {cfg.label}</option>
           ))}
         </select>
-        <select style={selectStyle} value={filterIndustry} onChange={e => setFilterIndustry(e.target.value)}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+          style={{ background: '#1a1a1a', minWidth: '150px', width: 'auto' }}
+          value={filterIndustry}
+          onChange={e => setFilterIndustry(e.target.value)}>
           <option value="">Tất cả ngành</option>
           {industries.map(i => <option key={i} value={i}>{i}</option>)}
         </select>
@@ -101,11 +105,9 @@ const ClientList: React.FC<Props> = ({
 
       {/* Client Cards */}
       {clients.length === 0 && !isLoading && (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: '#666' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.4 }}>👥</div>
-          <p style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '13px' }}>
-            Chưa có khách hàng
-          </p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">👥</p>
+          <p className="text-neutral-600 text-sm">Chưa có khách hàng nào</p>
         </div>
       )}
 
@@ -113,14 +115,12 @@ const ClientList: React.FC<Props> = ({
         {clients.map(client => {
           const sc = STATUS_CONFIG[client.status] || STATUS_CONFIG.active;
           return (
-            <div key={client.id} style={{
-              background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              transition: 'all 0.2s', cursor: 'pointer',
-            }}
-            onClick={() => onEdit(client)}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#FF9500'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#222'; }}
+            <div key={client.id}
+              className="flex items-center gap-4 p-4 rounded-[20px] border border-primary/10 hover:border-primary/20 transition-all bg-surface"
+              style={{ cursor: 'pointer' }}
+              onClick={() => onEdit(client)}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#FF9500'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = ''; }}
             >
               {/* Left: Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -181,26 +181,26 @@ const ClientList: React.FC<Props> = ({
 
               {/* Right: Actions */}
               <div style={{ display: 'flex', gap: '8px', marginLeft: '16px' }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => onEdit(client)} style={{
-                  padding: '8px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent',
-                  color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                }}>✏️ Sửa</button>
+                <button
+                  onClick={() => onEdit(client)}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                >✏️ Sửa</button>
                 {canDelete && (deleteConfirm === client.id ? (
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    <button onClick={() => { onDelete(client.id); setDeleteConfirm(null); }} style={{
-                      padding: '8px 14px', border: 'none', borderRadius: '8px', background: '#FF453A',
-                      color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                    }}>Xác nhận</button>
-                    <button onClick={() => setDeleteConfirm(null)} style={{
-                      padding: '8px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent',
-                      color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-                    }}>Huỷ</button>
+                    <button
+                      onClick={() => { onDelete(client.id); setDeleteConfirm(null); }}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                    >Xác nhận</button>
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                    >Huỷ</button>
                   </div>
                 ) : (
-                  <button onClick={() => setDeleteConfirm(client.id)} style={{
-                    padding: '8px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent',
-                    color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
-                  }}>🗑️</button>
+                  <button
+                    onClick={() => setDeleteConfirm(client.id)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-all"
+                  >🗑️</button>
                 ))}
               </div>
             </div>

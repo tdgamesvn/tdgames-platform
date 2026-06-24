@@ -105,7 +105,7 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
 
       {/* Add Form */}
       {showForm && (
-        <form onSubmit={handleSubmit} className="rounded-[16px] border p-5 space-y-4" style={{ background: '#161616', borderColor: 'rgba(255,149,0,0.15)' }}>
+        <form onSubmit={handleSubmit} className="rounded-[20px] bg-surface border border-primary/10 p-5 space-y-4">
           {/* Type Selector */}
           <div className="flex flex-wrap gap-2">
             {Object.entries(TYPE_META).filter(([k]) => k !== 'status_change').map(([key, meta]) => (
@@ -113,12 +113,12 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
                 key={key}
                 type="button"
                 onClick={() => setFormType(key as CrmActivity['activity_type'])}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                style={{
-                  background: formType === key ? meta.color + '20' : 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${formType === key ? meta.color + '50' : 'rgba(255,255,255,0.08)'}`,
-                  color: formType === key ? meta.color : '#888',
-                }}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                style={formType === key ? {
+                  background: meta.color + '20',
+                  borderColor: meta.color + '50',
+                  color: meta.color,
+                } : undefined}
               >
                 {meta.icon} {meta.label}
               </button>
@@ -132,16 +132,16 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
               value={formTitle}
               onChange={e => setFormTitle(e.target.value)}
               placeholder="Tiêu đề hoạt động..."
-              className="col-span-2 rounded-xl px-4 py-2.5 text-sm font-medium outline-none"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F2F2F2' }}
+              className="col-span-2 px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
               required
             />
             <input
               type="date"
               value={formDate}
               onChange={e => setFormDate(e.target.value)}
-              className="rounded-xl px-4 py-2.5 text-sm font-medium outline-none"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F2F2F2' }}
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
             />
           </div>
 
@@ -151,8 +151,8 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
             onChange={e => setFormDescription(e.target.value)}
             placeholder="Chi tiết (tuỳ chọn)..."
             rows={2}
-            className="w-full rounded-xl px-4 py-2.5 text-sm font-medium outline-none resize-none"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#F2F2F2' }}
+            className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full resize-none"
+            style={{ background: '#1a1a1a' }}
           />
 
           {/* Outcome + Submit */}
@@ -167,12 +167,12 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
                   key={o.val}
                   type="button"
                   onClick={() => setFormOutcome(formOutcome === o.val ? '' : o.val)}
-                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all"
-                  style={{
-                    background: formOutcome === o.val ? o.color + '20' : 'transparent',
-                    border: `1px solid ${formOutcome === o.val ? o.color + '40' : 'rgba(255,255,255,0.06)'}`,
-                    color: formOutcome === o.val ? o.color : '#666',
-                  }}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                  style={formOutcome === o.val ? {
+                    background: o.color + '20',
+                    borderColor: o.color + '40',
+                    color: o.color,
+                  } : undefined}
                 >
                   {o.label}
                 </button>
@@ -181,12 +181,8 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
             <button
               type="submit"
               disabled={isSaving || !formTitle.trim()}
-              className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
-              style={{
-                background: 'linear-gradient(135deg, #FF9500 0%, #FF6B00 100%)',
-                color: '#0F0F0F',
-                opacity: isSaving || !formTitle.trim() ? 0.5 : 1,
-              }}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+              style={{ background: '#FF9500' }}
             >
               {isSaving ? 'Đang lưu...' : 'Lưu'}
             </button>
@@ -200,10 +196,10 @@ const ActivityTimeline: React.FC<Props> = ({ clientId, clientName, actor }) => {
           <p className="text-xs text-neutral-medium animate-pulse">Đang tải...</p>
         </div>
       ) : activities.length === 0 ? (
-        <div className="py-12 text-center rounded-[16px] border" style={{ background: '#161616', borderColor: 'rgba(255,255,255,0.05)' }}>
-          <p className="text-4xl mb-3">📋</p>
-          <p className="text-sm font-bold text-white/40">Chưa có hoạt động nào</p>
-          <p className="text-xs text-white/20 mt-1">Thêm ghi chú đầu tiên về khách hàng này</p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">📋</p>
+          <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
+          <p className="text-xs mt-1 text-neutral-700">Thêm ghi chú đầu tiên về khách hàng này</p>
         </div>
       ) : (
         <div className="relative">

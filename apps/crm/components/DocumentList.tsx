@@ -31,14 +31,6 @@ const DOC_TYPES: Record<string, { label: string; icon: string; color: string }> 
   other:    { label: 'Khác', icon: '📎', color: '#888' },
 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 14px', background: '#1A1A1A', border: '1px solid #333',
-  borderRadius: '8px', color: '#F5F5F5', fontSize: '13px', outline: 'none',
-};
-const labelStyle: React.CSSProperties = {
-  display: 'block', marginBottom: '6px', fontSize: '11px', fontWeight: 700,
-  textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888',
-};
 
 const isPreviewable = (url: string) => /\.(jpg|jpeg|png|webp|gif|pdf|svg)$/i.test(url) || /\.(jpg|jpeg|png|webp|gif|pdf|svg)/i.test(url);
 const isImageUrl = (url: string) => /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url) || /\.(jpg|jpeg|png|webp|gif|svg)/i.test(url);
@@ -339,28 +331,29 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
-          <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>Tài liệu</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài liệu</h2>
           <p className="text-sm text-neutral-medium mt-1">Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setPickerClientId(''); setPickerProjectId(''); setShowContractPicker(true); }} style={{
-            padding: '12px 24px', border: '1px solid rgba(16,185,129,0.4)', borderRadius: '10px', background: 'rgba(16,185,129,0.1)',
-            color: '#10b981', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
-          }}>📋 Tạo hợp đồng</button>
-          <button onClick={() => { setEditingDoc(null); setForm(emptyForm); setShowForm(!showForm); }} style={{
-            padding: '12px 24px', border: 'none', borderRadius: '10px', background: '#FF9500',
-            color: '#000', fontWeight: 800, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase',
-          }}>＋ Thêm tài liệu</button>
+          <button onClick={() => { setPickerClientId(''); setPickerProjectId(''); setShowContractPicker(true); }}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+            📋 Tạo hợp đồng
+          </button>
+          <button onClick={() => { setEditingDoc(null); setForm(emptyForm); setShowForm(!showForm); }}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"
+            style={{ background: '#FF9500' }}>
+            ＋ Thêm tài liệu
+          </button>
         </div>
       </div>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Object.keys(DOC_TYPES).length}, 1fr)`, gap: '12px', marginBottom: '20px' }}>
         {typeCounts.map(t => (
-          <div key={t.key} style={{
-            background: '#161616', border: `1px solid ${filterType === t.key ? t.color : '#222'}`, borderRadius: '10px',
-            padding: '14px', cursor: 'pointer', transition: 'all 0.2s',
-          }} onClick={() => setFilterType(filterType === t.key ? '' : t.key)}>
+          <div key={t.key}
+            className="rounded-[20px] border bg-surface p-[14px] cursor-pointer transition-all"
+            style={{ borderColor: filterType === t.key ? t.color : 'rgba(255,255,255,0.08)' }}
+            onClick={() => setFilterType(filterType === t.key ? '' : t.key)}>
             <p style={{ fontSize: '20px', fontWeight: 900, color: t.color }}>{t.count}</p>
             <p style={{ fontSize: '11px', color: '#888', fontWeight: 600, marginTop: '4px' }}>{t.icon} {t.label}</p>
           </div>
@@ -369,14 +362,20 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <select style={{ ...inputStyle, width: '260px' }} value={filterClient} onChange={e => {
-          setFilterClient(e.target.value);
-          setFilterProject('');
-        }}>
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', width: '260px' }}
+          value={filterClient} onChange={e => {
+            setFilterClient(e.target.value);
+            setFilterProject('');
+          }}>
           <option value="">Tất cả khách hàng</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <select style={{ ...inputStyle, width: '260px' }} value={filterProject} onChange={e => setFilterProject(e.target.value)}
+        <select
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a', width: '260px' }}
+          value={filterProject} onChange={e => setFilterProject(e.target.value)}
           disabled={filterBarProjects.length === 0}>
           <option value="">Tất cả dự án</option>
           {filterBarProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -385,7 +384,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
 
       {/* New / Edit doc form */}
       {showForm && (
-        <div style={{ background: '#161616', border: `1px solid ${editingDoc ? '#0A84FF' : '#FF9500'}`, borderRadius: '12px', padding: '24px', marginBottom: '20px' }}>
+        <div className="rounded-[20px] bg-surface border border-primary/10 p-6" style={{ marginBottom: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 800, color: editingDoc ? '#0A84FF' : '#FF9500', marginBottom: '16px', textTransform: 'uppercase' }}>
             {editingDoc ? '✏️ Chỉnh sửa tài liệu' : '＋ Tạo tài liệu mới'}
           </h3>
@@ -393,35 +392,47 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
           {/* Row 1: client / project / type / title */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
             <div>
-              <label style={labelStyle}>Khách hàng *</label>
-              <select style={inputStyle} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value, project_id: null })}>
+              <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Khách hàng *</label>
+              <select
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                style={{ background: '#1a1a1a', width: '100%' }}
+                value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value, project_id: null })}>
                 <option value="">-- Chọn --</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Dự án</label>
-              <select style={inputStyle} value={form.project_id || ''} onChange={e => setForm({ ...form, project_id: e.target.value || null })}
+              <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Dự án</label>
+              <select
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                style={{ background: '#1a1a1a', width: '100%' }}
+                value={form.project_id || ''} onChange={e => setForm({ ...form, project_id: e.target.value || null })}
                 disabled={formProjects.length === 0}>
                 <option value="">— Không gắn dự án —</option>
                 {formProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Loại tài liệu</label>
-              <select style={inputStyle} value={form.doc_type} onChange={e => setForm({ ...form, doc_type: e.target.value })}>
+              <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Loại tài liệu</label>
+              <select
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                style={{ background: '#1a1a1a', width: '100%' }}
+                value={form.doc_type} onChange={e => setForm({ ...form, doc_type: e.target.value })}>
                 {Object.entries(DOC_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Tiêu đề *</label>
-              <input style={inputStyle} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Hợp đồng dịch vụ 2026..." />
+              <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Tiêu đề *</label>
+              <input
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                style={{ background: '#1a1a1a' }}
+                value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Hợp đồng dịch vụ 2026..." />
             </div>
           </div>
 
           {/* Drag & Drop Upload Area */}
           <div style={{ marginBottom: '14px' }}>
-            <label style={labelStyle}>Upload file hoặc dán link</label>
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Upload file hoặc dán link</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div ref={dropZoneRef}
                 onDragEnter={handleDragEnter} onDragLeave={handleDragLeave}
@@ -468,7 +479,9 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
                 )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <input style={{ ...inputStyle, flex: 1 }}
+                <input
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a', flex: 1 }}
                   value={!form.file_name ? form.file_url : ''}
                   onChange={e => setForm({ ...form, file_url: e.target.value, file_name: '', file_size: 0 })}
                   placeholder="Hoặc dán link (Google Drive, Dropbox...)"
@@ -479,14 +492,18 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
           </div>
 
           <div style={{ marginBottom: '14px' }}>
-            <label style={labelStyle}>Ghi chú</label>
-            <input style={inputStyle} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú..." />
+            <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Ghi chú</label>
+            <input
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+              style={{ background: '#1a1a1a' }}
+              value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú..." />
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button type="button" onClick={() => { setShowForm(false); setEditingDoc(null); setForm(emptyForm); }}
-              style={{ padding: '8px 16px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Huỷ</button>
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">Huỷ</button>
             <button type="button" onClick={handleSave} disabled={uploading}
-              style={{ padding: '8px 16px', border: 'none', borderRadius: '8px', background: editingDoc ? '#0A84FF' : '#FF9500', color: editingDoc ? '#fff' : '#000', fontSize: '12px', fontWeight: 800, cursor: 'pointer', opacity: uploading ? 0.5 : 1 }}>
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+              style={{ background: '#FF9500' }}>
               {editingDoc ? 'Cập nhật' : 'Lưu tài liệu'}
             </button>
           </div>
@@ -508,12 +525,12 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
           const canEdit = !isApproved; // Đã duyệt thì không được sửa
           return (
             <div key={doc.id}>
-              <div style={{
-                background: '#161616', border: `1px solid ${isPending ? 'rgba(255,167,38,0.25)' : '#222'}`, borderRadius: '10px', padding: '16px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.2s',
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = dt.color; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = isPending ? 'rgba(255,167,38,0.25)' : '#222'; }}>
+              <div
+                className="rounded-[20px] border border-primary/10 bg-surface p-4 hover:border-primary/20 transition-all"
+                style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  ...(isPending ? { borderColor: 'rgba(255,167,38,0.25)' } : {}),
+                }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '14px' }}>
                   <span style={{ fontSize: '24px' }}>{dt.icon}</span>
                   <div>
@@ -546,30 +563,31 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
                   {/* Edit — chỉ hiện khi chưa duyệt */}
                   {canEdit && (
                     <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(doc); }} title="Sửa"
-                      style={{ padding: '7px 12px', border: '1px solid #FF950030', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✏️ Sửa</button>
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✏️ Sửa</button>
                   )}
                   {/* Admin: Duyệt/Từ chối cho pending */}
                   {isAdmin && isPending && (
                     <button type="button" onClick={(e) => { e.stopPropagation(); setExpandedApprovalId(expandedApprovalId === doc.id ? null : doc.id); setApprovalNote(''); }}
-                      style={{ padding: '7px 12px', border: '1px solid rgba(76,175,80,0.3)', borderRadius: '6px', background: 'rgba(76,175,80,0.1)', color: '#4CAF50', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
                       📋 Duyệt
                     </button>
                   )}
                   {hasFile && canPreview && (
                     <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewUrl(toPublicUrl(doc.file_url)); setPreviewTitle(doc.file_name || doc.title); }} title="Xem trước"
-                      style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>👁️ Xem</button>
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">👁️ Xem</button>
                   )}
                   {hasFile && !canPreview && (
                     <a href={toPublicUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                      style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', textDecoration: 'none', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🔗 Mở</a>
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all" style={{ textDecoration: 'none' }}>🔗 Mở</a>
                   )}
                   {hasFile && (
                     <button type="button" onClick={(e) => { e.stopPropagation(); handleDownload(toPublicUrl(doc.file_url), doc.file_name || doc.title); }} title="Tải về"
-                      style={{ padding: '7px 12px', border: '1px solid #34C75930', borderRadius: '6px', background: 'rgba(52,199,89,0.1)', color: '#34C759', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⬇️ Tải</button>
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">⬇️ Tải</button>
                   )}
                   {!hasFile && (
                     <label title="Upload bản scan đã ký"
-                      style={{ padding: '7px 12px', border: '1px solid #AF52DE30', borderRadius: '6px', background: 'rgba(175,82,222,0.1)', color: '#AF52DE', fontSize: '12px', fontWeight: 700, cursor: uploadingScanId === doc.id ? 'wait' : 'pointer', opacity: uploadingScanId === doc.id ? 0.6 : 1 }}>
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                      style={{ cursor: uploadingScanId === doc.id ? 'wait' : 'pointer', opacity: uploadingScanId === doc.id ? 0.6 : 1 }}>
                       {uploadingScanId === doc.id ? '⏳ Đang upload...' : '📤 Upload scan'}
                       <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style={{ display: 'none' }}
                         disabled={!!uploadingScanId}
@@ -583,15 +601,16 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                           <span style={{ fontSize: '11px', color: '#FF453A', fontWeight: 700, marginRight: '2px' }}>Xoá?</span>
                           <button type="button" disabled={deleting} onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
-                            style={{ padding: '7px 12px', border: 'none', borderRadius: '6px', background: '#FF453A', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
+                            className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                            style={{ opacity: deleting ? 0.6 : 1 }}>
                             {deleting ? '...' : '✓ Xác nhận'}
                           </button>
                           <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                            style={{ padding: '7px 10px', border: '1px solid #333', borderRadius: '6px', background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                            className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">✕</button>
                         </div>
                       ) : (
                         <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(doc.id); }} title="Xoá"
-                          style={{ padding: '7px 12px', border: '1px solid #FF453A30', borderRadius: '6px', background: 'rgba(255,69,58,0.1)', color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🗑️</button>
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">🗑️</button>
                       )}
                     </>
                   )}
@@ -601,29 +620,33 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
               {expandedApprovalId === doc.id && isPending && isAdmin && (
                 <div style={{
                   background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,167,38,0.2)', borderTop: 'none',
-                  borderRadius: '0 0 10px 10px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end',
+                  borderRadius: '0 0 20px 20px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end',
                 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: '6px' }}>
+                    <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>
                       Ghi chú (bắt buộc khi từ chối)
                     </label>
                     <input
+                      className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                      style={{ background: '#1a1a1a' }}
                       value={approvalNote}
                       onChange={e => setApprovalNote(e.target.value)}
                       placeholder="Nhập ghi chú..."
-                      style={{ width: '100%', padding: '10px 14px', background: '#1A1A1A', border: '1px solid #333', borderRadius: '8px', color: '#F5F5F5', fontSize: '13px', outline: 'none' }}
                     />
                   </div>
                   <button type="button" disabled={approvingId === doc.id} onClick={() => handleApprove(doc.id)}
-                    style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', background: '#4CAF50', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: approvingId === doc.id ? 'wait' : 'pointer', opacity: approvingId === doc.id ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                    style={{ background: '#FF9500', whiteSpace: 'nowrap' }}>
                     {approvingId === doc.id ? '...' : '✅ Duyệt'}
                   </button>
                   <button type="button" disabled={approvingId === doc.id} onClick={() => handleReject(doc.id)}
-                    style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', background: '#F44336', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: approvingId === doc.id ? 'wait' : 'pointer', opacity: approvingId === doc.id ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                    style={{ background: '#F44336', whiteSpace: 'nowrap' }}>
                     {approvingId === doc.id ? '...' : '❌ Từ chối'}
                   </button>
                   <button type="button" onClick={() => { setExpandedApprovalId(null); setApprovalNote(''); }}
-                    style={{ padding: '10px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
+                    style={{ whiteSpace: 'nowrap' }}>
                     Huỷ
                   </button>
                 </div>
@@ -634,9 +657,10 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
       </div>
 
       {!isLoading && filtered.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#555' }}>
-          <p style={{ fontSize: '48px', marginBottom: '12px' }}>📄</p>
-          <p style={{ fontSize: '14px' }}>Chưa có tài liệu nào</p>
+        <div className="text-center py-16 text-neutral-700 text-sm">
+          <p className="text-3xl mb-3">📄</p>
+          <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
+          <p className="text-xs mt-1 text-neutral-700">Nhấn "Thêm tài liệu" để bắt đầu</p>
         </div>
       )}
 
@@ -646,16 +670,17 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
       {showContractPicker && ReactDOM.createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
           onClick={e => { if (e.target === e.currentTarget) setShowContractPicker(false); }}>
-          <div style={{ background: '#1A1A1A', border: '1px solid #333', borderRadius: 20, width: '100%', maxWidth: 480, padding: 32 }}
-            className="animate-scaleIn" onClick={e => e.stopPropagation()}>
+          <div className="rounded-[20px] border border-primary/10 bg-surface animate-scaleIn w-full max-w-[480px] p-8"
+            onClick={e => e.stopPropagation()}>
             <h3 style={{ fontSize: 18, fontWeight: 900, color: '#FF9500', marginBottom: 4 }}>Tạo hợp đồng khách hàng</h3>
             <p style={{ fontSize: 12, color: '#888', marginBottom: 24 }}>Chọn khách hàng và dự án trước khi tạo hợp đồng</p>
 
             {/* Client select */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: 6 }}>Khách hàng *</label>
+              <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: 6 }}>Khách hàng *</label>
               <select value={pickerClientId} onChange={e => { setPickerClientId(e.target.value); setPickerProjectId(''); }}
-                style={{ width: '100%', padding: '10px 14px', background: '#111', border: '1px solid #333', borderRadius: 10, color: '#F5F5F5', fontSize: 13, outline: 'none', colorScheme: 'dark' }}>
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                style={{ background: '#1a1a1a', width: '100%' }}>
                 <option value="">— Chọn khách hàng —</option>
                 {clients.filter(c => c.status === 'active' || c.status === 'contracting' || c.status === 'negotiating').map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -669,19 +694,20 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
             {/* Project select */}
             {pickerClientId && (
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: 6 }}>Dự án</label>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: 6 }}>Dự án</label>
                 {(() => {
                   const clientProjects = allProjects.filter(p => p.client_id === pickerClientId);
                   return clientProjects.length > 0 ? (
                     <select value={pickerProjectId} onChange={e => setPickerProjectId(e.target.value)}
-                      style={{ width: '100%', padding: '10px 14px', background: '#111', border: '1px solid #333', borderRadius: 10, color: '#F5F5F5', fontSize: 13, outline: 'none', colorScheme: 'dark' }}>
+                      className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                      style={{ background: '#1a1a1a', width: '100%' }}>
                       <option value="">— Không chọn dự án —</option>
                       {clientProjects.map(p => (
                         <option key={p.id} value={p.id}>{p.name} ({p.status})</option>
                       ))}
                     </select>
                   ) : (
-                    <p style={{ fontSize: 12, color: '#666', padding: '10px 14px', background: '#111', border: '1px solid #333', borderRadius: 10 }}>
+                    <p className="rounded-xl border border-white/10 px-3 py-2 text-xs text-neutral-500" style={{ background: '#1a1a1a' }}>
                       Chưa có dự án nào. Bạn có thể tạo dự án trong tab Projects, hoặc nhập tên dự án thủ công trong hợp đồng.
                     </p>
                   );
@@ -692,11 +718,12 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
             {/* Actions */}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
               <button onClick={() => setShowContractPicker(false)}
-                style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid #333', background: 'transparent', color: '#888', fontWeight: 800, fontSize: 12, cursor: 'pointer', textTransform: 'uppercase' }}>
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
                 Huỷ
               </button>
               <button onClick={openContractGenerator} disabled={!pickerClientId}
-                style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: pickerClientId ? '#10b981' : '#333', color: pickerClientId ? '#fff' : '#666', fontWeight: 800, fontSize: 12, cursor: pickerClientId ? 'pointer' : 'not-allowed', textTransform: 'uppercase' }}>
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                style={{ background: pickerClientId ? '#10b981' : '#333' }}>
                 Tiếp tục
               </button>
             </div>
