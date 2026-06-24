@@ -12,10 +12,15 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 -- Only service_role can access (no RLS policies = no access for anon/authenticated)
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
--- Seed the Discord admin webhook URL
-INSERT INTO public.app_config (key, value)
-VALUES ('discord_admin_webhook', 'https://discord.com/api/webhooks/1519212578163916871/FgQDnYOiyYMxb9v0JogxBq4-CPnyXQ1yL8zSusD9k26FVa2_kSlp1cwuFhcWg7nSSHIA')
-ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+-- NOTE: Discord webhook URL is NOT stored here (would be visible in git history).
+-- Set the URL directly in Supabase SQL Editor after deploying this migration:
+--
+--   INSERT INTO public.app_config (key, value)
+--   VALUES ('discord_admin_webhook', 'YOUR_WEBHOOK_URL')
+--   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+--
+-- Or update existing:
+--   UPDATE public.app_config SET value = 'YOUR_WEBHOOK_URL' WHERE key = 'discord_admin_webhook';
 
 -- ── Rewrite notify_crm_document_pending → read from app_config ────────────────
 CREATE OR REPLACE FUNCTION public.notify_crm_document_pending()
