@@ -35,6 +35,33 @@ interface Props {
   onSwitchTab: (tab: string) => void;
 }
 
+// ── BD Perf Total Row ─────────────────────────────────────────
+const BdPerfTotalRow: React.FC<{ bdPerf: any[] }> = ({ bdPerf }) => {
+  const totActive = bdPerf.reduce((s: number, b: any) => s + b.active, 0);
+  const totWon = bdPerf.reduce((s: number, b: any) => s + b.won, 0);
+  const totLost = bdPerf.reduce((s: number, b: any) => s + b.lost, 0);
+  const totWonVal = bdPerf.reduce((s: number, b: any) => s + b.wonVal, 0);
+  const totClosed = totWon + totLost;
+  const totWr = totClosed > 0 ? Math.round((totWon / totClosed) * 100) : 0;
+  const allDays: number[] = bdPerf.flatMap((b: any) => b.closeDays);
+  const avgAll = allDays.length > 0 ? Math.round(allDays.reduce((a, b) => a + b, 0) / allDays.length) : 0;
+  return (
+    <div className="grid grid-cols-6 gap-2 pt-2 mt-2 border-t border-white/5">
+      <p className="text-[10px] font-black uppercase text-neutral-500">Tổng</p>
+      <span className="text-xs font-black text-white">{totActive}</span>
+      <div>
+        <span className="text-xs font-black text-status-success">{totWon}</span>
+        {totWonVal > 0 && <p className="text-[9px] text-neutral-600">{fmtValue(totWonVal, 'USD')}</p>}
+      </div>
+      <span className="text-xs font-black text-neutral-400">{totLost}</span>
+      <span className={`text-xs font-black ${totWr >= 50 ? 'text-status-success' : 'text-status-warning'}`}>
+        {totClosed > 0 ? `${totWr}%` : '—'}
+      </span>
+      <span className="text-xs font-black text-neutral-400">{avgAll > 0 ? `${avgAll}d` : '—'}</span>
+    </div>
+  );
+};
+
 // ═══════════════════════════════════════════════════════════════
 // BD DASHBOARD
 // ═══════════════════════════════════════════════════════════════
@@ -87,6 +114,34 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     .filter(d => d.next_follow_up)
     .filter(d => daysUntil(d.next_follow_up!) <= 3)
     .sort((a, b) => new Date(a.next_follow_up!).getTime() - new Date(b.next_follow_up!).getTime());
+
+  // ── BD Performance stats ────────────────────────────────────
+  type BdStat = { name: string; active: number; won: number; lost: number; pipelineVal: number; wonVal: number; avgDaysToClose: number; closeDays: number[] };
+  const bdPerf = (() => {
+    const owners: Map<string, BdStat> = new Map();
+    deals.forEach(d => {
+      const name = d.owner_name || 'Chưa gán';
+      if (!owners.has(name)) owners.set(name, { name, active: 0, won: 0, lost: 0, pipelineVal: 0, wonVal: 0, avgDaysToClose: 0, closeDays: [] });
+      const o = owners.get(name)!;
+      if (d.stage === 'won') {
+        o.won++;
+        o.wonVal += d.value;
+        if (d.actual_close_date && d.created_at) {
+          const days = Math.max(1, Math.floor((new Date(d.actual_close_date).getTime() - new Date(d.created_at).getTime()) / 86_400_000));
+          o.closeDays.push(days);
+        }
+      } else if (d.stage === 'lost') {
+        o.lost++;
+      } else {
+        o.active++;
+        o.pipelineVal += d.value;
+      }
+    });
+    owners.forEach(o => {
+      o.avgDaysToClose = o.closeDays.length > 0 ? Math.round(o.closeDays.reduce((a, b) => a + b, 0) / o.closeDays.length) : 0;
+    });
+    return [...owners.values()].sort((a, b) => b.wonVal - a.wonVal);
+  })();
 
   // Client map for activity feed
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
@@ -291,6 +346,55 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
               </div>
             )}
           </div>
+
+          {/* BD Performance Report */}
+          {bdPerf.length > 0 && (
+            <div className="rounded-2xl border border-white/8 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-4">📊 Hiệu suất BD</p>
+
+              {/* Table header */}
+              <div className="grid grid-cols-6 gap-2 pb-2 border-b border-white/5 mb-2">
+                {['BD', 'Active', 'Won', 'Lost', 'Win Rate', 'Avg Close'].map(h => (
+                  <p key={h} className="text-[9px] font-black uppercase tracking-wider text-neutral-700">{h}</p>
+                ))}
+              </div>
+
+              {/* Rows */}
+              <div className="space-y-1">
+                {bdPerf.map(bd => {
+                  const total = bd.won + bd.lost;
+                  const wr = total > 0 ? Math.round((bd.won / total) * 100) : 0;
+                  return (
+                    <div key={bd.name} className="grid grid-cols-6 gap-2 py-2 rounded-lg hover:bg-white/5 transition-all">
+                      <p className="text-xs font-semibold text-white truncate">{bd.name}</p>
+                      <div>
+                        <span className="text-xs font-semibold text-white">{bd.active}</span>
+                        {bd.pipelineVal > 0 && (
+                          <p className="text-[9px] text-neutral-600">{fmtValue(bd.pipelineVal, 'USD')}</p>
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-xs font-black text-status-success">{bd.won}</span>
+                        {bd.wonVal > 0 && (
+                          <p className="text-[9px] text-neutral-600">{fmtValue(bd.wonVal, 'USD')}</p>
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-neutral-400">{bd.lost}</span>
+                      <span className={`text-xs font-black ${wr >= 50 ? 'text-status-success' : wr > 0 ? 'text-status-warning' : 'text-neutral-600'}`}>
+                        {total > 0 ? `${wr}%` : '—'}
+                      </span>
+                      <span className="text-xs font-semibold text-neutral-400">
+                        {bd.avgDaysToClose > 0 ? `${bd.avgDaysToClose}d` : '—'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Total row */}
+              {bdPerf.length > 1 && <BdPerfTotalRow bdPerf={bdPerf} />}
+            </div>
+          )}
         </div>
 
         {/* ════ RIGHT COLUMN (1/3) ════ */}

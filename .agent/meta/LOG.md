@@ -2,6 +2,31 @@
 
 ---
 
+## 2026-06-30
+### Task
+CRM P2 — BD Performance Report
+
+### Work Done
+- Added "📊 Hiệu suất BD" section to BdDashboard left column
+- Per-BD table: 6 columns (BD name, Active deals + pipeline value, Won count + value, Lost count, Win Rate %, Avg Days to Close)
+- Color-coded win rate (≥50% green, >0% warning, 0 neutral)
+- Total row component (`BdPerfTotalRow`) with aggregated stats across all BDs
+- Fixed esbuild `.tsx` parser issue: `new Map<string, {...}>()` generic syntax confused JSX parser → extracted `type BdStat` alias with `Map<string, BdStat>` annotation
+- Fixed div nesting bug: BD Performance section was placed outside left column `</div>` → moved inside
+
+### Validation
+- `npm run build` ✅ (277 modules, 7.81s, 0 errors)
+
+### Result
+- Dashboard now shows per-BD performance comparison table
+- All CRM roadmap items (P0+P1+P2) complete
+
+### Next Step
+- Commit + push
+- P2 Quotation is remaining (lower priority, can be done later)
+
+---
+
 ## 2026-06-29
 ### Task
 CRM P1 — Follow-up Reminders + Client Ownership

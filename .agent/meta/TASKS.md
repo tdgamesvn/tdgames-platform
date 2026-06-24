@@ -40,6 +40,10 @@ _(trống)_
 
 ## Recently Completed
 
+- [x] CRM P2 — BD Performance Report
+  - Done: 2026-06-30
+  - Result: Per-BD table in dashboard (Active/Won/Lost/Win Rate/Avg Days to Close), per-BD pipeline+won values, total row with aggregates. Build ✅
+
 - [x] CRM P1 — Follow-up Reminders + Client Ownership
   - Done: 2026-06-29
   - Result: Follow-up: next_follow_up date on deals (card indicator, form picker, detail panel inline edit, dashboard section). Client Ownership: assigned_bd_name on clients (ClientList badge, ClientForm input). Migration + types + UI. Build ✅
