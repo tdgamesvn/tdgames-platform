@@ -152,7 +152,7 @@ Deno.serve(async (req: Request) => {
   const [studiosRes, leadsRes] = await Promise.all([
     // Chỉ exclude studios queried trong 7 ngày — không phải 90 ngày
     supabase
-      .from("crm_discovered_studios")
+      .from("crm_studios")
       .select("apollo_id")
       .gte("discovered_at", recentCutoff.toISOString()),
     // Email dedup: không thêm lại contact đã có trong outreach list
@@ -230,12 +230,14 @@ Deno.serve(async (req: Request) => {
 
   // Insert new discovered studios
   if (result.new_apollo_ids?.length) {
-    const { error: studiosErr } = await supabase.from("crm_discovered_studios").upsert(
+    const { error: studiosErr } = await supabase.from("crm_studios").upsert(
       result.new_apollo_ids.map(s => ({
         apollo_id: s.apollo_id,
         studio_name: s.studio_name,
         country: s.country,
         contacts_found: s.contacts_found,
+        source: "discovered",
+        bd_status: "uncontacted",
         discovered_at: new Date().toISOString(),
       })),
       { onConflict: "apollo_id" },
