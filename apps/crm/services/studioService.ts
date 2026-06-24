@@ -14,6 +14,8 @@ export interface CrmStudio {
   discovered_at: string | null;
   created_at: string;
   updated_at: string;
+  owner_id?: string | null;
+  owner_name?: string | null;
 }
 
 export interface StudioLead {
@@ -117,6 +119,18 @@ export async function fetchLeadsByStudio(studioId: number): Promise<StudioLead[]
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as StudioLead[];
+}
+
+export async function assignStudioOwner(
+  studioId: number,
+  ownerId: string,
+  ownerName: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('crm_studios')
+    .update({ owner_id: ownerId, owner_name: ownerName })
+    .eq('id', studioId);
+  if (error) throw error;
 }
 
 export { PAGE_SIZE as STUDIO_PAGE_SIZE };

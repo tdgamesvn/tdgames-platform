@@ -307,6 +307,8 @@ export interface CrmDocument {
   contract_value?: number | null;
   contract_currency?: 'USD' | 'VND' | null;
   created_at: string;
+  contract_value?: number | null;
+  contract_currency?: 'USD' | 'VND' | null;
 }
 
 export interface CrmProject {

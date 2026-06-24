@@ -345,3 +345,22 @@ export async function deleteQuotation(id: string): Promise<void> {
   const { error } = await supabase.from('crm_quotations').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ══════════════════════════════════════════════════════════════
+// ── BD Dashboard ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export async function fetchApprovedContracts(): Promise<Array<{
+  id: number;
+  created_by: string;
+  contract_value: number | null;
+  contract_currency: string | null;
+}>> {
+  const { data, error } = await supabase
+    .from('crm_documents')
+    .select('id, created_by, contract_value, contract_currency')
+    .eq('doc_type', 'contract')
+    .eq('approval_status', 'approved');
+  if (error) throw error;
+  return data ?? [];
+}
