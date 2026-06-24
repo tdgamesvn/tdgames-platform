@@ -15,6 +15,7 @@ interface Props {
   projects: CrmProject[];
   onClose: () => void;
   onSaved?: () => void;
+  currentUserId?: string;
 }
 
 const todayStr = () => {
@@ -26,7 +27,7 @@ const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white border border-w
 const inputStyle = { background: '#111', colorScheme: 'dark' as const };
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-1';
 
-const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, onClose, onSaved }) => {
+const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, onClose, onSaved, currentUserId }) => {
   // ── Bank accounts ──
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [selectedBankId, setSelectedBankId] = useState('');
@@ -176,6 +177,8 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
         file_name: `${contractNumber}.pdf`,
         file_size: 0,
         notes: JSON.stringify({ companyKey, totalValue, currency, phases: phases.length }),
+        approval_status: 'pending_approval',
+        created_by: currentUserId || null,
       });
       setSaveSuccess(true);
       onSaved?.();

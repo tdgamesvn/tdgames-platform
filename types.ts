@@ -298,6 +298,10 @@ export interface CrmDocument {
   file_name: string;
   file_size: number;
   notes: string;
+  approval_status?: 'pending_approval' | 'approved' | 'rejected' | null;
+  created_by?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
   created_at: string;
 }
 
@@ -339,6 +343,28 @@ export interface CrmActivity {
   activity_date: string;
   actor: string;
   created_at: string;
+}
+
+// ── CRM Deals (Sales Pipeline) ────────────────────────────────
+export type CrmDealStage = 'lead' | 'contacted' | 'negotiating' | 'proposal_sent' | 'contracting' | 'won' | 'lost';
+
+export interface CrmDeal {
+  id: string;
+  client_id: string;
+  client_name?: string;          // joined from crm_clients
+  title: string;
+  value: number;
+  currency: 'USD' | 'VND';
+  stage: CrmDealStage;
+  owner_id: string;              // auth.users.id of the BD
+  owner_name?: string;           // display name
+  expected_close_date: string;
+  actual_close_date?: string | null;
+  lost_reason?: string;
+  probability: number;           // 0–100
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // ── CRM Outreach (Lead-centric) ───────────────────────────────

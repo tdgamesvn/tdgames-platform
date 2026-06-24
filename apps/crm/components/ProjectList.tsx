@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { CrmClient, CrmProject, CrmProjectFile, CrmDocument } from '@/types';
+import { CrmClient, CrmProject, CrmProjectFile, CrmDocument, AccountUser } from '@/types';
 import * as svc from '../services/crmService';
 import type { InvoiceRecord } from '../services/crmService';
 
@@ -19,6 +19,7 @@ const toPublicUrl = (url: string): string => {
 
 interface Props {
   clients: CrmClient[];
+  currentUser?: AccountUser;
 }
 
 const PROJECT_STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -47,7 +48,8 @@ const formatSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const ProjectList: React.FC<Props> = ({ clients }) => {
+const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
+  const canDelete = currentUser?.role !== 'bd';
   const [projects, setProjects] = useState<CrmProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filterClient, setFilterClient] = useState('');

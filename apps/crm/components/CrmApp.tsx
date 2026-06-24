@@ -12,6 +12,7 @@ import DocumentList from './DocumentList';
 import PaymentTracker from './PaymentTracker';
 import ActivityTimeline from './ActivityTimeline';
 import { fetchActivities } from '../services/crmService';
+import DealPipeline from './DealPipeline';
 import HelpPanel from '@/components/HelpPanel';
 import { CRM_HELP } from '../helpContent';
 
@@ -22,6 +23,8 @@ interface CrmAppProps {
 }
 
 const TAB_MAP: Record<CrmTab, string> = {
+  dashboard:  'dashboard',
+  deals:      'deals',
   clients:    'history',
   projects:   'tasks',
   documents:  'settings',
@@ -31,6 +34,8 @@ const TAB_MAP: Record<CrmTab, string> = {
 };
 
 const TAB_LABELS: Record<string, string> = {
+  dashboard: 'Tổng quan',
+  deals:    'Deal Pipeline',
   history:  'Khách hàng',
   tasks:    'Dự án',
   settings: 'Tài liệu',
@@ -40,12 +45,14 @@ const TAB_LABELS: Record<string, string> = {
 };
 
 const REVERSE_TAB: Record<string, CrmTab> = {
-  history:  'clients',
-  tasks:    'projects',
-  settings: 'documents',
-  activity: 'payments',
-  board:    'activities',
-  outreach: 'outreach',
+  dashboard: 'dashboard',
+  deals:     'deals',
+  history:   'clients',
+  tasks:     'projects',
+  settings:  'documents',
+  activity:  'payments',
+  board:     'activities',
+  outreach:  'outreach',
 };
 
 const TYPE_ICON: Record<string, { icon: string; label: string; color: string }> = {
@@ -175,7 +182,10 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   const [helpOpen, setHelpOpen] = useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const accessibleTabs = ['history', 'tasks', 'settings', 'activity', 'board', 'outreach'];
+  const isBd = currentUser.role === 'bd';
+  const accessibleTabs = isBd
+    ? ['dashboard', 'deals', 'history', 'tasks', 'settings', 'board', 'outreach']
+    : ['dashboard', 'deals', 'history', 'tasks', 'settings', 'activity', 'board', 'outreach'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -239,6 +249,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
                 onDelete={state.handleDeleteClient}
                 onRefresh={state.loadClients}
                 onAdd={() => { state.setEditingClient(null); setShowForm(true); }}
+                currentUser={currentUser}
               />
             )}
           </>
@@ -246,12 +257,12 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
         {/* ── Projects Tab ── */}
         {state.activeTab === 'projects' && (
-          <ProjectList clients={state.clients} />
+          <ProjectList clients={state.clients} currentUser={currentUser} />
         )}
 
         {/* ── Documents Tab ── */}
         {state.activeTab === 'documents' && (
-          <DocumentList clients={state.clients} />
+          <DocumentList clients={state.clients} currentUser={currentUser} />
         )}
 
         {/* ── Payments Tab ── */}
@@ -262,6 +273,11 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
         {/* ── Activities Tab ── */}
         {state.activeTab === 'activities' && (
           <GlobalActivityFeed clients={state.clients} actor={currentUser.username} />
+        )}
+
+        {/* ── Deal Pipeline Tab ── */}
+        {state.activeTab === 'deals' && (
+          <DealPipeline currentUser={currentUser} clients={state.clients} />
         )}
 
         {/* ── Email Outreach Tab ── */}

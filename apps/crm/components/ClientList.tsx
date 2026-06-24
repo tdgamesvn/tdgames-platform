@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CrmClient } from '@/types';
+import { CrmClient, AccountUser } from '@/types';
 import { Button } from '@/components/Button';
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
   onDelete: (id: string) => void;
   onRefresh: () => void;
   onAdd: () => void;
+  currentUser?: AccountUser;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
@@ -33,8 +34,9 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 const ClientList: React.FC<Props> = ({
   clients, isLoading, searchQuery, setSearchQuery, filterStatus, setFilterStatus,
   filterIndustry, setFilterIndustry, industries, statusCounts, totalClients,
-  onEdit, onDelete, onRefresh, onAdd,
+  onEdit, onDelete, onRefresh, onAdd, currentUser,
 }) => {
+  const canDelete = currentUser?.role !== 'bd';
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const selectStyle: React.CSSProperties = {
@@ -177,7 +179,7 @@ const ClientList: React.FC<Props> = ({
                   padding: '8px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent',
                   color: '#ccc', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                 }}>✏️ Sửa</button>
-                {deleteConfirm === client.id ? (
+                {canDelete && (deleteConfirm === client.id ? (
                   <div style={{ display: 'flex', gap: '4px' }}>
                     <button onClick={() => { onDelete(client.id); setDeleteConfirm(null); }} style={{
                       padding: '8px 14px', border: 'none', borderRadius: '8px', background: '#FF453A',
@@ -193,7 +195,7 @@ const ClientList: React.FC<Props> = ({
                     padding: '8px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent',
                     color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
                   }}>🗑️</button>
-                )}
+                ))}
               </div>
             </div>
           );

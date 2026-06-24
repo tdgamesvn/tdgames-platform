@@ -2,6 +2,120 @@
 
 ---
 
+## 2026-06-27
+### Task
+CRM Deal Pipeline — Phase 4 (Polish) — FEATURE COMPLETE
+
+### Work Done
+- **DealCard**: drag opacity (0.4 while dragging), cursor-grab/grabbing, `onDragEnd` cleanup, days-in-stage indicator (Xd badge, color-coded: >30d red, >14d yellow, else neutral)
+- **PipelineColumn**: improved empty states with stage-specific hints (lead→"Thêm deal mới", won→"Kéo deal vào đây khi chốt"), drop indicator (dashed border + "Thả vào đây" text) when dragging over empty column
+- **PipelineBoard**: pass `onDragEnd`, responsive horizontal scroll padding (`-mx-6 px-6 md:-mx-12 md:px-12`) for edge-to-edge scroll
+- **useDealPipeline**: toast notifications for ALL CRUD actions (create/update/delete/stage change/inline edit), refetch on tab focus via `visibilitychange`, `handleDragEnd` to clean dragOverStage
+- **DealPipeline**: wired `<ToastNotification>` component + `onDragEnd` prop
+
+### Validation
+- `npm run build` ✅ (276 modules, 7.87s, 0 errors)
+
+### Result
+ALL 4 PHASES COMPLETE:
+- Phase 1 ✅ Foundation: 661→76 dòng refactor, 14 files
+- Phase 2 ✅ Features: 3-tab detail panel, inline edit, stage transition rules
+- Phase 3 ✅ Filters: stage/owner/currency filters + responsive metrics
+- Phase 4 ✅ Polish: drag feedback, toast, days-in-stage, drop indicator, refetch on focus
+
+### Next Step
+- Commit + deploy khi sếp sẵn sàng
+
+---
+
+## 2026-06-26
+### Task
+CRM Deal Pipeline — Phase 3 (Filters + Metrics)
+
+### Work Done
+- Created `hooks/useDealFilters.ts` — filter state hook with search, stage (all/active/specific), owner, currency filters; `useMemo` for derived owners list + filtered deals
+- Created `pipeline/PipelineFilters.tsx` — filter bar UI: 3 quick pills (Tất cả / Đang xử lý) + stage dropdown + owner dropdown (auto-hidden if ≤1) + currency dropdown + active filter count + reset button
+- Upgraded `PipelineMetrics.tsx` — accepts both `deals` (all) and `filteredDeals`, shows scoped stats when filtered with "X active (Y tổng)" context, added W/L breakdown to Win Rate
+- Rewrote `useDealPipeline.ts` — integrated `useDealFilters`, removed old search/filtered state, columns now built from `dealFilters.filtered`, return surface exposes `filters`/`setFilter`/`resetFilters`/`hasActiveFilters`/`owners`/`filteredDeals`
+- Updated `DealPipeline.tsx` — search input now uses `p.setFilter('search', ...)`, added `<PipelineFilters>` bar, `<PipelineMetrics>` gets both `deals` + `filteredDeals` + `hasActiveFilters`
+- Added `PipelineFilters` to barrel export
+
+### Validation
+- `npm run build` ✅ (276 modules, 7.75s, 0 errors)
+
+### Result
+- Filter bar with stage pills + dropdowns for stage/owner/currency
+- KPI cards respond to active filters, showing scoped vs total context
+- All filters composable (can combine stage + owner + currency + search)
+- "Xóa lọc" reset button appears when filters active
+
+### Next Step
+- Phase 4: Polish (drag feedback, responsive, keyboard shortcuts)
+
+---
+
+## 2026-06-25
+### Task
+CRM Deal Pipeline — Phase 1 + Phase 2 Implementation
+
+### Work Done
+**Phase 1 (Foundation) — tách DealPipeline.tsx monolith:**
+- Tách 661 dòng → 11 files nhỏ trong `apps/crm/components/pipeline/` + `apps/crm/hooks/`
+- `constants.ts` (STAGES, formatters), `StageBadge.tsx`, `DealCard.tsx`, `PipelineColumn.tsx`, `PipelineBoard.tsx`, `PipelineMetrics.tsx`, `DealFormModal.tsx`, `DealDetailPanel.tsx`, `index.ts` barrel
+- `useDealPipeline.ts` hook — tách toàn bộ state + CRUD + drag-drop logic
+- `DealPipeline.tsx` giảm từ 661 → 76 dòng (thin wrapper)
+- Wire `deals` tab vào CrmApp.tsx (trước đó import nhưng không render)
+- Xóa import `BdDashboard` (file không tồn tại)
+
+**Phase 2 (Features) — nâng cấp DealDetailPanel + DealFormModal:**
+- DealDetailPanel: 3 tabs (Tổng quan / Hoạt động / Tài liệu), panel width 420→480px
+- Tab Tổng quan: inline edit notes + probability (click-to-edit, Escape cancel, Enter save)
+- Tab Hoạt động: MiniActivityList — load activities by client_id, quick-add form (type + title)
+- Tab Tài liệu: MiniDocumentList — read-only doc list by client_id, clickable links
+- `InlineEditField` component — reusable inline edit cho text/textarea/number
+- DealFormModal: stage transition rules:
+  - Lost → require lost_reason (validation error), auto actual_close_date
+  - Won → auto actual_close_date + info badge
+  - Auto probability suggestion by stage (lead=10%, contacted=20%... won=100%, lost=0%)
+  - Escape keyboard shortcut đóng modal
+  - max-h-[90vh] overflow-y-auto cho form dài
+- `useDealPipeline.ts`: thêm `updateDealField()` cho inline edit optimistic
+
+### Validation
+- `npm run build` ✅ (274 modules, 7.73s, 0 TypeScript errors)
+
+### Result
+- Deal Pipeline có đầy đủ: Kanban board + tabbed detail panel + inline edit + stage rules
+- Phase 1+2 = MVP hoàn chỉnh
+
+### Next Step
+- Phase 3: Filters + URL sync
+- Phase 4: Polish (drag feedback, responsive)
+
+---
+
+## 2026-06-24
+### Task
+CRM Deal Pipeline — Design Spec (5 sections)
+
+### Work Done
+- Hoàn thành design spec đầy đủ 5 sections cho CRM Deal Pipeline:
+  - **Section 1: UI Layout & Visual Design** — Kanban board 7 stages (Lead→Won/Lost), DealCard layout, responsive rules
+  - **Section 2: Component Specs** — DealDetailPanel (slide-over 480px, 4 tabs), DealFormModal, PipelineFilters, PipelineMetrics
+  - **Section 3: Data Flow & Interactions** — CRUD, drag-drop stage transitions, transition rules (Won→auto close_date, Lost→require reason), optimistic updates, URL sync
+  - **Section 4: Component Structure & File Organization** — 11 new files under pipeline/ + hooks/, dependency tree
+  - **Section 5: Implementation Plan** — 4 phases (Foundation→Features→Filters→Polish), task breakdown, priorities, risks & mitigations, out-of-scope
+- Phân tích DealPipeline.tsx hiện tại (661 dòng) — cần refactor thành components nhỏ
+
+### Result
+- Design spec sẵn sàng cho implementation
+- Phase 1 (Foundation) là next step — tách DealPipeline.tsx
+
+### Next Step
+- Bắt đầu code Phase 1: StageBadge, DealCard, PipelineColumn, useDealDragDrop, PipelineBoard
+
+---
+
 ## 2026-06-23
 ### Task
 Upgrade GrossNet Calculator to support detailed salary component breakdown

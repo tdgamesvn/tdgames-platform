@@ -46,6 +46,10 @@ const TYPE_META: Record<string, { subject: string; category: string }> = {
   eval_completed:         { subject: 'Kỳ đánh giá đã hoàn tất',                 category: 'Đánh giá'    },
   eval_assigned:          { subject: 'Bạn có form tự đánh giá mới cần hoàn thành', category: 'Đánh giá' },
   eval_deadline_reminder: { subject: 'Nhắc nhở: Form tự đánh giá sắp hết hạn', category: 'Đánh giá'    },
+  // Duyệt hợp đồng CRM
+  contract_pending_approval: { subject: 'Hợp đồng mới cần duyệt',              category: 'CRM'        },
+  contract_approved:         { subject: 'Hợp đồng của bạn đã được duyệt',       category: 'CRM'        },
+  contract_rejected:         { subject: 'Hợp đồng của bạn bị từ chối',          category: 'CRM'        },
 };
 
 // ── Plain-text fallback ───────────────────────────────────────────────────────

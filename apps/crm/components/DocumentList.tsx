@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { CrmClient, CrmDocument, CrmProject, CrmContact } from '@/types';
+import { CrmClient, CrmDocument, CrmProject, CrmContact, AccountUser } from '@/types';
 import * as svc from '../services/crmService';
 import ClientContractGenerator from './ClientContractGenerator';
+import { hasAnyRole } from '@/utils/roleUtils';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_URL || '';
@@ -19,6 +20,7 @@ const toPublicUrl = (url: string): string => {
 
 interface Props {
   clients: CrmClient[];
+  currentUser: AccountUser;
 }
 
 const DOC_TYPES: Record<string, { label: string; icon: string; color: string }> = {
@@ -50,7 +52,13 @@ const formatSize = (bytes: number) => {
 
 const emptyForm = { client_id: '', project_id: '' as string | null, doc_type: 'contract', title: '', file_url: '', file_name: '', file_size: 0, notes: '' };
 
-const DocumentList: React.FC<Props> = ({ clients }) => {
+const APPROVAL_BADGE: Record<string, { label: string; color: string; icon: string }> = {
+  pending_approval: { label: 'Chờ duyệt', color: '#FFA726', icon: '⏳' },
+  approved:         { label: 'Đã duyệt', color: '#4CAF50', icon: '✅' },
+  rejected:         { label: 'Từ chối',  color: '#F44336', icon: '❌' },
+};
+
+const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
   const [docs, setDocs] = useState<CrmDocument[]>([]);
   const [allProjects, setAllProjects] = useState<CrmProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +71,11 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewTitle, setPreviewTitle] = useState('');
+  // Approval state
+  const [approvalNote, setApprovalNote] = useState('');
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [expandedApprovalId, setExpandedApprovalId] = useState<string | null>(null);
+  const isAdmin = hasAnyRole(currentUser, ['admin']);
 
   // Contract generator state
   const [contractGenClient, setContractGenClient] = useState<CrmClient | null>(null);
@@ -236,6 +249,38 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
 
   const handleDownload = (url: string, _filename: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleApprove = async (id: string) => {
+    setApprovingId(id);
+    try {
+      await svc.approveDocument(id, currentUser.id, approvalNote || undefined);
+      setExpandedApprovalId(null);
+      setApprovalNote('');
+      load();
+    } catch (err: any) {
+      alert('Duyệt thất bại: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!approvalNote.trim()) {
+      alert('Vui lòng nhập lý do từ chối');
+      return;
+    }
+    setApprovingId(id);
+    try {
+      await svc.rejectDocument(id, currentUser.id, approvalNote);
+      setExpandedApprovalId(null);
+      setApprovalNote('');
+      load();
+    } catch (err: any) {
+      alert('Từ chối thất bại: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setApprovingId(null);
+    }
   };
 
   // Projects for filter bar (based on filterClient)
@@ -457,70 +502,132 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
           const hasFile = !!doc.file_url;
           const canPreview = hasFile && isPreviewable(doc.file_url);
           const pName = projectName(doc.project_id);
+          const approval = doc.approval_status ? APPROVAL_BADGE[doc.approval_status] : null;
+          const isApproved = doc.approval_status === 'approved';
+          const isPending = doc.approval_status === 'pending_approval';
+          const canEdit = !isApproved; // Đã duyệt thì không được sửa
           return (
-            <div key={doc.id} style={{
-              background: '#161616', border: '1px solid #222', borderRadius: '10px', padding: '16px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.2s',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = dt.color; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#222'; }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <span style={{ fontSize: '24px' }}>{dt.icon}</span>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5' }}>{doc.title}</span>
-                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: dt.color + '20', color: dt.color, textTransform: 'uppercase' }}>{dt.label}</span>
-                    {doc.file_name && <span style={{ fontSize: '10px', color: '#34C759', fontWeight: 600 }}>📄 {doc.file_name}</span>}
-                    {doc.file_size > 0 && <span style={{ fontSize: '10px', color: '#555' }}>{formatSize(doc.file_size)}</span>}
-                  </div>
-                  <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: '#666', flexWrap: 'wrap' }}>
-                    <span>🏢 {clientName(doc.client_id)}</span>
-                    {pName && <span style={{ color: '#AF52DE' }}>📁 {pName}</span>}
-                    <span>📅 {new Date(doc.created_at).toLocaleDateString('vi-VN')}</span>
-                    {doc.notes && <span>📝 {doc.notes}</span>}
+            <div key={doc.id}>
+              <div style={{
+                background: '#161616', border: `1px solid ${isPending ? 'rgba(255,167,38,0.25)' : '#222'}`, borderRadius: '10px', padding: '16px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'border-color 0.2s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = dt.color; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = isPending ? 'rgba(255,167,38,0.25)' : '#222'; }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <span style={{ fontSize: '24px' }}>{dt.icon}</span>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#F5F5F5' }}>{doc.title}</span>
+                      <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: dt.color + '20', color: dt.color, textTransform: 'uppercase' }}>{dt.label}</span>
+                      {approval && (
+                        <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: approval.color + '20', color: approval.color, textTransform: 'uppercase' }}>
+                          {approval.icon} {approval.label}
+                        </span>
+                      )}
+                      {doc.file_name && <span style={{ fontSize: '10px', color: '#34C759', fontWeight: 600 }}>📄 {doc.file_name}</span>}
+                      {doc.file_size > 0 && <span style={{ fontSize: '10px', color: '#555' }}>{formatSize(doc.file_size)}</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: '14px', fontSize: '12px', color: '#666', flexWrap: 'wrap' }}>
+                      <span>🏢 {clientName(doc.client_id)}</span>
+                      {pName && <span style={{ color: '#AF52DE' }}>📁 {pName}</span>}
+                      <span>📅 {new Date(doc.created_at).toLocaleDateString('vi-VN')}</span>
+                      {doc.approved_by && doc.approved_at && (
+                        <span style={{ color: isApproved ? '#4CAF50' : '#F44336' }}>
+                          {isApproved ? '✅' : '❌'} Duyệt: {new Date(doc.approved_at).toLocaleDateString('vi-VN')}
+                        </span>
+                      )}
+                      {doc.notes && <span>📝 {doc.notes}</span>}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '12px', position: 'relative', zIndex: 10 }}>
-                <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(doc); }} title="Sửa"
-                  style={{ padding: '7px 12px', border: '1px solid #FF950030', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✏️ Sửa</button>
-                {hasFile && canPreview && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewUrl(toPublicUrl(doc.file_url)); setPreviewTitle(doc.file_name || doc.title); }} title="Xem trước"
-                    style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>👁️ Xem</button>
-                )}
-                {hasFile && !canPreview && (
-                  <a href={toPublicUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                    style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', textDecoration: 'none', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🔗 Mở</a>
-                )}
-                {hasFile && (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); handleDownload(toPublicUrl(doc.file_url), doc.file_name || doc.title); }} title="Tải về"
-                    style={{ padding: '7px 12px', border: '1px solid #34C75930', borderRadius: '6px', background: 'rgba(52,199,89,0.1)', color: '#34C759', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⬇️ Tải</button>
-                )}
-                {!hasFile && (
-                  <label title="Upload bản scan đã ký"
-                    style={{ padding: '7px 12px', border: '1px solid #AF52DE30', borderRadius: '6px', background: 'rgba(175,82,222,0.1)', color: '#AF52DE', fontSize: '12px', fontWeight: 700, cursor: uploadingScanId === doc.id ? 'wait' : 'pointer', opacity: uploadingScanId === doc.id ? 0.6 : 1 }}>
-                    {uploadingScanId === doc.id ? '⏳ Đang upload...' : '📤 Upload scan'}
-                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style={{ display: 'none' }}
-                      disabled={!!uploadingScanId}
-                      onChange={(e) => { e.stopPropagation(); const f = e.target.files?.[0]; if (f) handleUploadScan(doc.id, f); }} />
-                  </label>
-                )}
-                {deleteConfirmId === doc.id ? (
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#FF453A', fontWeight: 700, marginRight: '2px' }}>Xoá?</span>
-                    <button type="button" disabled={deleting} onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
-                      style={{ padding: '7px 12px', border: 'none', borderRadius: '6px', background: '#FF453A', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
-                      {deleting ? '...' : '✓ Xác nhận'}
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '12px', position: 'relative', zIndex: 10 }}>
+                  {/* Edit — chỉ hiện khi chưa duyệt */}
+                  {canEdit && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(doc); }} title="Sửa"
+                      style={{ padding: '7px 12px', border: '1px solid #FF950030', borderRadius: '6px', background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✏️ Sửa</button>
+                  )}
+                  {/* Admin: Duyệt/Từ chối cho pending */}
+                  {isAdmin && isPending && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setExpandedApprovalId(expandedApprovalId === doc.id ? null : doc.id); setApprovalNote(''); }}
+                      style={{ padding: '7px 12px', border: '1px solid rgba(76,175,80,0.3)', borderRadius: '6px', background: 'rgba(76,175,80,0.1)', color: '#4CAF50', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>
+                      📋 Duyệt
                     </button>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
-                      style={{ padding: '7px 10px', border: '1px solid #333', borderRadius: '6px', background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✕</button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(doc.id); }} title="Xoá"
-                    style={{ padding: '7px 12px', border: '1px solid #FF453A30', borderRadius: '6px', background: 'rgba(255,69,58,0.1)', color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🗑️</button>
-                )}
+                  )}
+                  {hasFile && canPreview && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setPreviewUrl(toPublicUrl(doc.file_url)); setPreviewTitle(doc.file_name || doc.title); }} title="Xem trước"
+                      style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>👁️ Xem</button>
+                  )}
+                  {hasFile && !canPreview && (
+                    <a href={toPublicUrl(doc.file_url)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                      style={{ padding: '7px 12px', border: '1px solid #0A84FF30', borderRadius: '6px', textDecoration: 'none', background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🔗 Mở</a>
+                  )}
+                  {hasFile && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDownload(toPublicUrl(doc.file_url), doc.file_name || doc.title); }} title="Tải về"
+                      style={{ padding: '7px 12px', border: '1px solid #34C75930', borderRadius: '6px', background: 'rgba(52,199,89,0.1)', color: '#34C759', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>⬇️ Tải</button>
+                  )}
+                  {!hasFile && (
+                    <label title="Upload bản scan đã ký"
+                      style={{ padding: '7px 12px', border: '1px solid #AF52DE30', borderRadius: '6px', background: 'rgba(175,82,222,0.1)', color: '#AF52DE', fontSize: '12px', fontWeight: 700, cursor: uploadingScanId === doc.id ? 'wait' : 'pointer', opacity: uploadingScanId === doc.id ? 0.6 : 1 }}>
+                      {uploadingScanId === doc.id ? '⏳ Đang upload...' : '📤 Upload scan'}
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style={{ display: 'none' }}
+                        disabled={!!uploadingScanId}
+                        onChange={(e) => { e.stopPropagation(); const f = e.target.files?.[0]; if (f) handleUploadScan(doc.id, f); }} />
+                    </label>
+                  )}
+                  {/* Delete — admin luôn xoá được, BD chỉ xoá khi chưa duyệt */}
+                  {(isAdmin || canEdit) && (
+                    <>
+                      {deleteConfirmId === doc.id ? (
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', color: '#FF453A', fontWeight: 700, marginRight: '2px' }}>Xoá?</span>
+                          <button type="button" disabled={deleting} onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
+                            style={{ padding: '7px 12px', border: 'none', borderRadius: '6px', background: '#FF453A', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: deleting ? 'wait' : 'pointer', opacity: deleting ? 0.6 : 1 }}>
+                            {deleting ? '...' : '✓ Xác nhận'}
+                          </button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(null); }}
+                            style={{ padding: '7px 10px', border: '1px solid #333', borderRadius: '6px', background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(doc.id); }} title="Xoá"
+                          style={{ padding: '7px 12px', border: '1px solid #FF453A30', borderRadius: '6px', background: 'rgba(255,69,58,0.1)', color: '#FF453A', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>🗑️</button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
+              {/* Approval panel — mở ra khi admin click "Duyệt" */}
+              {expandedApprovalId === doc.id && isPending && isAdmin && (
+                <div style={{
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,167,38,0.2)', borderTop: 'none',
+                  borderRadius: '0 0 10px 10px', padding: '16px', display: 'flex', gap: '12px', alignItems: 'flex-end',
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#888', marginBottom: '6px' }}>
+                      Ghi chú (bắt buộc khi từ chối)
+                    </label>
+                    <input
+                      value={approvalNote}
+                      onChange={e => setApprovalNote(e.target.value)}
+                      placeholder="Nhập ghi chú..."
+                      style={{ width: '100%', padding: '10px 14px', background: '#1A1A1A', border: '1px solid #333', borderRadius: '8px', color: '#F5F5F5', fontSize: '13px', outline: 'none' }}
+                    />
+                  </div>
+                  <button type="button" disabled={approvingId === doc.id} onClick={() => handleApprove(doc.id)}
+                    style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', background: '#4CAF50', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: approvingId === doc.id ? 'wait' : 'pointer', opacity: approvingId === doc.id ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    {approvingId === doc.id ? '...' : '✅ Duyệt'}
+                  </button>
+                  <button type="button" disabled={approvingId === doc.id} onClick={() => handleReject(doc.id)}
+                    style={{ padding: '10px 20px', border: 'none', borderRadius: '8px', background: '#F44336', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: approvingId === doc.id ? 'wait' : 'pointer', opacity: approvingId === doc.id ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                    {approvingId === doc.id ? '...' : '❌ Từ chối'}
+                  </button>
+                  <button type="button" onClick={() => { setExpandedApprovalId(null); setApprovalNote(''); }}
+                    style={{ padding: '10px 14px', border: '1px solid #333', borderRadius: '8px', background: 'transparent', color: '#888', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    Huỷ
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -605,7 +712,8 @@ const DocumentList: React.FC<Props> = ({ clients }) => {
           contacts={contractGenContacts}
           projects={allProjects.filter(p => p.client_id === contractGenClient.id)}
           onClose={() => setContractGenClient(null)}
-          onSaved={() => { loadDocs(); }}
+          onSaved={() => { load(); }}
+          currentUserId={currentUser.id}
         />
       )}
     </div>

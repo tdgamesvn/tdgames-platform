@@ -40,6 +40,10 @@ _(trống)_
 
 ## Recently Completed
 
+- [x] CRM Deal Pipeline — Board + Detail Panel + Filters (4 phases)
+  - Done: 2026-06-27
+  - Result: Phase 1 (Foundation): tách 661→76 dòng, 14 files. Phase 2 (Features): 3-tab detail panel, inline edit, stage rules. Phase 3 (Filters): stage/owner/currency filters + responsive metrics. Phase 4 (Polish): drag feedback, toast, days-in-stage, drop indicator, refetch on focus. Build ✅
+
 - [x] Multi-role support (helper function approach)
   - Done: 2026-06-22
   - Result: Users can now have primary role + secondary_roles[]. Created hasRole/hasAnyRole/getUserRoles utils. Updated all 12 feature files. Added secondary roles toggle UI in EmployeeDetail. Updated edge function with update_secondary_roles action + check_email returns secondary_roles. Build passed ✅

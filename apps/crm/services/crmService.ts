@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
-import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity } from '@/types';
+import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage } from '@/types';
 
 // ══════════════════════════════════════════════════════════════
 // ── Clients ───────────────────────────────────────────────────
@@ -109,6 +109,48 @@ export async function deleteDocument(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function approveDocument(
+  id: string,
+  approvedBy: string,
+  note?: string
+): Promise<CrmDocument> {
+  const { data, error } = await supabase
+    .from('crm_documents')
+    .update({
+      approval_status: 'approved',
+      approved_by: approvedBy,
+      approved_at: new Date().toISOString(),
+      notes: note || undefined,
+    })
+    .eq('id', id)
+    .eq('approval_status', 'pending_approval')
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function rejectDocument(
+  id: string,
+  approvedBy: string,
+  note: string
+): Promise<CrmDocument> {
+  const { data, error } = await supabase
+    .from('crm_documents')
+    .update({
+      approval_status: 'rejected',
+      approved_by: approvedBy,
+      approved_at: new Date().toISOString(),
+      notes: note,
+    })
+    .eq('id', id)
+    .eq('approval_status', 'pending_approval')
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 // ══════════════════════════════════════════════════════════════
 // ── Projects ──────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
@@ -213,5 +255,55 @@ export async function createActivity(activity: Omit<CrmActivity, 'id' | 'created
 
 export async function deleteActivity(id: string): Promise<void> {
   const { error } = await supabase.from('crm_activities').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── Deals (Sales Pipeline) ───────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+export async function fetchDeals(): Promise<CrmDeal[]> {
+  const { data, error } = await supabase
+    .from('crm_deals')
+    .select('*, client:crm_clients(name)')
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((d: any) => ({
+    ...d,
+    client_name: d.client?.name || '',
+    client: undefined,
+  }));
+}
+
+export async function createDeal(deal: Omit<CrmDeal, 'id' | 'created_at' | 'updated_at' | 'client_name'>): Promise<CrmDeal> {
+  const { data, error } = await supabase
+    .from('crm_deals')
+    .insert(deal)
+    .select('*, client:crm_clients(name)')
+    .single();
+  if (error) throw error;
+  return { ...data, client_name: data.client?.name || '', client: undefined };
+}
+
+export async function updateDeal(id: string, updates: Partial<CrmDeal>): Promise<void> {
+  const { client_name, ...clean } = updates as any;
+  const { error } = await supabase
+    .from('crm_deals')
+    .update({ ...clean, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function updateDealStage(id: string, stage: CrmDealStage): Promise<void> {
+  const updates: any = { stage, updated_at: new Date().toISOString() };
+  if (stage === 'won' || stage === 'lost') {
+    updates.actual_close_date = new Date().toISOString().split('T')[0];
+  }
+  const { error } = await supabase.from('crm_deals').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteDeal(id: string): Promise<void> {
+  const { error } = await supabase.from('crm_deals').delete().eq('id', id);
   if (error) throw error;
 }
