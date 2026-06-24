@@ -1,6 +1,6 @@
 # TD GAMES PLATFORM — Dashboard UI/UX Style Guide
 
-_v1.3 — 2026-06-24 | Internal Dashboard, Desktop-first_
+_v1.4 — 2026-06-24 | Internal Dashboard, Desktop-first_
 
 > **AI INSTRUCTION:** Đọc file này TRƯỚC khi thiết kế hoặc viết bất kỳ UI component nào.
 > Mọi component mới phải tuân theo các pattern dưới đây. Không tự bịa pattern mới.
@@ -320,6 +320,74 @@ className="p-3 rounded-xl text-xs text-red-400 border border-red-500/20 bg-red-5
 
 > Transition speed: dùng `transition-all` mặc định (150ms). KHÔNG dùng `duration-500+` cho interactive elements.
 
+> ⚠️ **Stacking context trap:** Bất kỳ element nào dùng `transform` (kể cả `translateY(0)` từ `animate-fadeInUp`) đều tạo **CSS stacking context mới**. Mọi `position: fixed` con bên trong sẽ bị **trap** trong bounding box của element đó thay vì viewport. → Xem §Modals & Overlays để xử lý đúng.
+
+---
+
+## 🪟 Modals & Overlays
+
+> **Rule:** KHÔNG render modal/overlay trực tiếp bên trong component có `transform` (animation, translate, rotate, scale). Phải dùng **React Portal** để thoát khỏi stacking context.
+
+### Root Cause
+
+```
+DealPipeline (animate-fadeInUp → transform: translateY) ← tạo stacking context mới
+  └── DealFormModal (position: fixed, inset-0)         ← BỊ TRAP trong div trên
+       → backdrop chỉ phủ vùng DealPipeline, không phủ full màn hình
+```
+
+CSS spec: bất kỳ `transform` nào (kể cả `translateY(0)`) đều tạo stacking context → `position: fixed` không còn fixed theo viewport.
+
+### ✅ Pattern chuẩn — React Portal
+
+```tsx
+import { createPortal } from 'react-dom';
+
+export default function MyModal({ open, onClose }: Props) {
+  if (!open) return null;
+
+  return createPortal(
+    // Toàn bộ overlay render tại document.body — thoát khỏi mọi stacking context
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      {/* Panel */}
+      <div className="relative z-10 rounded-[20px] border border-primary/10 bg-surface p-6 w-full max-w-lg">
+        {/* content */}
+      </div>
+    </div>,
+    document.body
+  );
+}
+```
+
+### ✅ Pattern chuẩn — Side panel / Drawer
+
+```tsx
+import { createPortal } from 'react-dom';
+
+export default function MyDrawer({ open, onClose }: Props) {
+  if (!open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md h-full overflow-y-auto bg-surface border-l border-white/10 p-6">
+        {/* content */}
+      </div>
+    </div>,
+    document.body
+  );
+}
+```
+
+### Checklist
+
+- [ ] Component cha có `transform` / animation → **bắt buộc** dùng `createPortal`
+- [ ] `z-50` (hoặc cao hơn) trên overlay container
+- [ ] Backdrop `onClick={onClose}` để đóng khi click ngoài
+- [ ] `if (!open) return null` trước `createPortal` — tránh render khi đóng
+
 ---
 
 ## 🧩 Empty States
@@ -377,6 +445,7 @@ setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' });
 | `max-w-3xl` hoặc `max-w-*` trong tab component | Bỏ, để parent `max-w-[1400px]` lo |
 | `max-w-[1400px] mx-auto` cứng trên `<main>` khi app có kanban/board tab | Dùng conditional: `activeTab !== 'deals' ? ' max-w-[1400px] mx-auto' : ''` |
 | Tự tạo toast, modal overlay | Dùng `<ToastNotification>` có sẵn |
+| Render `position: fixed` modal bên trong element có `transform` (animation, translate…) | Dùng `createPortal(…, document.body)` — xem §Modals & Overlays |
 | `font-sans`, `font-mono` làm default | Montserrat (`font-montserrat`) là font duy nhất |
 | Hardcode màu ngoài token | Dùng rgba từ bảng token ở trên |
 | Section spacing 80–120px | `space-y-6` / `gap-6` (24px) |
@@ -397,5 +466,6 @@ setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' });
 | v1.0 | 2026-05-21 | Initial style guide |
 | v1.2 | 2026-06-24 | Cards: `rounded-[20px]` + `border-primary/10` + `bg-surface` thay thế `rounded-2xl` + `border-white/8`. App heading pattern `text-4xl #FF9500`. Subtitle `text-sm text-neutral-medium`. |
 | v1.3 | 2026-06-24 | Layout: thêm pattern Full-bleed tab cho Kanban/Board nhiều cột. App shell `<main>` cần conditional `max-w` khi có board tab. Negative-margin trick `-mx-6 px-6 md:-mx-12 md:px-12` cho horizontal scroll edge-to-edge. |
+| v1.4 | 2026-06-24 | Modals & Overlays: thêm section mới về React Portal pattern. CSS `transform` (kể cả `translateY(0)` từ `animate-fadeInUp`) tạo stacking context mới — trap `position: fixed` modal bên trong. Fix: `createPortal(…, document.body)`. Thêm cảnh báo vào §Animations và §Không được làm. |
 
 _Cập nhật file này bất cứ khi nào có pattern mới được chuẩn hoá._

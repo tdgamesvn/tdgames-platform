@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CrmClient, CrmContact } from '@/types';
 import * as svc from '../services/crmService';
 
-export type CrmTab = 'dashboard' | 'deals' | 'clients' | 'projects' | 'documents' | 'payments' | 'activities' | 'outreach';
+export type CrmTab = 'dashboard' | 'deals' | 'clients' | 'projects' | 'documents' | 'payments' | 'activities' | 'outreach' | 'studios';
 
 export function useCrmState(initialTab?: string | null) {
   const [clients, setClients] = useState<CrmClient[]>([]);
