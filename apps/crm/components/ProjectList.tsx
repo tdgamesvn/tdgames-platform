@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import { CrmClient, CrmProject, CrmProjectFile, CrmDocument, AccountUser } from '@/types';
 import * as svc from '../services/crmService';
 import type { InvoiceRecord } from '../services/crmService';
+import PaymentScheduleSection from './PaymentScheduleSection';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_URL || '';
@@ -488,6 +489,13 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
                       </div>
                     );
                   })()}
+
+                  {/* ── Payment Schedule Section ── */}
+                  <PaymentScheduleSection
+                    projectId={proj.id}
+                    projectCurrency={proj.currency || 'VND'}
+                    currentUser={currentUser ?? null}
+                  />
 
                   {/* ── CRM Documents linked to this project ── */}
                   {(() => {
