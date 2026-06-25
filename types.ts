@@ -304,6 +304,8 @@ export interface CrmDocument {
   created_by?: string | null;
   approved_by?: string | null;
   approved_at?: string | null;
+  contract_value?: number | null;
+  contract_currency?: 'USD' | 'VND' | null;
   created_at: string;
 }
 
@@ -397,6 +399,22 @@ export interface CrmQuotation {
   valid_until: string;
   notes: string;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── CRM Payment Schedules ─────────────────────────────────────
+export interface CrmPaymentSchedule {
+  id: string;
+  project_id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  due_date: string; // 'YYYY-MM-DD'
+  status: 'pending' | 'invoiced' | 'paid';
+  invoiced_at?: string | null;
+  paid_at?: string | null;
+  notes?: string | null;
   created_at: string;
   updated_at: string;
 }
