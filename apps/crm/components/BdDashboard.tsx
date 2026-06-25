@@ -1,7 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import type { AccountUser, CrmClient, CrmDeal, CrmActivity } from '@/types';
-import { fetchDeals, fetchActivities } from '../services/crmService';
+import { fetchDeals, fetchActivities, fetchApprovedContracts } from '../services/crmService';
+import { supabase } from '@/services/supabaseClient';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './pipeline/constants';
+
+// ── Date preset filter ────────────────────────────────────────
+
+type DatePreset = 'this_month' | 'last_month' | 'this_quarter' | 'all';
+
+function getDateRange(preset: DatePreset): { start: Date | null; end: Date | null } {
+  const now = new Date();
+  if (preset === 'all') return { start: null, end: null };
+  if (preset === 'this_month') {
+    return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: now };
+  }
+  if (preset === 'last_month') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0);
+    return { start, end };
+  }
+  // this_quarter
+  const quarter = Math.floor(now.getMonth() / 3);
+  const start = new Date(now.getFullYear(), quarter * 3, 1);
+  return { start, end: now };
+}
+
+function inRange(dateStr: string | null | undefined, start: Date | null, end: Date | null): boolean {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (start && d < start) return false;
+  if (end && d > end) return false;
+  return true;
+}
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -41,12 +71,13 @@ const BdPerfTotalRow: React.FC<{ bdPerf: any[] }> = ({ bdPerf }) => {
   const totWon = bdPerf.reduce((s: number, b: any) => s + b.won, 0);
   const totLost = bdPerf.reduce((s: number, b: any) => s + b.lost, 0);
   const totWonVal = bdPerf.reduce((s: number, b: any) => s + b.wonVal, 0);
+  const totContract = bdPerf.reduce((s: number, b: any) => s + (b.contractVal ?? 0), 0);
   const totClosed = totWon + totLost;
   const totWr = totClosed > 0 ? Math.round((totWon / totClosed) * 100) : 0;
   const allDays: number[] = bdPerf.flatMap((b: any) => b.closeDays);
   const avgAll = allDays.length > 0 ? Math.round(allDays.reduce((a, b) => a + b, 0) / allDays.length) : 0;
   return (
-    <div className="grid grid-cols-6 gap-2 pt-2 mt-2 border-t border-white/5">
+    <div className="grid grid-cols-7 gap-2 pt-2 mt-2 border-t border-white/5">
       <p className="text-[10px] font-black uppercase text-neutral-500">Tổng</p>
       <span className="text-xs font-black text-white">{totActive}</span>
       <div>
@@ -58,6 +89,9 @@ const BdPerfTotalRow: React.FC<{ bdPerf: any[] }> = ({ bdPerf }) => {
         {totClosed > 0 ? `${totWr}%` : '—'}
       </span>
       <span className="text-xs font-black text-neutral-400">{avgAll > 0 ? `${avgAll}d` : '—'}</span>
+      <span className="text-xs font-black" style={{ color: '#22c55e' }}>
+        {totContract > 0 ? fmtValue(totContract, 'USD') : '—'}
+      </span>
     </div>
   );
 };
@@ -70,25 +104,52 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
   const [deals, setDeals] = useState<CrmDeal[]>([]);
   const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [preset, setPreset] = useState<DatePreset>('this_month');
+  const [myStudiosCount, setMyStudiosCount] = useState(0);
+  const [approvedContracts, setApprovedContracts] = useState<Array<{ id: number; created_by: string; contract_value: number | null; contract_currency: string | null }>>([]);
 
   useEffect(() => {
     Promise.all([
       fetchDeals().catch(() => []),
       fetchActivities(undefined, 8).catch(() => []),
-    ]).then(([d, a]) => {
+      fetchApprovedContracts().catch(() => []),
+      supabase.from('crm_studios').select('id', { count: 'exact', head: true }).eq('owner_id', currentUser.id),
+    ]).then(([d, a, contracts, studiosRes]) => {
       setDeals(d);
       setActivities(a);
+      setApprovedContracts(contracts);
+      setMyStudiosCount(studiosRes.count ?? 0);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [currentUser.id]);
+
+  // ── Date range ─────────────────────────────────────────────
+  const { start: rangeStart, end: rangeEnd } = getDateRange(preset);
 
   // ── Derived stats ──────────────────────────────────────────
-  const activeDeals = deals.filter(d => !['won', 'lost'].includes(d.stage));
+  const activeDeals = deals.filter(d =>
+    !['won', 'lost'].includes(d.stage) &&
+    (rangeStart === null || inRange(d.created_at, rangeStart, rangeEnd))
+  );
   const pipelineValue = activeDeals.reduce((s, d) => s + d.value, 0);
-  const wonDeals = deals.filter(d => d.stage === 'won');
+  const wonDeals = deals.filter(d =>
+    d.stage === 'won' &&
+    (rangeStart === null || inRange(d.actual_close_date, rangeStart, rangeEnd))
+  );
   const totalWon = wonDeals.reduce((s, d) => s + d.value, 0);
-  const closedDeals = deals.filter(d => ['won', 'lost'].includes(d.stage));
+  const closedDeals = deals.filter(d =>
+    ['won', 'lost'].includes(d.stage) &&
+    (rangeStart === null || inRange(d.actual_close_date, rangeStart, rangeEnd))
+  );
   const winRate = closedDeals.length > 0 ? Math.round((wonDeals.length / closedDeals.length) * 100) : 0;
   const activeClients = clients.filter(c => c.status === 'active').length;
+
+  // ── Contract aggregates ────────────────────────────────────
+  const totalContractValue = approvedContracts.reduce((s, c) => s + (c.contract_value ?? 0), 0);
+  const contractByBd: Record<string, number> = {};
+  approvedContracts.forEach(c => {
+    const key = c.created_by || 'Chưa gán';
+    contractByBd[key] = (contractByBd[key] ?? 0) + (c.contract_value ?? 0);
+  });
 
   // Stage breakdown for funnel
   const stageCounts = STAGES.filter(s => !['won', 'lost'].includes(s.key)).map(s => {
@@ -116,26 +177,35 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     .sort((a, b) => new Date(a.next_follow_up!).getTime() - new Date(b.next_follow_up!).getTime());
 
   // ── BD Performance stats ────────────────────────────────────
-  type BdStat = { name: string; active: number; won: number; lost: number; pipelineVal: number; wonVal: number; avgDaysToClose: number; closeDays: number[] };
+  type BdStat = { name: string; userId?: string; active: number; won: number; lost: number; pipelineVal: number; wonVal: number; avgDaysToClose: number; closeDays: number[]; contractVal: number };
   const bdPerf = (() => {
     const owners: Map<string, BdStat> = new Map();
     deals.forEach(d => {
       const name = d.owner_name || 'Chưa gán';
-      if (!owners.has(name)) owners.set(name, { name, active: 0, won: 0, lost: 0, pipelineVal: 0, wonVal: 0, avgDaysToClose: 0, closeDays: [] });
+      const userId = d.owner_id || undefined;
+      if (!owners.has(name)) owners.set(name, { name, userId, active: 0, won: 0, lost: 0, pipelineVal: 0, wonVal: 0, avgDaysToClose: 0, closeDays: [], contractVal: 0 });
       const o = owners.get(name)!;
-      if (d.stage === 'won') {
+      if (d.stage === 'won' && (rangeStart === null || inRange(d.actual_close_date, rangeStart, rangeEnd))) {
         o.won++;
         o.wonVal += d.value;
         if (d.actual_close_date && d.created_at) {
           const days = Math.max(1, Math.floor((new Date(d.actual_close_date).getTime() - new Date(d.created_at).getTime()) / 86_400_000));
           o.closeDays.push(days);
         }
-      } else if (d.stage === 'lost') {
+      } else if (d.stage === 'lost' && (rangeStart === null || inRange(d.actual_close_date, rangeStart, rangeEnd))) {
         o.lost++;
-      } else {
+      } else if (!['won', 'lost'].includes(d.stage) && (rangeStart === null || inRange(d.created_at, rangeStart, rangeEnd))) {
         o.active++;
         o.pipelineVal += d.value;
       }
+    });
+    // Inject contract values per BD (by created_by user id)
+    approvedContracts.forEach(c => {
+      owners.forEach(o => {
+        if (o.userId && o.userId === c.created_by) {
+          o.contractVal += c.contract_value ?? 0;
+        }
+      });
     });
     owners.forEach(o => {
       o.avgDaysToClose = o.closeDays.length > 0 ? Math.round(o.closeDays.reduce((a, b) => a + b, 0) / o.closeDays.length) : 0;
@@ -154,6 +224,13 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     );
   }
 
+  const DATE_PRESETS: { key: DatePreset; label: string }[] = [
+    { key: 'this_month', label: 'Tháng này' },
+    { key: 'last_month', label: 'Tháng trước' },
+    { key: 'this_quarter', label: 'Quý này' },
+    { key: 'all', label: 'Tất cả' },
+  ];
+
   return (
     <div className="animate-fadeInUp space-y-6">
       {/* ── Greeting ── */}
@@ -164,13 +241,32 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
         <p className="text-sm text-neutral-medium mt-1">Tổng quan CRM hôm nay</p>
       </div>
 
+      {/* ── Date preset chips ── */}
+      <div className="flex flex-wrap gap-2">
+        {DATE_PRESETS.map(p => (
+          <button
+            key={p.key}
+            onClick={() => setPreset(p.key)}
+            className="px-4 py-1.5 text-xs font-black uppercase tracking-wider transition-all"
+            style={preset === p.key
+              ? { background: '#FF9500', color: '#000', borderRadius: '9999px', border: 'none' }
+              : { background: 'transparent', color: '#aaa', borderRadius: '9999px', border: '1px solid #333' }
+            }
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: 'Pipeline', value: fmtValue(pipelineValue, 'USD'), sub: `${activeDeals.length} deals đang xử lý`, color: 'text-white' },
           { label: 'Tổng Won', value: fmtValue(totalWon, 'USD'), sub: `${wonDeals.length} deals`, color: 'text-status-success' },
           { label: 'Win Rate', value: `${winRate}%`, sub: closedDeals.length > 0 ? `${wonDeals.length}W / ${closedDeals.length - wonDeals.length}L` : 'Chưa có data', color: 'text-white' },
           { label: 'Khách hàng', value: `${activeClients}`, sub: `/ ${clients.length} tổng`, color: 'text-white' },
+          { label: 'Studios của tôi', value: `${myStudiosCount}`, sub: 'studio đang phụ trách', color: 'text-white' },
+          { label: 'Hợp đồng', value: totalContractValue > 0 ? fmtValue(totalContractValue, 'USD') : '—', sub: `${approvedContracts.length} hợp đồng`, color: 'text-white' },
         ].map(c => (
           <div key={c.label} className="rounded-[20px] border border-primary/10 p-4 space-y-1 bg-surface">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
@@ -353,8 +449,8 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
               <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-4">📊 Hiệu suất BD</p>
 
               {/* Table header */}
-              <div className="grid grid-cols-6 gap-2 pb-2 border-b border-white/5 mb-2">
-                {['BD', 'Active', 'Won', 'Lost', 'Win Rate', 'Avg Close'].map(h => (
+              <div className="grid grid-cols-7 gap-2 pb-2 border-b border-white/5 mb-2">
+                {['BD', 'Active', 'Won', 'Lost', 'Win Rate', 'Avg Close', 'Contract'].map(h => (
                   <p key={h} className="text-[9px] font-black uppercase tracking-wider text-neutral-700">{h}</p>
                 ))}
               </div>
@@ -365,7 +461,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
                   const total = bd.won + bd.lost;
                   const wr = total > 0 ? Math.round((bd.won / total) * 100) : 0;
                   return (
-                    <div key={bd.name} className="grid grid-cols-6 gap-2 py-2 rounded-lg hover:bg-white/5 transition-all">
+                    <div key={bd.name} className="grid grid-cols-7 gap-2 py-2 rounded-lg hover:bg-white/5 transition-all">
                       <p className="text-xs font-semibold text-white truncate">{bd.name}</p>
                       <div>
                         <span className="text-xs font-semibold text-white">{bd.active}</span>
@@ -385,6 +481,9 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
                       </span>
                       <span className="text-xs font-semibold text-neutral-400">
                         {bd.avgDaysToClose > 0 ? `${bd.avgDaysToClose}d` : '—'}
+                      </span>
+                      <span className="text-xs font-semibold" style={{ color: '#22c55e' }}>
+                        {bd.contractVal > 0 ? fmtValue(bd.contractVal, 'USD') : '—'}
                       </span>
                     </div>
                   );
