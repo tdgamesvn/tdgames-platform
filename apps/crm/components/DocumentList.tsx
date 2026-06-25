@@ -42,7 +42,7 @@ const formatSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const emptyForm = { client_id: '', project_id: '' as string | null, doc_type: 'contract', title: '', file_url: '', file_name: '', file_size: 0, notes: '' };
+const emptyForm = { client_id: '', project_id: '' as string | null, doc_type: 'contract', title: '', file_url: '', file_name: '', file_size: 0, notes: '', contract_value: '' as string, contract_currency: 'USD' as 'USD' | 'VND' };
 
 const APPROVAL_BADGE: Record<string, { label: string; color: string; icon: string }> = {
   pending_approval: { label: 'Chờ duyệt', color: '#FFA726', icon: '⏳' },
@@ -186,6 +186,9 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
   const handleSave = async () => {
     if (!form.client_id || !form.title.trim()) return;
     try {
+      const contractValueNum = form.doc_type === 'contract' && form.contract_value !== ''
+        ? parseFloat(form.contract_value)
+        : null;
       const payload = {
         client_id: form.client_id,
         project_id: form.project_id || null,
@@ -195,6 +198,8 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
         file_name: form.file_name,
         file_size: form.file_size,
         notes: form.notes,
+        contract_value: contractValueNum,
+        contract_currency: form.doc_type === 'contract' ? form.contract_currency : null,
       };
       if (editingDoc) {
         await svc.updateDocument(editingDoc.id, payload);
@@ -221,6 +226,8 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
       file_name: doc.file_name || '',
       file_size: doc.file_size || 0,
       notes: doc.notes || '',
+      contract_value: doc.contract_value != null ? String(doc.contract_value) : '',
+      contract_currency: (doc.contract_currency as 'USD' | 'VND') || 'USD',
     });
     setShowForm(true);
   };
@@ -498,6 +505,38 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
               style={{ background: '#1a1a1a' }}
               value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú..." />
           </div>
+
+          {/* Contract value fields — only when doc_type = 'contract' */}
+          {form.doc_type === 'contract' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '14px', marginBottom: '14px', alignItems: 'end' }}>
+              <div>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Giá trị hợp đồng <span style={{ color: '#555', textTransform: 'none', fontWeight: 400 }}>(tuỳ chọn)</span></label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a' }}
+                  value={form.contract_value}
+                  onChange={e => setForm({ ...form, contract_value: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+              <div style={{ minWidth: '110px' }}>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: '6px' }}>Đơn vị</label>
+                <select
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                  style={{ background: '#1a1a1a', width: '100%' }}
+                  value={form.contract_currency}
+                  onChange={e => setForm({ ...form, contract_currency: e.target.value as 'USD' | 'VND' })}
+                >
+                  <option value="USD">USD</option>
+                  <option value="VND">VND</option>
+                </select>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button type="button" onClick={() => { setShowForm(false); setEditingDoc(null); setForm(emptyForm); }}
               className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">Huỷ</button>
