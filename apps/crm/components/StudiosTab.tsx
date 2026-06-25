@@ -3,8 +3,16 @@ import { createPortal } from 'react-dom';
 import {
   CrmStudio, StudioLead, StudioStats, StudioFilters,
   fetchStudios, fetchStudioStats, fetchLeadsByStudio,
-  updateStudioBdStatus, STUDIO_PAGE_SIZE,
+  updateStudioBdStatus, assignStudioOwner, STUDIO_PAGE_SIZE,
 } from '../services/studioService';
+import { supabase } from '@/services/supabaseClient';
+
+// ── BD User type ────────────────────────────────────────────────────────────
+interface BdUser {
+  id: string;
+  full_name: string;
+  role: string;
+}
 
 // ── Color maps ─────────────────────────────────────────────────────────────
 const BD_STATUS_COLOR: Record<string, string> = {
@@ -230,15 +238,28 @@ const StudioDrawer: React.FC<{
 
 // ── Main StudiosTab ─────────────────────────────────────────────────────────
 const StudiosTab: React.FC = () => {
-  const [studios, setStudios]       = useState<CrmStudio[]>([]);
-  const [total, setTotal]           = useState(0);
-  const [stats, setStats]           = useState<StudioStats | null>(null);
-  const [page, setPage]             = useState(0);
-  const [loading, setLoading]       = useState(true);
-  const [filters, setFilters]       = useState<StudioFilters>({});
-  const [searchInput, setSearchInput] = useState('');
-  const [selected, setSelected]     = useState<CrmStudio | null>(null);
-  const searchTimeout               = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [studios, setStudios]           = useState<CrmStudio[]>([]);
+  const [total, setTotal]               = useState(0);
+  const [stats, setStats]               = useState<StudioStats | null>(null);
+  const [page, setPage]                 = useState(0);
+  const [loading, setLoading]           = useState(true);
+  const [filters, setFilters]           = useState<StudioFilters>({});
+  const [searchInput, setSearchInput]   = useState('');
+  const [selected, setSelected]         = useState<CrmStudio | null>(null);
+  const [bdUsers, setBdUsers]           = useState<BdUser[]>([]);
+  const [editingOwnerIds, setEditingOwnerIds] = useState<Set<number>>(new Set());
+  const searchTimeout                   = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch BD users once on mount
+  useEffect(() => {
+    supabase
+      .from('account_users')
+      .select('id, full_name, role')
+      .ilike('role', '%bd%')
+      .then(({ data }) => {
+        if (data) setBdUsers(data as BdUser[]);
+      });
+  }, []);
 
   const totalPages = Math.ceil(total / STUDIO_PAGE_SIZE);
 
@@ -291,6 +312,18 @@ const StudiosTab: React.FC = () => {
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, bd_status: bd_status as CrmStudio['bd_status'] } : prev);
     // Refresh stats
     fetchStudioStats().then(s => { if (s) setStats(s); });
+  };
+
+  const handleAssignOwner = async (studioId: number, ownerId: string, ownerName: string) => {
+    // Optimistic update
+    setStudios(prev => prev.map(s => s.id === studioId ? { ...s, owner_id: ownerId, owner_name: ownerName } : s));
+    setEditingOwnerIds(prev => { const next = new Set(prev); next.delete(studioId); return next; });
+    try {
+      await assignStudioOwner(studioId, ownerId, ownerName);
+    } catch {
+      // Rollback on error
+      setStudios(prev => prev.map(s => s.id === studioId ? { ...s, owner_id: undefined, owner_name: undefined } : s));
+    }
   };
 
   return (
@@ -392,6 +425,7 @@ const StudiosTab: React.FC = () => {
                 <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden lg:table-cell">Domain</th>
                 <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Nguồn</th>
                 <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">BD Status</th>
+                <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden xl:table-cell">BD phụ trách</th>
                 <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden sm:table-cell">Contacts</th>
               </tr>
             </thead>
@@ -451,6 +485,33 @@ const StudiosTab: React.FC = () => {
                       >
                         {BD_STATUS_LABEL[studio.bd_status]}
                       </span>
+                    </td>
+                    {/* BD phụ trách */}
+                    <td className="px-4 py-3 hidden xl:table-cell" onClick={e => e.stopPropagation()}>
+                      {studio.owner_name && !editingOwnerIds.has(studio.id) ? (
+                        <div className="flex items-center gap-1">
+                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,149,0,0.12)', color: '#FF9500' }}>
+                            {studio.owner_name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingOwnerIds(prev => { const next = new Set(prev); next.add(studio.id); return next; })}
+                            style={{ fontSize: '10px', color: '#666', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
+                          >Đổi</button>
+                        </div>
+                      ) : (
+                        <select
+                          style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', color: '#E5E5E5', padding: '4px 8px', fontSize: '11px', outline: 'none' }}
+                          value=""
+                          onChange={e => {
+                            const user = bdUsers.find(u => u.id === e.target.value);
+                            if (user) handleAssignOwner(studio.id, user.id, user.full_name);
+                          }}
+                        >
+                          <option value="">-- Chọn BD --</option>
+                          {bdUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                        </select>
+                      )}
                     </td>
                     {/* Contacts */}
                     <td className="px-5 py-3 text-right hidden sm:table-cell">
