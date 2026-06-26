@@ -34,6 +34,7 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
   const [officeConfig, setOfficeConfig] = useState<AttOfficeConfig | null>(null);
   const [officeForm, setOfficeForm] = useState({ office_name: '', lat: '', lng: '', radius_meters: '' });
   const [savingOffice, setSavingOffice] = useState(false);
+  const [saveOfficeError, setSaveOfficeError] = useState<string>('');
 
   // Load office config on mount
   React.useEffect(() => {
@@ -52,23 +53,32 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
 
   const handleSaveOffice = async () => {
     if (!officeConfig) return;
+    const lat = parseFloat(officeForm.lat);
+    const lng = parseFloat(officeForm.lng);
+    const radius = parseInt(officeForm.radius_meters, 10);
+    if (isNaN(lat) || isNaN(lng) || isNaN(radius) || radius <= 0) {
+      setSaveOfficeError('Vĩ độ, kinh độ và bán kính phải là số hợp lệ (bán kính > 0).');
+      return;
+    }
     setSavingOffice(true);
     try {
       await updateOfficeConfig(officeConfig.id, {
         office_name: officeForm.office_name,
-        lat: parseFloat(officeForm.lat),
-        lng: parseFloat(officeForm.lng),
-        radius_meters: parseInt(officeForm.radius_meters, 10),
+        lat,
+        lng,
+        radius_meters: radius,
       });
       setOfficeConfig(prev => prev ? {
         ...prev,
         office_name: officeForm.office_name,
-        lat: parseFloat(officeForm.lat),
-        lng: parseFloat(officeForm.lng),
-        radius_meters: parseInt(officeForm.radius_meters, 10),
+        lat,
+        lng,
+        radius_meters: radius,
       } : prev);
+      setSaveOfficeError('');
     } catch (e) {
       console.error('Failed to save office config', e);
+      setSaveOfficeError('Lưu thất bại. Kiểm tra kết nối và thử lại.');
     } finally {
       setSavingOffice(false);
     }
@@ -344,6 +354,7 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
         >
           {savingOffice ? 'Đang lưu...' : '💾 Lưu cấu hình'}
         </button>
+        {saveOfficeError && <p style={{ color: '#FF3B30', fontSize: '12px', marginTop: '8px' }}>{saveOfficeError}</p>}
       </div>
     </div>
   );
