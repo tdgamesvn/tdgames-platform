@@ -172,9 +172,10 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
   const navbarTab = TAB_MAP[state.activeTab];
   const isBd = currentUser.role === 'bd';
+  // BD workflow order: Overview → Find targets → Contacts → Reach out → Track interactions → Deal → Project → Docs → Payment
   const accessibleTabs = isBd
-    ? ['dashboard', 'deals', 'history', 'tasks', 'settings', 'board', 'outreach', 'studios']
-    : ['dashboard', 'deals', 'history', 'tasks', 'settings', 'activity', 'board', 'outreach', 'studios'];
+    ? ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'settings']
+    : ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'settings', 'activity'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -268,7 +269,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
         {/* ── Payments Tab ── */}
         {state.activeTab === 'payments' && (
-          <PaymentTracker clients={state.clients} />
+          <PaymentTracker clients={state.clients} currentUser={currentUser} />
         )}
 
         {/* ── Activities Tab ── */}
@@ -288,7 +289,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
         {/* ── Studios Tab ── */}
         {state.activeTab === 'studios' && (
-          <StudiosTab />
+          <StudiosTab currentUser={currentUser} />
         )}
       </main>
 

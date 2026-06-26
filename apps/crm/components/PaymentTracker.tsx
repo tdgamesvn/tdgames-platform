@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { CrmClient } from '@/types';
+import type { AccountUser } from '@/types';
 import { InvoiceRecord, fetchInvoicesByClient } from '../services/crmService';
+import PaymentScheduleTracker from './PaymentScheduleTracker';
 
 interface Props {
   clients: CrmClient[];
+  currentUser?: AccountUser | null;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -13,7 +16,8 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   overdue:  { label: 'Quá hạn', color: '#FF453A', bg: 'rgba(255,69,58,0.12)' },
 };
 
-const PaymentTracker: React.FC<Props> = ({ clients }) => {
+const PaymentTracker: React.FC<Props> = ({ clients, currentUser }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'invoices' | 'schedule'>('invoices');
   const [selectedClient, setSelectedClient] = useState('');
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +57,31 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
 
   return (
     <div className="animate-fadeInUp">
-      <div style={{ marginBottom: '28px' }}>
+      {/* Sub-tab toggle */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: '#111', borderRadius: '10px', padding: '4px', width: 'fit-content' }}>
+        {([
+          { key: 'invoices', label: 'Tất cả invoices' },
+          { key: 'schedule', label: '💳 Lịch TT' },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setActiveSubTab(tab.key)}
+            style={{
+              padding: '7px 16px', borderRadius: '7px', fontSize: '12px', fontWeight: 700,
+              border: 'none', cursor: 'pointer', transition: 'all 0.15s',
+              background: activeSubTab === tab.key ? '#FF9500' : 'transparent',
+              color:      activeSubTab === tab.key ? '#fff'    : '#888',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeSubTab === 'invoices' ? (
+        <>
+          <div style={{ marginBottom: '28px' }}>
         <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Thanh toán</h2>
         <p className="text-sm text-neutral-medium mt-1">Theo dõi tình trạng thanh toán (đồng bộ từ Invoice app)</p>
       </div>
@@ -142,6 +170,10 @@ const PaymentTracker: React.FC<Props> = ({ clients }) => {
           <p className="text-3xl mb-3">💳</p>
           <p className="text-neutral-600 text-sm">Chưa có dữ liệu thanh toán</p>
         </div>
+      )}
+        </>
+      ) : (
+        <PaymentScheduleTracker clients={clients} currentUser={currentUser ?? null} />
       )}
     </div>
   );
