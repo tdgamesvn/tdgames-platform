@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { AttShift, HrEmployee, AttEmployeeShift } from '@/types';
+import { AttShift, HrEmployee, AttEmployeeShift, AttOfficeConfig } from '@/types';
+import { fetchOfficeConfig, updateOfficeConfig } from '@/apps/attendance/services/attendanceService';
 
 interface Props {
   shifts: AttShift[];
@@ -30,6 +31,48 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
   const [showAssignForm, setShowAssignForm] = useState(false);
   const [assignForm, setAssignForm] = useState({ employee_id: '', shift_id: '', effective_from: new Date().toISOString().split('T')[0], effective_to: null as string | null });
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [officeConfig, setOfficeConfig] = useState<AttOfficeConfig | null>(null);
+  const [officeForm, setOfficeForm] = useState({ office_name: '', lat: '', lng: '', radius_meters: '' });
+  const [savingOffice, setSavingOffice] = useState(false);
+
+  // Load office config on mount
+  React.useEffect(() => {
+    fetchOfficeConfig()
+      .then(cfg => {
+        setOfficeConfig(cfg);
+        setOfficeForm({
+          office_name: cfg.office_name,
+          lat: String(cfg.lat),
+          lng: String(cfg.lng),
+          radius_meters: String(cfg.radius_meters),
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveOffice = async () => {
+    if (!officeConfig) return;
+    setSavingOffice(true);
+    try {
+      await updateOfficeConfig(officeConfig.id, {
+        office_name: officeForm.office_name,
+        lat: parseFloat(officeForm.lat),
+        lng: parseFloat(officeForm.lng),
+        radius_meters: parseInt(officeForm.radius_meters, 10),
+      });
+      setOfficeConfig(prev => prev ? {
+        ...prev,
+        office_name: officeForm.office_name,
+        lat: parseFloat(officeForm.lat),
+        lng: parseFloat(officeForm.lng),
+        radius_meters: parseInt(officeForm.radius_meters, 10),
+      } : prev);
+    } catch (e) {
+      console.error('Failed to save office config', e);
+    } finally {
+      setSavingOffice(false);
+    }
+  };
 
   const cardCls = 'rounded-[20px] border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl';
   const inputCls = 'w-full px-4 py-3 rounded-xl bg-black/30 border border-primary/10 text-white text-sm focus:border-primary/40 outline-none transition-colors';
@@ -235,6 +278,73 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
           <div className="text-sm">Nhấn "+ Thêm ca" để bắt đầu</div>
         </div>
       )}
+
+      {/* ── Office Location Settings ─────────────────── */}
+      <div className={cardCls} style={{ marginTop: '24px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 900, color: '#FF9500', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          📍 Vị trí văn phòng (Geofence)
+        </h3>
+        <p style={{ fontSize: '12px', color: '#666', marginBottom: '16px' }}>
+          Nhân viên phải ở trong bán kính radius_meters để chấm công qua GPS.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <label className={labelCls}>Tên văn phòng</label>
+            <input
+              className={inputCls}
+              value={officeForm.office_name}
+              onChange={e => setOfficeForm(f => ({ ...f, office_name: e.target.value }))}
+              placeholder="Hòa Bình Green City"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Bán kính (mét)</label>
+            <input
+              className={inputCls}
+              type="number"
+              value={officeForm.radius_meters}
+              onChange={e => setOfficeForm(f => ({ ...f, radius_meters: e.target.value }))}
+              placeholder="300"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Vĩ độ (Latitude)</label>
+            <input
+              className={inputCls}
+              type="number"
+              step="0.0001"
+              value={officeForm.lat}
+              onChange={e => setOfficeForm(f => ({ ...f, lat: e.target.value }))}
+              placeholder="20.9979"
+            />
+          </div>
+          <div>
+            <label className={labelCls}>Kinh độ (Longitude)</label>
+            <input
+              className={inputCls}
+              type="number"
+              step="0.0001"
+              value={officeForm.lng}
+              onChange={e => setOfficeForm(f => ({ ...f, lng: e.target.value }))}
+              placeholder="105.8672"
+            />
+          </div>
+        </div>
+        <p style={{ fontSize: '11px', color: '#555', marginBottom: '12px' }}>
+          💡 Mở Google Maps, click vào vị trí VP, copy tọa độ (vd: 20.9979, 105.8672)
+        </p>
+        <button
+          onClick={handleSaveOffice}
+          disabled={savingOffice}
+          style={{
+            background: '#FF9500', color: '#000', border: 'none', borderRadius: '10px',
+            padding: '10px 24px', fontSize: '13px', fontWeight: 800, cursor: savingOffice ? 'not-allowed' : 'pointer',
+            opacity: savingOffice ? 0.7 : 1,
+          }}
+        >
+          {savingOffice ? 'Đang lưu...' : '💾 Lưu cấu hình'}
+        </button>
+      </div>
     </div>
   );
 };

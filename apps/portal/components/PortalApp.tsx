@@ -6,6 +6,7 @@ import {
   PayPayrollSheet,
   AttMonthlyRecord,
   AttMonthlySheet,
+  AttRecord,
 } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
@@ -15,6 +16,8 @@ import {
   fetchMyProfile,
 } from '../services/portalService';
 import PayslipAcknowledgeModal from './PayslipAcknowledgeModal';
+import CheckinWidget from './CheckinWidget';
+import { fetchMyRecordsByRange } from '@/apps/attendance/services/attendanceService';
 
 type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
 type AttendanceWithSheet = AttMonthlyRecord & { sheet?: AttMonthlySheet };
@@ -77,6 +80,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
   const [activeTab, setActiveTab] = useState<PortalTab>(resolvedInitialTab);
   const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
   const [attendance, setAttendance] = useState<AttendanceWithSheet[]>([]);
+  const [dailyRecords, setDailyRecords] = useState<AttRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   /** undefined = đang tải hồ sơ; null = không có employee_id hoặc lỗi */
@@ -144,9 +148,18 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
   useEffect(() => {
     if (activeTab === 'attendance' && currentUser.employee_id) {
       setIsLoading(true);
-      fetchMyAttendance(currentUser.employee_id)
-        .then(data => setAttendance(data))
-        .catch(() => setAttendance([]))
+      const now = new Date();
+      const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const to = now.toISOString().split('T')[0];
+      Promise.all([
+        fetchMyAttendance(currentUser.employee_id),
+        fetchMyRecordsByRange(currentUser.employee_id, from, to),
+      ])
+        .then(([monthly, daily]) => {
+          setAttendance(monthly);
+          setDailyRecords(daily);
+        })
+        .catch(() => { setAttendance([]); setDailyRecords([]); })
         .finally(() => setIsLoading(false));
     }
   }, [activeTab, currentUser.employee_id]);
@@ -377,7 +390,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                   ⏰ Chấm công của tôi
                 </h2>
                 <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>
-                  Xem bảng công theo tháng
+                  Check in/out hàng ngày và xem lịch sử
                 </p>
               </div>
 
@@ -387,62 +400,121 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                   <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>Tài khoản chưa liên kết nhân viên</p>
                   <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '8px' }}>Liên hệ HR để liên kết tài khoản với hồ sơ nhân viên</p>
                 </div>
-              ) : isLoading ? (
-                <div style={{ textAlign: 'center', padding: '60px' }}>
-                  <p className="animate-pulse" style={{ color: '#888', fontSize: '13px' }}>Đang tải...</p>
-                </div>
-              ) : attendance.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px', background: '#161616', borderRadius: '16px', border: '1px solid #222' }}>
-                  <p style={{ fontSize: '48px', marginBottom: '12px' }}>⏰</p>
-                  <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>Chưa có dữ liệu chấm công</p>
-                  <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '8px' }}>Bảng công sẽ hiển thị khi HR cập nhật dữ liệu chấm công</p>
-                </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {attendance.map((att: any) => {
-                    const sheet = att.sheet || {};
-                    return (
-                      <div key={att.id} style={{
-                        background: '#161616', border: '1px solid #222', borderRadius: '12px',
-                        padding: '20px 24px',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <p style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5' }}>
-                            ⏰ Tháng {sheet.month || '?'}/{sheet.year || '?'}
-                          </p>
-                          <span style={{
-                            fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px',
-                            background: sheet.status === 'finalized' ? 'rgba(52,199,89,0.1)' : 'rgba(255,149,0,0.1)',
-                            color: sheet.status === 'finalized' ? '#34C759' : '#FF9500',
-                          }}>
-                            {sheet.status === 'finalized' ? '✅ Đã chốt' : '📝 Nháp'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                          <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '10px 14px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Ngày công</p>
-                            <p style={{ fontSize: '20px', fontWeight: 900, color: '#06B6D4' }}>{att.work_days || 0}</p>
-                          </div>
-                          <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '10px 14px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Giờ tăng ca</p>
-                            <p style={{ fontSize: '20px', fontWeight: 900, color: '#FF9500' }}>{att.ot_hours || 0}</p>
-                          </div>
-                          <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '10px 14px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Đi muộn</p>
-                            <p style={{ fontSize: '20px', fontWeight: 900, color: att.late_count > 0 ? '#FF3B30' : '#888' }}>{att.late_count || 0}</p>
-                          </div>
-                          <div style={{ background: '#0a0a0a', borderRadius: '8px', padding: '10px 14px', textAlign: 'center' }}>
-                            <p style={{ fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>Nghỉ</p>
-                            <p style={{ fontSize: '20px', fontWeight: 900, color: att.absent_days > 0 ? '#FF3B30' : '#888' }}>{att.absent_days || 0}</p>
-                          </div>
-                        </div>
-                        {att.note && (
-                          <p style={{ fontSize: '12px', color: '#888', marginTop: '10px', fontStyle: 'italic' }}>📝 {att.note}</p>
-                        )}
+                <>
+                  {/* Check-in Widget */}
+                  <CheckinWidget
+                    employeeId={currentUser.employee_id}
+                    onToast={(msg, type) => setToast({ message: msg, type })}
+                  />
+
+                  {/* Daily History — this month */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 900, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+                      📅 Lịch sử tháng này
+                    </p>
+                    {isLoading ? (
+                      <p className="animate-pulse" style={{ color: '#666', fontSize: '13px', textAlign: 'center', padding: '24px' }}>Đang tải...</p>
+                    ) : dailyRecords.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '32px', background: '#161616', borderRadius: '12px', border: '1px solid #222' }}>
+                        <p style={{ color: '#666', fontSize: '13px' }}>Chưa có dữ liệu chấm công tháng này</p>
                       </div>
-                    );
-                  })}
-                </div>
+                    ) : (
+                      <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>
+                        {/* Table header */}
+                        <div style={{
+                          display: 'grid', gridTemplateColumns: '80px 1fr 1fr 80px 80px 60px',
+                          padding: '10px 16px', borderBottom: '1px solid #222',
+                          background: 'rgba(255,255,255,0.02)',
+                        }}>
+                          {['Ngày', 'Vào', 'Ra', 'Số giờ', 'Ngày công', 'Loại'].map(h => (
+                            <span key={h} style={{ fontSize: '10px', fontWeight: 800, color: '#555', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</span>
+                          ))}
+                        </div>
+                        {dailyRecords.map((rec) => {
+                          const checkIn = rec.check_in ? new Date(rec.check_in) : null;
+                          const checkOut = rec.check_out ? new Date(rec.check_out) : null;
+                          const totalMs = (checkIn && checkOut) ? checkOut.getTime() - checkIn.getTime() : 0;
+                          const totalHours = totalMs / 3_600_000;
+                          const dayFrac = totalHours > 0 ? (totalHours / 8).toFixed(2) : '—';
+                          const hm = totalMs > 0 ? (() => {
+                            const m = Math.floor(totalMs / 60000);
+                            return `${Math.floor(m / 60)}h ${m % 60}p`;
+                          })() : '—';
+                          const fmtTime = (d: Date | null) => d
+                            ? d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                            : '—';
+                          const fmtDate = (s: string) => {
+                            const d = new Date(s);
+                            return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+                          };
+                          const methodBadge = rec.method === 'remote'
+                            ? { label: 'Remote', color: '#06B6D4' }
+                            : { label: 'VP', color: '#34C759' };
+                          return (
+                            <div key={rec.id} style={{
+                              display: 'grid', gridTemplateColumns: '80px 1fr 1fr 80px 80px 60px',
+                              padding: '10px 16px', borderBottom: '1px solid #111', alignItems: 'center',
+                            }}>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color: '#ccc' }}>{fmtDate(rec.date)}</span>
+                              <span style={{ fontSize: '13px', color: '#F5F5F5' }}>{fmtTime(checkIn)}</span>
+                              <span style={{ fontSize: '13px', color: checkOut ? '#F5F5F5' : '#555' }}>
+                                {checkOut ? fmtTime(checkOut) : 'Chưa ra'}
+                              </span>
+                              <span style={{ fontSize: '13px', color: totalMs > 0 ? '#FF9500' : '#555' }}>{hm}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 800, color: totalMs > 0 ? '#34C759' : '#555' }}>{dayFrac}</span>
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: methodBadge.color }}>{methodBadge.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Monthly summary from HR (existing att_monthly_records) */}
+                  {attendance.length > 0 && (
+                    <div>
+                      <p style={{ fontSize: '12px', fontWeight: 900, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+                        📊 Bảng công tháng (HR xác nhận)
+                      </p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {attendance.map((att: any) => {
+                          const sheet = att.sheet || {};
+                          return (
+                            <div key={att.id} style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', padding: '20px 24px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                <p style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5' }}>
+                                  ⏰ Tháng {sheet.month || '?'}/{sheet.year || '?'}
+                                </p>
+                                <span style={{
+                                  fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px',
+                                  background: sheet.status === 'finalized' ? 'rgba(52,199,89,0.1)' : 'rgba(255,149,0,0.1)',
+                                  color: sheet.status === 'finalized' ? '#34C759' : '#FF9500',
+                                }}>
+                                  {sheet.status === 'finalized' ? '✅ Đã chốt' : '📝 Nháp'}
+                                </span>
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                                {[
+                                  { label: 'Ngày công', value: att.work_days || 0, color: '#06B6D4' },
+                                  { label: 'Giờ tăng ca', value: att.ot_hours || 0, color: '#FF9500' },
+                                  { label: 'Đi muộn', value: att.late_count || 0, color: att.late_count > 0 ? '#FF3B30' : '#888' },
+                                  { label: 'Nghỉ', value: att.absent_days || 0, color: att.absent_days > 0 ? '#FF3B30' : '#888' },
+                                ].map(({ label, value, color }) => (
+                                  <div key={label} style={{ background: '#0a0a0a', borderRadius: '8px', padding: '10px 14px', textAlign: 'center' }}>
+                                    <p style={{ fontSize: '10px', color: '#666', fontWeight: 700, textTransform: 'uppercase' }}>{label}</p>
+                                    <p style={{ fontSize: '20px', fontWeight: 900, color }}>{value}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              {att.note && <p style={{ fontSize: '12px', color: '#888', marginTop: '10px', fontStyle: 'italic' }}>📝 {att.note}</p>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
