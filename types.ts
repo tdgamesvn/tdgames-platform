@@ -548,6 +548,15 @@ export interface HrEmployee {
   exclude_from_payroll?: boolean;
   /** Ẩn khỏi danh bạ Company Hub (dùng cho test accounts) */
   is_hidden?: boolean;
+  /** Thời điểm hoàn thành onboarding acknowledgment. NULL = chưa xong. */
+  onboarding_completed_at?: string | null;
+}
+
+export interface HrOnboardingAck {
+  id: string;
+  employee_id: string;
+  article_id: string;
+  acknowledged_at: string;
 }
 
 export interface HrContract {
@@ -1196,6 +1205,7 @@ export interface HandbookArticle {
   title: string;
   content: string;
   is_published: boolean;
+  is_required: boolean;
   order_index: number;
   created_by: string | null;
   created_at: string;
