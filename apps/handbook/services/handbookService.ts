@@ -92,6 +92,22 @@ export async function deleteArticle(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Batch-update order_index cho nhiều articles cùng lúc (dùng sau drag-reorder) */
+export async function batchUpdateArticleOrder(
+  items: Array<{ id: string; order_index: number }>,
+): Promise<void> {
+  // Supabase không support bulk update 1 query → dùng Promise.all
+  const updates = items.map(({ id, order_index }) =>
+    supabase
+      .from('handbook_articles')
+      .update({ order_index })
+      .eq('id', id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.find(r => r.error);
+  if (failed?.error) throw failed.error;
+}
+
 // ── Onboarding ──────────────────────────────────────────────────
 
 /** Fetch tất cả bài is_required = true (kể cả draft) — dùng cho admin quản lý */

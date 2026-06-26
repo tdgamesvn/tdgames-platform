@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HandbookCategory, HandbookArticle } from '@/types';
 import {
   fetchCategories, createCategory, updateCategory, deleteCategory,
   fetchArticles, createArticle, updateArticle, deleteArticle,
-  fetchAdminRequiredArticles,
+  fetchAdminRequiredArticles, batchUpdateArticleOrder,
 } from '@/apps/handbook/services/handbookService';
 
 interface Props {
@@ -27,6 +27,11 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
   const [editCat, setEditCat] = useState<{ id?: string; title: string; icon: string } | null>(null);
   const [editArt, setEditArt] = useState<Partial<HandbookArticle> & { isNew?: boolean } | null>(null);
   const [saving, setSaving]   = useState(false);
+
+  // Drag-to-reorder state
+  const dragIndexRef  = useRef<number | null>(null);
+  const [dragOver, setDragOver]   = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // ── load categories ─────────────────────────────────────────
   const loadCats = useCallback(async () => {
@@ -155,6 +160,59 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
       if (editArt?.id === id) setEditArt(null);
       onToast('Đã xóa bài viết', 'success');
     } catch (e: any) { onToast(e.message, 'error'); }
+  };
+
+  // ── Drag-to-reorder handlers ────────────────────────────────
+  const handleDragStart = (index: number) => {
+    dragIndexRef.current = index;
+    setIsDragging(true);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
+      setDragOver(index);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex === null || fromIndex === dropIndex) {
+      dragIndexRef.current = null;
+      setDragOver(null);
+      setIsDragging(false);
+      return;
+    }
+
+    // Reorder articles array
+    const reordered = [...articles];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(dropIndex, 0, moved);
+
+    // Assign new order_index (0-based sequential)
+    const updated = reordered.map((a, i) => ({ ...a, order_index: i }));
+    setArticles(updated);
+
+    dragIndexRef.current = null;
+    setDragOver(null);
+    setIsDragging(false);
+
+    // Persist to DB
+    try {
+      await batchUpdateArticleOrder(updated.map(a => ({ id: a.id, order_index: a.order_index })));
+      onToast('Đã cập nhật thứ tự', 'success');
+    } catch (e: any) {
+      onToast(e.message, 'error');
+      // Revert on error
+      setArticles(articles);
+    }
+  };
+
+  const handleDragEnd = () => {
+    dragIndexRef.current = null;
+    setDragOver(null);
+    setIsDragging(false);
   };
 
   // ── Helpers ─────────────────────────────────────────────────
@@ -434,11 +492,36 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
                   </div>
                 )}
 
-                {articles.map(art => (
+                {articles.map((art, idx) => (
                   <div
                     key={art.id}
-                    className="bg-[#1a1a1a] border border-primary/10 rounded-[20px] px-4 py-3 flex items-start gap-3 group"
+                    draggable
+                    onDragStart={() => handleDragStart(idx)}
+                    onDragOver={e => handleDragOver(e, idx)}
+                    onDrop={e => handleDrop(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    className="bg-[#1a1a1a] border rounded-[20px] px-4 py-3 flex items-start gap-3 group transition-all"
+                    style={{
+                      borderColor: dragOver === idx
+                        ? 'rgba(255,149,0,0.5)'
+                        : 'rgba(255,149,0,0.1)',
+                      opacity: isDragging && dragIndexRef.current === idx ? 0.4 : 1,
+                      cursor: isDragging ? 'grabbing' : 'default',
+                      background: dragOver === idx ? 'rgba(255,149,0,0.06)' : '#1a1a1a',
+                    }}
                   >
+                    {/* Drag handle */}
+                    <div
+                      className="flex-shrink-0 flex items-center self-center opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing text-neutral-600 hover:text-neutral-400 select-none"
+                      title="Kéo để sắp xếp"
+                    >
+                      <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+                        <circle cx="2.5" cy="2.5" r="1.5"/><circle cx="7.5" cy="2.5" r="1.5"/>
+                        <circle cx="2.5" cy="8" r="1.5"/><circle cx="7.5" cy="8" r="1.5"/>
+                        <circle cx="2.5" cy="13.5" r="1.5"/><circle cx="7.5" cy="13.5" r="1.5"/>
+                      </svg>
+                    </div>
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-white text-sm font-bold truncate">{art.title}</span>
