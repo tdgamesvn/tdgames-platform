@@ -2,7 +2,7 @@ import { supabase } from '@/services/supabaseClient';
 import type {
   HrEmployee, HrDepartment, HrParkingRegistration, HrParkingVehicleType,
   PayPayrollRecord, PayPayrollSheet, AttMonthlyRecord, AttMonthlySheet,
-  HrChangeRequest,
+  HrChangeRequest, WorkforceTask,
 } from '@/types';
 
 type DirectoryEmployee = Pick<
@@ -212,6 +212,44 @@ export async function updateMyProfile(employeeId: string, updates: Record<string
     .update(safeUpdates)
     .eq('id', employeeId);
   if (error) throw error;
+}
+
+// ── ClickUp Tasks (employee self-view) ───────────────────────
+/**
+ * Fetch ClickUp tasks assigned to this employee via wf_workers.email match.
+ * Returns only public-safe fields (no price/payment info).
+ */
+export async function fetchMyTasks(employeeId: string): Promise<WorkforceTask[]> {
+  // 1. Get employee email
+  const { data: emp } = await supabase
+    .from('hr_employees')
+    .select('email, work_email')
+    .eq('id', employeeId)
+    .single();
+  if (!emp) return [];
+  const email = (emp.work_email || emp.email || '').toLowerCase();
+  if (!email) return [];
+
+  // 2. Find matching worker
+  const { data: worker } = await supabase
+    .from('wf_workers')
+    .select('id')
+    .eq('email', email)
+    .single();
+  if (!worker) return [];
+
+  // 3. Fetch tasks (no financial fields)
+  const { data, error } = await supabase
+    .from('wf_tasks')
+    .select(`
+      id, title, project, client_name,
+      clickup_status, clickup_space_name, clickup_folder_name, clickup_list_name,
+      status, start_date, closed_date, created_at, updated_at
+    `)
+    .eq('worker_id', worker.id)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []) as unknown as WorkforceTask[];
 }
 
 // ── Change Requests (employee self-view) ─────────────────────

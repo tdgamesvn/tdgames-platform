@@ -22,8 +22,9 @@ import LeaveTab from './LeaveTab';
 import ProfileTab from './ProfileTab';
 import EvalTab from './EvalTab';
 import ChangeRequestsTab from './ChangeRequestsTab';
+import TasksTab from './TasksTab';
 
-type PortalTab = 'payslip' | 'attendance' | 'leave' | 'profile' | 'evaluation' | 'proposals';
+type PortalTab = 'payslip' | 'attendance' | 'leave' | 'profile' | 'evaluation' | 'proposals' | 'mytasks';
 
 interface PortalAppProps {
   currentUser: AccountUser;
@@ -39,6 +40,7 @@ const TAB_MAP: Record<PortalTab, string> = {
   profile:    'edit',
   evaluation: 'dashboard',
   proposals:  'proposals',
+  mytasks:    'mytasks',
 };
 const TAB_LABELS: Record<string, string> = {
   activity:  'Bảng lương',
@@ -47,6 +49,7 @@ const TAB_LABELS: Record<string, string> = {
   edit:      'Hồ sơ',
   dashboard: 'Đánh giá',
   proposals: 'Đề xuất',
+  mytasks:   'Công việc',
 };
 const REVERSE_TAB: Record<string, PortalTab> = {
   activity:  'payslip',
@@ -55,6 +58,7 @@ const REVERSE_TAB: Record<string, PortalTab> = {
   edit:      'profile',
   dashboard: 'evaluation',
   proposals: 'proposals',
+  mytasks:   'mytasks',
 };
 
 const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, initialParam }) => {
@@ -99,7 +103,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
   }, [currentUser.employee_id]);
 
   const accessibleTabs = useMemo(() => {
-    return ['activity', 'tasks', 'recurring', 'proposals', 'dashboard', 'edit'];
+    return ['activity', 'tasks', 'recurring', 'proposals', 'dashboard', 'edit', 'mytasks'];
   }, []);
 
   const navbarTab = TAB_MAP[activeTab];
@@ -474,6 +478,14 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
               currentUser={currentUser}
               onToast={(msg, type) => setToast({ message: msg, type })}
               initialCycleId={initialEvalCycleId ?? undefined}
+            />
+          )}
+
+          {/* ── My Tasks Tab ── */}
+          {activeTab === 'mytasks' && (
+            <TasksTab
+              currentUser={currentUser}
+              onToast={(msg, type) => setToast({ message: msg, type })}
             />
           )}
         </main>
