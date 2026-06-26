@@ -112,7 +112,7 @@ export async function fetchRequiredArticles(): Promise<HandbookArticle[]> {
  * Returns true nếu: có required articles + onboarding_completed_at IS NULL
  */
 export async function checkOnboardingNeeded(employeeId: string): Promise<boolean> {
-  const [{ data: emp }, { data: arts }] = await Promise.all([
+  const [{ data: emp }, { count: artsCount }] = await Promise.all([
     supabase
       .from('hr_employees')
       .select('onboarding_completed_at')
@@ -126,7 +126,7 @@ export async function checkOnboardingNeeded(employeeId: string): Promise<boolean
   ]);
   if (!emp) return false;
   if (emp.onboarding_completed_at) return false; // đã hoàn thành rồi
-  return (arts as any)?.length > 0 || false;
+  return (artsCount ?? 0) > 0;
 }
 
 /**
