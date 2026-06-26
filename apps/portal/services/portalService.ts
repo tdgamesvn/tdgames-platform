@@ -23,6 +23,7 @@ export async function fetchEmployeeDirectory(): Promise<DirectoryEmployee[]> {
     `)
     .eq('status', 'active')
     .in('type', ['fulltime', 'parttime'])
+    .neq('is_hidden', true)
     .order('full_name');
   if (error) throw error;
   return (data as DirectoryEmployee[]) || [];

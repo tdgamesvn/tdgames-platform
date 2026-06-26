@@ -423,6 +423,21 @@ const EmployeeForm: React.FC<Props> = ({
                 <p className="text-[10px] text-orange-400 mt-1">⚠️ NV này sẽ không xuất hiện trong bảng lương mới</p>
               )}
             </div>
+            <div className="flex flex-col justify-center">
+              <label className={labelCls}>Danh bạ</label>
+              <label className="flex items-center gap-2 cursor-pointer mt-1">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-orange-500"
+                  checked={!!(form as any).is_hidden}
+                  onChange={e => setForm(f => ({ ...f, is_hidden: e.target.checked }))}
+                />
+                <span className="text-xs text-neutral-medium">Ẩn khỏi danh bạ</span>
+              </label>
+              {(form as any).is_hidden && (
+                <p className="text-[10px] text-blue-400 mt-1">👻 NV này không hiển thị trong Company Hub</p>
+              )}
+            </div>
             <div>
               <label className={labelCls}>Email cá nhân{reqStar('email')}</label>
               <input className={inputCls} style={isFieldMissing('email') || emailError ? { borderColor: '#FF453A' } : {}} value={form.email} onChange={e => { setForm(f => ({ ...f, email: e.target.value })); setEmailError(''); }} placeholder="email.canhan@gmail.com" />

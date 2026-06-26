@@ -546,6 +546,8 @@ export interface HrEmployee {
   updated_at: string;
   /** Không tính vào bảng lương tự động (vd: chủ/giám đốc không nhận lương) */
   exclude_from_payroll?: boolean;
+  /** Ẩn khỏi danh bạ Company Hub (dùng cho test accounts) */
+  is_hidden?: boolean;
 }
 
 export interface HrContract {
