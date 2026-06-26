@@ -1,6 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { FixedAsset, AssetType, AssetStatus } from '@/types';
-import { calcDepreciation } from '../services/accountingService';
+import { calcDepreciation, uploadAssetDocumentToR2 } from '../services/accountingService';
+
+const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_URL || '';
+function toPublicUrl(url: string): string {
+  if (!url || !R2_PUBLIC_BASE) return url;
+  const m = url.match(/https:\/\/[a-f0-9]+\.r2\.cloudflarestorage\.com\/(.+)/);
+  return m ? `${R2_PUBLIC_BASE}/${m[1]}` : url;
+}
+
+function warrantyStatus(expires?: string): { label: string; color: string; bg: string } | null {
+  if (!expires) return null;
+  const diff = Math.ceil((new Date(expires).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (diff < 0)   return { label: 'Hết BH', color: 'text-red-400',    bg: 'bg-red-500/10' };
+  if (diff <= 30) return { label: `BH còn ${diff}d`, color: 'text-yellow-400', bg: 'bg-yellow-500/10' };
+  return { label: 'Còn BH', color: 'text-emerald-400', bg: 'bg-emerald-500/10' };
+}
 
 const fmt = (n: number) => n.toLocaleString('vi-VN');
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('vi-VN');
@@ -23,7 +38,7 @@ const EMPTY_FORM = (): Omit<FixedAsset, 'id' | 'created_at' | 'updated_at'> => (
   name: '', asset_type: 'equipment', purchase_date: new Date().toISOString().split('T')[0],
   cost: 0, useful_life_months: 36, residual_value: 0,
   description: '', serial_number: '', location: '', assigned_to: '',
-  status: 'active', notes: '',
+  status: 'active', notes: '', warranty_expires: '', document_url: '',
 });
 
 interface Props {
@@ -41,6 +56,9 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<FixedAsset | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | AssetStatus>('all');
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const today = new Date();
   const activeAssets = assets.filter(a => a.status === 'active');
@@ -53,7 +71,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
 
   const filtered = assets.filter(a => filterStatus === 'all' || a.status === filterStatus);
 
-  const openAdd = () => { setForm(EMPTY_FORM()); setEditId(null); setShowForm(true); };
+  const openAdd = () => { setForm(EMPTY_FORM()); setDocFile(null); setEditId(null); setShowForm(true); };
   const openEdit = (a: FixedAsset) => {
     setForm({
       name: a.name, asset_type: a.asset_type, purchase_date: a.purchase_date,
@@ -61,7 +79,10 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       description: a.description || '', serial_number: a.serial_number || '',
       location: a.location || '', assigned_to: a.assigned_to || '',
       status: a.status, notes: a.notes || '',
+      warranty_expires: a.warranty_expires || '',
+      document_url: a.document_url || '',
     });
+    setDocFile(null);
     setEditId(a.id); setShowForm(true);
   };
 
@@ -70,10 +91,18 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
     if (!form.name || form.cost <= 0) { onToast('Vui lòng nhập tên và nguyên giá', 'error'); return; }
     setSaving(true);
     try {
-      if (editId) { await onEdit(editId, form); onToast('Đã cập nhật tài sản'); }
-      else { await onAdd(form); onToast('Đã thêm tài sản cố định'); }
-      setShowForm(false);
-    } catch (e: any) { onToast(e.message, 'error'); }
+      let docUrl = form.document_url || '';
+      if (docFile) {
+        setUploading(true);
+        const { url } = await uploadAssetDocumentToR2(docFile);
+        docUrl = url;
+        setUploading(false);
+      }
+      const payload = { ...form, document_url: docUrl || undefined, warranty_expires: form.warranty_expires || undefined };
+      if (editId) { await onEdit(editId, payload); onToast('Đã cập nhật tài sản'); }
+      else { await onAdd(payload); onToast('Đã thêm tài sản cố định'); }
+      setShowForm(false); setDocFile(null);
+    } catch (e: any) { onToast(e.message, 'error'); setUploading(false); }
     finally { setSaving(false); }
   };
 
@@ -136,6 +165,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
           const dep = calcDepreciation(a, today);
           const pct = Math.min(100, (dep.depMonths / a.useful_life_months) * 100);
           const st = STATUS_STYLES[a.status];
+          const ws = warrantyStatus(a.warranty_expires);
           return (
             <div key={a.id} onClick={() => setSelected(selected?.id === a.id ? null : a)}
               className="rounded-2xl border border-white/5 p-4 cursor-pointer hover:border-white/10 transition-all"
@@ -147,6 +177,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
                     <p className="text-white font-bold text-sm">{a.name}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${st.bg} ${st.color}`}>{st.label}</span>
+                      {ws && <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${ws.bg} ${ws.color}`}>{ws.label}</span>}
                       {a.assigned_to && <span className="text-neutral-500 text-xs">👤 {a.assigned_to}</span>}
                       {a.location && <span className="text-neutral-500 text-xs">📍 {a.location}</span>}
                     </div>
@@ -179,6 +210,24 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
                   <div><span className="text-neutral-500">Đã KH lũy kế</span><p className="text-white font-bold">{fmt(Math.round(dep.accumulated))} ₫</p></div>
                   <div><span className="text-neutral-500">Tỉ lệ KH / năm</span><p className="text-white font-bold">{dep.depreciationRate.toFixed(1)}%</p></div>
                   {a.serial_number && <div><span className="text-neutral-500">Serial</span><p className="text-white font-bold">{a.serial_number}</p></div>}
+                  {a.warranty_expires && (
+                    <div>
+                      <span className="text-neutral-500">Hạn bảo hành</span>
+                      <p className={`font-bold ${warrantyStatus(a.warranty_expires)?.color || 'text-white'}`}>
+                        {fmtDate(a.warranty_expires)}
+                      </p>
+                    </div>
+                  )}
+                  {a.document_url && (
+                    <div className="col-span-2">
+                      <span className="text-neutral-500">Giấy tờ / Hóa đơn</span>
+                      <a href={toPublicUrl(a.document_url)} target="_blank" rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="flex items-center gap-1.5 mt-1 text-blue-400 hover:text-blue-300 text-xs font-bold underline underline-offset-2 transition-colors">
+                        📄 Xem tài liệu
+                      </a>
+                    </div>
+                  )}
                   <div className="col-span-2 flex gap-2 mt-2">
                     <button onClick={e => { e.stopPropagation(); openEdit(a); }}
                       className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
@@ -268,6 +317,53 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
                   className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
                   style={{ background: '#0f0f0f' }} />
               </div>
+              {/* Hạn bảo hành */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Hạn bảo hành</label>
+                <input type="date" value={form.warranty_expires || ''} onChange={e => setForm(f => ({ ...f, warranty_expires: e.target.value }))}
+                  className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+                  style={{ background: '#0f0f0f' }} />
+              </div>
+
+              {/* Upload giấy tờ */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">
+                  Giấy tờ mua hàng / Hóa đơn
+                </label>
+                <div
+                  className="relative flex flex-col items-center justify-center gap-2 border border-dashed border-white/15 rounded-xl px-4 py-5 cursor-pointer hover:border-orange-500/40 hover:bg-orange-500/5 transition-all"
+                  onClick={() => fileInputRef.current?.click()}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setDocFile(f); }}
+                  />
+                  {docFile ? (
+                    <>
+                      <span className="text-2xl">📄</span>
+                      <p className="text-xs text-white font-bold text-center truncate max-w-full">{docFile.name}</p>
+                      <p className="text-[10px] text-neutral-500">({(docFile.size / 1024).toFixed(0)} KB) — nhấn để đổi file</p>
+                    </>
+                  ) : form.document_url ? (
+                    <>
+                      <span className="text-2xl">📄</span>
+                      <a href={toPublicUrl(form.document_url)} target="_blank" rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
+                        className="text-xs text-blue-400 underline">Xem tài liệu hiện tại</a>
+                      <p className="text-[10px] text-neutral-500 mt-0.5">Nhấn để thay thế file</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl opacity-40">📎</span>
+                      <p className="text-xs text-neutral-400 text-center">Kéo thả hoặc nhấn để chọn file</p>
+                      <p className="text-[10px] text-neutral-600">PDF, JPG, PNG — tối đa 20MB</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
               {editId && (
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] font-black uppercase tracking-wider text-neutral-500">Trạng thái</label>
@@ -285,10 +381,10 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
                   style={{ background: '#0f0f0f' }} />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" disabled={saving}
+                <button type="submit" disabled={saving || uploading}
                   className="flex-1 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
                   style={{ background: '#FF9500' }}>
-                  {saving ? 'Đang lưu...' : editId ? 'Cập nhật' : 'Thêm mới'}
+                  {uploading ? '⬆️ Đang upload...' : saving ? 'Đang lưu...' : editId ? 'Cập nhật' : 'Thêm mới'}
                 </button>
                 <button type="button" onClick={() => setShowForm(false)}
                   className="px-5 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">

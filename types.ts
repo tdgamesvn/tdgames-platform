@@ -720,6 +720,8 @@ export interface FixedAsset {
   status: AssetStatus;
   disposal_date?: string;
   disposal_amount?: number;
+  warranty_expires?: string;
+  document_url?: string;
   notes?: string;
   created_by?: string;
   created_at: string;

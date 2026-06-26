@@ -37,6 +37,20 @@ export async function updateFixedAsset(
   if (error) throw error;
 }
 
+const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
+
+export async function uploadAssetDocumentToR2(
+  file: File,
+): Promise<{ url: string; fileName: string }> {
+  if (file.size > 20 * 1024 * 1024) throw new Error('File quá lớn! Tối đa 20MB.');
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Upload thất bại');
+  return { url: data.url, fileName: file.name };
+}
+
 export async function deleteFixedAsset(id: string): Promise<void> {
   const { error } = await supabase
     .from('acc_fixed_assets')
