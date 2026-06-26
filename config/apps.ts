@@ -138,11 +138,11 @@ export const APPS: AppConfig[] = [
   },
   {
     id: 'handbook',
-    name: 'Sổ tay',
-    icon: '📖',
+    name: 'Company Hub',
+    icon: '🏢',
     description: 'Nội quy, chính sách & tài liệu nội bộ',
     color: '#22C55E',
     gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
-    roles: ['admin', 'hr', 'ke_toan', 'member', 'bd'],
+    roles: ['hr', 'ke_toan', 'member', 'freelancer', 'bd'],
   },
 ];
