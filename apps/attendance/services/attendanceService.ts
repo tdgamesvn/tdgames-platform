@@ -1,7 +1,7 @@
 import { supabase } from '@/services/supabaseClient';
 import {
   AttShift, AttEmployeeShift, AttRecord, AttRequest, AttQrSession,
-  AttMonthlySheet, AttMonthlyRecord, HrEmployee,
+  AttMonthlySheet, AttMonthlyRecord, HrEmployee, AttOfficeConfig,
 } from '@/types';
 
 // ══════════════════════════════════════════════════════════
@@ -313,4 +313,154 @@ export async function updateMonthlySheet(id: string, updates: Partial<AttMonthly
 export async function deleteMonthlySheet(id: string) {
   const { error } = await supabase.from('att_monthly_sheets').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── Geo Check-in Self-Service ─────────────────────────────
+// ══════════════════════════════════════════════════════════
+
+/**
+ * Haversine distance between two GPS points. Returns meters.
+ */
+export function haversineDistance(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6_371_000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/** Fetch the single office geofence config row. */
+export async function fetchOfficeConfig(): Promise<AttOfficeConfig> {
+  const { data, error } = await supabase
+    .from('att_office_config')
+    .select('*')
+    .limit(1)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Update office config (admin only — enforced by RLS). */
+export async function updateOfficeConfig(
+  id: string,
+  updates: Partial<Omit<AttOfficeConfig, 'id' | 'updated_at'>>
+): Promise<void> {
+  const { error } = await supabase
+    .from('att_office_config')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** Fetch today's att_record for the given employee (null if not checked in yet). */
+export async function fetchMyTodayRecord(
+  employeeId: string
+): Promise<AttRecord | null> {
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await supabase
+    .from('att_records')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .eq('date', today)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+/** Fetch daily att_records in a date range for an employee (for history view). */
+export async function fetchMyRecordsByRange(
+  employeeId: string,
+  from: string,
+  to: string
+): Promise<AttRecord[]> {
+  const { data, error } = await supabase
+    .from('att_records')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .gte('date', from)
+    .lte('date', to)
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Self check-in: insert a new att_record for today.
+ * method = 'geo' for office check-in, 'remote' for approved WFH day.
+ * GPS coords are stored for audit (geo only).
+ */
+export async function selfCheckIn(
+  employeeId: string,
+  lat: number,
+  lng: number,
+  method: 'geo' | 'remote'
+): Promise<AttRecord> {
+  const today = new Date().toISOString().split('T')[0];
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('att_records')
+    .insert({
+      employee_id: employeeId,
+      date: today,
+      check_in: now,
+      method,
+      check_in_lat: method === 'geo' ? lat : null,
+      check_in_lng: method === 'geo' ? lng : null,
+      status: 'present',
+      late_minutes: 0,
+      early_minutes: 0,
+      overtime_minutes: 0,
+      note: '',
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Self check-out: set check_out timestamp on an existing att_record.
+ */
+export async function selfCheckOut(
+  recordId: string
+): Promise<AttRecord> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('att_records')
+    .update({ check_out: now })
+    .eq('id', recordId)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Check if employee has an approved remote leave request covering today.
+ * Used to bypass geofence on WFH days.
+ */
+export async function checkRemoteApproved(
+  employeeId: string,
+  date: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('att_requests')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .eq('request_type', 'leave')
+    .eq('leave_type', 'remote')
+    .eq('status', 'approved')
+    .lte('date_from', date)
+    .gte('date_to', date)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data !== null;
 }

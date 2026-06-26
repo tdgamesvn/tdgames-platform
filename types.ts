@@ -898,7 +898,7 @@ export interface AttRecord {
   date: string;
   check_in: string | null;
   check_out: string | null;
-  method: 'manual' | 'qr' | 'wifi';
+  method: 'manual' | 'qr' | 'wifi' | 'geo' | 'remote';
   shift_id: string | null;
   status: 'present' | 'late' | 'early_leave' | 'absent' | 'half_day';
   late_minutes: number;
@@ -907,9 +907,21 @@ export interface AttRecord {
   note: string;
   approved_by: string | null;
   created_at: string;
+  // GPS audit (geo check-in only)
+  check_in_lat?: number;
+  check_in_lng?: number;
   // joined
   employee?: HrEmployee;
   shift?: AttShift;
+}
+
+export interface AttOfficeConfig {
+  id: string;
+  office_name: string;
+  lat: number;
+  lng: number;
+  radius_meters: number;
+  updated_at: string;
 }
 
 export interface AttRequest {
