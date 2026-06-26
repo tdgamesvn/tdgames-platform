@@ -111,6 +111,34 @@ export async function fetchEmployees(): Promise<HrEmployee[]> {
   return data || [];
 }
 
+// Lite version — chỉ load các field cần cho list/filter/search, giảm ~80% payload
+const EMPLOYEE_LITE_SELECT = [
+  'id', 'employee_code', 'full_name', 'type', 'status', 'position',
+  'department_id', 'avatar_url', 'email', 'phone', 'work_email',
+  'start_date', 'worker_id', 'exclude_from_payroll', 'is_hidden',
+  'department:hr_departments!hr_employees_department_id_fkey(id, name)',
+].join(', ');
+
+export async function fetchEmployeesLite(): Promise<HrEmployee[]> {
+  const { data, error } = await supabase
+    .from('hr_employees')
+    .select(EMPLOYEE_LITE_SELECT)
+    .order('full_name');
+  if (error) throw error;
+  return (data || []) as HrEmployee[];
+}
+
+// Full detail — chỉ gọi khi user click vào 1 nhân viên cụ thể
+export async function fetchEmployeeDetail(id: string): Promise<HrEmployee> {
+  const { data, error } = await supabase
+    .from('hr_employees')
+    .select('*, department:hr_departments!hr_employees_department_id_fkey(*)')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data as HrEmployee;
+}
+
 export async function saveEmployee(
   emp: Omit<HrEmployee, 'id' | 'employee_code' | 'created_at' | 'updated_at' | 'department'>
 ): Promise<HrEmployee> {

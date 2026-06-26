@@ -104,8 +104,8 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
             filterDepartment={state.filterDepartment}
             setFilterDepartment={state.setFilterDepartment}
             totalCount={state.employees.length}
-            onView={(e) => { state.setViewingEmployee(e); state.setActiveTab('employeeDetail'); }}
-            onEdit={(e) => { state.setEditingEmployee(e); state.setActiveTab('employeeForm'); }}
+            onView={(e) => { state.setViewingEmployee(e); state.setActiveTab('employeeDetail'); state.loadEmployeeDetail(e.id, 'view'); }}
+            onEdit={(e) => { state.setEditingEmployee(e); state.setActiveTab('employeeForm'); state.loadEmployeeDetail(e.id, 'edit'); }}
             onDelete={state.handleDeleteEmployee}
             onAdd={() => { state.setEditingEmployee(null); state.setActiveTab('employeeForm'); }}
             onQuickAdd={() => state.setActiveTab('quickAdd')}
@@ -137,7 +137,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
             departments={state.departments}
             currentUser={currentUser}
             onBack={() => { state.setViewingEmployee(null); state.setActiveTab('employees'); }}
-            onEdit={(e) => { state.setEditingEmployee(e); state.setActiveTab('employeeForm'); }}
+            onEdit={(e) => { state.setEditingEmployee(e); state.setActiveTab('employeeForm'); state.loadEmployeeDetail(e.id, 'edit'); }}
           />
         )}
 

@@ -41,25 +41,37 @@ export function useHrState(initialTab?: string | null) {
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const results = await Promise.allSettled([
-        svc.fetchEmployees(),
+      // Critical path: chỉ load employees (lite) + departments — giải phóng UI sớm nhất
+      const [empResult, deptResult] = await Promise.allSettled([
+        svc.fetchEmployeesLite(),
         svc.fetchDepartments(),
-        svc.fetchReminders(),
       ]);
-      if (results[0].status === 'fulfilled') setEmployees(results[0].value);
-      else console.error('Failed to load employees:', results[0].reason);
-      if (results[1].status === 'fulfilled') setDepartments(results[1].value);
-      else console.error('Failed to load departments:', results[1].reason);
-      if (results[2].status === 'fulfilled') setReminders((results[2].value as any[]).filter((r: any) => r.status !== 'dismissed'));
-      else console.error('Failed to load reminders:', results[2].reason);
-      // Load change requests (non-blocking)
-      import('../services/changeRequestService').then(m =>
-        m.fetchChangeRequests().then(setChangeRequests).catch(() => {})
-      );
+      if (empResult.status === 'fulfilled') setEmployees(empResult.value);
+      else console.error('Failed to load employees:', empResult.reason);
+      if (deptResult.status === 'fulfilled') setDepartments(deptResult.value);
+      else console.error('Failed to load departments:', deptResult.reason);
     } catch (e: any) {
       setToast({ message: e.message || 'Lỗi tải dữ liệu', type: 'error' });
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // UI unlock sớm, không chờ reminders/changeRequests
+    }
+    // Non-blocking background loads (không block UI)
+    svc.fetchReminders()
+      .then(data => setReminders((data as any[]).filter((r: any) => r.status !== 'dismissed')))
+      .catch(() => {});
+    import('../services/changeRequestService').then(m =>
+      m.fetchChangeRequests().then(setChangeRequests).catch(() => {})
+    );
+  }, []);
+
+  // Load full detail khi user click vào 1 nhân viên — optimistic: hiển thị lite data trước
+  const loadEmployeeDetail = useCallback(async (id: string, mode: 'view' | 'edit') => {
+    try {
+      const full = await svc.fetchEmployeeDetail(id);
+      if (mode === 'view') setViewingEmployee(full);
+      else setEditingEmployee(full);
+    } catch (e: any) {
+      setToast({ message: 'Lỗi tải chi tiết nhân viên', type: 'error' });
     }
   }, []);
 
@@ -287,7 +299,7 @@ export function useHrState(initialTab?: string | null) {
     handleSaveContract, handleUpdateContract, handleDeleteContract,
     handleGenerateReminders, handleDismissReminder,
     handleSyncAllToWorkforce,
-    loadAll,
+    loadAll, loadEmployeeDetail,
     changeRequests, pendingChangeRequests, loadChangeRequests,
   };
 }
