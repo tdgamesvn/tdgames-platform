@@ -20,7 +20,7 @@ type DepartmentLite = Pick<HrDepartment, 'id' | 'name'>;
 type HandbookTab = 'articles' | 'directory';
 
 const TAB_LABELS: Record<string, string> = {
-  history:  '📖 Sổ tay',
+  history:  '🏢 Company Hub',
   activity: '👥 Danh bạ',
 };
 const TAB_MAP: Record<HandbookTab, string> = {
@@ -125,7 +125,7 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
         onTabChange={handleNavChange}
         onLogout={onBack}
         onBack={onBack}
-        appName="Sổ tay"
+        appName="Company Hub"
         tabLabels={TAB_LABELS}
       />
 
@@ -326,7 +326,7 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
       </main>
 
       <footer className="py-12 border-t border-white/5 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
-        TD Games • Sổ tay nhân viên
+        TD Games • Company Hub
       </footer>
     </div>
   );

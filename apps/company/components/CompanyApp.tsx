@@ -10,6 +10,7 @@ import { fetchCompanyProfiles, CompanyProfile } from '../services/companyService
 import InfoTab from './InfoTab';
 import DocumentsTab from './DocumentsTab';
 import BankTab from './BankTab';
+import HandbookAdminTab from './HandbookAdminTab';
 import { COMPANY_HELP } from '../helpContent';
 
 interface CompanyAppProps {
@@ -17,24 +18,27 @@ interface CompanyAppProps {
   onBack: () => void;
 }
 
-type Tab = 'info' | 'documents' | 'bank';
+type Tab = 'info' | 'documents' | 'bank' | 'handbook';
 
 const TAB_MAP: Record<Tab, string> = {
   info: 'history',
   documents: 'activity',
   bank: 'settings',
+  handbook: 'board',
 };
 
 const REVERSE_TAB: Record<string, Tab> = {
   history: 'info',
   activity: 'documents',
   settings: 'bank',
+  board: 'handbook',
 };
 
 const TAB_LABELS: Record<string, string> = {
   history: '🏢 Thông tin',
   activity: '📁 Giấy tờ',
   settings: '🏦 Ngân hàng',
+  board: '🏢 Company Hub',
 };
 
 const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
@@ -83,7 +87,7 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
         theme="dark"
         currentUser={currentUser}
         activeTab={navbarTab as any}
-        accessibleTabs={['history', 'activity', 'settings'] as any}
+        accessibleTabs={['history', 'activity', 'settings', 'board'] as any}
         onTabChange={tab => {
           const t = REVERSE_TAB[tab];
           if (t) setActiveTab(t);
@@ -136,6 +140,12 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
             )}
             {activeTab === 'bank' && (
               <BankTab company={selectedCompany} canEdit={canEdit} />
+            )}
+            {activeTab === 'handbook' && (
+              <HandbookAdminTab
+                adminUserId={currentUser.id}
+                onToast={(msg, type) => setToast({ message: msg, type })}
+              />
             )}
           </>
         )}
