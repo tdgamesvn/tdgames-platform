@@ -94,6 +94,18 @@ export async function deleteArticle(id: string): Promise<void> {
 
 // ── Onboarding ──────────────────────────────────────────────────
 
+/** Fetch tất cả bài is_required = true (kể cả draft) — dùng cho admin quản lý */
+export async function fetchAdminRequiredArticles(): Promise<HandbookArticle[]> {
+  const { data, error } = await supabase
+    .from('handbook_articles')
+    .select('*')
+    .eq('is_required', true)
+    .order('order_index', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** Fetch tất cả bài published + is_required = true, dùng cho OnboardingScreen */
 export async function fetchRequiredArticles(): Promise<HandbookArticle[]> {
   const { data, error } = await supabase

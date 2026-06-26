@@ -43,6 +43,7 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
   const [toast, setToast]                 = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [activeTab, setActiveTab]       = useState<HandbookTab>('articles');
+  const [showRequired, setShowRequired] = useState(false);
   const [employees, setEmployees]       = useState<DirectoryEmployee[]>([]);
   const [departments, setDepartments]   = useState<DepartmentLite[]>([]);
   const [dirLoading, setDirLoading]     = useState(false);
@@ -78,8 +79,12 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
       .finally(() => setDirLoading(false));
   }, [activeTab]);
 
-  // Filtered articles based on category + search
+  // Count required articles
+  const requiredCount = useMemo(() => articles.filter(a => a.is_required).length, [articles]);
+
+  // Filtered articles based on category + search + required filter
   const visibleArticles = useMemo(() => {
+    if (showRequired) return articles.filter(a => a.is_required);
     let list = articles;
     if (selectedCatId && !search) list = list.filter(a => a.category_id === selectedCatId);
     if (search) {
@@ -90,7 +95,7 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
       );
     }
     return list;
-  }, [articles, selectedCatId, search]);
+  }, [articles, selectedCatId, search, showRequired]);
 
   // Count articles per category
   const articleCountMap = useMemo(() => {
@@ -243,12 +248,28 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
                 )}
               </div>
 
+              {/* 📌 Bắt buộc đọc — top of sidebar */}
+              {!search && requiredCount > 0 && (
+                <button
+                  onClick={() => { setShowRequired(true); setSelectedCatId(null); setSelectedArticle(null); }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
+                  style={showRequired
+                    ? { background: 'rgba(255,149,0,0.12)', borderColor: 'rgba(255,149,0,0.4)', color: '#FF9500' }
+                    : { background: 'rgba(255,149,0,0.05)', borderColor: 'rgba(255,149,0,0.2)', color: 'rgba(255,149,0,0.75)' }
+                  }
+                >
+                  <span className="text-base">📌</span>
+                  <span className="flex-1">Bắt buộc đọc</span>
+                  <span className="text-[10px] font-black" style={{ opacity: showRequired ? 0.8 : 0.5 }}>{requiredCount}</span>
+                </button>
+              )}
+
               {/* "Tất cả" pill (only when not searching) */}
               {!search && (
                 <button
-                  onClick={() => { setSelectedCatId(null); setSelectedArticle(null); }}
+                  onClick={() => { setSelectedCatId(null); setSelectedArticle(null); setShowRequired(false); }}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-all"
-                  style={!selectedCatId
+                  style={!selectedCatId && !showRequired
                     ? { background: 'rgba(255,149,0,0.1)', borderColor: 'rgba(255,149,0,0.3)', color: '#FF9500' }
                     : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', color: '#9D9C9D' }
                   }
@@ -262,9 +283,9 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
               {!search && categories.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => { setSelectedCatId(cat.id); setSelectedArticle(null); }}
+                  onClick={() => { setSelectedCatId(cat.id); setSelectedArticle(null); setShowRequired(false); }}
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
-                  style={selectedCatId === cat.id
+                  style={!showRequired && selectedCatId === cat.id
                     ? { background: 'rgba(255,149,0,0.1)', borderColor: 'rgba(255,149,0,0.3)', color: '#fff' }
                     : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', color: '#9D9C9D' }
                   }
@@ -292,6 +313,13 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
                       <p className="text-neutral-500 text-sm">
                         Kết quả cho <span className="text-white font-bold">"{search}"</span> — {visibleArticles.length} bài
                       </p>
+                    ) : showRequired ? (
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm font-black" style={{ color: '#FF9500' }}>
+                          📌 Bắt buộc đọc
+                        </p>
+                        <span className="text-neutral-700 text-xs">({visibleArticles.length} bài)</span>
+                      </div>
                     ) : (
                       <p className="text-neutral-500 text-sm">
                         {selectedCatId
@@ -313,7 +341,8 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
                         key={art.id}
                         article={art}
                         category={categories.find(c => c.id === art.category_id)}
-                        showCategory={!selectedCatId || !!search}
+                        showCategory={!selectedCatId || !!search || showRequired}
+                        isRequired={art.is_required}
                         onClick={() => handleSelectArticle(art)}
                       />
                     ))
@@ -337,21 +366,30 @@ interface ArticleCardProps {
   article: HandbookArticle;
   category?: HandbookCategory;
   showCategory: boolean;
+  isRequired?: boolean;
   onClick: () => void;
 }
 
-function ArticleCard({ article, category, showCategory, onClick }: ArticleCardProps) {
+function ArticleCard({ article, category, showCategory, isRequired, onClick }: ArticleCardProps) {
   const preview = article.content.replace(/\n+/g, ' ').slice(0, 160);
   return (
     <button
       onClick={onClick}
       className="bg-surface border border-primary/10 rounded-[20px] px-5 py-4 text-left w-full hover:border-primary/25 transition-all group"
+      style={isRequired ? { borderColor: 'rgba(255,149,0,0.2)' } : {}}
     >
-      {showCategory && category && (
-        <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2 block">
-          {category.icon} {category.title}
-        </span>
-      )}
+      <div className="flex items-center gap-2 mb-1.5">
+        {showCategory && category && (
+          <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
+            {category.icon} {category.title}
+          </span>
+        )}
+        {isRequired && (
+          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 flex-shrink-0">
+            📌 Bắt buộc
+          </span>
+        )}
+      </div>
       <h3 className="text-white font-bold text-sm mb-1.5 group-hover:text-primary transition-colors">
         {article.title}
       </h3>

@@ -3,6 +3,7 @@ import { HandbookCategory, HandbookArticle } from '@/types';
 import {
   fetchCategories, createCategory, updateCategory, deleteCategory,
   fetchArticles, createArticle, updateArticle, deleteArticle,
+  fetchAdminRequiredArticles,
 } from '@/apps/handbook/services/handbookService';
 
 interface Props {
@@ -15,16 +16,17 @@ const EMPTY_ART = { title: '', content: '', is_published: false, is_required: fa
 
 // ─────────────────────────────────────────────────────────────
 export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
-  const [categories, setCategories]     = useState<HandbookCategory[]>([]);
+  const [categories, setCategories]       = useState<HandbookCategory[]>([]);
   const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
-  const [articles, setArticles]         = useState<HandbookArticle[]>([]);
-  const [loadingCats, setLoadingCats]   = useState(true);
-  const [loadingArts, setLoadingArts]   = useState(false);
+  const [articles, setArticles]           = useState<HandbookArticle[]>([]);
+  const [loadingCats, setLoadingCats]     = useState(true);
+  const [loadingArts, setLoadingArts]     = useState(false);
+  const [showRequired, setShowRequired]   = useState(false);
 
   // Editing state
-  const [editCat, setEditCat]   = useState<{ id?: string; title: string; icon: string } | null>(null);
-  const [editArt, setEditArt]   = useState<Partial<HandbookArticle> & { isNew?: boolean } | null>(null);
-  const [saving, setSaving]     = useState(false);
+  const [editCat, setEditCat] = useState<{ id?: string; title: string; icon: string } | null>(null);
+  const [editArt, setEditArt] = useState<Partial<HandbookArticle> & { isNew?: boolean } | null>(null);
+  const [saving, setSaving]   = useState(false);
 
   // ── load categories ─────────────────────────────────────────
   const loadCats = useCallback(async () => {
@@ -36,15 +38,23 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
 
   useEffect(() => { loadCats(); }, [loadCats]);
 
-  // ── load articles when category selected ───────────────────
+  // ── load articles ──────────────────────────────────────────
   useEffect(() => {
+    if (showRequired) {
+      setLoadingArts(true);
+      fetchAdminRequiredArticles()
+        .then(setArticles)
+        .catch((e: any) => onToast(e.message, 'error'))
+        .finally(() => setLoadingArts(false));
+      return;
+    }
     if (!selectedCatId) { setArticles([]); return; }
     setLoadingArts(true);
     fetchArticles(selectedCatId)
       .then(setArticles)
       .catch((e: any) => onToast(e.message, 'error'))
       .finally(() => setLoadingArts(false));
-  }, [selectedCatId, onToast]);
+  }, [selectedCatId, showRequired, onToast]);
 
   // ── Category CRUD ───────────────────────────────────────────
   const saveCat = async () => {
@@ -59,6 +69,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
         const created = await createCategory({ title: editCat.title.trim(), icon: editCat.icon, order_index: categories.length });
         setCategories(cs => [...cs, created]);
         setSelectedCatId(created.id);
+        setShowRequired(false);
         onToast('Đã tạo danh mục', 'success');
       }
       setEditCat(null);
@@ -78,7 +89,9 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
 
   // ── Article CRUD ────────────────────────────────────────────
   const saveArt = async () => {
-    if (!editArt || !editArt.title?.trim() || !selectedCatId) return;
+    // In required view, use the article's own category_id (editing only, no new article)
+    const catId = showRequired ? (editArt?.category_id ?? null) : selectedCatId;
+    if (!editArt || !editArt.title?.trim() || !catId) return;
     setSaving(true);
     try {
       if (editArt.id) {
@@ -88,11 +101,16 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
           is_published: editArt.is_published ?? false,
           is_required: editArt.is_required ?? false,
         });
-        setArticles(as => as.map(a => a.id === updated.id ? updated : a));
+        if (showRequired && !updated.is_required) {
+          // Removed required flag → remove from list
+          setArticles(as => as.filter(a => a.id !== updated.id));
+        } else {
+          setArticles(as => as.map(a => a.id === updated.id ? updated : a));
+        }
         onToast('Đã cập nhật bài viết', 'success');
       } else {
         const created = await createArticle({
-          category_id: selectedCatId,
+          category_id: catId,
           title: editArt.title.trim(),
           content: editArt.content ?? '',
           is_published: editArt.is_published ?? false,
@@ -116,6 +134,19 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
     } catch (e: any) { onToast(e.message, 'error'); }
   };
 
+  const toggleRequired = async (art: HandbookArticle) => {
+    try {
+      const updated = await updateArticle(art.id, { is_required: !art.is_required });
+      if (showRequired && !updated.is_required) {
+        // Unchecked in required view → remove from list
+        setArticles(as => as.filter(a => a.id !== updated.id));
+      } else {
+        setArticles(as => as.map(a => a.id === updated.id ? updated : a));
+      }
+      onToast(updated.is_required ? '📌 Đã đánh dấu bắt buộc' : 'Đã bỏ đánh dấu bắt buộc', 'success');
+    } catch (e: any) { onToast(e.message, 'error'); }
+  };
+
   const removeArt = async (id: string) => {
     if (!confirm('Xóa bài viết này?')) return;
     try {
@@ -126,14 +157,46 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
     } catch (e: any) { onToast(e.message, 'error'); }
   };
 
-  // ── Render ──────────────────────────────────────────────────
+  // ── Helpers ─────────────────────────────────────────────────
   const selectedCat = categories.find(c => c.id === selectedCatId);
+  const isRightVisible = showRequired || !!selectedCatId;
 
+  // In required view: look up category name from categories list
+  const getCatLabel = (catId: string) => {
+    const c = categories.find(c => c.id === catId);
+    return c ? `${c.icon} ${c.title}` : '—';
+  };
+
+  const rightTitle = showRequired
+    ? `📌 Bắt buộc onboarding`
+    : `${selectedCat?.icon ?? ''} ${selectedCat?.title ?? ''}`;
+
+  // ── Render ──────────────────────────────────────────────────
   return (
     <div className="flex gap-6 min-h-[600px]">
-      {/* ── LEFT: Categories ─────────────────────────────────── */}
+      {/* ── LEFT: Categories + Required pill ─────────────────── */}
       <div className="w-72 flex-shrink-0 flex flex-col gap-3">
-        <div className="flex items-center justify-between mb-1">
+
+        {/* 📌 Bắt buộc đọc — special view */}
+        <button
+          onClick={() => { setShowRequired(true); setSelectedCatId(null); setEditArt(null); setEditCat(null); }}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
+          style={showRequired
+            ? { background: 'rgba(255,149,0,0.12)', borderColor: 'rgba(255,149,0,0.4)', color: '#FF9500' }
+            : { background: 'rgba(255,149,0,0.04)', borderColor: 'rgba(255,149,0,0.18)', color: 'rgba(255,149,0,0.65)' }
+          }
+        >
+          <span className="text-base">📌</span>
+          <span className="flex-1">Bắt buộc đọc</span>
+          {showRequired && articles.length > 0 && (
+            <span className="text-[10px] font-black opacity-70">{articles.length}</span>
+          )}
+        </button>
+
+        <div className="border-t border-white/6 pt-1" />
+
+        {/* Danh mục header + add button */}
+        <div className="flex items-center justify-between">
           <span className="text-[10px] font-black text-neutral-500 uppercase tracking-wider">Danh mục</span>
           <button
             onClick={() => { setEditCat({ ...EMPTY_CAT }); setEditArt(null); }}
@@ -144,7 +207,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
           </button>
         </div>
 
-        {/* Category form (inline) */}
+        {/* Category form (inline, new) */}
         {editCat && !editCat.id && (
           <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-3 flex flex-col gap-2">
             <div className="flex gap-2">
@@ -208,9 +271,9 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
                   </div>
                 ) : (
                   <button
-                    onClick={() => { setSelectedCatId(cat.id); setEditArt(null); }}
+                    onClick={() => { setSelectedCatId(cat.id); setShowRequired(false); setEditArt(null); }}
                     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all group"
-                    style={selectedCatId === cat.id
+                    style={!showRequired && selectedCatId === cat.id
                       ? { background: 'rgba(255,149,0,0.1)', borderColor: 'rgba(255,149,0,0.3)', color: '#fff' }
                       : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', color: '#9D9C9D' }
                     }
@@ -239,16 +302,20 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
 
       {/* ── RIGHT: Articles ──────────────────────────────────── */}
       <div className="flex-1 flex flex-col gap-4">
-        {!selectedCatId ? (
+        {!isRightVisible ? (
           <div className="flex items-center justify-center flex-1 text-neutral-600 text-sm">
-            ← Chọn danh mục để xem bài viết
+            ← Chọn danh mục hoặc xem <span className="text-orange-400/60 font-bold mx-1">📌 Bắt buộc đọc</span>
           </div>
         ) : editArt ? (
-          /* Article Editor */
+          /* ── Article Editor ─────────────────────────────── */
           <div className="bg-[#1a1a1a] border border-primary/10 rounded-[20px] p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-neutral-400">
-                {editArt.id ? 'Sửa bài viết' : 'Bài viết mới'} — {selectedCat?.icon} {selectedCat?.title}
+                {editArt.id ? 'Sửa bài viết' : 'Bài viết mới'}
+                {' — '}
+                {showRequired && editArt.category_id
+                  ? getCatLabel(editArt.category_id)
+                  : `${selectedCat?.icon} ${selectedCat?.title}`}
               </span>
               <button onClick={() => setEditArt(null)} className="text-neutral-500 hover:text-white text-sm">✕ Hủy</button>
             </div>
@@ -265,7 +332,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
               value={editArt.content ?? ''}
               onChange={e => setEditArt(a => a && { ...a, content: e.target.value })}
               className="bg-[#111] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-neutral-600 w-full resize-y leading-relaxed"
-              placeholder="Nội dung chính sách, quy định... (hỗ trợ xuống dòng tự do)"
+              placeholder="Nội dung chính sách, quy định..."
               rows={16}
             />
 
@@ -311,37 +378,62 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
             </div>
           </div>
         ) : (
-          /* Article List */
+          /* ── Article List ────────────────────────────────── */
           <>
             <div className="flex items-center justify-between">
               <span className="text-sm font-black text-white">
-                {selectedCat?.icon} {selectedCat?.title}
+                {rightTitle}
                 <span className="ml-2 text-neutral-600 font-bold text-xs">({articles.length} bài)</span>
               </span>
-              <button
-                onClick={() => setEditArt({ ...EMPTY_ART, isNew: true })}
-                className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all"
-                style={{ background: '#FF9500', color: '#fff' }}
-              >
-                + Bài viết mới
-              </button>
+              {/* Only show "new article" button when in a category view */}
+              {!showRequired && (
+                <button
+                  onClick={() => setEditArt({ ...EMPTY_ART, isNew: true })}
+                  className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all"
+                  style={{ background: '#FF9500', color: '#fff' }}
+                >
+                  + Bài viết mới
+                </button>
+              )}
             </div>
 
             {loadingArts ? (
               <p className="text-neutral-600 text-sm py-8 text-center">Đang tải...</p>
             ) : articles.length === 0 ? (
               <div className="flex flex-col items-center justify-center flex-1 gap-3 py-16 text-neutral-600">
-                <span className="text-4xl">📝</span>
-                <p className="text-sm">Chưa có bài viết nào</p>
-                <button
-                  onClick={() => setEditArt({ ...EMPTY_ART, isNew: true })}
-                  className="text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-lg border border-white/10 hover:border-white/20 text-neutral-400 hover:text-white transition-all"
-                >
-                  + Tạo bài viết đầu tiên
-                </button>
+                <span className="text-4xl">{showRequired ? '📌' : '📝'}</span>
+                <p className="text-sm">
+                  {showRequired
+                    ? 'Chưa có bài nào được đánh dấu bắt buộc'
+                    : 'Chưa có bài viết nào'}
+                </p>
+                {showRequired && (
+                  <p className="text-xs text-neutral-700 text-center max-w-[280px] leading-relaxed">
+                    Vào từng danh mục → sửa bài viết → bật toggle <strong>📌 Bắt buộc onboarding</strong>
+                  </p>
+                )}
+                {!showRequired && (
+                  <button
+                    onClick={() => setEditArt({ ...EMPTY_ART, isNew: true })}
+                    className="text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-lg border border-white/10 hover:border-white/20 text-neutral-400 hover:text-white transition-all"
+                  >
+                    + Tạo bài viết đầu tiên
+                  </button>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-2">
+                {/* In required view, show an info banner */}
+                {showRequired && (
+                  <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-orange-500/8 border border-orange-500/15 mb-1">
+                    <span className="text-sm mt-0.5">ℹ️</span>
+                    <p className="text-xs text-neutral-400 leading-relaxed">
+                      Nhân viên mới sẽ bắt buộc đọc và xác nhận <strong className="text-white">{articles.length} bài</strong> này khi lần đầu đăng nhập.
+                      Bấm <strong>📌</strong> để bật/tắt nhanh.
+                    </p>
+                  </div>
+                )}
+
                 {articles.map(art => (
                   <div
                     key={art.id}
@@ -353,12 +445,20 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${art.is_published ? 'bg-green-500/15 text-green-400' : 'bg-white/8 text-neutral-500'}`}>
                           {art.is_published ? 'Công khai' : 'Nháp'}
                         </span>
-                        {art.is_required && (
+                        {art.is_required && !showRequired && (
                           <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400">
                             📌 Bắt buộc
                           </span>
                         )}
                       </div>
+
+                      {/* In required view: show which category this article belongs to */}
+                      {showRequired && (
+                        <span className="text-[10px] text-neutral-600 font-bold mb-1 block">
+                          {getCatLabel(art.category_id)}
+                        </span>
+                      )}
+
                       {art.content && (
                         <p className="text-neutral-500 text-xs leading-snug line-clamp-2">
                           {art.content.slice(0, 120)}{art.content.length > 120 ? '…' : ''}
@@ -370,6 +470,20 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
                     </div>
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                      {/* Quick required toggle */}
+                      <button
+                        onClick={() => toggleRequired(art)}
+                        title={art.is_required ? 'Bỏ bắt buộc' : 'Đánh dấu bắt buộc'}
+                        className="p-1.5 rounded-lg transition-all text-xs"
+                        style={art.is_required
+                          ? { color: '#FF9500', background: 'rgba(255,149,0,0.1)' }
+                          : { color: '#555', background: 'transparent' }
+                        }
+                        onMouseEnter={e => { if (!art.is_required) e.currentTarget.style.color = '#FF9500'; }}
+                        onMouseLeave={e => { if (!art.is_required) e.currentTarget.style.color = '#555'; }}
+                      >
+                        📌
+                      </button>
                       <button
                         onClick={() => togglePublish(art)}
                         title={art.is_published ? 'Ẩn bài viết' : 'Công khai'}
