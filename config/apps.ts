@@ -136,4 +136,13 @@ export const APPS: AppConfig[] = [
     gradient: 'linear-gradient(135deg, #06B6D4 0%, #0284C7 100%)',
     roles: ['admin'],
   },
+  {
+    id: 'handbook',
+    name: 'Sổ tay',
+    icon: '📖',
+    description: 'Nội quy, chính sách & tài liệu nội bộ',
+    color: '#22C55E',
+    gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
+    roles: ['admin', 'hr', 'ke_toan', 'member', 'bd'],
+  },
 ];

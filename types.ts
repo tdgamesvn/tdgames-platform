@@ -1175,3 +1175,25 @@ export interface HrEvaluationSubmission {
   recommended_action: string;
   submitted_at: string;
 }
+
+// ── Handbook ──────────────────────────────────────────────────
+export interface HandbookCategory {
+  id: string;
+  title: string;
+  icon: string;
+  order_index: number;
+  created_at: string;
+  article_count?: number; // joined
+}
+
+export interface HandbookArticle {
+  id: string;
+  category_id: string;
+  title: string;
+  content: string;
+  is_published: boolean;
+  order_index: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
