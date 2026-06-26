@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AccountUser } from '@/types';
 import { fetchRequiredArticles, submitOnboardingAcks } from '@/apps/handbook/services/handbookService';
 import type { HandbookArticle } from '@/types';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 interface Props {
   currentUser: AccountUser;
@@ -142,9 +143,8 @@ export function OnboardingScreen({ currentUser, onComplete }: Props) {
               {/* Article content */}
               {isExpanded && (
                 <div className="px-4 pb-4 space-y-4">
-                  <div className="text-neutral-300 text-sm leading-7 whitespace-pre-wrap border-t border-white/5 pt-4"
-                    style={{ fontFamily: 'Montserrat, sans-serif' }}>
-                    {art.content || <span className="text-neutral-700 italic">Bài viết chưa có nội dung.</span>}
+                  <div className="border-t border-white/5 pt-4">
+                    <MarkdownRenderer content={art.content} />
                   </div>
 
                   {/* Acknowledge checkbox */}

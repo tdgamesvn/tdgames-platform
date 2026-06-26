@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { HandbookCategory, HandbookArticle } from '@/types';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import {
   fetchCategories, createCategory, updateCategory, deleteCategory,
   fetchArticles, createArticle, updateArticle, deleteArticle,
@@ -386,12 +387,10 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
               placeholder="Tiêu đề bài viết..."
             />
 
-            <textarea
+            {/* Edit / Preview toggle */}
+            <EditorWithPreview
               value={editArt.content ?? ''}
-              onChange={e => setEditArt(a => a && { ...a, content: e.target.value })}
-              className="bg-[#111] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-neutral-600 w-full resize-y leading-relaxed"
-              placeholder="Nội dung chính sách, quy định..."
-              rows={16}
+              onChange={v => setEditArt(a => a && { ...a, content: v })}
             />
 
             <div className="flex items-center justify-between">
@@ -592,6 +591,60 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Editor with Markdown Preview toggle ──────────────────────────
+interface EditorWithPreviewProps {
+  value: string;
+  onChange: (v: string) => void;
+}
+
+function EditorWithPreview({ value, onChange }: EditorWithPreviewProps) {
+  const [tab, setTab] = useState<'edit' | 'preview'>('edit');
+  return (
+    <div className="flex flex-col gap-0">
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 mb-1">
+        <button
+          type="button"
+          onClick={() => setTab('edit')}
+          className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+            tab === 'edit'
+              ? 'bg-primary/15 text-primary'
+              : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+        >
+          ✏️ Soạn thảo
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('preview')}
+          className={`px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+            tab === 'preview'
+              ? 'bg-primary/15 text-primary'
+              : 'text-neutral-500 hover:text-neutral-300'
+          }`}
+        >
+          👁 Xem trước
+        </button>
+        <span className="ml-auto text-[10px] text-neutral-700">Hỗ trợ Markdown</span>
+      </div>
+
+      {tab === 'edit' ? (
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="bg-[#111] border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-neutral-600 w-full resize-y leading-relaxed font-mono"
+          placeholder="Nội dung chính sách, quy định... (Hỗ trợ **Markdown**)"
+          rows={16}
+        />
+      ) : (
+        <div className="bg-[#111] border border-white/10 rounded-lg px-4 py-3 min-h-[20rem] overflow-y-auto">
+          <MarkdownRenderer content={value} />
+        </div>
+      )}
     </div>
   );
 }

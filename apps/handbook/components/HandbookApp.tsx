@@ -6,6 +6,7 @@ import { ToastNotification } from '@/components/ToastNotification';
 import { fetchCategories, fetchArticles } from '../services/handbookService';
 import { fetchEmployeeDirectory, fetchDepartments } from '@/apps/portal/services/portalService';
 import { toPublicUrl } from '@/apps/hr/services/hrService';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 
 interface HandbookAppProps {
   currentUser: AccountUser;
@@ -371,7 +372,17 @@ interface ArticleCardProps {
 }
 
 function ArticleCard({ article, category, showCategory, isRequired, onClick }: ArticleCardProps) {
-  const preview = article.content.replace(/\n+/g, ' ').slice(0, 160);
+  // Strip markdown syntax for plain-text preview
+  const preview = article.content
+    .replace(/#{1,6}\s+/g, '')       // headings
+    .replace(/\*\*(.+?)\*\*/g, '$1') // bold
+    .replace(/\*(.+?)\*/g, '$1')     // italic
+    .replace(/`{1,3}[^`]*`{1,3}/g, '') // code
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1') // links
+    .replace(/[|>-]+/g, '')           // table chars & blockquotes
+    .replace(/\n+/g, ' ')
+    .trim()
+    .slice(0, 160);
   return (
     <button
       onClick={onClick}
@@ -424,12 +435,7 @@ function ArticleReader({ article, onBack }: ArticleReaderProps) {
         Cập nhật {new Date(article.updated_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
       </p>
 
-      <div
-        className="text-neutral-300 text-sm leading-7 whitespace-pre-wrap"
-        style={{ fontFamily: 'Montserrat, sans-serif' }}
-      >
-        {article.content || <span className="text-neutral-700 italic">Bài viết chưa có nội dung.</span>}
-      </div>
+      <MarkdownRenderer content={article.content} />
     </div>
   );
 }
