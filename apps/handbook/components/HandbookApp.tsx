@@ -159,10 +159,10 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
                     <div key={emp.id} style={{
                       background: '#161616', border: '1px solid #222', borderRadius: '20px',
                       display: 'flex', overflow: 'hidden',
-                      transition: 'border-color 0.2s, transform 0.2s',
+                      transition: 'border-color 0.2s',
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#06B6D440'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#06B6D440'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; }}
                     >
                       {/* Avatar — full height */}
                       <div style={{
@@ -345,7 +345,7 @@ function ArticleCard({ article, category, showCategory, onClick }: ArticleCardPr
   return (
     <button
       onClick={onClick}
-      className="bg-surface border border-white/8 rounded-xl px-5 py-4 text-left w-full hover:border-white/20 transition-all group"
+      className="bg-surface border border-primary/10 rounded-[20px] px-5 py-4 text-left w-full hover:border-primary/25 transition-all group"
     >
       {showCategory && category && (
         <span className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2 block">
@@ -373,7 +373,7 @@ interface ArticleReaderProps {
 
 function ArticleReader({ article, onBack }: ArticleReaderProps) {
   return (
-    <div className="bg-surface border border-white/8 rounded-xl p-6 md:p-8">
+    <div className="bg-surface border border-primary/10 rounded-[20px] p-6 md:p-8">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-neutral-500 hover:text-white transition-colors text-xs font-bold mb-6"
