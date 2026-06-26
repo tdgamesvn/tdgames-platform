@@ -80,4 +80,11 @@ CREATE POLICY "att_records_member_update_checkout"
       WHERE e.auth_user_id = auth.uid()
     )
     OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin', 'hr')
+  )
+  WITH CHECK (
+    employee_id IN (
+      SELECT e.id FROM public.hr_employees e
+      WHERE e.auth_user_id = auth.uid()
+    )
+    OR (auth.jwt() -> 'user_metadata' ->> 'role') IN ('admin', 'hr')
   );
