@@ -34,8 +34,25 @@ export function OnboardingScreen({ currentUser, onComplete }: Props) {
   const toggleCheck = (id: string) => {
     setChecked(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // Auto-expand bài tiếp theo chưa xác nhận
+        const currentIdx = articles.findIndex(a => a.id === id);
+        const nextArticle = articles.slice(currentIdx + 1).find(a => !next.has(a.id));
+        if (nextArticle) {
+          setExpandedId(nextArticle.id);
+          // Scroll tới bài tiếp theo sau khi DOM cập nhật
+          setTimeout(() => {
+            document.getElementById(`onboarding-article-${nextArticle.id}`)
+              ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        } else {
+          // Đã xác nhận hết — collapse bài hiện tại
+          setExpandedId(null);
+        }
+      }
       return next;
     });
   };
@@ -168,6 +185,7 @@ export function OnboardingScreen({ currentUser, onComplete }: Props) {
           return (
             <div
               key={art.id}
+              id={`onboarding-article-${art.id}`}
               className="rounded-[20px] border transition-all overflow-hidden"
               style={{
                 borderColor: isChecked ? 'rgba(52,199,89,0.3)' : 'rgba(255,149,0,0.15)',
