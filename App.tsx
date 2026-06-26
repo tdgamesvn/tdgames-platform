@@ -23,6 +23,8 @@ import HandbookApp from './apps/handbook/components/HandbookApp';
 import { supabase } from './services/supabaseClient';
 import { ExchangeRateProvider } from './services/ExchangeRateContext';
 import { hasRole, hasAnyRole } from './utils/roleUtils';
+import { OnboardingScreen } from './components/OnboardingScreen';
+import { checkOnboardingNeeded } from './apps/handbook/services/handbookService';
 
 const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
@@ -58,6 +60,7 @@ const App: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(true);
   const [needsPasswordSet, setNeedsPasswordSet] = useState(false);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   // Required profile fields — must match ProfileCompletionScreen
   const EMPLOYEE_REQUIRED_KEYS = [
@@ -85,6 +88,16 @@ const App: React.FC = () => {
       }
     } catch {
       // If profile fetch fails, don't block
+    }
+  };
+
+  /** Kiểm tra và set needsOnboarding nếu nhân viên cần làm onboarding */
+  const checkAndSetOnboarding = async (employeeId: string) => {
+    try {
+      const needed = await checkOnboardingNeeded(employeeId);
+      if (needed) setNeedsOnboarding(true);
+    } catch {
+      // Nếu lỗi, không block — cho qua bình thường
     }
   };
 
@@ -121,6 +134,16 @@ const App: React.FC = () => {
     const employeeId = meta.employee_id;
     if ((role === 'member' || role === 'freelancer') && employeeId) {
       await checkProfileCompletion(employeeId, role as string);
+      // Check onboarding chỉ khi profile đầy đủ
+      const profile = await fetchMyProfile(employeeId).catch(() => null);
+      const keys = role === 'freelancer' ? FREELANCER_REQUIRED_KEYS : EMPLOYEE_REQUIRED_KEYS;
+      const missing = keys.filter(key => {
+        const v = (profile as any)?.[key];
+        return !v || (typeof v === 'string' && v.trim().length === 0);
+      });
+      if (missing.length === 0) {
+        await checkAndSetOnboarding(employeeId);
+      }
     }
   };
 
@@ -240,8 +263,29 @@ const App: React.FC = () => {
     return (
       <ProfileCompletionScreen
         currentUser={currentUser}
-        onComplete={() => {
+        onComplete={async () => {
           setNeedsProfileCompletion(false);
+          // Sau khi profile xong, check onboarding
+          if (currentUser.employee_id) {
+            const needed = await checkOnboardingNeeded(currentUser.employee_id).catch(() => false);
+            if (needed) {
+              setNeedsOnboarding(true);
+              return;
+            }
+          }
+          setActiveApp(hasRole(currentUser, 'freelancer') ? 'freelancer-portal' : 'portal');
+        }}
+      />
+    );
+  }
+
+  // ── Invite flow: Step 3 — Onboarding acknowledgment ──
+  if (needsOnboarding && currentUser && currentUser.employee_id) {
+    return (
+      <OnboardingScreen
+        currentUser={currentUser}
+        onComplete={() => {
+          setNeedsOnboarding(false);
           setActiveApp(hasRole(currentUser, 'freelancer') ? 'freelancer-portal' : 'portal');
         }}
       />
