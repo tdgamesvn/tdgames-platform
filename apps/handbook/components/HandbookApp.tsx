@@ -1,18 +1,36 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import AppBackground from '@/components/AppBackground';
-import { AccountUser, HandbookCategory, HandbookArticle } from '@/types';
+import { AccountUser, HandbookCategory, HandbookArticle, HrEmployee, HrDepartment } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { ToastNotification } from '@/components/ToastNotification';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
 import { fetchCategories, fetchArticles } from '../services/handbookService';
+import { fetchEmployeeDirectory, fetchDepartments } from '@/apps/portal/services/portalService';
+import { toPublicUrl } from '@/apps/hr/services/hrService';
 
 interface HandbookAppProps {
   currentUser: AccountUser;
   onBack: () => void;
 }
 
+type DirectoryEmployee = Pick<
+  HrEmployee,
+  'id' | 'full_name' | 'email' | 'work_email' | 'phone' | 'position' | 'avatar_url' | 'status' | 'type' | 'department_id' | 'date_of_birth' | 'address'
+>;
+type DepartmentLite = Pick<HrDepartment, 'id' | 'name'>;
+type HandbookTab = 'articles' | 'directory';
+
 const TAB_LABELS: Record<string, string> = {
-  history: '📖 Sổ tay',
+  history:  '📖 Sổ tay',
+  activity: '👥 Danh bạ',
+};
+const TAB_MAP: Record<HandbookTab, string> = {
+  articles:  'history',
+  directory: 'activity',
+};
+const REVERSE_TAB: Record<string, HandbookTab> = {
+  history:  'articles',
+  activity: 'directory',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -24,6 +42,18 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
   const [selectedArticle, setSelectedArticle] = useState<HandbookArticle | null>(null);
   const [search, setSearch]               = useState('');
   const [toast, setToast]                 = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const [activeTab, setActiveTab]       = useState<HandbookTab>('articles');
+  const [employees, setEmployees]       = useState<DirectoryEmployee[]>([]);
+  const [departments, setDepartments]   = useState<DepartmentLite[]>([]);
+  const [dirLoading, setDirLoading]     = useState(false);
+
+  const navbarTab = TAB_MAP[activeTab];
+  const handleNavChange = (tab: string) => {
+    const mapped = REVERSE_TAB[tab];
+    if (mapped) setActiveTab(mapped);
+  };
+  const deptMap = Object.fromEntries(departments.map(d => [d.id, d.name]));
 
   const { rate: vcbRate, loading: vcbRateLoading } = useExchangeRate();
 
@@ -39,6 +69,17 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
       .catch((e: any) => setToast({ message: e.message, type: 'error' }))
       .finally(() => setLoading(false));
   }, []);
+
+  // Lazy-load employee directory on first activation
+  useEffect(() => {
+    if (activeTab !== 'directory') return;
+    if (employees.length > 0) return; // already loaded
+    setDirLoading(true);
+    Promise.all([fetchEmployeeDirectory(), fetchDepartments()])
+      .then(([emps, deps]) => { setEmployees(emps); setDepartments(deps); })
+      .catch((e: any) => setToast({ message: e.message, type: 'error' }))
+      .finally(() => setDirLoading(false));
+  }, [activeTab]);
 
   // Filtered articles based on category + search
   const visibleArticles = useMemo(() => {
@@ -82,9 +123,9 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
       <Navbar
         theme="dark"
         currentUser={currentUser}
-        activeTab="history"
-        accessibleTabs={['history']}
-        onTabChange={() => {}}
+        activeTab={navbarTab}
+        accessibleTabs={['history', 'activity']}
+        onTabChange={handleNavChange}
         onLogout={onBack}
         onBack={onBack}
         vcbRate={vcbRate}
@@ -94,7 +135,100 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
       />
 
       <main className="flex-1 p-6 md:p-10 max-w-[1400px] mx-auto w-full">
-        {loading ? (
+
+        {/* ── Directory tab ── */}
+        {activeTab === 'directory' && (
+          <div className="animate-fadeInUp">
+            <div style={{ marginBottom: '28px' }}>
+              <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
+                👥 Danh bạ nhân viên
+              </h2>
+              <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>
+                Thông tin liên lạc nội bộ — read only
+              </p>
+            </div>
+            {dirLoading ? (
+              <div style={{ textAlign: 'center', padding: '60px' }}>
+                <p className="animate-pulse" style={{ color: '#888', fontSize: '13px' }}>Đang tải...</p>
+              </div>
+            ) : employees.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px', background: '#161616', borderRadius: '16px', border: '1px solid #222' }}>
+                <p style={{ fontSize: '48px', marginBottom: '12px' }}>👤</p>
+                <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>Chưa có nhân viên nào</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+                {employees.map(emp => {
+                  const avatarSrc = emp.avatar_url ? toPublicUrl(emp.avatar_url) : '';
+                  return (
+                    <div key={emp.id} style={{
+                      background: '#161616', border: '1px solid #222', borderRadius: '20px',
+                      display: 'flex', overflow: 'hidden',
+                      transition: 'border-color 0.2s, transform 0.2s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#06B6D440'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    >
+                      {/* Avatar — full height */}
+                      <div style={{
+                        width: '120px', minHeight: '140px', flexShrink: 0,
+                        background: avatarSrc
+                          ? `url(${avatarSrc}) center/cover no-repeat`
+                          : 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        borderRight: '1px solid #222',
+                      }}>
+                        {!avatarSrc && (
+                          <span style={{ fontSize: '40px', fontWeight: 900, color: '#fff', opacity: 0.8 }}>
+                            {emp.full_name?.[0] || '?'}
+                          </span>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div style={{ flex: 1, padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <p style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5' }}>{emp.full_name}</p>
+                          <span style={{
+                            fontSize: '9px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px',
+                            textTransform: 'uppercase', letterSpacing: '0.1em', flexShrink: 0,
+                            background: emp.status === 'active' ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
+                            color: emp.status === 'active' ? '#34C759' : '#FF3B30',
+                          }}>
+                            {emp.type === 'fulltime' ? 'FT' : emp.type === 'parttime' ? 'PT' : 'FL'}
+                          </span>
+                        </div>
+                        {emp.position && (
+                          <p style={{ fontSize: '13px', color: '#06B6D4', fontWeight: 600 }}>{emp.position}</p>
+                        )}
+                        {emp.department_id && deptMap[emp.department_id] && (
+                          <span style={{
+                            fontSize: '10px', fontWeight: 700, padding: '2px 10px', borderRadius: '6px',
+                            background: 'rgba(6,182,212,0.08)', color: '#06B6D4', alignSelf: 'flex-start',
+                          }}>
+                            {deptMap[emp.department_id]}
+                          </span>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
+                          {emp.work_email && <span style={{ fontSize: '11px', color: '#888' }}>💼 {emp.work_email}</span>}
+                          {emp.phone && <span style={{ fontSize: '11px', color: '#888' }}>📱 {emp.phone}</span>}
+                          {emp.date_of_birth && (
+                            <span style={{ fontSize: '11px', color: '#888' }}>🎂 {new Date(emp.date_of_birth).toLocaleDateString('vi-VN')}</span>
+                          )}
+                          {emp.address && (
+                            <span style={{ fontSize: '11px', color: '#888', lineHeight: '1.3' }}>📍 {emp.address}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Articles tab ── */}
+        {activeTab === 'articles' && (loading ? (
           <div className="flex items-center justify-center py-40 text-neutral-600 text-sm">Đang tải...</div>
         ) : (
           <div className="flex gap-6">
@@ -193,7 +327,7 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
               )}
             </div>
           </div>
-        )}
+        ))}
       </main>
 
       <footer className="py-12 border-t border-white/5 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">

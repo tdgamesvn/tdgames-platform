@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AppBackground from '@/components/AppBackground';
 import {
   AccountUser,
-  HrEmployee,
-  HrDepartment,
   PayPayrollRecord,
   PayPayrollSheet,
   AttMonthlyRecord,
@@ -12,28 +10,20 @@ import {
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
 import {
-  fetchEmployeeDirectory,
-  fetchDepartments,
   fetchMyPayslips,
   fetchMyAttendance,
   fetchMyProfile,
 } from '../services/portalService';
 import PayslipAcknowledgeModal from './PayslipAcknowledgeModal';
 
-type DirectoryEmployee = Pick<
-  HrEmployee,
-  'id' | 'full_name' | 'email' | 'work_email' | 'phone' | 'position' | 'avatar_url' | 'status' | 'type' | 'department_id' | 'date_of_birth' | 'address'
->;
-type DepartmentLite = Pick<HrDepartment, 'id' | 'name'>;
 type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
 type AttendanceWithSheet = AttMonthlyRecord & { sheet?: AttMonthlySheet };
-import { toPublicUrl } from '@/apps/hr/services/hrService';
 import LeaveTab from './LeaveTab';
 import ProfileTab from './ProfileTab';
 import EvalTab from './EvalTab';
 import ChangeRequestsTab from './ChangeRequestsTab';
 
-type PortalTab = 'directory' | 'payslip' | 'attendance' | 'leave' | 'profile' | 'evaluation' | 'proposals';
+type PortalTab = 'payslip' | 'attendance' | 'leave' | 'profile' | 'evaluation' | 'proposals';
 
 interface PortalAppProps {
   currentUser: AccountUser;
@@ -43,7 +33,6 @@ interface PortalAppProps {
 }
 
 const TAB_MAP: Record<PortalTab, string> = {
-  directory:  'history',
   payslip:    'activity',
   attendance: 'tasks',
   leave:      'recurring',
@@ -52,7 +41,6 @@ const TAB_MAP: Record<PortalTab, string> = {
   proposals:  'proposals',
 };
 const TAB_LABELS: Record<string, string> = {
-  history:   'Thông tin công ty',
   activity:  'Bảng lương',
   tasks:     'Chấm công',
   recurring: 'Nghỉ phép',
@@ -61,7 +49,6 @@ const TAB_LABELS: Record<string, string> = {
   proposals: 'Đề xuất',
 };
 const REVERSE_TAB: Record<string, PortalTab> = {
-  history:   'directory',
   activity:  'payslip',
   tasks:     'attendance',
   recurring: 'leave',
@@ -81,11 +68,9 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
     ? 'evaluation'
     : initialTab === 'proposals'
       ? 'proposals'
-      : 'directory';
+      : 'payslip';
 
   const [activeTab, setActiveTab] = useState<PortalTab>(resolvedInitialTab);
-  const [employees, setEmployees] = useState<DirectoryEmployee[]>([]);
-  const [departments, setDepartments] = useState<DepartmentLite[]>([]);
   const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
   const [attendance, setAttendance] = useState<AttendanceWithSheet[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -114,7 +99,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
   }, [currentUser.employee_id]);
 
   const accessibleTabs = useMemo(() => {
-    return ['history', 'activity', 'tasks', 'recurring', 'proposals', 'dashboard', 'edit'];
+    return ['activity', 'tasks', 'recurring', 'proposals', 'dashboard', 'edit'];
   }, []);
 
   const navbarTab = TAB_MAP[activeTab];
@@ -123,15 +108,6 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
     const mapped = REVERSE_TAB[tab];
     if (mapped) setActiveTab(mapped);
   };
-
-  // Load directory data
-  useEffect(() => {
-    setIsLoading(true);
-    Promise.all([fetchEmployeeDirectory(), fetchDepartments()])
-      .then(([emps, deps]) => { setEmployees(emps); setDepartments(deps); })
-      .catch(err => setToast({ message: err.message, type: 'error' }))
-      .finally(() => setIsLoading(false));
-  }, []);
 
   // Kiểm tra phiếu lương pending ngay khi mount — hiện modal blocking nếu có
   useEffect(() => {
@@ -171,8 +147,6 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
     }
   }, [activeTab, currentUser.employee_id]);
 
-  const deptMap = Object.fromEntries(departments.map(d => [d.id, d.name]));
-
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
       <AppBackground />
@@ -205,107 +179,6 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
         />
 
         <main className="flex-1 px-4 md:px-8 lg:px-12 py-8 max-w-7xl mx-auto w-full">
-          {/* ── Directory Tab ── */}
-          {activeTab === 'directory' && (
-            <div className="animate-fadeInUp">
-              <div style={{ marginBottom: '28px' }}>
-                <h2 style={{ fontSize: '2rem', fontWeight: 900, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '-0.03em' }}>
-                  👤 Thông tin công ty
-                </h2>
-                <p style={{ color: '#888', fontSize: '14px', marginTop: '4px' }}>
-                  Danh bạ nhân viên — read only
-                </p>
-              </div>
-
-              {isLoading ? (
-                <div style={{ textAlign: 'center', padding: '60px' }}>
-                  <p className="animate-pulse" style={{ color: '#888', fontSize: '13px' }}>Đang tải...</p>
-                </div>
-              ) : employees.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px', background: '#161616', borderRadius: '16px', border: '1px solid #222' }}>
-                  <p style={{ fontSize: '48px', marginBottom: '12px' }}>👤</p>
-                  <p style={{ fontSize: '15px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>Chưa có nhân viên nào</p>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
-                  {employees.map(emp => {
-                    const avatarSrc = emp.avatar_url ? toPublicUrl(emp.avatar_url) : '';
-                    return (
-                      <div key={emp.id} style={{
-                        background: '#161616', border: '1px solid #222', borderRadius: '20px',
-                        display: 'flex', overflow: 'hidden',
-                        transition: 'border-color 0.2s, transform 0.2s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#06B6D440'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                      >
-                        {/* Avatar — full height of card */}
-                        <div style={{
-                          width: '120px', minHeight: '140px', flexShrink: 0,
-                          background: avatarSrc
-                            ? `url(${avatarSrc}) center/cover no-repeat`
-                            : 'linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderRight: '1px solid #222',
-                        }}>
-                          {!avatarSrc && (
-                            <span style={{ fontSize: '40px', fontWeight: 900, color: '#fff', opacity: 0.8 }}>
-                              {emp.full_name?.[0] || '?'}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div style={{ flex: 1, padding: '18px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <p style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5' }}>
-                              {emp.full_name}
-                            </p>
-                            <span style={{
-                              fontSize: '9px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px',
-                              textTransform: 'uppercase', letterSpacing: '0.1em', flexShrink: 0,
-                              background: emp.status === 'active' ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)',
-                              color: emp.status === 'active' ? '#34C759' : '#FF3B30',
-                            }}>
-                              {emp.type === 'fulltime' ? 'FT' : emp.type === 'parttime' ? 'PT' : 'FL'}
-                            </span>
-                          </div>
-                          {emp.position && (
-                            <p style={{ fontSize: '13px', color: '#06B6D4', fontWeight: 600 }}>
-                              {emp.position}
-                            </p>
-                          )}
-                          {emp.department_id && deptMap[emp.department_id] && (
-                            <span style={{
-                              fontSize: '10px', fontWeight: 700, padding: '2px 10px', borderRadius: '6px',
-                              background: 'rgba(6,182,212,0.08)', color: '#06B6D4', alignSelf: 'flex-start',
-                            }}>
-                              {deptMap[emp.department_id]}
-                            </span>
-                          )}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
-                            {emp.work_email && (
-                              <span style={{ fontSize: '11px', color: '#888' }}>💼 {emp.work_email}</span>
-                            )}
-                            {emp.phone && (
-                              <span style={{ fontSize: '11px', color: '#888' }}>📱 {emp.phone}</span>
-                            )}
-                            {emp.date_of_birth && (
-                              <span style={{ fontSize: '11px', color: '#888' }}>🎂 {new Date(emp.date_of_birth).toLocaleDateString('vi-VN')}</span>
-                            )}
-                            {emp.address && (
-                              <span style={{ fontSize: '11px', color: '#888', lineHeight: '1.3' }}>📍 {emp.address}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* ── Payslip Tab ── */}
           {activeTab === 'payslip' && (
             <div className="animate-fadeInUp">
