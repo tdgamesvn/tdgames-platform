@@ -11,7 +11,7 @@ interface Props {
 }
 
 const EMPTY_CAT = { title: '', icon: '📄' };
-const EMPTY_ART = { title: '', content: '', is_published: false };
+const EMPTY_ART = { title: '', content: '', is_published: false, is_required: false };
 
 // ─────────────────────────────────────────────────────────────
 export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
@@ -86,6 +86,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
           title: editArt.title.trim(),
           content: editArt.content ?? '',
           is_published: editArt.is_published ?? false,
+          is_required: editArt.is_required ?? false,
         });
         setArticles(as => as.map(a => a.id === updated.id ? updated : a));
         onToast('Đã cập nhật bài viết', 'success');
@@ -95,6 +96,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
           title: editArt.title.trim(),
           content: editArt.content ?? '',
           is_published: editArt.is_published ?? false,
+          is_required: editArt.is_required ?? false,
           order_index: articles.length,
           created_by: adminUserId,
         });
@@ -268,19 +270,35 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
             />
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div
-                  onClick={() => setEditArt(a => a && { ...a, is_published: !a.is_published })}
-                  className="w-10 h-5 rounded-full transition-all relative"
-                  style={{ background: editArt.is_published ? '#FF9500' : 'rgba(255,255,255,0.1)' }}
-                >
-                  <div className="absolute top-0.5 transition-all w-4 h-4 bg-white rounded-full shadow"
-                    style={{ left: editArt.is_published ? '22px' : '2px' }} />
-                </div>
-                <span className="text-xs font-bold text-neutral-400">
-                  {editArt.is_published ? '✅ Đang công khai' : '⬜ Bản nháp'}
-                </span>
-              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div
+                    onClick={() => setEditArt(a => a && { ...a, is_published: !a.is_published })}
+                    className="w-10 h-5 rounded-full transition-all relative"
+                    style={{ background: editArt.is_published ? '#FF9500' : 'rgba(255,255,255,0.1)' }}
+                  >
+                    <div className="absolute top-0.5 transition-all w-4 h-4 bg-white rounded-full shadow"
+                      style={{ left: editArt.is_published ? '22px' : '2px' }} />
+                  </div>
+                  <span className="text-xs font-bold text-neutral-400">
+                    {editArt.is_published ? '✅ Đang công khai' : '⬜ Bản nháp'}
+                  </span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div
+                    onClick={() => setEditArt(a => a && { ...a, is_required: !a.is_required })}
+                    className="w-10 h-5 rounded-full transition-all relative"
+                    style={{ background: editArt.is_required ? '#FF9500' : 'rgba(255,255,255,0.1)' }}
+                  >
+                    <div className="absolute top-0.5 transition-all w-4 h-4 bg-white rounded-full shadow"
+                      style={{ left: editArt.is_required ? '22px' : '2px' }} />
+                  </div>
+                  <span className="text-xs font-bold text-neutral-400">
+                    {editArt.is_required ? '📌 Bắt buộc onboarding' : '⬜ Không bắt buộc'}
+                  </span>
+                </label>
+              </div>
 
               <button
                 onClick={saveArt}
@@ -335,6 +353,11 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${art.is_published ? 'bg-green-500/15 text-green-400' : 'bg-white/8 text-neutral-500'}`}>
                           {art.is_published ? 'Công khai' : 'Nháp'}
                         </span>
+                        {art.is_required && (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400">
+                            📌 Bắt buộc
+                          </span>
+                        )}
                       </div>
                       {art.content && (
                         <p className="text-neutral-500 text-xs leading-snug line-clamp-2">
