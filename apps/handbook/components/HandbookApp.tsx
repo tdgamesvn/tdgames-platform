@@ -3,7 +3,6 @@ import AppBackground from '@/components/AppBackground';
 import { AccountUser, HandbookCategory, HandbookArticle, HrEmployee, HrDepartment } from '@/types';
 import { Navbar } from '@/components/Navbar';
 import { ToastNotification } from '@/components/ToastNotification';
-import { useExchangeRate } from '@/services/ExchangeRateContext';
 import { fetchCategories, fetchArticles } from '../services/handbookService';
 import { fetchEmployeeDirectory, fetchDepartments } from '@/apps/portal/services/portalService';
 import { toPublicUrl } from '@/apps/hr/services/hrService';
@@ -54,8 +53,6 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
     if (mapped) setActiveTab(mapped);
   };
   const deptMap = Object.fromEntries(departments.map(d => [d.id, d.name]));
-
-  const { rate: vcbRate, loading: vcbRateLoading } = useExchangeRate();
 
   // Load all published data once
   useEffect(() => {
@@ -128,8 +125,6 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
         onTabChange={handleNavChange}
         onLogout={onBack}
         onBack={onBack}
-        vcbRate={vcbRate}
-        vcbRateLoading={vcbRateLoading}
         appName="Sổ tay"
         tabLabels={TAB_LABELS}
       />
