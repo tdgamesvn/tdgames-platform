@@ -145,7 +145,7 @@ export default function InfoTab({ company, canEdit, onUpdated }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
           {/* Main info card — 2/3 width */}
-          <div className="lg:col-span-2 rounded-2xl border border-white/8 p-6 space-y-6"
+          <div className="lg:col-span-2 rounded-[20px] border border-primary/10 p-6 space-y-6"
             style={{ background: 'rgba(255,255,255,0.02)' }}>
             <p className="text-neutral-500 text-[10px] font-black uppercase tracking-wider border-b border-white/5 pb-3">
               Thông tin pháp lý
@@ -171,7 +171,7 @@ export default function InfoTab({ company, canEdit, onUpdated }: Props) {
           <div className="lg:col-span-1 space-y-4 lg:sticky lg:top-4">
 
             {/* Quick-ref card */}
-            <div className="rounded-2xl border p-5 space-y-5"
+            <div className="rounded-[20px] border p-5 space-y-5"
               style={{
                 background: 'rgba(255,149,0,0.03)',
                 borderColor: 'rgba(255,149,0,0.12)',

@@ -224,7 +224,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {accounts.map(acc => (
             <div key={acc.id}
-              className="rounded-2xl border transition-all p-5"
+              className="rounded-[20px] border transition-all p-5"
               style={{
                 background: acc.sort_order === 1 ? 'rgba(255,149,0,0.04)' : 'rgba(255,255,255,0.02)',
                 borderColor: acc.sort_order === 1 ? 'rgba(255,149,0,0.15)' : 'rgba(255,255,255,0.05)',

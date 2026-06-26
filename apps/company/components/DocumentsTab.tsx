@@ -107,7 +107,7 @@ export default function DocumentsTab({ company, canEdit, username }: Props) {
 
       {/* Upload form */}
       {showForm && (
-        <div className="rounded-2xl border border-orange-500/20 p-5 space-y-4" style={{ background: 'rgba(255,149,0,0.04)' }}>
+        <div className="rounded-[20px] border border-orange-500/20 p-5 space-y-4" style={{ background: 'rgba(255,149,0,0.04)' }}>
           <p className="text-orange-400 text-xs font-black uppercase tracking-wider">Upload tài liệu mới</p>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">

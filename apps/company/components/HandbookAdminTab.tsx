@@ -243,7 +243,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
           </div>
         ) : editArt ? (
           /* Article Editor */
-          <div className="bg-[#1a1a1a] border border-white/8 rounded-xl p-5 flex flex-col gap-4">
+          <div className="bg-[#1a1a1a] border border-primary/10 rounded-[20px] p-5 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-wider text-neutral-400">
                 {editArt.id ? 'Sửa bài viết' : 'Bài viết mới'} — {selectedCat?.icon} {selectedCat?.title}
@@ -327,7 +327,7 @@ export default function HandbookAdminTab({ adminUserId, onToast }: Props) {
                 {articles.map(art => (
                   <div
                     key={art.id}
-                    className="bg-[#1a1a1a] border border-white/8 rounded-xl px-4 py-3 flex items-start gap-3 group"
+                    className="bg-[#1a1a1a] border border-primary/10 rounded-[20px] px-4 py-3 flex items-start gap-3 group"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
