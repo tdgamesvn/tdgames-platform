@@ -4,7 +4,6 @@ import { AccountUser } from '@/types';
 import { hasAnyRole } from '@/utils/roleUtils';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
-import { useExchangeRate } from '@/services/ExchangeRateContext';
 import HelpPanel from '@/components/HelpPanel';
 import { fetchCompanyProfiles, CompanyProfile } from '../services/companyService';
 import InfoTab from './InfoTab';
@@ -49,7 +48,6 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  const { rate: vcbRate, loading: vcbRateLoading } = useExchangeRate();
   const canEdit = hasAnyRole(currentUser, ['admin', 'ke_toan']);
   const navbarTab = TAB_MAP[activeTab];
 
@@ -94,8 +92,6 @@ const CompanyApp: React.FC<CompanyAppProps> = ({ currentUser, onBack }) => {
         }}
         onLogout={onBack}
         onBack={onBack}
-        vcbRate={vcbRate}
-        vcbRateLoading={vcbRateLoading}
         appName="Công ty"
         tabLabels={TAB_LABELS}
         onHelp={() => setHelpOpen(true)}
