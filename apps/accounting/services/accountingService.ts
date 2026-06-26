@@ -43,9 +43,14 @@ export async function uploadAssetDocumentToR2(
   file: File,
 ): Promise<{ url: string; fileName: string }> {
   if (file.size > 20 * 1024 * 1024) throw new Error('File quá lớn! Tối đa 20MB.');
+  const { data: { session } } = await supabase.auth.getSession();
   const fd = new FormData();
   fd.append('file', file);
-  const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd });
+  const res = await fetch(R2_UPLOAD_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${session?.access_token}` },
+    body: fd,
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Upload thất bại');
   return { url: data.url, fileName: file.name };

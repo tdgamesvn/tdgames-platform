@@ -4,6 +4,7 @@ import { CrmClient, CrmDocument, CrmProject, CrmContact, AccountUser } from '@/t
 import * as svc from '../services/crmService';
 import ClientContractGenerator from './ClientContractGenerator';
 import { hasAnyRole } from '@/utils/roleUtils';
+import { supabase } from '@/services/supabaseClient';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 const R2_PUBLIC_BASE = import.meta.env.VITE_R2_PUBLIC_URL || '';
@@ -95,9 +96,14 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
     }
     setUploadingScanId(docId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd });
+      const res = await fetch(R2_UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+        body: fd,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
       await svc.updateDocument(docId, {
@@ -142,9 +148,14 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
     }
     setUploading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd });
+      const res = await fetch(R2_UPLOAD_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+        body: fd,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
       setForm(prev => ({

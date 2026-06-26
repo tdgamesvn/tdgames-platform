@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExpenseRecord, ExpenseCategory } from '@/types';
+import { supabase } from '@/services/supabaseClient';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 
@@ -79,11 +80,13 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
 
     setUploading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const formData = new FormData();
       formData.append('file', file);
 
       const res = await fetch(R2_UPLOAD_URL, {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
         body: formData,
       });
 
@@ -106,9 +109,13 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
       const url = new URL(form.receipt_url);
       const key = url.pathname.replace(/^\//, '');
       if (key) {
+        const { data: { session } } = await supabase.auth.getSession();
         await fetch(R2_UPLOAD_URL, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
           body: JSON.stringify({ key }),
         });
       }

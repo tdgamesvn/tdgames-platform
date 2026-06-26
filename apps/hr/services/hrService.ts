@@ -603,9 +603,14 @@ export async function uploadFileToR2(file: File): Promise<{ url: string; fileNam
   if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
     throw new Error(`File quá lớn! Tối đa ${MAX_FILE_SIZE_MB}MB.`);
   }
+  const { data: { session } } = await supabase.auth.getSession();
   const fd = new FormData();
   fd.append('file', file);
-  const res = await fetch(R2_UPLOAD_URL, { method: 'POST', body: fd });
+  const res = await fetch(R2_UPLOAD_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${session?.access_token}` },
+    body: fd,
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Upload failed');
   return { url: data.url, fileName: file.name, fileSize: file.size };
