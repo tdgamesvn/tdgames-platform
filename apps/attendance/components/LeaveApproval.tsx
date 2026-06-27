@@ -18,6 +18,7 @@ const LEAVE_TYPES: Record<string, string> = {
   unpaid:   'Không lương',
   birthday: '🎂 Nghỉ sinh nhật',
   remote:   '🏠 Làm remote',
+  hieu_hi:  '🎊 Hiếu hỉ',
 };
 
 const STATUS_STYLES: Record<string, { label: string; color: string; bg: string }> = {

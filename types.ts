@@ -935,7 +935,7 @@ export interface AttRequest {
   approved_by: string | null;
   approved_at: string | null;
   reviewer_note: string;
-  leave_type: 'annual' | 'unpaid' | 'birthday' | 'remote';
+  leave_type: 'annual' | 'unpaid' | 'birthday' | 'remote' | 'hieu_hi';
   leave_days: number;
   leave_hours?: number | null;
   time_from?: string | null;

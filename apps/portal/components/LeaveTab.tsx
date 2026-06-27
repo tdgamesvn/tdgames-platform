@@ -20,6 +20,7 @@ const LEAVE_LABELS: Record<string, string> = {
   unpaid:   'Nghỉ không lương',
   birthday: '🎂 Nghỉ sinh nhật',
   remote:   '🏠 Làm remote',
+  hieu_hi:  '🎊 Hiếu hỉ',
 };
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -212,6 +213,8 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
           ? 'Đã dùng 1 ngày remote tuần này'
           : undefined,
     },
+    // Hiếu hỉ: áp dụng theo Điều 115 BLLĐ — tất cả nhân viên, không giới hạn số dư
+    { value: 'hieu_hi', label: '🎊 Hiếu hỉ' },
   ].filter(o => !o.why); // ẩn những loại không đủ điều kiện
 
   // Ensure selected type stays valid
@@ -433,10 +436,18 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             </div>
           </div>
 
-          {/* Hint cho remote/birthday */}
+          {/* Hint cho remote/birthday/hieu_hi */}
           {(leaveType === 'remote' || leaveType === 'birthday') && (
             <div style={{ background: 'rgba(6,182,212,0.05)', border: '1px solid rgba(6,182,212,0.15)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '12px', color: '#06B6D4' }}>
               ℹ️ {leaveType === 'remote' ? 'Làm remote chỉ 1 ngày/tuần.' : 'Nghỉ sinh nhật chỉ 1 ngày/năm, có lương.'} Vui lòng chọn đúng 1 ngày.
+            </div>
+          )}
+          {leaveType === 'hieu_hi' && (
+            <div style={{ background: 'rgba(255,149,0,0.05)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '12px', color: '#FF9500' }}>
+              🎊 <strong>Nghỉ hiếu hỉ có lương</strong> (Điều 115 BLLĐ) — Vui lòng ghi rõ sự kiện trong phần lý do.<br />
+              <span style={{ color: '#888', marginTop: '4px', display: 'block' }}>
+                Cưới bản thân: 3 ngày · Con kết hôn: 1 ngày · Bố/mẹ/vợ/chồng/con mất: 3 ngày · Ông bà/anh chị em mất: 1 ngày
+              </span>
             </div>
           )}
 
