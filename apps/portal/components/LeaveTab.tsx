@@ -169,6 +169,17 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     });
   }, [requests]);
 
+  // Số tháng còn lại trong năm (chưa bắt đầu) → mỗi tháng official = +1 ngày phép
+  const monthsRemainingInYear = isOfficial ? Math.max(0, 12 - (now.getMonth() + 1)) : 0;
+
+  // Đơn đã duyệt có ngày bắt đầu trong tương lai
+  const upcomingApproved = useMemo(() =>
+    requests
+      .filter(r => r.status === 'approved' && new Date(r.date_from) > now)
+      .sort((a, b) => new Date(a.date_from).getTime() - new Date(b.date_from).getTime()),
+    [requests]
+  );
+
   // ── Available leave type options ──
   const leaveTypeOptions: { value: AttRequest['leave_type']; label: string; why?: string }[] = [
     {
@@ -306,89 +317,58 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         </button>
       </div>
 
-      {/* Balance Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+      {/* Balance Cards — gọn: Còn lại + Sắp tích luỹ */}
+      <div style={{ display: 'grid', gridTemplateColumns: isOfficial && monthsRemainingInYear > 0 ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '24px' }}>
         <div style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(8,145,178,0.08) 100%)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: '16px', padding: '20px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Tổng khả dụng</p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#06B6D4' }}>{leaveInfo.totalAvailable}</p>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>ngày phép có thể dùng</p>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Ngày phép còn lại</p>
+          <p style={{ fontSize: '40px', fontWeight: 900, color: '#06B6D4', lineHeight: 1 }}>{leaveInfo.totalAvailable}</p>
+          <p style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>ngày có thể dùng</p>
+          {leaveInfo.carryOver > 0 && leaveInfo.carryOverAvailable > 0 && !leaveInfo.carryOverExpired && (
+            <p style={{ fontSize: '11px', color: '#8B5CF6', marginTop: '4px' }}>
+              trong đó {leaveInfo.carryOverAvailable} ngày dư từ {currentYear - 1} (hết 31/3)
+            </p>
+          )}
+          {leaveInfo.carryOverExpired && leaveInfo.carryOver > 0 && (
+            <p style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>
+              ⚠️ Ngày dư từ {currentYear - 1} đã hết hạn
+            </p>
+          )}
         </div>
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#34C759', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Tích luỹ năm {currentYear}</p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#34C759' }}>{leaveInfo.yearlyAccrued}</p>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>đã dùng: {leaveInfo.yearlyUsed} · còn: {leaveInfo.yearlyAvailable}</p>
-        </div>
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px', opacity: leaveInfo.carryOverExpired ? 0.4 : 1 }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Dư từ {currentYear - 1}</p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#8B5CF6' }}>{leaveInfo.carryOver > 0 ? leaveInfo.carryOverAvailable : 0}</p>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
-            {leaveInfo.carryOverExpired ? '⚠️ Đã hết hạn (chỉ dùng trong Q1)' : leaveInfo.carryOver > 0 ? `dùng trước 31/3/${currentYear}` : 'Không có ngày dư'}
-          </p>
-        </div>
-        <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px' }}>
-          <p style={{ fontSize: '11px', fontWeight: 700, color: '#FF9500', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Đã dùng {currentYear}</p>
-          <p style={{ fontSize: '32px', fontWeight: 900, color: '#FF9500' }}>{leaveInfo.yearlyUsed + leaveInfo.carryOverUsed}</p>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>ngày</p>
-        </div>
+        {isOfficial && monthsRemainingInYear > 0 && (
+          <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px' }}>
+            <p style={{ fontSize: '11px', fontWeight: 700, color: '#34C759', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Sắp tích luỹ</p>
+            <p style={{ fontSize: '40px', fontWeight: 900, color: '#34C759', lineHeight: 1 }}>{monthsRemainingInYear}</p>
+            <p style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>ngày sẽ cộng thêm từ nay đến hết {currentYear}</p>
+          </div>
+        )}
       </div>
 
-      {/* Info — Quy tắc phúc lợi */}
-      <div style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
-        <p style={{ fontSize: '11px', fontWeight: 800, color: '#8B5CF6', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-          💡 Quy tắc phúc lợi
-        </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {[
-            {
-              icon: '📅',
-              title: 'Phép năm có lương',
-              desc: 'Mỗi tháng làm việc sau ngày chính thức = 1 ngày phép. Tích luỹ cả năm. Cuối năm nếu dư → chuyển sang Q1 năm sau, hết Q1 mà không dùng → mất.',
-            },
-            {
-              icon: '🎂',
-              title: 'Nghỉ sinh nhật có lương',
-              desc: 'Áp dụng sau khi làm việc đủ 6 tháng kể từ ngày chính thức. Được nghỉ 1 ngày/năm vào dịp sinh nhật, hưởng lương đầy đủ.',
-              highlight: isOfficial && workedMonths >= 6 && !birthdayUsedThisYear
-                ? '✅ Bạn đang đủ điều kiện dùng năm nay!'
-                : isOfficial && workedMonths >= 6 && birthdayUsedThisYear
-                  ? '✔ Đã dùng năm nay'
-                  : isOfficial && workedMonths < 6
-                    ? `⏳ Cần thêm ${6 - workedMonths} tháng nữa`
-                    : undefined,
-              highlightColor: birthdayUsedThisYear ? '#555' : '#FF375F',
-            },
-            {
-              icon: '🏠',
-              title: 'Làm remote',
-              desc: 'Áp dụng sau khi chính thức. Được làm việc từ xa 1 ngày mỗi tuần làm việc.',
-              highlight: isOfficial
-                ? remoteUsedThisWeek
-                  ? '✔ Đã dùng tuần này'
-                  : '✅ Còn 1 ngày remote tuần này!'
-                : undefined,
-              highlightColor: remoteUsedThisWeek ? '#555' : '#34C759',
-            },
-            {
-              icon: '⏰',
-              title: 'Ca làm việc',
-              desc: '08:30 – 17:30, nghỉ trưa 12:00 – 13:00 (= 8 giờ/ngày). Xin nghỉ bán ca: chọn đúng giờ bắt đầu/kết thúc, hệ thống tự quy đổi.',
-            },
-          ].map(rule => (
-            <div key={rule.title} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>{rule.icon}</span>
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#ccc' }}>{rule.title}: </span>
-                <span style={{ fontSize: '12px', color: '#888' }}>{rule.desc}</span>
-                {rule.highlight && (
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: rule.highlightColor, marginLeft: '6px' }}>
-                    {rule.highlight}
+      {/* Đơn đã duyệt sắp tới */}
+      {upcomingApproved.length > 0 && (
+        <div style={{ background: 'rgba(52,199,89,0.05)', border: '1px solid rgba(52,199,89,0.15)', borderRadius: '12px', padding: '16px 20px', marginBottom: '24px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 800, color: '#34C759', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
+            📆 Đơn đã duyệt sắp tới
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {upcomingApproved.map(req => (
+              <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#F5F5F5', fontWeight: 600 }}>
+                  {new Date(req.date_from).toLocaleDateString('vi-VN')}
+                  {req.date_from !== req.date_to && (
+                    <span> → {new Date(req.date_to).toLocaleDateString('vi-VN')}</span>
+                  )}
+                </span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(139,92,246,0.1)', color: '#8B5CF6' }}>
+                    {LEAVE_LABELS[req.leave_type] || req.leave_type}
                   </span>
-                )}
+                  <span style={{ fontSize: '12px', color: '#34C759', fontWeight: 700 }}>{req.leave_days} ngày</span>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* No options warning */}
       {leaveTypeOptions.length === 0 && (
