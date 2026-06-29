@@ -201,7 +201,10 @@ Deno.serve(async (req: Request) => {
 
       const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
         user.id,
-        { user_metadata: { ...user.user_metadata, role } }
+        {
+          user_metadata: { ...user.user_metadata, role },
+          app_metadata: { role }, // app_metadata is admin-only, used in RLS policies
+        }
       );
       if (updateErr) throw updateErr;
 
@@ -276,7 +279,10 @@ Deno.serve(async (req: Request) => {
 
       const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
         existingUser.id,
-        { user_metadata: mergedMetadata }
+        {
+          user_metadata: mergedMetadata,
+          app_metadata: { role: mergedMetadata.role }, // keep app_metadata in sync
+        }
       );
       if (updateErr) throw updateErr;
 
@@ -305,6 +311,13 @@ Deno.serve(async (req: Request) => {
     });
 
     if (error) throw error;
+
+    // Set app_metadata (admin-only, used in RLS) — inviteUserByEmail only sets user_metadata
+    if (data.user?.id) {
+      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        app_metadata: { role: role || "member" },
+      });
+    }
 
     await discordAdminEvent("invite", email, {
       "👤 Tên": full_name,
