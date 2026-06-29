@@ -143,6 +143,6 @@ export const APPS: AppConfig[] = [
     description: 'Nội quy, chính sách & tài liệu nội bộ',
     color: '#22C55E',
     gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
-    roles: ['hr', 'ke_toan', 'member', 'freelancer', 'bd'],
+    roles: ['admin', 'hr', 'ke_toan', 'member', 'freelancer', 'bd'],
   },
 ];
