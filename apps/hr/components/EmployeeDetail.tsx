@@ -80,6 +80,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   const [downloadingAvatar, setDownloadingAvatar] = useState(false);
 
   const isAdmin = hasRole(currentUser, 'admin');
+  const isHrOnly = hasRole(currentUser, 'hr') && !isAdmin;
 
   const handleDownloadAvatar = async () => {
     if (!avatarUrl) return;
@@ -765,7 +766,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 {infoPair('Phòng ban', dept?.name)}
                 {infoPair('Chức danh', employee.position)}
                 {infoPair('Cấp bậc', employee.level)}
-                {infoPair('Lương', `${employee.salary.toLocaleString()} ${employee.salary_currency}`)}
+                {!isHrOnly && infoPair('Lương', `${employee.salary.toLocaleString()} ${employee.salary_currency}`)}
                 {infoPair('Ngày bắt đầu', employee.start_date)}
                 {infoPair('Hết thử việc', employee.probation_end)}
               </>
@@ -775,7 +776,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 {infoPair('Portfolio', employee.portfolio_url)}
                 {infoPair('Chuyên môn', employee.specializations?.join(', '))}
                 {infoPair('Múi giờ', employee.timezone)}
-                {infoPair('Rate', employee.rate_amount > 0 ? `${employee.rate_amount.toLocaleString()} ${employee.rate_currency}/${employee.rate_type}` : '')}
+                {!isHrOnly && infoPair('Rate', employee.rate_amount > 0 ? `${employee.rate_amount.toLocaleString()} ${employee.rate_currency}/${employee.rate_type}` : '')}
                 {infoPair('Thanh toán', employee.payment_method)}
               </>
             )}
@@ -1200,7 +1201,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         <div className="space-y-2">
           {loadingTimeline && <p className="text-neutral-medium text-sm">Đang tải...</p>}
           {!loadingTimeline && timeline.length === 0 && <p className="text-neutral-medium text-sm">Chưa có sự kiện nào.</p>}
-          {!loadingTimeline && timeline.map((ev, i) => {
+          {!loadingTimeline && timeline.filter(ev => !isHrOnly || (ev.event_type !== 'salary' && !ev.event_type.startsWith('salary_'))).map((ev, i) => {
             const labels: Record<string, { icon: string; label: string; color: string }> = {
               joined:           { icon: '🎉', label: 'Vào công ty',        color: '#34C759' },
               become_official:  { icon: '⭐', label: 'Lên chính thức',      color: '#FFD60A' },
@@ -1244,7 +1245,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
         <div className="space-y-2">
           {loadingTimeline && <p className="text-neutral-medium text-sm">Đang tải lịch sử...</p>}
           {!loadingTimeline && timeline.length === 0 && <p className="text-neutral-medium text-sm">Chưa có lịch sử cho nhân viên này.</p>}
-          {!loadingTimeline && timeline.map((ev, i) => {
+          {!loadingTimeline && timeline.filter(ev => !isHrOnly || (ev.event_type !== 'salary' && !ev.event_type.startsWith('salary_'))).map((ev, i) => {
             const labelMap: Record<string, string> = {
               joined: '🚪 Vào công ty', become_official: '⭐ Lên chính thức',
               official_date: '⭐ Đổi ngày chính thức', probation_end: '🔄 Đổi ngày hết thử việc',

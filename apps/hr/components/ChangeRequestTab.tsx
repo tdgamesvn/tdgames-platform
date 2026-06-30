@@ -104,9 +104,10 @@ interface CardProps {
   onToast: (msg: string, type: 'success' | 'error') => void;
   isHighlighted?: boolean;
   onAdjustSalary?: (empId: string, effDate: string) => void;
+  canSeeSalary?: boolean;
 }
 
-const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast, isHighlighted, onAdjustSalary }) => {
+const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRefresh, onToast, isHighlighted, onAdjustSalary, canSeeSalary = true }) => {
   const [expanded, setExpanded] = useState(!!isHighlighted);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -284,7 +285,7 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
         <div className="px-5 pb-5 border-t border-white/5 space-y-5 pt-5">
 
           {/* ── Salary table (probation_end, salary_change, promotion with salary) ── */}
-          {(req.request_type === 'probation_end' || req.request_type === 'salary_change') && c.salary_components?.length > 0 && (
+          {canSeeSalary && (req.request_type === 'probation_end' || req.request_type === 'salary_change') && c.salary_components?.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Điều chỉnh lương</p>
@@ -348,7 +349,7 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
                   </p>
                 </div>
               </div>
-              {c.salary_components?.length > 0 && (
+              {canSeeSalary && c.salary_components?.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] font-black text-neutral-medium">Điều chỉnh lương kèm theo</p>
@@ -536,6 +537,8 @@ const ChangeRequestTab: React.FC<Props> = ({
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [formInit, setFormInit] = useState<{ employeeId: string | null; type: HrChangeRequestType | null; effectiveDate?: string | null } | null>(null);
 
+  // HR chỉ xem, không tạo/sửa đề xuất (chỉ admin + ke_toan)
+  const canCreate = hasAnyRole(currentUser, ['admin', 'ke_toan']);
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
   const filtered = requests.filter(r => {
@@ -560,13 +563,15 @@ const ChangeRequestTab: React.FC<Props> = ({
           </h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý & duyệt các đề xuất thay đổi</p>
         </div>
-        <button
-          onClick={() => setFormInit({ employeeId: null, type: null })}
-          className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all"
-          style={{ background: 'linear-gradient(135deg, #FF9500 0%, #FF6B00 100%)' }}
-        >
-          + Tạo đề xuất
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setFormInit({ employeeId: null, type: null })}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all"
+            style={{ background: 'linear-gradient(135deg, #FF9500 0%, #FF6B00 100%)' }}
+          >
+            + Tạo đề xuất
+          </button>
+        )}
       </div>
 
       {/* ── Filter pills ── */}
@@ -622,7 +627,8 @@ const ChangeRequestTab: React.FC<Props> = ({
               onRefresh={onRefresh}
               onToast={onToast}
               isHighlighted={req.id === highlightId}
-              onAdjustSalary={(empId, effDate) => setFormInit({ employeeId: empId, type: 'salary_change', effectiveDate: effDate })}
+              onAdjustSalary={canCreate ? (empId, effDate) => setFormInit({ employeeId: empId, type: 'salary_change', effectiveDate: effDate }) : undefined}
+              canSeeSalary={canCreate}
             />
           ))}
         </div>

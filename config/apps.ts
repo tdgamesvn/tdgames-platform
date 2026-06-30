@@ -80,7 +80,7 @@ export const APPS: AppConfig[] = [
     description: 'Tính lương & thuế TNCN',
     color: '#10B981',
     gradient: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    roles: ['admin', 'ke_toan', 'hr'],
+    roles: ['admin', 'ke_toan'],
   },
   {
     id: 'portal',
