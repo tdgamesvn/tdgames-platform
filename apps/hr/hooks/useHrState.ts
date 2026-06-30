@@ -263,10 +263,10 @@ export function useHrState(initialTab?: string | null) {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
-        e.full_name.toLowerCase().includes(q) ||
-        e.email.toLowerCase().includes(q) ||
-        e.employee_code.toLowerCase().includes(q) ||
-        e.phone.includes(q)
+        e.full_name?.toLowerCase().includes(q) ||
+        e.email?.toLowerCase().includes(q) ||
+        e.employee_code?.toLowerCase().includes(q) ||
+        e.phone?.includes(q)
       );
     }
     return true;

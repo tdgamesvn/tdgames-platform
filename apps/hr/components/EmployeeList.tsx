@@ -210,10 +210,10 @@ const EmployeeList: React.FC<Props> = ({
                     {emp.work_email && <p>💼 {emp.work_email}</p>}
                     {emp.email && <p>📧 {emp.email}</p>}
                     {emp.phone && <p>📱 {emp.phone}</p>}
-                    {emp.type === 'freelancer' && emp.specializations.length > 0 && (
+                    {emp.type === 'freelancer' && emp.specializations && emp.specializations.length > 0 && (
                       <p>🎨 {emp.specializations.join(', ')}</p>
                     )}
-                    {emp.type === 'freelancer' && emp.rate_amount > 0 && (
+                    {emp.type === 'freelancer' && emp.rate_amount && emp.rate_amount > 0 && (
                       <p>💵 {emp.rate_amount.toLocaleString()} {emp.rate_currency}/{emp.rate_type}</p>
                     )}
                   </div>

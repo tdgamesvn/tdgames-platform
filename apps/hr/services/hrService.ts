@@ -113,9 +113,10 @@ export async function fetchEmployees(): Promise<HrEmployee[]> {
 
 // Lite version — chỉ load các field cần cho list/filter/search, giảm ~80% payload
 const EMPLOYEE_LITE_SELECT = [
-  'id', 'employee_code', 'full_name', 'type', 'status', 'position',
+  'id', 'employee_code', 'full_name', 'type', 'status', 'position', 'level',
   'department_id', 'avatar_url', 'email', 'phone', 'work_email',
   'start_date', 'worker_id', 'exclude_from_payroll', 'is_hidden',
+  'specializations', 'tags', 'rate_amount', 'rate_currency', 'rate_type',
   'department:hr_departments!hr_employees_department_id_fkey(id, name)',
 ].join(', ');
 
