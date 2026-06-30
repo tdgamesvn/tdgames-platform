@@ -116,7 +116,7 @@ export const APPS: AppConfig[] = [
     description: 'Hồ sơ pháp lý & giấy tờ',
     color: '#64748B',
     gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
-    roles: ['admin', 'ke_toan'],
+    roles: ['admin', 'ke_toan', 'hr'],
   },
   {
     id: 'ai-agent',
@@ -143,6 +143,6 @@ export const APPS: AppConfig[] = [
     description: 'Nội quy, chính sách & tài liệu nội bộ',
     color: '#22C55E',
     gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
-    roles: ['admin', 'hr', 'ke_toan', 'member', 'freelancer', 'bd'],
+    roles: ['member', 'bd'],
   },
 ];

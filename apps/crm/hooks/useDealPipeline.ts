@@ -3,7 +3,7 @@ import type { CrmDeal, CrmDealStage } from '@/types';
 import * as svc from '../services/crmService';
 import { useDealFilters } from './useDealFilters';
 
-export function useDealPipeline() {
+export function useDealPipeline(ownerFilter?: string) {
   const [deals, setDeals] = useState<CrmDeal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -25,14 +25,15 @@ export function useDealPipeline() {
   // ── Load ────────────────────────────────────────────────────
   const loadDeals = useCallback(async () => {
     try {
-      const data = await svc.fetchDeals();
+      let data = await svc.fetchDeals();
+      if (ownerFilter) data = data.filter(d => d.owner_id === ownerFilter);
       setDeals(data);
     } catch (err) {
       console.error('fetchDeals error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [ownerFilter]);
 
   useEffect(() => { loadDeals(); }, [loadDeals]);
 

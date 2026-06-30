@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog } from '@/types';
+import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog, AccountUser } from '@/types';
 import * as svc from '../services/outreachService';
 import type { PipelineStats } from '../services/outreachService';
 import { getOutreachApiBase, outreachRequest, supabaseEdgeFunctionPost } from '../services/outreachApi';
@@ -33,9 +33,10 @@ type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'au
 // ── Main Component ────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-interface Props { clients: CrmClient[]; }
+interface Props { clients: CrmClient[]; currentUser?: AccountUser; }
 
-const EmailOutreach: React.FC<Props> = ({ clients }) => {
+const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
+  const isBd = currentUser?.role === 'bd';
   const [tab, setTab] = useState<SubTab>('dashboard');
   const [leads, setLeads] = useState<CrmOutreachLead[]>([]);
   const [templates, setTemplates] = useState<CrmEmailTemplate[]>([]);
@@ -65,7 +66,7 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const tabs: { key: SubTab; icon: string; label: string }[] = [
+  const allTabs: { key: SubTab; icon: string; label: string }[] = [
     { key: 'dashboard', icon: '📊', label: 'Dashboard' },
     { key: 'leads',     icon: '👥', label: `Leads (${stats?.total || 0})` },
     { key: 'discovery', icon: '🔍', label: 'Discovery' },
@@ -74,6 +75,8 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
     { key: 'auto',      icon: '🤖', label: 'Auto' },
     { key: 'settings',  icon: '⚙️', label: 'Settings' },
   ];
+  // BD: hide Auto + Settings tabs (batch automation config)
+  const tabs = isBd ? allTabs.filter(t => t.key !== 'auto' && t.key !== 'settings') : allTabs;
 
   return (
     <>
@@ -110,11 +113,12 @@ const EmailOutreach: React.FC<Props> = ({ clients }) => {
             filterTier={filterTier} setFilterTier={setFilterTier}
             filterTrigger={filterTrigger} setFilterTrigger={setFilterTrigger}
             onRefresh={loadAll}
+            isBd={isBd}
           />
         )}
 
         {/* ── DISCOVERY ── */}
-        {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} leads={leads} />}
+        {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} leads={leads} isBd={isBd} />}
 
         {/* ── EMAILS/TEMPLATES ── */}
         {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} />}
@@ -285,9 +289,10 @@ interface LeadsProps {
   filterTier: number | ''; setFilterTier: (v: number | '') => void;
   filterTrigger: string; setFilterTrigger: (v: string) => void;
   onRefresh: () => void;
+  isBd?: boolean;
 }
 
-const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh }) => {
+const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh, isBd }) => {
   const [showImport, setShowImport] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ studio_name: '', contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
@@ -567,7 +572,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
             {quota.sent_today}/{quota.daily_limit}
           </span>
           <span style={{ fontSize: '11px', color: '#555' }}>({quota.remaining} còn lại)</span>
-          {leads.filter(l => l.outreach_status === 'pending').length > 0 && quota.remaining > 0 && (
+          {!isBd && leads.filter(l => l.outreach_status === 'pending').length > 0 && quota.remaining > 0 && (
             <button onClick={handleBulkSend} disabled={bulkSending} style={{
               padding: '8px 16px', border: 'none', borderRadius: '8px',
               background: bulkSending ? '#333' : '#34C759', color: bulkSending ? '#888' : '#000',
@@ -825,7 +830,7 @@ function fuzzyMatch(query: string, target: string): boolean {
   return words.length > 0 && words.every(w => t.includes(w));
 }
 
-const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }> = ({ onRefresh, leads }) => {
+const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; isBd?: boolean }> = ({ onRefresh, leads, isBd }) => {
   const [company, setCompany] = useState('');
   const [domain, setDomain] = useState('');
   const [discovering, setDiscovering] = useState(false);
@@ -1193,8 +1198,8 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
         </div>
       </div>
 
-      {/* ── Batch Import Section ── */}
-      <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
+      {/* ── Batch Import Section (hidden for BD) ── */}
+      {!isBd && <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
           <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5' }}>
             {importMode === 'country' ? '🌍 Tìm studio theo quốc gia' : '📋 Batch Discovery — Import danh sách công ty'}
@@ -1434,10 +1439,10 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[] }
           </div>
         )}
         </>)}
-      </div>
+      </div>}
 
-      {/* Batch Results */}
-      {batchResults.length > 0 && (
+      {/* Batch Results (hidden for BD) */}
+      {!isBd && batchResults.length > 0 && (
         <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden' }}>
           <div style={{ padding: '14px 20px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4 style={{ fontSize: '13px', fontWeight: 800, color: '#F5F5F5' }}>

@@ -10,7 +10,8 @@ interface Props {
 }
 
 const DealPipeline: React.FC<Props> = ({ currentUser, clients }) => {
-  const p = useDealPipeline();
+  const isBd = currentUser.role === 'bd';
+  const p = useDealPipeline(isBd ? currentUser.id : undefined);
 
   return (
     <div className="animate-fadeInUp space-y-6">

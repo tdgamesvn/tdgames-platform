@@ -44,7 +44,7 @@ const PaymentScheduleSection: React.FC<Props> = ({ projectId, projectCurrency, c
   const [deleteConfirmId, setDeleteId]    = useState<string | null>(null);
   const actionRef = useRef<HTMLDivElement>(null);
 
-  const canManage    = hasAnyRole(currentUser, ['admin', 'bd']);
+  const canManage    = hasAnyRole(currentUser, ['admin']);
   const canMarkStatus = hasAnyRole(currentUser, ['admin', 'ke_toan']);
 
   // Đóng dropdown khi click ngoài

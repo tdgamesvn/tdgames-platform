@@ -284,7 +284,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
         {/* ── Email Outreach Tab ── */}
         {state.activeTab === 'outreach' && (
-          <EmailOutreach clients={state.clients} />
+          <EmailOutreach clients={state.clients} currentUser={currentUser} />
         )}
 
         {/* ── Studios Tab ── */}
