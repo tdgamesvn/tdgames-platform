@@ -787,6 +787,12 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
             {infoPair('Số TK', employee.bank_account)}
             {infoPair('Tên chủ TK', employee.bank_branch)}
           </div>
+          {employee.discord_user_id && (
+            <div className="rounded-[20px] border border-primary/10 bg-surface p-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">💬 Discord</h3>
+              {infoPair('User ID', employee.discord_user_id)}
+            </div>
+          )}
           {(employee.license_plate || employee.vehicle_type) && (
             <div className="rounded-[20px] border border-primary/10 bg-surface p-6">
               <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">🚗 Xe & Gửi xe</h3>

@@ -550,6 +550,8 @@ export interface HrEmployee {
   is_hidden?: boolean;
   /** Thời điểm hoàn thành onboarding acknowledgment. NULL = chưa xong. */
   onboarding_completed_at?: string | null;
+  /** Discord User ID (18-digit snowflake) — dùng cho attendance notifications */
+  discord_user_id?: string;
 }
 
 export interface HrOnboardingAck {

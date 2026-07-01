@@ -30,6 +30,7 @@ const EDITABLE_FIELDS = [
   'tax_code', 'insurance_number',
   'bank_name', 'bank_account', 'bank_branch',
   'vehicle_type', 'license_plate', 'vehicle_brand', 'vehicle_color',
+  'discord_user_id',
 ];
 
 // Fields used for completion calculation
@@ -390,6 +391,18 @@ const ProfileTab: React.FC<Props> = ({ currentUser, onToast }) => {
           <div>
             <label className={labelCls}>Chi nhánh</label>
             <input className={inputCls} value={form.bank_branch || ''} onChange={e => updateField('bank_branch', e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section: Discord ── */}
+      <div className={sectionCls}>
+        <h3 className="text-lg font-black text-white uppercase tracking-tight">💬 Discord</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className={labelCls}>Discord User ID</label>
+            <input className={inputCls} value={form.discord_user_id || ''} onChange={e => updateField('discord_user_id', e.target.value.trim())} placeholder="VD: 123456789012345678" />
+            <p className="text-[11px] text-neutral-500 mt-1">Chuột phải vào tên bạn trên Discord → Copy User ID</p>
           </div>
         </div>
       </div>
