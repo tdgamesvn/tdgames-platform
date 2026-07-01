@@ -7,6 +7,8 @@ import { createAndPollDraft, getEInvoiceDetail } from '../services/sePayService'
 import { useExchangeRate } from '@/services/ExchangeRateContext';
 import {
   saveInvoiceToCloud,
+  updateInvoiceInCloud,
+  canEditInvoice,
   fetchInvoicesFromCloud,
   updateInvoiceStatusInCloud,
   updateEInvoiceInCloud,
@@ -270,9 +272,32 @@ export function useInvoiceState(initialTab?: string | null) {
   };
 
   // ── Invoice CRUD ──
+  /**
+   * Lưu hoá đơn: nếu đã có `id` (đang sửa từ History) VÀ hoá đơn còn pending +
+   * chưa xuất eInvoice → UPDATE bản ghi hiện tại. Ngược lại → INSERT bản mới.
+   * Guard `canEditInvoice` chặn ghi đè lên hoá đơn đã paid/đã xuất eInvoice
+   * (dùng Duplicate để tạo bản mới trong trường hợp đó).
+   */
+  const persistInvoice = async (data: InvoiceData): Promise<{ id: string; wasUpdate: boolean }> => {
+    if (data.id) {
+      if (!canEditInvoice(data)) {
+        throw new Error('Hoá đơn này đã thanh toán hoặc đã xuất eInvoice, không thể ghi đè. Hãy dùng chức năng Duplicate để tạo bản mới.');
+      }
+      const result = await updateInvoiceInCloud(data.id, data);
+      return { id: result.id, wasUpdate: true };
+    }
+    const result = await saveInvoiceToCloud(data);
+    return { id: result.id, wasUpdate: false };
+  };
+
   const handleSaveToCloud = async () => {
     setIsLoading(true);
-    try { await saveInvoiceToCloud(invoice); notify("Invoice synced to Cloud!", "success"); if (activeTab === 'history') loadHistory(); }
+    try {
+      const { id, wasUpdate } = await persistInvoice(invoice);
+      if (!wasUpdate) setInvoice(prev => ({ ...prev, id }));
+      notify(wasUpdate ? "Invoice updated!" : "Invoice synced to Cloud!", "success");
+      if (activeTab === 'history') loadHistory();
+    }
     catch (error: any) { notify("Error saving invoice: " + error.message, "error"); }
     finally { setIsLoading(false); }
   };
@@ -387,12 +412,16 @@ export function useInvoiceState(initialTab?: string | null) {
   const handleConfirmSave = async () => {
     if (!pendingInvoiceToSave) return;
     try {
-      const result = await saveInvoiceToCloud(pendingInvoiceToSave);
-      notify('Đã lưu hoá đơn lên Cloud!', 'success');
-      const savedInvoice = { ...pendingInvoiceToSave, id: result.id };
-      setInvoice(prev => ({ ...prev, id: result.id }));
+      const { id, wasUpdate } = await persistInvoice(pendingInvoiceToSave);
+      notify(wasUpdate ? 'Đã cập nhật hoá đơn!' : 'Đã lưu hoá đơn lên Cloud!', 'success');
+      const savedInvoice = { ...pendingInvoiceToSave, id };
+      setInvoice(prev => ({ ...prev, id }));
       if (activeTab === 'history') loadHistory();
-      getNextInvoiceNumber().then(nextNum => { setInvoice(prev => ({ ...prev, invoiceNumber: nextNum })); });
+      // Chỉ tự động lấy số hoá đơn kế tiếp khi vừa TẠO MỚI (chuẩn bị form cho hoá đơn tiếp theo).
+      // Khi vừa SỬA hoá đơn cũ, giữ nguyên invoiceNumber đang hiển thị để không gây nhầm lẫn.
+      if (!wasUpdate) {
+        getNextInvoiceNumber().then(nextNum => { setInvoice(prev => ({ ...prev, invoiceNumber: nextNum })); });
+      }
       if (!pendingInvoiceToSave.einvoice_status || pendingInvoiceToSave.einvoice_status === 'none' || pendingInvoiceToSave.einvoice_status === '' || pendingInvoiceToSave.einvoice_status === 'failed') {
         setEInvoiceTargetInvoice(savedInvoice);
         setShowEInvoicePrompt(true);

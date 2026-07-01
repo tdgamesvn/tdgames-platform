@@ -19,6 +19,11 @@ import { RecurringTab } from './RecurringTab';
 import { EmailModal } from './EmailModal';
 import ARAgingTab from './ARAgingTab';
 
+// Giao diện app Invoice (navbar/tabs/modal ở đây) LUÔN dark theo STYLE_GUIDE, không phụ thuộc
+// vào `invoice.theme` — field đó chỉ chỉnh theme cho riêng TÀI LIỆU hoá đơn (Preview/PDF export,
+// xem InvoicePreview.tsx qua InvoiceEditor.tsx), không phải giao diện app.
+const APP_UI_IS_DARK = true;
+
 interface InvoiceAppProps {
   currentUser: AccountUser;
   onBack: () => void;
@@ -43,12 +48,12 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: state.invoice.theme === 'dark' ? '#0F0F0F' : '#F5F5F5' }}>
-      {state.invoice.theme === 'dark' && <AppBackground />}
+    <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: APP_UI_IS_DARK ? '#0F0F0F' : '#F5F5F5' }}>
+      {APP_UI_IS_DARK && <AppBackground />}
       <ToastNotification message={state.lastMessage} onDismiss={() => state.setLastMessage(null)} />
 
       <Navbar
-        theme={state.invoice.theme}
+        theme={APP_UI_IS_DARK ? 'dark' : 'light'}
         currentUser={state.currentUser || currentUser}
         activeTab={state.activeTab}
         accessibleTabs={state.accessibleTabs}
@@ -65,7 +70,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
         {state.activeTab === 'history' ? (
           <HistoryTab
-            theme={state.invoice.theme} history={state.history} filteredHistory={state.filteredHistory} isLoading={state.isLoading}
+            theme={APP_UI_IS_DARK ? 'dark' : 'light'} history={state.history} filteredHistory={state.filteredHistory} isLoading={state.isLoading}
             filterStudio={state.filterStudio} setFilterStudio={state.setFilterStudio}
             filterClient={state.filterClient} setFilterClient={state.setFilterClient}
             filterDateFrom={state.filterDateFrom} setFilterDateFrom={state.setFilterDateFrom}
@@ -83,7 +88,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
           />
         ) : state.activeTab === 'dashboard' ? (
           <DashboardTab
-            theme={state.invoice.theme} history={state.history} filteredHistory={state.filteredHistory} isLoading={state.isLoading}
+            theme={APP_UI_IS_DARK ? 'dark' : 'light'} history={state.history} filteredHistory={state.filteredHistory} isLoading={state.isLoading}
             filterStudio={state.filterStudio} setFilterStudio={state.setFilterStudio}
             filterClient={state.filterClient} setFilterClient={state.setFilterClient}
             filterDateFrom={state.filterDateFrom} setFilterDateFrom={state.setFilterDateFrom}
@@ -92,12 +97,12 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
             onRefresh={state.loadHistory} onToggleStatus={state.toggleStatus}
           />
         ) : state.activeTab === 'aging' ? (
-          <ARAgingTab theme={state.invoice.theme} history={state.history} />
+          <ARAgingTab theme={APP_UI_IS_DARK ? 'dark' : 'light'} history={state.history} />
         ) : state.activeTab === 'activity' ? (
-          <ActivityLogTab theme={state.invoice.theme} />
+          <ActivityLogTab theme={APP_UI_IS_DARK ? 'dark' : 'light'} />
         ) : state.activeTab === 'recurring' ? (
           <RecurringTab
-            theme={state.invoice.theme}
+            theme={APP_UI_IS_DARK ? 'dark' : 'light'}
             clients={state.clients}
             studios={state.studios}
             banks={state.banks}
@@ -148,7 +153,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       />
 
       <EInvoiceModals
-        theme={state.invoice.theme} invoice={state.invoice}
+        theme={APP_UI_IS_DARK ? 'dark' : 'light'} invoice={state.invoice}
         showSaveConfirm={state.showSaveConfirm} pendingInvoiceToSave={state.pendingInvoiceToSave}
         onConfirmSave={state.handleConfirmSave} onDismissSave={state.handleDismissSave}
         showEInvoicePrompt={state.showEInvoicePrompt} eInvoiceTargetInvoice={state.eInvoiceTargetInvoice}
@@ -162,7 +167,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
 
       {state.emailInvoice && (
         <EmailModal
-          theme={state.invoice.theme}
+          theme={APP_UI_IS_DARK ? 'dark' : 'light'}
           invoice={state.emailInvoice}
           onClose={() => state.setEmailInvoice(null)}
           onSent={(to) => {
@@ -175,26 +180,26 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       {/* Delete Confirmation Modal */}
       {state.deleteConfirm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => state.setDeleteConfirm(null)}>
-          <div className={`w-[420px] p-8 rounded-[24px] border ${state.invoice.theme === 'dark' ? 'bg-surface border-red-500/20' : 'bg-white border-red-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
+          <div className={`w-[420px] p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-red-500/20' : 'bg-white border-red-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl">🗑️</span>
               </div>
-              <h3 className={`text-xl font-black mb-2 ${state.invoice.theme === 'dark' ? 'text-white' : 'text-black'}`}>Xác nhận xoá hoá đơn</h3>
-              <p className={`text-sm ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>
+              <h3 className={`text-xl font-black mb-2 ${APP_UI_IS_DARK ? 'text-white' : 'text-black'}`}>Xác nhận xoá hoá đơn</h3>
+              <p className={`text-sm ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-500'}`}>
                 Bạn có chắc chắn muốn xoá hoá đơn này không? Thao tác này không thể hoàn tác.
               </p>
             </div>
             {state.deleteConfirm.hasDraft && (
               <div className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
                 <p className="text-amber-400 text-sm font-bold mb-1">⚠️ Cảnh báo eInvoice</p>
-                <p className={`text-xs ${state.invoice.theme === 'dark' ? 'text-amber-300/70' : 'text-amber-700'}`}>
+                <p className={`text-xs ${APP_UI_IS_DARK ? 'text-amber-300/70' : 'text-amber-700'}`}>
                   Hoá đơn này đã có eInvoice nháp trên SePay. Bạn cần vào SePay để huỷ hoá đơn nháp thủ công.
                 </p>
               </div>
             )}
             <div className="flex gap-3">
-              <button onClick={() => state.setDeleteConfirm(null)} className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-colors ${state.invoice.theme === 'dark' ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}>
+              <button onClick={() => state.setDeleteConfirm(null)} className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-colors ${APP_UI_IS_DARK ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}>
                 Huỷ
               </button>
               <button onClick={state.confirmDeleteInvoice} className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider bg-red-500 hover:bg-red-600 text-white transition-colors">
@@ -214,22 +219,22 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
           : n.toLocaleString('en-US', { minimumFractionDigits: 2 });
         return (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-            <div className={`w-[460px] p-8 rounded-[24px] border ${state.invoice.theme === 'dark' ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`}>
+            <div className={`w-[460px] p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`}>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl">💰</span>
                 </div>
-                <h3 className={`text-xl font-black mb-2 ${state.invoice.theme === 'dark' ? 'text-white' : 'text-black'}`}>Xác nhận thanh toán</h3>
-                <p className={`text-sm ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>
+                <h3 className={`text-xl font-black mb-2 ${APP_UI_IS_DARK ? 'text-white' : 'text-black'}`}>Xác nhận thanh toán</h3>
+                <p className={`text-sm ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-500'}`}>
                   Nhập số tiền thực nhận sau phí chuyển khoản
                 </p>
               </div>
-              <div className={`mb-5 p-4 rounded-xl ${state.invoice.theme === 'dark' ? 'bg-black/30 border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
-                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-400'}`}>Tổng hoá đơn</p>
+              <div className={`mb-5 p-4 rounded-xl ${APP_UI_IS_DARK ? 'bg-black/30 border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
+                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-400'}`}>Tổng hoá đơn</p>
                 <p className="text-xl font-black text-primary tabular-nums">{currSymbol}{formatAmt(pm.invoiceTotal)}</p>
               </div>
               <div className="mb-4">
-                <label className={`text-[11px] font-black uppercase tracking-widest block mb-2 ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-400'}`}>
+                <label className={`text-[11px] font-black uppercase tracking-widest block mb-2 ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-400'}`}>
                   Số tiền thực nhận ({currSymbol})
                 </label>
                 <input
@@ -242,7 +247,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
                   step="0.01"
                 />
               </div>
-              <div className={`mb-6 p-4 rounded-xl ${pm.transferFee > 0 ? (state.invoice.theme === 'dark' ? 'bg-amber-500/5 border border-amber-500/20' : 'bg-amber-50 border border-amber-200') : (state.invoice.theme === 'dark' ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200')}`}>
+              <div className={`mb-6 p-4 rounded-xl ${pm.transferFee > 0 ? (APP_UI_IS_DARK ? 'bg-amber-500/5 border border-amber-500/20' : 'bg-amber-50 border border-amber-200') : (APP_UI_IS_DARK ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200')}`}>
                 <div className="flex justify-between items-center">
                   <span className={`text-[11px] font-black uppercase tracking-widest ${pm.transferFee > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
                     Phí chuyển khoản
@@ -253,7 +258,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
                 </div>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => state.setPaymentModal(null)} className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-colors ${state.invoice.theme === 'dark' ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}>
+                <button onClick={() => state.setPaymentModal(null)} className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-colors ${APP_UI_IS_DARK ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}>
                   Huỷ
                 </button>
                 <button onClick={state.confirmPayment} className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider bg-emerald-500 hover:bg-emerald-600 text-white transition-colors">
@@ -277,25 +282,25 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
         const totalVND = Math.round(totalUSD * state.exchangeRate);
         return (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => state.setShowExchangeRateModal(false)}>
-            <div className={`w-[480px] p-8 rounded-[24px] border ${state.invoice.theme === 'dark' ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
+            <div className={`w-[480px] p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl">💱</span>
                 </div>
-                <h3 className={`text-xl font-black mb-2 ${state.invoice.theme === 'dark' ? 'text-white' : 'text-black'}`}>Convert USD → VND</h3>
-                <p className={`text-sm ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>
+                <h3 className={`text-xl font-black mb-2 ${APP_UI_IS_DARK ? 'text-white' : 'text-black'}`}>Convert USD → VND</h3>
+                <p className={`text-sm ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-500'}`}>
                   SePay only supports VND. Enter exchange rate to convert invoice.
                 </p>
               </div>
-              <div className={`mb-5 p-4 rounded-xl ${state.invoice.theme === 'dark' ? 'bg-black/30 border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
-                <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-400'}`}>Original Invoice (USD)</p>
+              <div className={`mb-5 p-4 rounded-xl ${APP_UI_IS_DARK ? 'bg-black/30 border border-white/5' : 'bg-gray-50 border border-gray-100'}`}>
+                <p className={`text-[10px] font-black uppercase tracking-widest mb-2 ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-400'}`}>Original Invoice (USD)</p>
                 <div className="flex justify-between items-center">
-                  <span className={`text-sm font-bold ${state.invoice.theme === 'dark' ? 'text-white' : 'text-black'}`}>{inv.invoiceNumber}</span>
+                  <span className={`text-sm font-bold ${APP_UI_IS_DARK ? 'text-white' : 'text-black'}`}>{inv.invoiceNumber}</span>
                   <span className="text-lg font-black text-primary tabular-nums">${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
               <div className="mb-5">
-                <label className={`text-[11px] font-black uppercase tracking-widest block mb-2 ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-400'}`}>
+                <label className={`text-[11px] font-black uppercase tracking-widest block mb-2 ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-400'}`}>
                   Exchange Rate (1 USD = ? VND)
                 </label>
                 <input
@@ -304,7 +309,7 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
                   className="w-full text-2xl font-black bg-transparent outline-none border-b-2 border-primary pb-2 text-primary tabular-nums"
                   placeholder="25400" min="1"
                 />
-                <p className={`text-[11px] mt-1 ${state.invoice.theme === 'dark' ? 'text-neutral-medium' : 'text-gray-400'}`}>
+                <p className={`text-[11px] mt-1 ${APP_UI_IS_DARK ? 'text-neutral-medium' : 'text-gray-400'}`}>
                   {state.vcbRate ? (() => {
                     const avg = avgRate(state.vcbRate!);
                     return (
@@ -316,17 +321,17 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
                   })() : 'Dùng tỉ giá trung bình (mua + bán) / 2 của ngân hàng'}
                 </p>
               </div>
-              <div className={`mb-6 p-4 rounded-xl ${state.invoice.theme === 'dark' ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>
+              <div className={`mb-6 p-4 rounded-xl ${APP_UI_IS_DARK ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>
                 <p className="text-[10px] font-black uppercase tracking-widest mb-2 text-emerald-500">Converted Value (VND)</p>
                 <p className="text-2xl font-black text-emerald-400 tabular-nums">
                   {totalVND.toLocaleString('vi-VN')} ₫
                 </p>
-                <p className={`text-[11px] mt-1 ${state.invoice.theme === 'dark' ? 'text-emerald-400/60' : 'text-emerald-600/60'}`}>
+                <p className={`text-[11px] mt-1 ${APP_UI_IS_DARK ? 'text-emerald-400/60' : 'text-emerald-600/60'}`}>
                   = ${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })} × {state.exchangeRate.toLocaleString('vi-VN')}
                 </p>
               </div>
               <div className="flex gap-3">
-                <button onClick={() => state.setShowExchangeRateModal(false)} className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-colors ${state.invoice.theme === 'dark' ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}>
+                <button onClick={() => state.setShowExchangeRateModal(false)} className={`flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider transition-colors ${APP_UI_IS_DARK ? 'bg-white/5 hover:bg-white/10 text-white' : 'bg-gray-100 hover:bg-gray-200 text-black'}`}>
                   Cancel
                 </button>
                 <button onClick={state.confirmCreateEInvoiceWithRate} className="flex-1 py-3 rounded-xl font-black text-sm uppercase tracking-wider bg-emerald-500 hover:bg-emerald-600 text-white transition-colors">

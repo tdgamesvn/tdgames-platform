@@ -2,6 +2,7 @@ import React from 'react';
 import { InvoiceData } from '@/types';
 import { Button } from '@/components/Button';
 import { FilterBar } from './FilterBar';
+import { canEditInvoice } from '../services/supabaseService';
 
 interface HistoryTabProps {
   theme: string;
@@ -74,6 +75,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
         const disc = inv.discountType === 'percentage' ? sub * (inv.discountValue / 100) : (inv.discountValue || 0);
         const invoiceTotal = Math.max(0, sub - disc) * (1 + (inv.taxRate || 0) / 100);
         const hasFee = inv.status === 'paid' && inv.transfer_fee !== undefined && inv.transfer_fee > 0;
+        const canEdit = canEditInvoice(inv);
 
         return (
         <div key={inv.id} className={`rounded-[20px] border transition-all hover:scale-[1.01] ${theme === 'dark' ? 'bg-surface border-primary/10 hover:border-primary/25' : 'bg-white border-gray-200 shadow-md hover:shadow-lg'} relative overflow-hidden group`}>
@@ -128,7 +130,12 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
             {/* Action bar — visible on hover */}
             <div className={`flex items-center justify-end gap-1.5 mt-3 pt-3 border-t border-primary/5 opacity-40 group-hover:opacity-100 transition-opacity`}>
-              <button onClick={() => onLoadFromHistory(inv)} title="Edit" className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-100'} hover:text-primary`}>
+              <button
+                onClick={() => canEdit && onLoadFromHistory(inv)}
+                disabled={!canEdit}
+                title={canEdit ? 'Edit' : 'Hoá đơn đã thanh toán hoặc đã xuất eInvoice — dùng Clone để tạo bản mới'}
+                className={`p-2 rounded-lg transition-colors ${canEdit ? `${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-100'} hover:text-primary` : 'opacity-30 cursor-not-allowed'}`}
+              >
                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
               <button onClick={() => onDuplicateInvoice(inv)} title="Clone" className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-100'} hover:text-blue-400`}>

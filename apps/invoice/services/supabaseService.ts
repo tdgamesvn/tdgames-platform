@@ -73,35 +73,43 @@ export const updateClientInCloud = async (id: string, client: ClientInfo): Promi
 // INVOICE METHODS
 // ────────────────────────────────────────────────────────────────
 
-export const saveInvoiceToCloud = async (data: InvoiceData): Promise<SaveResponse> => {
-    const record = {
-        invoice_number: data.invoiceNumber,
-        issue_date: data.issueDate || null,
-        due_date: data.dueDate || null,
-        currency: data.currency,
-        tax_rate: data.taxRate,
-        discount_type: data.discountType,
-        discount_value: data.discountValue,
-        theme: data.theme,
-        status: data.status,
-        paid_date: data.paidDate || null,
-        payment_method: data.payment_method || 'TM/CK',
-        client_info: data.clientInfo,
-        studio_info: data.studioInfo,
-        banking_info: data.bankingInfo,
-        items: data.items,
-        client_name: data.clientInfo.name || '',
-        einvoice_status: data.einvoice_status && data.einvoice_status !== 'none' ? data.einvoice_status : '',
-        einvoice_reference_code: data.einvoice_reference_code || '',
-        einvoice_tracking_code: data.einvoice_tracking_code || '',
-        einvoice_pdf_url: data.einvoice_pdf_url || '',
-        crm_project_id: data.crm_project_id || null,
-        billing_entity: data.billing_entity || 'TD GAMES',
-        receiving_account_id: data.receiving_account_id || null,
-        po_number: data.poNumber || '',
-        service_location: data.serviceLocation || '',
-    };
+/** Điều kiện cho phép ghi đè (update) một hoá đơn đã tồn tại thay vì tạo bản mới.
+ * Khớp với điều kiện hiển thị nút "Xuất eInvoice" trong HistoryTab — chỉ cho phép
+ * sửa khi hoá đơn còn pending VÀ chưa từng tạo draft/issued eInvoice.
+ */
+export const canEditInvoice = (data: Pick<InvoiceData, 'status' | 'einvoice_status'>): boolean =>
+    data.status === 'pending' && (!data.einvoice_status || data.einvoice_status === 'none' || data.einvoice_status === 'failed');
 
+const buildInvoiceRecord = (data: InvoiceData) => ({
+    invoice_number: data.invoiceNumber,
+    issue_date: data.issueDate || null,
+    due_date: data.dueDate || null,
+    currency: data.currency,
+    tax_rate: data.taxRate,
+    discount_type: data.discountType,
+    discount_value: data.discountValue,
+    theme: data.theme,
+    status: data.status,
+    paid_date: data.paidDate || null,
+    payment_method: data.payment_method || 'TM/CK',
+    client_info: data.clientInfo,
+    studio_info: data.studioInfo,
+    banking_info: data.bankingInfo,
+    items: data.items,
+    client_name: data.clientInfo.name || '',
+    einvoice_status: data.einvoice_status && data.einvoice_status !== 'none' ? data.einvoice_status : '',
+    einvoice_reference_code: data.einvoice_reference_code || '',
+    einvoice_tracking_code: data.einvoice_tracking_code || '',
+    einvoice_pdf_url: data.einvoice_pdf_url || '',
+    crm_project_id: data.crm_project_id || null,
+    billing_entity: data.billing_entity || 'TD GAMES',
+    receiving_account_id: data.receiving_account_id || null,
+    po_number: data.poNumber || '',
+    service_location: data.serviceLocation || '',
+});
+
+export const saveInvoiceToCloud = async (data: InvoiceData): Promise<SaveResponse> => {
+    const record = buildInvoiceRecord(data);
     const { data: created, error } = await supabase
         .from('invoice_invoices')
         .insert(record)
@@ -109,6 +117,19 @@ export const saveInvoiceToCloud = async (data: InvoiceData): Promise<SaveRespons
         .single();
     if (error) throw new Error(`Save invoice failed: ${error.message}`);
     return { success: true, id: created.id };
+};
+
+/** Ghi đè (update) một hoá đơn đã tồn tại — dùng khi sửa hoá đơn pending chưa xuất eInvoice.
+ * Caller PHẢI tự kiểm tra `canEditInvoice(data)` trước khi gọi hàm này.
+ */
+export const updateInvoiceInCloud = async (id: string, data: InvoiceData): Promise<SaveResponse> => {
+    const record = buildInvoiceRecord(data);
+    const { error } = await supabase
+        .from('invoice_invoices')
+        .update(record)
+        .eq('id', id);
+    if (error) throw new Error(`Update invoice failed: ${error.message}`);
+    return { success: true, id };
 };
 
 const parseInvoice = (row: any): InvoiceData => ({
