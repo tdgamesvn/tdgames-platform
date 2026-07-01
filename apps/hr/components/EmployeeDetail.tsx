@@ -766,7 +766,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 {infoPair('Phòng ban', dept?.name)}
                 {infoPair('Chức danh', employee.position)}
                 {infoPair('Cấp bậc', employee.level)}
-                {!isHrOnly && infoPair('Lương', `${employee.salary.toLocaleString()} ${employee.salary_currency}`)}
+                {!isHrOnly && infoPair('Lương', employee.salary ? `${employee.salary.toLocaleString()} ${employee.salary_currency}` : '—')}
                 {infoPair('Ngày bắt đầu', employee.start_date)}
                 {infoPair('Hết thử việc', employee.probation_end)}
               </>
@@ -776,7 +776,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 {infoPair('Portfolio', employee.portfolio_url)}
                 {infoPair('Chuyên môn', employee.specializations?.join(', '))}
                 {infoPair('Múi giờ', employee.timezone)}
-                {!isHrOnly && infoPair('Rate', employee.rate_amount > 0 ? `${employee.rate_amount.toLocaleString()} ${employee.rate_currency}/${employee.rate_type}` : '')}
+                {!isHrOnly && infoPair('Rate', employee.rate_amount && employee.rate_amount > 0 ? `${employee.rate_amount.toLocaleString()} ${employee.rate_currency}/${employee.rate_type}` : '')}
                 {infoPair('Thanh toán', employee.payment_method)}
               </>
             )}
