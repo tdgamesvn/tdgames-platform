@@ -244,11 +244,16 @@ export function useInvoiceState(initialTab?: string | null) {
   });
 
   // ── Client Handlers ──
+  // Normalize name for dedup matching: lowercase, strip punctuation/extra whitespace
+  // so "Social Point SL" and "Social Point, S.L." are recognized as the same client.
+  const normalizeClientName = (name: string) =>
+    name.toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+
   const handleSaveClient = async () => {
     const ci = invoice.clientInfo;
     if (!ci.name) return notify('Please enter a client name.', 'error');
     try {
-      const existing = clients.find(c => c.name.toLowerCase() === ci.name.toLowerCase());
+      const existing = clients.find(c => normalizeClientName(c.name) === normalizeClientName(ci.name));
       if (existing) { await updateClientInCloud(existing.id, ci); notify('Client info updated!', 'success'); }
       else { await saveClientToCloud(ci); notify('New client saved!', 'success'); }
       await loadClients();
