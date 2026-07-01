@@ -70,7 +70,13 @@ function mapInvoiceToSePay(invoice: InvoiceData, exchangeRate?: number) {
     const needsConversion = invoice.currency === 'USD' && exchangeRate && exchangeRate > 0;
 
     // Determine buyer type
-    const hasTaxCode = !!(client.taxCode?.trim());
+    // SePay/CQT (VN tax authority) only accepts Vietnamese MST format for buyer.tax_code
+    // (10 digits, optionally with a -XXX branch suffix). Foreign tax IDs (e.g. Spanish CIF
+    // "B64965437") are rejected by SePay validation, causing eInvoice creation to fail silently.
+    const rawTaxCode = client.taxCode?.trim() || '';
+    const isValidVnTaxCode = /^\d{10}(-\d{3})?$/.test(rawTaxCode);
+    const hasForeignTaxCode = rawTaxCode.length > 0 && !isValidVnTaxCode;
+    const hasTaxCode = isValidVnTaxCode;
     const isIndividual = client.clientType === 'individual';
 
     // Build invoice items per SePay API spec
@@ -136,7 +142,7 @@ function mapInvoiceToSePay(invoice: InvoiceData, exchangeRate?: number) {
         buyer: {
             type: isIndividual ? 'personal' : (hasTaxCode ? 'company' : 'personal'),
             name: client.name,
-            tax_code: client.taxCode || '',
+            tax_code: hasTaxCode ? rawTaxCode : '',
             address: client.address || '',
             email: client.email || '',
             phone: isIndividual ? (client.contactPerson || '') : '',
@@ -145,9 +151,11 @@ function mapInvoiceToSePay(invoice: InvoiceData, exchangeRate?: number) {
         currency: needsConversion ? 'VND' : (invoice.currency || 'USD'),
         issued_date: issuedDate,
         payment_method: invoice.payment_method || 'CK',
-        notes: needsConversion
-            ? `Original currency: USD | Exchange rate: 1 USD = ${exchangeRate.toLocaleString('vi-VN')} VND${(invoice as any).notes ? ' | ' + (invoice as any).notes : ''}`
-            : ((invoice as any).notes || ''),
+        notes: [
+            needsConversion ? `Original currency: USD | Exchange rate: 1 USD = ${exchangeRate.toLocaleString('vi-VN')} VND` : '',
+            hasForeignTaxCode ? `Foreign tax ID: ${rawTaxCode}` : '',
+            (invoice as any).notes || '',
+        ].filter(Boolean).join(' | '),
     };
 }
 
