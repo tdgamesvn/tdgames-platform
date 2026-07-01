@@ -3,7 +3,7 @@ import { DEFAULT_INVOICE } from '@/constants';
 import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioInfo, AccountUser } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { hasAnyRole } from '@/utils/roleUtils';
-import { createAndPollDraft, getEInvoiceDetail } from '../services/sePayService';
+import { createAndPollDraft, getEInvoiceDetail, getEInvoiceDownloadUrl } from '../services/sePayService';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
 import {
   saveInvoiceToCloud,
@@ -528,13 +528,13 @@ export function useInvoiceState(initialTab?: string | null) {
   };
 
   const handleDownloadEInvoice = (inv: InvoiceData) => {
-    const params = new URLSearchParams({
-      reference_code: inv.einvoice_reference_code || '',
-      tracking_code: inv.einvoice_tracking_code || '',
-      pdf_url: inv.einvoice_pdf_url || '',
+    const url = getEInvoiceDownloadUrl({
+      referenceCode: inv.einvoice_reference_code || '',
+      trackingCode: inv.einvoice_tracking_code || '',
+      pdfUrl: inv.einvoice_pdf_url || '',
       filename: `eInvoice_${inv.einvoice_reference_code || inv.invoiceNumber}`,
     });
-    window.open(`https://n8n.tdconsulting.vn/webhook/sepay-invoice-download?${params.toString()}`, '_blank');
+    window.open(url, '_blank');
   };
 
   // ── Sync eInvoice statuses from SePay ─────────────────────────

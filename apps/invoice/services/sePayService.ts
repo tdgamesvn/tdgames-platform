@@ -266,6 +266,31 @@ export async function createAndPollDraft(
 }
 
 /**
+ * Build a direct-download URL cho PDF eInvoice, phục vụ qua chính sepay-proxy edge function
+ * (GET /?action=download-pdf) — KHÔNG còn phụ thuộc webhook n8n bên ngoài nữa.
+ * sepay-proxy tự thử tải PDF theo thứ tự: reference_code → tracking_code → fetch trực tiếp pdf_url,
+ * rồi trả về binary PDF kèm header Content-Disposition để trình duyệt tự động tải xuống đúng tên file.
+ * `key` truyền qua query param (thay vì header x-api-key) vì đây là điều hướng trình duyệt thuần
+ * (window.open/<a href>), không set custom header được.
+ */
+export function getEInvoiceDownloadUrl(params: {
+    referenceCode?: string;
+    trackingCode?: string;
+    pdfUrl?: string;
+    filename?: string;
+}): string {
+    const qs = new URLSearchParams({
+        action: 'download-pdf',
+        key: API_KEY,
+        reference_code: params.referenceCode || '',
+        tracking_code: params.trackingCode || '',
+        pdf_url: params.pdfUrl || '',
+        filename: params.filename || 'eInvoice',
+    });
+    return `${EDGE_FUNCTION_URL}?${qs.toString()}`;
+}
+
+/**
  * Get the current detail/status of an eInvoice from SePay.
  * Uses GET /v1/invoices/{reference_code}
  * Returns null if deleted on SePay (404 or cancelled).
