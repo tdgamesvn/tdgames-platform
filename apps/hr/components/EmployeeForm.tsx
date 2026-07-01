@@ -237,6 +237,8 @@ const EmployeeForm: React.FC<Props> = ({
         bank_branch: editingEmployee.bank_branch || '',
         notes: editingEmployee.notes || '',
         tags: editingEmployee.tags || [],
+        exclude_from_payroll: editingEmployee.exclude_from_payroll || false,
+        is_hidden: editingEmployee.is_hidden || false,
       });
       loadContracts(editingEmployee.id);
     } else {
