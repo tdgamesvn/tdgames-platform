@@ -745,22 +745,88 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       )}
 
       {/* Info Tab */}
-      {!loading && activeTab === 'info' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {!loading && activeTab === 'info' && (() => {
+        // Quick overview computations
+        const tenure = (() => {
+          if (!employee.start_date) return '—';
+          const start = new Date(employee.start_date);
+          const now = new Date();
+          const totalMonths = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+          if (totalMonths < 1) return '< 1 tháng';
+          if (totalMonths < 12) return `${totalMonths} tháng`;
+          const years = Math.floor(totalMonths / 12);
+          const remainMonths = totalMonths % 12;
+          return remainMonths > 0 ? `${years} năm ${remainMonths} tháng` : `${years} năm`;
+        })();
+        const probationStatus = (() => {
+          if (!employee.probation_end) return null;
+          const end = new Date(employee.probation_end);
+          const now = new Date();
+          if (employee.official_date) return { text: 'Chính thức', color: '#34C759' };
+          if (now >= end) return { text: 'Đã hết thử việc', color: '#FFD60A' };
+          const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          return { text: `Còn ${daysLeft} ngày`, color: daysLeft <= 14 ? '#FF9F0A' : '#0A84FF' };
+        })();
+        const activeContracts = contracts.filter(c => c.status === 'active').length;
+        return (
+        <div className="space-y-6">
+          {/* Quick Overview Strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-[20px] border border-primary/10 bg-surface p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Thâm niên</p>
+              <p className="text-xl font-black text-white mt-1">{tenure}</p>
+              {employee.start_date && <p className="text-[11px] text-neutral-medium mt-0.5">Từ {employee.start_date}</p>}
+            </div>
+            <div className="rounded-[20px] border border-primary/10 bg-surface p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Hợp đồng</p>
+              <p className="text-xl font-black text-white mt-1">{activeContracts > 0 ? `${activeContracts} hiệu lực` : 'Chưa có'}</p>
+              {contracts.length > 0 && <p className="text-[11px] text-neutral-medium mt-0.5">Tổng: {contracts.length}</p>}
+            </div>
+            {employee.type === 'fulltime' && probationStatus && (
+              <div className="rounded-[20px] border border-primary/10 bg-surface p-4">
+                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Thử việc</p>
+                <p className="text-xl font-black mt-1" style={{ color: probationStatus.color }}>{probationStatus.text}</p>
+                {employee.probation_end && <p className="text-[11px] text-neutral-medium mt-0.5">Hết: {employee.probation_end}</p>}
+              </div>
+            )}
+            <div className="rounded-[20px] border border-primary/10 bg-surface p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{employee.type === 'fulltime' ? 'KPI gần nhất' : 'Tasks'}</p>
+              {employee.type === 'fulltime' ? (
+                <>
+                  <p className={`text-xl font-black mt-1 ${recentKPI ? '' : 'text-neutral-medium'}`} style={recentKPI ? { color: recentKPI.kpiScore === 'A' ? '#34C759' : recentKPI.kpiScore === 'B' ? '#0A84FF' : recentKPI.kpiScore === 'C' ? '#FFD60A' : recentKPI.kpiScore === 'D' ? '#FF9F0A' : '#FF453A' } : {}}>
+                    {recentKPI?.kpiScore || '—'}
+                  </p>
+                  {recentKPI && <p className="text-[11px] text-neutral-medium mt-0.5">ROI: {recentKPI.roiPercent.toFixed(1)}%</p>}
+                </>
+              ) : (
+                <>
+                  <p className="text-xl font-black text-white mt-1">{wfTasks.length}</p>
+                  <p className="text-[11px] text-neutral-medium mt-0.5">{wfTasks.filter(t => t.status === 'completed' || t.status === 'approved').length} hoàn thành</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Detail Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-[20px] border border-primary/10 bg-surface p-6">
             <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">Thông tin cá nhân</h3>
             {infoPair('Email', employee.email)}
+            {infoPair('Email công ty', employee.work_email)}
             {infoPair('Điện thoại', employee.phone)}
             {infoPair('Ngày sinh', employee.date_of_birth)}
             {infoPair('Giới tính', employee.gender === 'male' ? 'Nam' : employee.gender === 'female' ? 'Nữ' : employee.gender)}
             {infoPair('Quốc tịch', employee.nationality)}
             {infoPair('Địa chỉ', employee.address)}
+            {infoPair('Địa chỉ tạm trú', employee.temp_address)}
           </div>
           <div className="rounded-[20px] border border-primary/10 bg-surface p-6">
             {employee.type === 'fulltime' ? (
               <>
                 <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">Fulltime</h3>
                 {infoPair('CMND/CCCD', employee.id_number)}
+                {infoPair('Ngày cấp', employee.id_issue_date)}
+                {infoPair('Nơi cấp', employee.id_issue_place)}
                 {infoPair('MST cá nhân', employee.tax_code)}
                 {infoPair('Số sổ BH', employee.insurance_number)}
                 {infoPair('Phòng ban', dept?.name)}
@@ -769,6 +835,8 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 {!isHrOnly && infoPair('Lương', employee.salary ? `${employee.salary.toLocaleString()} ${employee.salary_currency}` : '—')}
                 {infoPair('Ngày bắt đầu', employee.start_date)}
                 {infoPair('Hết thử việc', employee.probation_end)}
+                {infoPair('Ngày chính thức', employee.official_date)}
+                {employee.exclude_from_payroll && infoPair('Lương tự động', '❌ Không tính')}
               </>
             ) : (
               <>
@@ -818,68 +886,10 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
               )}
             </div>
           )}
-          {/* CCCD Photos */}
-          <div className="rounded-[20px] border border-primary/10 bg-surface p-6 md:col-span-2">
-            <h3 className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-4">🪪 CMND / CCCD</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Front */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">Mặt trước</p>
-                <input type="file" ref={frontRef} accept=".jpg,.jpeg,.png,.webp" style={{ display: 'none' }} id="cccd-front"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCccdUpload('front', f); }} />
-                {cccdFront ? (
-                  <div className="relative group rounded-xl overflow-hidden border border-primary/10 cursor-pointer" style={{ aspectRatio: '1.6/1' }}
-                    onClick={() => { setCccdPreview(toPublicUrl(cccdFront)); setCccdPreviewLabel('CCCD — Mặt trước'); }}>
-                    <img src={toPublicUrl(cccdFront)} alt="CCCD Mặt trước" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-all">
-                      <button onClick={e => { e.stopPropagation(); setCccdPreview(toPublicUrl(cccdFront)); setCccdPreviewLabel('CCCD — Mặt trước'); }}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-bold">👁️ Xem</button>
-                      <label htmlFor="cccd-front" onClick={e => e.stopPropagation()}
-                        className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold cursor-pointer">🔄 Thay</label>
-                    </div>
-                  </div>
-                ) : (
-                  <label htmlFor="cccd-front" className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all hover:border-primary/40 ${uploadingFront ? 'border-primary/30 bg-primary/5' : 'border-primary/10 bg-white/[0.02]'}`}
-                    style={{ aspectRatio: '1.6/1' }}>
-                    {uploadingFront ? (
-                      <><div className="w-6 h-6 border-3 border-primary/30 border-t-primary rounded-full animate-spin" /><span className="text-xs font-bold text-primary">Đang upload...</span></>
-                    ) : (
-                      <><span className="text-2xl">📷</span><span className="text-xs text-neutral-medium">Upload mặt trước</span></>
-                    )}
-                  </label>
-                )}
-              </div>
-              {/* Back */}
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">Mặt sau</p>
-                <input type="file" ref={backRef} accept=".jpg,.jpeg,.png,.webp" style={{ display: 'none' }} id="cccd-back"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCccdUpload('back', f); }} />
-                {cccdBack ? (
-                  <div className="relative group rounded-xl overflow-hidden border border-primary/10 cursor-pointer" style={{ aspectRatio: '1.6/1' }}
-                    onClick={() => { setCccdPreview(toPublicUrl(cccdBack)); setCccdPreviewLabel('CCCD — Mặt sau'); }}>
-                    <img src={toPublicUrl(cccdBack)} alt="CCCD Mặt sau" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-all">
-                      <button onClick={e => { e.stopPropagation(); setCccdPreview(toPublicUrl(cccdBack)); setCccdPreviewLabel('CCCD — Mặt sau'); }}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500 text-white text-xs font-bold">👁️ Xem</button>
-                      <label htmlFor="cccd-back" onClick={e => e.stopPropagation()}
-                        className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold cursor-pointer">🔄 Thay</label>
-                    </div>
-                  </div>
-                ) : (
-                  <label htmlFor="cccd-back" className={`flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-all hover:border-primary/40 ${uploadingBack ? 'border-primary/30 bg-primary/5' : 'border-primary/10 bg-white/[0.02]'}`}
-                    style={{ aspectRatio: '1.6/1' }}>
-                    {uploadingBack ? (
-                      <><div className="w-6 h-6 border-3 border-primary/30 border-t-primary rounded-full animate-spin" /><span className="text-xs font-bold text-primary">Đang upload...</span></>
-                    ) : (
-                      <><span className="text-2xl">📷</span><span className="text-xs text-neutral-medium">Upload mặt sau</span></>
-                    )}
-                  </label>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
-      )}
+        </div>
+        );
+      })()}
 
       {/* Tasks Tab */}
       {!loading && activeTab === 'tasks' && (
