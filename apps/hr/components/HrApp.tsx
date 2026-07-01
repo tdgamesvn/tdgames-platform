@@ -124,7 +124,15 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
             loadContracts={state.loadContracts}
             onSave={state.handleSaveEmployee}
             onUpdate={state.handleUpdateEmployee}
-            onCancel={() => { state.setEditingEmployee(null); state.setActiveTab('employees'); }}
+            onCancel={() => {
+              state.setEditingEmployee(null);
+              // If came from EmployeeDetail (viewingEmployee still set), go back to Detail
+              if (state.viewingEmployee) {
+                state.setActiveTab('employeeDetail');
+              } else {
+                state.setActiveTab('employees');
+              }
+            }}
             onSaveContract={state.handleSaveContract}
             onUpdateContract={state.handleUpdateContract}
             onDeleteContract={state.handleDeleteContract}

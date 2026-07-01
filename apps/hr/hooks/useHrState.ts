@@ -7,8 +7,15 @@ export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departmen
 const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation', 'changeRequests'];
 
 export function useHrState(initialTab?: string | null) {
+  // Tabs that require in-memory state (selected employee) — can't restore from URL on F5
+  const STATE_DEPENDENT_TABS: HrTab[] = ['employeeDetail', 'employeeForm', 'quickAdd'];
+
   const [activeTab, _setActiveTab] = useState<HrTab>(() => {
-    if (initialTab && VALID_TABS.includes(initialTab as HrTab)) return initialTab as HrTab;
+    if (initialTab && VALID_TABS.includes(initialTab as HrTab)) {
+      // Fallback to employees list if tab needs data that won't survive a refresh
+      if (STATE_DEPENDENT_TABS.includes(initialTab as HrTab)) return 'employees';
+      return initialTab as HrTab;
+    }
     return 'employees';
   });
   const setActiveTab = useCallback((tab: HrTab) => {
