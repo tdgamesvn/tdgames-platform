@@ -40,6 +40,8 @@ const emptyEmployee = {
   portfolio_url: '', specializations: [] as string[], timezone: 'UTC+7',
   rate_type: '', rate_amount: 0, rate_currency: 'USD',
   payment_method: '', payment_details: {} as Record<string, any>,
+  // Discord
+  discord_user_id: '',
   // Bank
   bank_name: '', bank_account: '', bank_branch: '',
   // Vehicle
@@ -232,6 +234,7 @@ const EmployeeForm: React.FC<Props> = ({
         rate_currency: editingEmployee.rate_currency || 'USD',
         payment_method: editingEmployee.payment_method || '',
         payment_details: editingEmployee.payment_details || {},
+        discord_user_id: editingEmployee.discord_user_id || '',
         bank_name: editingEmployee.bank_name || '',
         bank_account: editingEmployee.bank_account || '',
         bank_branch: editingEmployee.bank_branch || '',
@@ -453,6 +456,11 @@ const EmployeeForm: React.FC<Props> = ({
             <div>
               <label className={labelCls}>Số điện thoại{reqStar('phone')}</label>
               <input className={inputCls} style={isFieldMissing('phone') ? { borderColor: '#FF453A' } : {}} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0912 345 678" />
+            </div>
+            <div>
+              <label className={labelCls}>Discord User ID</label>
+              <input className={inputCls} value={(form as any).discord_user_id || ''} onChange={e => setForm(f => ({ ...f, discord_user_id: e.target.value }))} placeholder="VD: 123456789012345678" />
+              <p className="text-neutral-600 text-[10px] mt-1">Dùng cho thông báo chấm công qua Discord</p>
             </div>
             <div>
               <label className={labelCls}>Ngày sinh{reqStar('date_of_birth')}</label>
