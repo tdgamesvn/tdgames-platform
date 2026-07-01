@@ -405,10 +405,10 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Export ──
   const handleExport = async (format: 'pdf' | 'png' | 'excel' | 'word') => {
-    const { exportToPDF, exportToPNG, exportToExcel, exportToWord } = await import('../services/exportService');
-    const fileName = `Invoice_${invoice.invoiceNumber}`;
     setIsExporting(format);
     try {
+      const { exportToPDF, exportToPNG, exportToExcel, exportToWord } = await import('../services/exportService');
+      const fileName = `Invoice_${invoice.invoiceNumber}`;
       if (format === 'pdf' || format === 'png' || format === 'word') {
         if (activeTab !== 'preview') { setActiveTab('preview'); await new Promise(resolve => setTimeout(resolve, 1200)); }
       }
@@ -419,7 +419,16 @@ export function useInvoiceState(initialTab?: string | null) {
         case 'word': exportToWord('invoice-capture', fileName); break;
       }
       if (format === 'pdf') { setPendingInvoiceToSave(invoice); setShowSaveConfirm(true); }
-    } catch (error) { console.error("Export failed:", error); notify("Error exporting file. Please try again.", "error"); }
+    } catch (error: any) {
+      console.error("Export failed:", error);
+      const isStaleChunk = /dynamically imported module|module script failed|Failed to fetch|Importing a module/i.test(error?.message || '');
+      if (isStaleChunk) {
+        notify("Ứng dụng vừa có bản cập nhật mới. Đang tải lại trang, vui lòng thử export lại sau khi trang tải xong...", "error");
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        notify("Error exporting file. Please try again.", "error");
+      }
+    }
     finally { setIsExporting(null); }
   };
 
@@ -448,6 +457,13 @@ export function useInvoiceState(initialTab?: string | null) {
   };
 
   const executeCreateEInvoice = async (inv: InvoiceData, rate?: number) => {
+    // SePay từ chối issued_date < ngày hiện tại (không cho phát hành hoá đơn lùi ngày).
+    // Chặn sớm ở đây để báo lỗi rõ ràng bằng tiếng Việt, thay vì để SePay trả lỗi JSON thô.
+    const today = new Date().toISOString().split('T')[0];
+    if (inv.issueDate && inv.issueDate < today) {
+      notify(`Ngày lập hoá đơn (${inv.issueDate}) đã qua ngày hôm nay (${today}). SePay không cho phép phát hành hoá đơn lùi ngày — vui lòng vào tab EDIT, cập nhật "Ngày lập" thành ${today} hoặc mới hơn rồi thử phát hành eInvoice lại.`, 'error');
+      return;
+    }
     setShowEInvoiceModal(true);
     setEInvoiceProgress('Initializing...');
     setEInvoiceResult(null);
