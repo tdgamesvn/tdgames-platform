@@ -433,21 +433,38 @@ export function useInvoiceState(initialTab?: string | null) {
   const handleDismissSave = () => { setShowSaveConfirm(false); setPendingInvoiceToSave(null); };
 
   // ── Export ──
-  const handleExport = async (format: 'pdf' | 'png' | 'excel' | 'word') => {
+  /**
+   * @param opts.targetInvoice — hoá đơn cần export, mặc định là `invoice` đang load trong editor.
+   *   Truyền tường minh khi export từ nơi khác editor (vd: nút "Tải PDF" trong History) để tránh
+   *   đọc nhầm giá trị `invoice` cũ trong closure (setInvoice là async, chưa kịp cập nhật).
+   * @param opts.skipSavePrompt — bỏ qua modal "Save Invoice?" sau khi export PDF — dùng khi chỉ
+   *   đang TẢI LẠI PDF của hoá đơn đã lưu sẵn (History), không phải tạo/sửa hoá đơn mới.
+   */
+  const handleExport = async (
+    format: 'pdf' | 'png' | 'excel' | 'word',
+    opts?: { targetInvoice?: InvoiceData; skipSavePrompt?: boolean }
+  ) => {
+    const targetInvoice = opts?.targetInvoice || invoice;
     setIsExporting(format);
     try {
       const { exportToPDF, exportToPNG, exportToExcel, exportToWord } = await import('../services/exportService');
-      const fileName = `Invoice_${invoice.invoiceNumber}`;
+      const fileName = `Invoice_${targetInvoice.invoiceNumber}`;
       if (format === 'pdf' || format === 'png' || format === 'word') {
-        if (activeTab !== 'preview') { setActiveTab('preview'); await new Promise(resolve => setTimeout(resolve, 1200)); }
+        // Luôn chờ render lại khi có targetInvoice tường minh (dữ liệu invoice vừa đổi qua setInvoice
+        // ở caller, cần đợi React re-render InvoicePreview trước khi capture/print), hoặc khi đang
+        // không ở tab preview.
+        if (activeTab !== 'preview' || opts?.targetInvoice) {
+          setActiveTab('preview');
+          await new Promise(resolve => setTimeout(resolve, 1200));
+        }
       }
       switch (format) {
         case 'pdf': await exportToPDF('invoice-capture', fileName); break;
-        case 'png': await exportToPNG('invoice-capture', fileName, invoice.theme); break;
-        case 'excel': exportToExcel(invoice, fileName); break;
+        case 'png': await exportToPNG('invoice-capture', fileName, targetInvoice.theme); break;
+        case 'excel': exportToExcel(targetInvoice, fileName); break;
         case 'word': exportToWord('invoice-capture', fileName); break;
       }
-      if (format === 'pdf') { setPendingInvoiceToSave(invoice); setShowSaveConfirm(true); }
+      if (format === 'pdf' && !opts?.skipSavePrompt) { setPendingInvoiceToSave(targetInvoice); setShowSaveConfirm(true); }
     } catch (error: any) {
       console.error("Export failed:", error);
       const isStaleChunk = /dynamically imported module|module script failed|Failed to fetch|Importing a module/i.test(error?.message || '');
@@ -535,6 +552,35 @@ export function useInvoiceState(initialTab?: string | null) {
       filename: `eInvoice_${inv.einvoice_reference_code || inv.invoiceNumber}`,
     });
     window.open(url, '_blank');
+  };
+
+  /**
+   * Tải lại PDF hoá đơn TD Games (bản Preview thương hiệu — khác với eInvoice PDF của SePay ở trên)
+   * trực tiếp từ History, không cần bấm Edit rồi vào tab Preview thủ công.
+   * Bấm nút → hỏi Light/Dark Theme trước (popup, giống resetConfirmId) → chọn xong mới thực sự
+   * export, để không phụ thuộc theme đã lưu sẵn của hoá đơn đó.
+   */
+  const [pdfThemeChoiceInv, setPdfThemeChoiceInv] = useState<InvoiceData | null>(null);
+
+  const handleDownloadInvoicePdf = (inv: InvoiceData) => { setPdfThemeChoiceInv(inv); };
+
+  const cancelDownloadInvoicePdf = () => setPdfThemeChoiceInv(null);
+
+  const confirmDownloadInvoicePdf = async (theme: 'dark' | 'light') => {
+    const inv = pdfThemeChoiceInv;
+    setPdfThemeChoiceInv(null);
+    if (!inv) return;
+    const target = { ...inv, theme };
+    const cameFromHistory = activeTab === 'history';
+    skipBankAutoApplyRef.current = true;
+    setInvoice(target);
+    await handleExport('pdf', { targetInvoice: target, skipSavePrompt: true });
+    if (cameFromHistory) {
+      const restoreHistory = () => { setActiveTab('history'); window.removeEventListener('afterprint', restoreHistory); };
+      window.addEventListener('afterprint', restoreHistory);
+      // Fallback dọn listener nếu 'afterprint' không bắn (một số trình duyệt/luồng in đặc biệt)
+      setTimeout(() => window.removeEventListener('afterprint', restoreHistory), 60000);
+    }
   };
 
   // ── Sync eInvoice statuses from SePay ─────────────────────────
@@ -658,6 +704,7 @@ export function useInvoiceState(initialTab?: string | null) {
     handleConfirmSave, handleDismissSave,
     handleExport,
     handleCreateEInvoice, handleResetEInvoice, confirmResetEInvoice, handleDownloadEInvoice,
+    handleDownloadInvoicePdf, pdfThemeChoiceInv, confirmDownloadInvoicePdf, cancelDownloadInvoicePdf,
     // Sync eInvoice
     syncEInvoiceStatuses, isSyncingEInvoices,
     // Exchange rate (USD→VND)

@@ -80,6 +80,10 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
             onRefresh={state.loadHistory} onLoadFromHistory={state.loadFromHistory}
             onDuplicateInvoice={state.handleDuplicateInvoice}
             onCreateEInvoice={state.handleCreateEInvoice} onDownloadEInvoice={state.handleDownloadEInvoice}
+            onDownloadInvoicePdf={state.handleDownloadInvoicePdf}
+            pdfThemeChoiceInv={state.pdfThemeChoiceInv}
+            onConfirmDownloadInvoicePdf={state.confirmDownloadInvoicePdf}
+            onCancelDownloadInvoicePdf={state.cancelDownloadInvoicePdf}
             onToggleStatus={state.toggleStatus} onDeleteInvoice={state.handleDeleteInvoice}
             onResetEInvoice={state.handleResetEInvoice} onConfirmResetEInvoice={state.confirmResetEInvoice}
             onCancelResetEInvoice={() => state.setResetConfirmId(null)}

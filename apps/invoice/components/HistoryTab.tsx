@@ -20,6 +20,10 @@ interface HistoryTabProps {
   onDuplicateInvoice: (inv: InvoiceData) => void;
   onCreateEInvoice: (inv: InvoiceData) => void;
   onDownloadEInvoice: (inv: InvoiceData) => void;
+  onDownloadInvoicePdf: (inv: InvoiceData) => void;
+  pdfThemeChoiceInv: InvoiceData | null;
+  onConfirmDownloadInvoicePdf: (theme: 'dark' | 'light') => void;
+  onCancelDownloadInvoicePdf: () => void;
   onToggleStatus: (id: string, status: InvoiceData['status']) => void;
   onDeleteInvoice: (id: string) => void;
   onResetEInvoice: (id: string) => void;
@@ -36,7 +40,9 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   filterDateFrom, setFilterDateFrom, filterDateTo, setFilterDateTo,
   resetConfirmId,
   formatCurrencySimple, onRefresh, onLoadFromHistory, onDuplicateInvoice,
-  onCreateEInvoice, onDownloadEInvoice, onToggleStatus, onDeleteInvoice,
+  onCreateEInvoice, onDownloadEInvoice, onDownloadInvoicePdf,
+  pdfThemeChoiceInv, onConfirmDownloadInvoicePdf, onCancelDownloadInvoicePdf,
+  onToggleStatus, onDeleteInvoice,
   onResetEInvoice, onConfirmResetEInvoice, onCancelResetEInvoice, onSendEmail,
   onSyncEInvoices, isSyncingEInvoices,
 }) => (
@@ -141,6 +147,9 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
               <button onClick={() => onDuplicateInvoice(inv)} title="Clone" className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-100'} hover:text-blue-400`}>
                 <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
+              <button onClick={() => onDownloadInvoicePdf(inv)} title="Tải PDF hoá đơn (TD Games)" className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-100'} hover:text-sky-400`}>
+                <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
               {(!inv.einvoice_status || inv.einvoice_status === 'none' || inv.einvoice_status === 'failed') ? (
                 <button onClick={() => onCreateEInvoice(inv)} title="Xuất eInvoice" className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-gray-100'} hover:text-emerald-400`}>
                   <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -188,6 +197,35 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
               Xoá eInvoice
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Choose PDF export theme popup */}
+    {pdfThemeChoiceInv && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={onCancelDownloadInvoicePdf}>
+        <div className={`w-full max-w-sm p-8 rounded-[28px] border shadow-2xl animate-fadeInUp ${theme === 'dark' ? 'bg-[#1A1A1A] border-primary/20' : 'bg-white border-gray-200'}`} onClick={e => e.stopPropagation()}>
+          <div className="w-16 h-16 rounded-2xl bg-sky-500/10 flex items-center justify-center mx-auto mb-6">
+            <span className="text-3xl">📄</span>
+          </div>
+          <h3 className={`text-lg font-black uppercase tracking-tighter text-center mb-2 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Tải PDF hoá đơn</h3>
+          <p className={`text-sm text-center mb-8 ${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>
+            Chọn theme cho bản PDF <span className="font-black text-primary">{pdfThemeChoiceInv.invoiceNumber}</span>
+          </p>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <button onClick={() => onConfirmDownloadInvoicePdf('light')}
+              className="py-4 rounded-2xl text-sm font-black uppercase tracking-widest border-2 border-gray-300 bg-white text-black transition-all hover:scale-[1.02] hover:border-primary shadow-lg flex flex-col items-center gap-1">
+              <span className="text-xl">☀️</span> Light
+            </button>
+            <button onClick={() => onConfirmDownloadInvoicePdf('dark')}
+              className="py-4 rounded-2xl text-sm font-black uppercase tracking-widest border-2 border-white/10 bg-[#0F0F0F] text-white transition-all hover:scale-[1.02] hover:border-primary shadow-lg flex flex-col items-center gap-1">
+              <span className="text-xl">🌙</span> Dark
+            </button>
+          </div>
+          <button onClick={onCancelDownloadInvoicePdf}
+            className={`w-full py-3 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all hover:scale-[1.02] ${theme === 'dark' ? 'border-white/10 text-white/60 hover:text-white hover:border-white/30' : 'border-gray-200 text-gray-500 hover:text-black hover:border-gray-400'}`}>
+            Huỷ
+          </button>
         </div>
       </div>
     )}
