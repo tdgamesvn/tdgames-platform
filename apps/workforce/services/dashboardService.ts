@@ -19,6 +19,14 @@ export interface FulltimeKPI {
   kpiBonusVND: number;        // max(0, revenueVND − target) × bonusPercent%
   kpiMultiplier: number;
   kpiBonusPercent: number;
+  tasks: FulltimeTaskDetail[]; // chi tiết task nghiệm thu trong tháng (drill-down)
+}
+
+export interface FulltimeTaskDetail {
+  title: string;
+  project: string;
+  client: string;
+  priceUSD: number;
 }
 
 export interface KpiSettings {
@@ -222,7 +230,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     
     // Fetch tasks linked to acceptances in this period
     // A task's revenue is recognized when its acceptance is approved in this period
-    let taskRevenues = new Map<string, { count: number, revenue: number }>();
+    let taskRevenues = new Map<string, { count: number, revenue: number, tasks: FulltimeTaskDetail[] }>();
     
     if (acceptances && acceptances.length > 0 && fulltimeWorkerIds.length > 0) {
       const acceptanceIds = acceptances.map(a => a.id);
@@ -239,23 +247,30 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         // Get the workers for these tasks
         const { data: tasksInfo } = await supabase
           .from('wf_tasks')
-          .select('id, worker_id')
+          .select('id, worker_id, title, project, client_name, clickup_space_name, clickup_folder_name')
           .in('id', taskIds)
           .in('worker_id', fulltimeWorkerIds);
-          
+
         if (tasksInfo) {
-          // Map task_id to worker_id
-          const taskToWorker = new Map<string, string>();
-          tasksInfo.forEach(t => taskToWorker.set(t.id, t.worker_id));
-          
-          // Aggregate revenue by worker
+          // Map task_id -> task info (worker + tên/dự án/khách hàng)
+          const taskInfoMap = new Map<string, any>();
+          tasksInfo.forEach(t => taskInfoMap.set(t.id, t));
+
+          // Aggregate revenue + chi tiết task theo worker
           accTasks.forEach(at => {
-            const workerId = taskToWorker.get(at.task_id);
-            if (workerId) {
-              const current = taskRevenues.get(workerId) || { count: 0, revenue: 0 };
+            const info = taskInfoMap.get(at.task_id);
+            if (info) {
+              const current = taskRevenues.get(info.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
+              const price = Number(at.client_price || 0);
               current.count += 1;
-              current.revenue += Number(at.client_price || 0);
-              taskRevenues.set(workerId, current);
+              current.revenue += price;
+              current.tasks.push({
+                title: info.title || '(không tên)',
+                project: info.project || info.clickup_folder_name || '',
+                client: info.client_name || info.clickup_space_name || '',
+                priceUSD: price,
+              });
+              taskRevenues.set(info.worker_id, current);
             }
           });
         }
@@ -306,7 +321,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         kpiPercent,
         kpiBonusVND,
         kpiMultiplier: s.multiplier,
-        kpiBonusPercent: s.bonusPercent
+        kpiBonusPercent: s.bonusPercent,
+        tasks: (taskData?.tasks || []).slice().sort((a, b) => b.priceUSD - a.priceUSD)
       });
     });
   }

@@ -13,6 +13,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [accountFilter, setAccountFilter] = useState<'all' | 'company' | 'personal'>('all');
+  // Drill-down chi tiết task per nhân viên
+  const [expandedEmp, setExpandedEmp] = useState<string | null>(null);
   // KPI config editor (chỉ tham khảo, không đẩy vào payroll)
   const [editKpi, setEditKpi] = useState(false);
   const [multInput, setMultInput] = useState('3');
@@ -257,8 +259,16 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                         </tr>
                       ) : (
                         data.fulltimeBreakdown.map(emp => (
-                          <tr key={emp.employeeId} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3 font-bold text-white">{emp.fullName}</td>
+                          <React.Fragment key={emp.employeeId}>
+                          <tr
+                            onClick={() => setExpandedEmp(prev => prev === emp.employeeId ? null : emp.employeeId)}
+                            className="hover:bg-white/[0.02] transition-colors cursor-pointer"
+                            title="Bấm để xem chi tiết task"
+                          >
+                            <td className="py-3 font-bold text-white">
+                              <span className={`inline-block mr-1.5 text-[9px] text-neutral-medium transition-transform ${expandedEmp === emp.employeeId ? 'rotate-90' : ''}`}>▶</span>
+                              {emp.fullName}
+                            </td>
                             <td className="py-3 text-center">{emp.totalTaskCount}</td>
                             <td className="py-3 text-right font-mono text-emerald-400">{formatVND(emp.totalTaskRevenue * exchangeRate)}</td>
                             <td className="py-3 text-right font-mono text-red-400">{formatVND(emp.totalCompanyCost)}</td>
@@ -294,6 +304,40 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                               )}
                             </td>
                           </tr>
+                          {expandedEmp === emp.employeeId && (
+                            <tr>
+                              <td colSpan={7} className="py-3 px-4 bg-white/[0.02]">
+                                {emp.tasks.length === 0 ? (
+                                  <p className="text-xs text-neutral-medium">Chưa có task nghiệm thu trong tháng này</p>
+                                ) : (
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-[9px] font-black uppercase tracking-widest text-neutral-600 border-b border-white/5">
+                                        <th className="pb-2 text-left font-medium">Task</th>
+                                        <th className="pb-2 text-left font-medium">Dự án</th>
+                                        <th className="pb-2 text-left font-medium">Khách hàng</th>
+                                        <th className="pb-2 text-right font-medium">Số tiền</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-white/5">
+                                      {emp.tasks.map((t, i) => (
+                                        <tr key={i}>
+                                          <td className="py-1.5 pr-3 text-white">{t.title}</td>
+                                          <td className="py-1.5 pr-3 text-neutral-light">{t.project || '—'}</td>
+                                          <td className="py-1.5 pr-3 text-neutral-light">{t.client || '—'}</td>
+                                          <td className="py-1.5 text-right font-mono">
+                                            <span className="text-emerald-400 font-bold">{formatUSD(t.priceUSD)}</span>
+                                            <span className="text-neutral-medium ml-2">≈ {formatVND(t.priceUSD * exchangeRate)}</span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         ))
                       )}
                     </tbody>
