@@ -404,7 +404,7 @@ const PayrollSheet: React.FC<Props> = ({
                           ) : (
                             <>
                               <Row label={`BH nhân viên (${(formula.bhEmployeeRate * 100).toFixed(2)}%)`} value={fmt(rec.employee_bhxh)} color="text-orange-400" />
-                              <Row label="TNCT (CB + ĐT + KPI)" value={fmt(rec.taxable_income)} />
+                              <Row label="TNCT (CB + Xăng + ĐT + KPI)" value={fmt(rec.taxable_income)} />
                               <Row label="Giảm trừ bản thân" value={`-${fmt(formula.personalDeduction)}`} color="text-neutral-medium" />
                               <Row label={`Giảm trừ NPT (${rec.dependents_count})`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="text-neutral-medium" />
                               <Row label="TNTT" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0 (âm → 0)'} />
