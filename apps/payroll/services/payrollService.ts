@@ -108,9 +108,14 @@ export function calculatePayroll(
   // Bonus (tiền thưởng từ HĐLĐ) tính vào TNCT theo TT 111/2013
   const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual + bonusAmount;
 
-  // PIT phần thử việc: 10% flat trên phần thu nhập tương ứng số ngày probation
+  // PIT phần thử việc: 10% flat trên phần thu nhập tương ứng số ngày probation.
+  // Ngưỡng khấu trừ theo điểm i khoản 1 Điều 25 TT 111/2013: chi trả cho cá nhân
+  // HĐ < 3 tháng (thử việc) DƯỚI 2.000.000đ/lần thì KHÔNG khấu trừ 10%.
+  const PROBATION_PIT_WITHHOLD_MIN = 2_000_000;
   const taxableProbation = r(taxableIncome * probRatio);
-  const pitProbation = r(taxableProbation * formula.probationPitRate);
+  const pitProbation = taxableProbation >= PROBATION_PIT_WITHHOLD_MIN
+    ? r(taxableProbation * formula.probationPitRate)
+    : 0;
 
   // PIT phần chính thức: lũy tiến trên (phần thu nhập official - BHXH - giảm trừ)
   // Giảm trừ gia cảnh full mức/tháng (TT 111/2013) dù chỉ có vài ngày official
@@ -371,15 +376,45 @@ export async function createPayrollSheet(
   const payrollFirstDay = new Date(year, month - 1, 1);
   const payrollLastDay = new Date(year, month, 0);
 
+  const officialDateStrMap: Record<string, string> = {};
   const transitionEmpIds = employees
     .filter(emp => {
       const officialRaw = (emp as any).official_date
         || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
       if (!officialRaw) return false;
       const od = new Date(officialRaw);
-      return od > payrollFirstDay && od <= payrollLastDay;
+      const isTransition = od > payrollFirstDay && od <= payrollLastDay;
+      if (isTransition) officialDateStrMap[emp.id] = String(officialRaw).slice(0, 10);
+      return isTransition;
     })
     .map(e => e.id);
+
+  // Đơn nghỉ KHÔNG LƯƠNG đã duyệt trong tháng của nhân viên chuyển giao
+  // → phân bổ ngày nghỉ vào ĐÚNG giai đoạn (thử việc / chính thức) thay vì trải đều,
+  // vì nó quyết định phần thu nhập chịu thuế 10% flat của giai đoạn thử việc.
+  const transitionLeaveMap: Record<string, { total: number; beforeOfficial: number }> = {};
+  if (transitionEmpIds.length > 0) {
+    const monthStartStr = `${year}-${String(month).padStart(2, '0')}-01`;
+    const monthEndStr = `${year}-${String(month).padStart(2, '0')}-${String(payrollLastDay.getDate()).padStart(2, '0')}`;
+    const { data: leaveReqs } = await supabase
+      .from('att_requests')
+      .select('employee_id, date_from, date_to, leave_days')
+      .in('employee_id', transitionEmpIds)
+      .eq('request_type', 'leave')
+      .eq('leave_type', 'unpaid')
+      .eq('status', 'approved')
+      .lte('date_from', monthEndStr)
+      .gte('date_to', monthStartStr);
+    (leaveReqs || []).forEach((lr: any) => {
+      const od = officialDateStrMap[lr.employee_id];
+      const days = Number(lr.leave_days || 0);
+      if (!od || !days) return;
+      const rec = transitionLeaveMap[lr.employee_id] || (transitionLeaveMap[lr.employee_id] = { total: 0, beforeOfficial: 0 });
+      rec.total += days;
+      if (String(lr.date_to) < od) rec.beforeOfficial += days;            // nghỉ trọn trước ngày chính thức
+      else if (String(lr.date_from) < od) rec.beforeOfficial += days / 2; // đơn vắt qua mốc (hiếm): chia đôi
+    });
+  }
 
   // For transition employees: find old base salary from hr_employee_salary records.
   // saveEmployeeSalary() does INSERT (not upsert), so old probation salary records
@@ -447,12 +482,24 @@ export async function createPayrollSheet(
       // Cả tháng đã chính thức
       probationRatio = 0;
     } else {
-      // Tháng chuyển giao: official_date rơi giữa tháng
-      // Tính theo NGÀY CÔNG T2-T6 (không phải ngày lịch) để khớp chuẩn kế toán:
-      // ví dụ 10 công thử việc / 22 công = 45,5% (thay vì 14 ngày lịch / 30 = 46,7%)
+      // Tháng chuyển giao: official_date rơi giữa tháng.
+      // Tính theo NGÀY CÔNG T2-T6, và phân bổ ngày nghỉ vào ĐÚNG giai đoạn xảy ra
+      // (dựa trên đơn nghỉ không lương đã duyệt) thay vì trải đều 2 giai đoạn.
       const officialWorkDaysInMonth = countWeekdaysFromDate(year, month, officialDate.getDate());
-      const probationWorkDays = stdDays - officialWorkDaysInMonth; // số công T2-T6 trước official_date
-      probationRatio = Math.max(0, Math.min(1, probationWorkDays / stdDays));
+      const probationScheduled = Math.max(0, stdDays - officialWorkDaysInMonth); // công thử việc theo lịch
+      const deficit = Math.max(0, stdDays - workDays); // tổng công nghỉ trong tháng
+      // Tỷ lệ phần nghỉ rơi vào giai đoạn thử việc: theo đơn nghỉ; không có đơn → trải đều
+      const lv = transitionLeaveMap[emp.id];
+      const probFraction = deficit > 0 && lv && lv.total > 0
+        ? lv.beforeOfficial / lv.total
+        : probationScheduled / stdDays;
+      const probDeficit = Math.min(deficit * probFraction, probationScheduled);
+      const probationWorkDaysActual = Math.max(0, probationScheduled - probDeficit);
+      // calculatePayroll nhân probRatio với taxable ĐÃ prorate (× workDays/std)
+      // → chia cho workDays để ra đúng bản chất: taxableProbation = ref × probActual/std
+      probationRatio = workDays > 0
+        ? Math.max(0, Math.min(1, probationWorkDaysActual / workDays))
+        : Math.max(0, Math.min(1, probationScheduled / stdDays));
     }
     const isProbation = probationRatio === 1;
 
