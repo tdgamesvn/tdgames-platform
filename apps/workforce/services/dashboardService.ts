@@ -13,7 +13,7 @@ export interface FulltimeKPI {
   roiPercent: number;
   kpiScore: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
   // KPI target (chỉ tham khảo, không đẩy vào payroll)
-  grossActual: number;        // VND — gross thực tế từ payroll confirmed/paid
+  grossActual: number;        // VND — gross thực tế từ payroll (mọi status, ưu tiên confirmed/paid)
   kpiTargetVND: number;       // grossActual × multiplier
   kpiPercent: number | null;  // revenueVND / target × 100 (null nếu chưa có payroll)
   kpiBonusVND: number;        // max(0, revenueVND − target) × bonusPercent%
@@ -78,49 +78,56 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const periodStr = `${year}-${month.toString().padStart(2, '0')}`;
   
   // 1. Get Revenue (Project Acceptances in this period)
+  // Lấy MỌI trạng thái: bảng KPI per-nhân-viên (tham khảo) cần số ngay từ khi phiếu
+  // nghiệm thu được TẠO; riêng P&L tổng công ty chỉ tính phiếu đã 'accepted'.
   let acceptanceQuery = supabase
     .from('wf_project_acceptances')
     .select('id, total_amount, currency, status')
-    .eq('period', periodStr)
-    .eq('status', 'accepted');
+    .eq('period', periodStr);
   if (accountTypeFilter !== 'all') acceptanceQuery = acceptanceQuery.eq('account_type', accountTypeFilter);
   const { data: acceptances } = await acceptanceQuery;
-    
-  let totalRevenueUSD = 0;
-  if (acceptances) {
-    totalRevenueUSD = acceptances.reduce((sum, acc) => {
-      // Assuming all are USD for now, convert if needed
-      return sum + Number(acc.total_amount || 0);
-    }, 0);
-  }
+
+  // P&L tổng: chỉ phiếu accepted (số thực)
+  const totalRevenueUSD = (acceptances || [])
+    .filter(acc => acc.status === 'accepted')
+    .reduce((sum, acc) => sum + Number(acc.total_amount || 0), 0);
   const revenueVND = totalRevenueUSD * exchangeRate;
 
   // 2. Get Fulltime Payroll Cost
   // We need the sheet for the specific month/year
+  // Lấy MỌI sheet của tháng (kể cả draft): bảng KPI per-nhân-viên cần gross ngay từ
+  // khi bảng lương được TẠO (chưa confirm thì mới còn cửa nhập thưởng).
+  // Riêng tổng chi phí Fulltime Payroll (P&L công ty) chỉ tính sheet confirmed/paid.
   const { data: sheets } = await supabase
     .from('pay_payroll_sheets')
-    .select('id')
+    .select('id, status')
     .eq('month', month)
-    .eq('year', year)
-    .in('status', ['confirmed', 'paid']); // Consider costs only if confirmed/paid
+    .eq('year', year);
 
   let fulltimePayroll = 0;
   const fulltimeCostsMap = new Map<string, number>(); // employee_id -> cost
   const fulltimeGrossMap = new Map<string, number>(); // employee_id -> gross_actual
 
   if (sheets && sheets.length > 0) {
+    const confirmedSheetIds = new Set(
+      sheets.filter(s => ['confirmed', 'paid'].includes(s.status)).map(s => s.id)
+    );
     const sheetIds = sheets.map(s => s.id);
     const { data: payrollRecords } = await supabase
       .from('pay_payroll_records')
-      .select('employee_id, total_company_cost, gross_actual')
+      .select('employee_id, total_company_cost, gross_actual, sheet_id')
       .in('sheet_id', sheetIds);
 
     if (payrollRecords) {
       payrollRecords.forEach(r => {
         const cost = Number(r.total_company_cost || 0);
-        fulltimePayroll += cost;
-        fulltimeCostsMap.set(r.employee_id, cost);
-        fulltimeGrossMap.set(r.employee_id, Number(r.gross_actual || 0));
+        const isConfirmed = confirmedSheetIds.has(r.sheet_id);
+        if (isConfirmed) fulltimePayroll += cost; // P&L công ty: chỉ số thực
+        // Per-nhân-viên: ưu tiên record từ sheet confirmed/paid, fallback draft
+        if (isConfirmed || !fulltimeCostsMap.has(r.employee_id)) {
+          fulltimeCostsMap.set(r.employee_id, cost);
+          fulltimeGrossMap.set(r.employee_id, Number(r.gross_actual || 0));
+        }
       });
     }
   }

@@ -269,7 +269,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                             </td>
                             <td className="py-3 text-center">
                               {emp.kpiPercent == null ? (
-                                <span className="text-[10px] text-neutral-medium" title="Chưa có bảng lương confirmed/paid tháng này">—</span>
+                                <span className="text-[10px] text-neutral-medium" title="Chưa tạo bảng lương tháng này (KPI hiện ngay khi bảng lương được tạo, kể cả draft)">—</span>
                               ) : (
                                 <div className="inline-flex flex-col items-center gap-1 min-w-[72px]" title={`Target: ${formatVND(emp.kpiTargetVND)} (gross ${formatVND(emp.grossActual)} × ${emp.kpiMultiplier})`}>
                                   <span className={`text-xs font-black ${emp.kpiPercent >= 100 ? 'text-emerald-400' : emp.kpiPercent >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
