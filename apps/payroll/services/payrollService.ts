@@ -370,7 +370,6 @@ export async function createPayrollSheet(
   // (used to auto-populate pre_official_base_salary)
   const payrollFirstDay = new Date(year, month - 1, 1);
   const payrollLastDay = new Date(year, month, 0);
-  const totalDaysInMonth = payrollLastDay.getDate();
 
   const transitionEmpIds = employees
     .filter(emp => {
@@ -449,8 +448,11 @@ export async function createPayrollSheet(
       probationRatio = 0;
     } else {
       // Tháng chuyển giao: official_date rơi giữa tháng
-      const daysProbation = officialDate.getDate() - 1; // ngày 1 → ngày trước official_date
-      probationRatio = daysProbation / totalDaysInMonth;
+      // Tính theo NGÀY CÔNG T2-T6 (không phải ngày lịch) để khớp chuẩn kế toán:
+      // ví dụ 10 công thử việc / 22 công = 45,5% (thay vì 14 ngày lịch / 30 = 46,7%)
+      const officialWorkDaysInMonth = countWeekdaysFromDate(year, month, officialDate.getDate());
+      const probationWorkDays = stdDays - officialWorkDaysInMonth; // số công T2-T6 trước official_date
+      probationRatio = Math.max(0, Math.min(1, probationWorkDays / stdDays));
     }
     const isProbation = probationRatio === 1;
 
