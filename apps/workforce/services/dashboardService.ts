@@ -30,8 +30,9 @@ export interface FreelancerPaymentSummary {
   workerId: string;
   workerName: string;
   taskCount: number;
-  totalAmount: number; // Original currency amount
+  totalAmount: number; // Original currency amount (chỉ tổng giá tasks, CHƯA gồm bonus)
   currency: string;
+  bonusAmount: number; // Original currency (thuế tính trên total + bonus)
   taxAmount: number;
   netAmount: number; // VND (đã quy đổi từ currency gốc theo exchangeRate)
   paymentStatus: string;
@@ -147,7 +148,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // 3. Get Freelancer Payments (Settlements)
   let settlementQuery = supabase
     .from('wf_settlements')
-    .select('worker_id, total_tasks, total_amount, currency, tax_amount, net_amount, status, account_type, worker:wf_workers(full_name)')
+    .select('worker_id, total_tasks, total_amount, currency, bonus_amount, tax_amount, net_amount, status, account_type, worker:wf_workers(full_name)')
     .eq('period', periodStr);
   if (accountTypeFilter !== 'all') settlementQuery = settlementQuery.eq('account_type', accountTypeFilter);
   const { data: settlements } = await settlementQuery;
@@ -169,6 +170,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         taskCount: s.total_tasks || 0,
         totalAmount: Number(s.total_amount || 0),
         currency: s.currency,
+        bonusAmount: Number(s.bonus_amount || 0),
         taxAmount: Number(s.tax_amount || 0),
         netAmount: net,
         paymentStatus: s.status

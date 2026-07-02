@@ -317,6 +317,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                       <th className="pb-3 font-medium">Freelancer</th>
                       <th className="pb-3 font-medium text-center">Tasks</th>
                       <th className="pb-3 font-medium text-right">Tổng Tiền</th>
+                      <th className="pb-3 font-medium text-right">Bonus</th>
                       <th className="pb-3 font-medium text-right">Thuế</th>
                       <th className="pb-3 font-medium text-right">Thực Nhận</th>
                       <th className="pb-3 font-medium text-center">Trạng thái</th>
@@ -325,7 +326,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                   <tbody className="divide-y divide-primary/5 text-neutral-light">
                     {data.freelancerBreakdown.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-8 text-center text-neutral-medium text-xs">
+                        <td colSpan={7} className="py-8 text-center text-neutral-medium text-xs">
                           Không có phiếu nghiệm thu freelancer trong tháng này
                         </td>
                       </tr>
@@ -335,6 +336,13 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                           <td className="py-3 font-bold text-white">{f.workerName}</td>
                           <td className="py-3 text-center">{f.taskCount}</td>
                           <td className="py-3 text-right font-mono">{formatVND(f.currency === 'USD' ? f.totalAmount * exchangeRate : f.totalAmount)}</td>
+                          <td className="py-3 text-right font-mono">
+                            {f.bonusAmount > 0 ? (
+                              <span className="text-yellow-400">+{formatVND(f.currency === 'USD' ? f.bonusAmount * exchangeRate : f.bonusAmount)}</span>
+                            ) : (
+                              <span className="text-neutral-medium">—</span>
+                            )}
+                          </td>
                           <td className="py-3 text-right font-mono text-orange-400">{formatVND(f.currency === 'USD' ? f.taxAmount * exchangeRate : f.taxAmount)}</td>
                           <td className="py-3 text-right font-mono font-bold text-blue-400">{formatVND(f.netAmount)}</td>
                           <td className="py-3 text-center">
