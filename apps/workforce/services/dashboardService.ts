@@ -33,7 +33,7 @@ export interface FreelancerPaymentSummary {
   totalAmount: number; // Original currency amount
   currency: string;
   taxAmount: number;
-  netAmount: number; // VND usually
+  netAmount: number; // VND (đã quy đổi từ currency gốc theo exchangeRate)
   paymentStatus: string;
 }
 
@@ -157,9 +157,12 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   
   if (settlements) {
     settlements.forEach(s => {
-      const net = Number(s.net_amount || 0);
+      // net_amount lưu theo currency của settlement (USD hoặc VND) → quy đổi VND tại đây
+      // để cả P&L tổng lẫn bảng breakdown đồng nhất đơn vị.
+      const netRaw = Number(s.net_amount || 0);
+      const net = s.currency === 'USD' ? netRaw * exchangeRate : netRaw;
       freelancerPayments += net;
-      
+
       freelancerBreakdown.push({
         workerId: s.worker_id,
         workerName: (s.worker as any)?.full_name || 'Unknown',
