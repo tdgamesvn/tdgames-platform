@@ -125,7 +125,14 @@ export function useInvoiceState(initialTab?: string | null) {
         }
       }
     });
-    if (activeTab === 'history' || activeTab === 'dashboard' || activeTab === 'aging') loadHistory();
+    if (activeTab === 'history') {
+      // Tự động check trạng thái ký số SePay mỗi lần vào History, âm thầm (silent) — trước đây
+      // draft chỉ được cập nhật thành "issued" khi người dùng tự bấm nút "🔄 Refresh", nên nhiều
+      // hoá đơn đã ký số thật trên SePay vẫn hiển thị "Nháp" mãi vì không ai nhớ bấm.
+      syncEInvoiceStatuses({ silent: true });
+    } else if (activeTab === 'dashboard' || activeTab === 'aging') {
+      loadHistory();
+    }
   }, [activeTab]);
 
   // ── Realtime Subscription (P3-1) ──
@@ -585,8 +592,12 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Sync eInvoice statuses from SePay ─────────────────────────
   const [isSyncingEInvoices, setIsSyncingEInvoices] = useState(false);
+  // silent=true: chạy ngầm khi vào tab History (không thấy toast trừ khi có thay đổi thật) —
+  // khác với bấm nút "🔄 Refresh" thủ công (silent=false, luôn báo kết quả kể cả "không có gì mới").
+  const silentSyncRef = useRef(false);
 
-  const syncEInvoiceStatuses = async () => {
+  const syncEInvoiceStatuses = async (opts?: { silent?: boolean }) => {
+    silentSyncRef.current = !!opts?.silent;
     // Use latest history from DB
     await loadHistory();
     // Wait a tick for state to settle, then sync from the fetched data
@@ -597,10 +608,11 @@ export function useInvoiceState(initialTab?: string | null) {
   useEffect(() => {
     if (!isSyncingEInvoices) return;
     const doSync = async () => {
+      const silent = silentSyncRef.current;
       const drafts = history.filter(inv => inv.einvoice_status === 'draft' && inv.einvoice_reference_code);
       if (drafts.length === 0) {
         setIsSyncingEInvoices(false);
-        notify('No draft invoices to sync', 'warning');
+        if (!silent) notify('No draft invoices to sync', 'warning');
         return;
       }
 
@@ -639,7 +651,10 @@ export function useInvoiceState(initialTab?: string | null) {
       if (updated > 0) parts.push(`${updated} signed`);
       if (deleted > 0) parts.push(`${deleted} removed`);
       if (errors > 0) parts.push(`${errors} errors`);
-      notify(parts.length > 0 ? `Sync: ${parts.join(', ')}` : `${drafts.length} draft invoices — no changes`, parts.length > 0 ? 'success' : 'warning');
+      // Silent mode: chỉ báo toast khi có thay đổi thật (tránh làm phiền mỗi lần vào History mà không có gì mới)
+      if (!silent || parts.length > 0) {
+        notify(parts.length > 0 ? `Sync: ${parts.join(', ')}` : `${drafts.length} draft invoices — no changes`, parts.length > 0 ? 'success' : 'warning');
+      }
     };
     doSync();
   // eslint-disable-next-line react-hooks/exhaustive-deps
