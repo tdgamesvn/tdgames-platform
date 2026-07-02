@@ -316,12 +316,19 @@ export async function createPayrollSheet(
   if (sheetErr) throw sheetErr;
 
   // 2. Fetch all fulltime employees
-  const { data: employees } = await supabase
+  const { data: allEmployees } = await supabase
     .from('hr_employees')
     .select('*')
     .eq('type', 'fulltime')
     .eq('status', 'active')
     .neq('exclude_from_payroll', true);
+
+  // Loại nhân viên onboard SAU tháng lương (VD start_date 01/07 không vào bảng T6).
+  // start_date null → giữ lại (dữ liệu cũ chưa nhập ngày).
+  const monthEndISO = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
+  const employees = (allEmployees || []).filter(
+    e => !e.start_date || e.start_date <= monthEndISO
+  );
 
   if (!employees?.length) return { sheet, records: [] };
 
