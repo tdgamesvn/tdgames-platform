@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MonthlyFinancialSummary, getDashboardData, FulltimeKPI, FreelancerPaymentSummary } from '../services/dashboardService';
+import { MonthlyFinancialSummary, getDashboardData, saveKpiSettings } from '../services/dashboardService';
 
 interface FinancialDashboardProps {
   vcbAvgRate: number;
@@ -13,6 +13,20 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [accountFilter, setAccountFilter] = useState<'all' | 'company' | 'personal'>('all');
+  // KPI config editor (chỉ tham khảo, không đẩy vào payroll)
+  const [editKpi, setEditKpi] = useState(false);
+  const [multInput, setMultInput] = useState('3');
+  const [pctInput, setPctInput] = useState('20');
+
+  const saveKpi = async () => {
+    try {
+      await saveKpiSettings(null, Number(multInput) || 3, Number(pctInput) || 20);
+      setEditKpi(false);
+      loadData();
+    } catch (err: any) {
+      setError(err.message || 'Không lưu được cấu hình KPI');
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -37,21 +51,6 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
 
   const formatUSD = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  };
-
-  const renderKPIScore = (score: string) => {
-    let color = 'bg-neutral-500/20 text-neutral-400';
-    if (score === 'A') color = 'bg-emerald-500/20 text-emerald-400';
-    else if (score === 'B') color = 'bg-blue-500/20 text-blue-400';
-    else if (score === 'C') color = 'bg-amber-500/20 text-amber-400';
-    else if (score === 'D') color = 'bg-orange-500/20 text-orange-400';
-    else if (score === 'F') color = 'bg-red-500/20 text-red-400';
-    
-    return (
-      <span className={`px-2 py-1 rounded text-xs font-bold ${color}`}>
-        {score}
-      </span>
-    );
   };
 
   return (
@@ -208,11 +207,34 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
             {/* Fulltime Performance */}
             <div className="lg:col-span-2">
               <div className="p-6 rounded-2xl border border-primary/10 bg-surface h-full">
-                <h3 className="text-lg font-black uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  Hiệu Suất Nhân Sự Fulltime
-                </h3>
-                
+                <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                  <h3 className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    Hiệu Suất Nhân Sự Fulltime
+                  </h3>
+                  {editKpi ? (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-neutral-medium font-bold">Target ×</span>
+                      <input type="number" step="0.1" min="0" value={multInput} onChange={e => setMultInput(e.target.value)}
+                        className="w-16 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-white font-bold focus:outline-none focus:border-primary/50" />
+                      <span className="text-neutral-medium font-bold">lương · Thưởng</span>
+                      <input type="number" step="1" min="0" max="100" value={pctInput} onChange={e => setPctInput(e.target.value)}
+                        className="w-14 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-white font-bold focus:outline-none focus:border-primary/50" />
+                      <span className="text-neutral-medium font-bold">% dư</span>
+                      <button onClick={saveKpi} className="px-2.5 py-1 rounded-lg bg-primary text-black text-[10px] font-black uppercase hover:opacity-90">Lưu</button>
+                      <button onClick={() => setEditKpi(false)} className="px-2.5 py-1 rounded-lg border border-white/10 text-[10px] font-black uppercase text-neutral-medium hover:text-white">Hủy</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setMultInput(String(data.kpiSettings.multiplier)); setPctInput(String(data.kpiSettings.bonusPercent)); setEditKpi(true); }}
+                      className="px-3 py-1.5 rounded-lg border border-white/10 text-[10px] font-black uppercase tracking-wider text-neutral-medium hover:text-white hover:border-primary/30 transition-colors"
+                      title="Chỉnh mục tiêu KPI (chỉ tham khảo, không ảnh hưởng bảng lương)"
+                    >
+                      Target ×{data.kpiSettings.multiplier} lương · Thưởng {data.kpiSettings.bonusPercent}% dư ✎
+                    </button>
+                  )}
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead>
@@ -222,13 +244,14 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                         <th className="pb-3 font-medium text-right">Doanh Thu</th>
                         <th className="pb-3 font-medium text-right">Chi Phí</th>
                         <th className="pb-3 font-medium text-right">Lãi/Lỗ</th>
-                        <th className="pb-3 font-medium text-center">KPI</th>
+                        <th className="pb-3 font-medium text-center">% KPI</th>
+                        <th className="pb-3 font-medium text-right">Thưởng (tham khảo)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-primary/5 text-neutral-light">
                       {data.fulltimeBreakdown.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-neutral-medium text-xs">
+                          <td colSpan={7} className="py-8 text-center text-neutral-medium text-xs">
                             Không có dữ liệu nhân sự fulltime trong tháng này
                           </td>
                         </tr>
@@ -245,7 +268,30 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                               </span>
                             </td>
                             <td className="py-3 text-center">
-                              {renderKPIScore(emp.kpiScore)}
+                              {emp.kpiPercent == null ? (
+                                <span className="text-[10px] text-neutral-medium" title="Chưa có bảng lương confirmed/paid tháng này">—</span>
+                              ) : (
+                                <div className="inline-flex flex-col items-center gap-1 min-w-[72px]" title={`Target: ${formatVND(emp.kpiTargetVND)} (gross ${formatVND(emp.grossActual)} × ${emp.kpiMultiplier})`}>
+                                  <span className={`text-xs font-black ${emp.kpiPercent >= 100 ? 'text-emerald-400' : emp.kpiPercent >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {emp.kpiPercent.toFixed(0)}%
+                                  </span>
+                                  <div className="w-16 h-1 rounded-full bg-white/10 overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full ${emp.kpiPercent >= 100 ? 'bg-emerald-400' : emp.kpiPercent >= 70 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                      style={{ width: `${Math.min(100, emp.kpiPercent)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3 text-right font-mono">
+                              {emp.kpiBonusVND > 0 ? (
+                                <span className="text-emerald-400 font-bold" title={`(Doanh thu − Target) × ${emp.kpiBonusPercent}% — nhập tay vào bảng lương nếu duyệt`}>
+                                  {formatVND(emp.kpiBonusVND)}
+                                </span>
+                              ) : (
+                                <span className="text-neutral-medium">—</span>
+                              )}
                             </td>
                           </tr>
                         ))

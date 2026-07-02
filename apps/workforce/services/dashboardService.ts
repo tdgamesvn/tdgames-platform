@@ -12,6 +12,18 @@ export interface FulltimeKPI {
   profitLoss: number; // P&L in VND (assuming exchange rate)
   roiPercent: number;
   kpiScore: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
+  // KPI target (chỉ tham khảo, không đẩy vào payroll)
+  grossActual: number;        // VND — gross thực tế từ payroll confirmed/paid
+  kpiTargetVND: number;       // grossActual × multiplier
+  kpiPercent: number | null;  // revenueVND / target × 100 (null nếu chưa có payroll)
+  kpiBonusVND: number;        // max(0, revenueVND − target) × bonusPercent%
+  kpiMultiplier: number;
+  kpiBonusPercent: number;
+}
+
+export interface KpiSettings {
+  multiplier: number;
+  bonusPercent: number;
 }
 
 export interface FreelancerPaymentSummary {
@@ -46,6 +58,20 @@ export interface MonthlyFinancialSummary {
   // Breakdowns
   fulltimeBreakdown: FulltimeKPI[];
   freelancerBreakdown: FreelancerPaymentSummary[];
+  kpiSettings: KpiSettings;        // global config hiện hành
+}
+
+/** Lưu config KPI: employeeId=null → global, ngược lại → override per nhân viên */
+export async function saveKpiSettings(employeeId: string | null, multiplier: number, bonusPercent: number): Promise<void> {
+  const payload = { multiplier, bonus_percent: bonusPercent, updated_at: new Date().toISOString() };
+  if (employeeId) {
+    const { error } = await supabase.from('wf_kpi_settings')
+      .upsert({ employee_id: employeeId, ...payload }, { onConflict: 'employee_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('wf_kpi_settings').update(payload).is('employee_id', null);
+    if (error) throw error;
+  }
 }
 
 export async function getDashboardData(month: number, year: number, exchangeRate: number = 25000, accountTypeFilter: 'all' | 'company' | 'personal' = 'all'): Promise<MonthlyFinancialSummary> {
@@ -80,22 +106,36 @@ export async function getDashboardData(month: number, year: number, exchangeRate
 
   let fulltimePayroll = 0;
   const fulltimeCostsMap = new Map<string, number>(); // employee_id -> cost
-  
+  const fulltimeGrossMap = new Map<string, number>(); // employee_id -> gross_actual
+
   if (sheets && sheets.length > 0) {
     const sheetIds = sheets.map(s => s.id);
     const { data: payrollRecords } = await supabase
       .from('pay_payroll_records')
-      .select('employee_id, total_company_cost')
+      .select('employee_id, total_company_cost, gross_actual')
       .in('sheet_id', sheetIds);
-      
+
     if (payrollRecords) {
       payrollRecords.forEach(r => {
         const cost = Number(r.total_company_cost || 0);
         fulltimePayroll += cost;
         fulltimeCostsMap.set(r.employee_id, cost);
+        fulltimeGrossMap.set(r.employee_id, Number(r.gross_actual || 0));
       });
     }
   }
+
+  // 2b. KPI settings (global + override per nhân viên)
+  const { data: kpiRows } = await supabase
+    .from('wf_kpi_settings')
+    .select('employee_id, multiplier, bonus_percent');
+  let kpiSettings: KpiSettings = { multiplier: 3, bonusPercent: 20 };
+  const kpiOverrides = new Map<string, KpiSettings>();
+  (kpiRows || []).forEach((r: any) => {
+    const s = { multiplier: Number(r.multiplier), bonusPercent: Number(r.bonus_percent) };
+    if (r.employee_id) kpiOverrides.set(r.employee_id, s);
+    else kpiSettings = s;
+  });
 
   // 3. Get Freelancer Payments (Settlements)
   let settlementQuery = supabase
@@ -231,6 +271,13 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         else kpiScore = 'F';
       }
 
+      // KPI target = gross thực tế × multiplier (tham khảo)
+      const gross = fulltimeGrossMap.get(emp.id) || 0;
+      const s = kpiOverrides.get(emp.id) || kpiSettings;
+      const kpiTargetVND = gross * s.multiplier;
+      const kpiPercent = kpiTargetVND > 0 ? (revVND / kpiTargetVND) * 100 : null;
+      const kpiBonusVND = kpiTargetVND > 0 ? Math.max(0, revVND - kpiTargetVND) * s.bonusPercent / 100 : 0;
+
       fulltimeBreakdown.push({
         employeeId: emp.id,
         workerId: workerId || '',
@@ -241,7 +288,13 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         totalTaskCount: count,
         profitLoss: pnl,
         roiPercent: roi,
-        kpiScore
+        kpiScore,
+        grossActual: gross,
+        kpiTargetVND,
+        kpiPercent,
+        kpiBonusVND,
+        kpiMultiplier: s.multiplier,
+        kpiBonusPercent: s.bonusPercent
       });
     });
   }
@@ -261,6 +314,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     grossProfit,
     profitMargin,
     fulltimeBreakdown,
-    freelancerBreakdown
+    freelancerBreakdown,
+    kpiSettings
   };
 }
