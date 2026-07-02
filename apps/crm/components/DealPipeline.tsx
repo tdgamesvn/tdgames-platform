@@ -1,5 +1,6 @@
 import React from 'react';
 import type { AccountUser, CrmClient } from '@/types';
+import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { ToastNotification } from '@/components/ToastNotification';
 import { useDealPipeline } from '../hooks/useDealPipeline';
 import { PipelineBoard, PipelineMetrics, PipelineFilters, DealFormModal, DealDetailPanel } from './pipeline';
@@ -10,7 +11,8 @@ interface Props {
 }
 
 const DealPipeline: React.FC<Props> = ({ currentUser, clients }) => {
-  const isBd = currentUser.role === 'bd';
+  // BD-restricted view: has 'bd' but no admin/ke_toan (primary OR secondary)
+  const isBd = hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
   const p = useDealPipeline(isBd ? currentUser.id : undefined);
 
   return (

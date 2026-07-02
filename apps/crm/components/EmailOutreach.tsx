@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog, AccountUser } from '@/types';
+import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import * as svc from '../services/outreachService';
 import type { PipelineStats } from '../services/outreachService';
 import { getOutreachApiBase, outreachRequest, supabaseEdgeFunctionPost } from '../services/outreachApi';
@@ -36,7 +37,7 @@ type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'au
 interface Props { clients: CrmClient[]; currentUser?: AccountUser; }
 
 const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
-  const isBd = currentUser?.role === 'bd';
+  const isBd = !!currentUser && hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
   const [tab, setTab] = useState<SubTab>('dashboard');
   const [leads, setLeads] = useState<CrmOutreachLead[]>([]);
   const [templates, setTemplates] = useState<CrmEmailTemplate[]>([]);

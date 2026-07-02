@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser, CrmActivity } from '@/types';
+import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
 import { useCrmState, CrmTab } from '../hooks/useCrmState';
@@ -171,7 +172,8 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   const [helpOpen, setHelpOpen] = useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const isBd = currentUser.role === 'bd';
+  // BD-restricted view: has 'bd' but no admin/ke_toan (primary OR secondary)
+  const isBd = hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
   // BD workflow order: Overview → Find targets → Contacts → Reach out → Track interactions → Deal → Project → Docs → Payment
   const accessibleTabs = isBd
     ? ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'settings']

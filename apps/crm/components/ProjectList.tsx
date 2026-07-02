@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { CrmClient, CrmProject, CrmProjectFile, CrmDocument, AccountUser } from '@/types';
+import { hasAnyRole } from '@/utils/roleUtils';
 import * as svc from '../services/crmService';
 import type { InvoiceRecord } from '../services/crmService';
 import PaymentScheduleSection from './PaymentScheduleSection';
@@ -43,7 +44,7 @@ const formatSize = (bytes: number) => {
 };
 
 const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
-  const canDelete = currentUser?.role !== 'bd';
+  const canDelete = !currentUser || hasAnyRole(currentUser, ['admin', 'ke_toan']) || !hasAnyRole(currentUser, ['bd']);
   const [projects, setProjects] = useState<CrmProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [filterClient, setFilterClient] = useState('');

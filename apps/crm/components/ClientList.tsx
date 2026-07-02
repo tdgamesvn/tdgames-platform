@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CrmClient, AccountUser } from '@/types';
 import { Button } from '@/components/Button';
+import { hasAnyRole } from '@/utils/roleUtils';
 
 interface Props {
   clients: CrmClient[];
@@ -36,7 +37,7 @@ const ClientList: React.FC<Props> = ({
   filterIndustry, setFilterIndustry, industries, statusCounts, totalClients,
   onEdit, onDelete, onRefresh, onAdd, currentUser,
 }) => {
-  const canDelete = currentUser?.role !== 'bd';
+  const canDelete = !currentUser || hasAnyRole(currentUser, ['admin', 'ke_toan']) || !hasAnyRole(currentUser, ['bd']);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   return (
