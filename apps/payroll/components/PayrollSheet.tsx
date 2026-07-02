@@ -294,37 +294,60 @@ const PayrollSheet: React.FC<Props> = ({
                     <span className="text-right text-xs text-orange-400">{fmt(rec.employee_bhxh)}</span>
                     <span className="text-right text-xs text-red-400">{rec.pit > 0 ? fmt(rec.pit) : '0'}</span>
 
-                    {/* Bonus + Lý do — editable */}
-                    <div className="text-right" onClick={e => e.stopPropagation()}>
-                      {isDraft && editingCell?.id === rec.id && editingCell?.field === 'bonus' ? (
-                        <div className="flex flex-col gap-1 items-end">
-                          <input ref={inputRef} type="number" step="1000" placeholder="Số tiền"
-                            className="w-24 px-1 py-0.5 rounded bg-black/40 border border-yellow-500/40 text-white text-xs text-right outline-none"
-                            value={rec.bonus ?? 0}
-                            onChange={e => handleCellChange(rec, 'bonus', +e.target.value)}
-                          />
-                          <input type="text" placeholder="Lý do thưởng..."
-                            className="w-32 px-1 py-0.5 rounded bg-black/40 border border-yellow-500/20 text-yellow-200/70 text-[10px] text-right outline-none"
-                            value={rec.bonus_reason ?? ''}
-                            onChange={e => handleStringChange(rec, 'bonus_reason', e.target.value)}
-                            onBlur={() => setEditingCell(null)}
-                          />
-                        </div>
-                      ) : (
+                    {/* Bonus + Lý do — editable qua popover */}
+                    <div className="text-right relative" onClick={e => e.stopPropagation()}>
+                      {isDraft && editingCell?.id === rec.id && editingCell?.field === 'bonus' && (
                         <div
-                          className={`flex flex-col items-end gap-0.5 ${isDraft ? 'cursor-text' : ''}`}
-                          onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'bonus' })}
+                          className="absolute right-0 top-full mt-1 z-30 w-60 bg-surface border border-yellow-500/30 rounded-xl shadow-2xl shadow-black/70 p-3 text-left space-y-2.5"
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingCell(null); }}
                         >
-                          <span className={`text-xs ${isDraft ? 'text-yellow-400' : 'text-white'}`}>
-                            {(rec.bonus ?? 0) > 0 ? fmt(rec.bonus) : (isDraft ? '+ thêm' : '—')}
-                          </span>
-                          {rec.bonus_reason && (
-                            <span className="text-[9px] text-yellow-200/50 italic truncate max-w-[7rem]" title={rec.bonus_reason}>
-                              {rec.bonus_reason}
-                            </span>
-                          )}
+                          <p className="text-[10px] font-black text-yellow-400 uppercase tracking-wider">🎁 Thưởng tháng này</p>
+                          <div>
+                            <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-wider mb-1">Số tiền (VND)</label>
+                            <input ref={inputRef} type="number" step="100000" min="0" placeholder="0"
+                              className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs text-right outline-none focus:border-yellow-500/50"
+                              value={rec.bonus ?? 0}
+                              onChange={e => handleCellChange(rec, 'bonus', +e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-wider mb-1">Lý do</label>
+                            <input type="text" placeholder="VD: Vượt KPI, dự án ABC..."
+                              className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs outline-none focus:border-yellow-500/50"
+                              value={rec.bonus_reason ?? ''}
+                              onChange={e => handleStringChange(rec, 'bonus_reason', e.target.value)}
+                            />
+                          </div>
+                          <div className="flex justify-between items-center pt-0.5">
+                            <span className="text-[9px] text-neutral-medium">Chịu thuế, không prorate</span>
+                            <button
+                              onClick={() => setEditingCell(null)}
+                              className="px-3 py-1 rounded-lg bg-primary text-black text-[10px] font-black uppercase hover:opacity-90 transition-opacity"
+                            >Xong</button>
+                          </div>
                         </div>
                       )}
+                      <div
+                        className={`flex flex-col items-end gap-0.5 ${isDraft ? 'cursor-pointer' : ''}`}
+                        onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'bonus' })}
+                      >
+                        {(rec.bonus ?? 0) > 0 ? (
+                          <>
+                            <span className={`text-xs font-bold ${isDraft ? 'text-yellow-400' : 'text-white'}`}>{fmt(rec.bonus)}</span>
+                            {rec.bonus_reason && (
+                              <span className="text-[9px] text-yellow-200/50 italic truncate max-w-[7rem]" title={rec.bonus_reason}>
+                                {rec.bonus_reason}
+                              </span>
+                            )}
+                          </>
+                        ) : isDraft ? (
+                          <span className="px-2 py-0.5 rounded-md border border-dashed border-yellow-500/40 text-yellow-400/80 text-[10px] font-bold hover:bg-yellow-500/10 hover:text-yellow-300 transition-colors">
+                            + Thưởng
+                          </span>
+                        ) : (
+                          <span className="text-xs text-white">—</span>
+                        )}
+                      </div>
                     </div>
 
                     <span className="text-right text-sm text-emerald-400 font-black">{fmt(rec.net_salary)}</span>
