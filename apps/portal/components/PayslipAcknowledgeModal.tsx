@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PayPayrollRecord, PayPayrollSheet } from '@/types';
 import { submitPayslipAcknowledgement } from '../services/portalService';
+import PayslipDetailSection from './PayslipDetailSection';
 
 type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
 
@@ -8,8 +9,6 @@ interface Props {
   payslip: PayslipWithSheet;
   onDone: () => void;
 }
-
-const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
 /**
  * Màn hình blocking bắt buộc — nhân viên phải xác nhận hoặc khiếu nại
@@ -23,6 +22,7 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
 
   const sheet = payslip.sheet;
   const monthLabel = sheet ? `Tháng ${sheet.month}/${sheet.year}` : 'Bảng lương';
+  const isTransition = !payslip.is_probation && (payslip.probation_ratio || 0) > 0 && (payslip.probation_ratio || 0) < 1;
 
   const handleConfirm = async () => {
     setLoading(true);
@@ -86,61 +86,34 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
           <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fff', margin: 0 }}>
             {monthLabel}
           </h2>
-          <p style={{ fontSize: '12px', color: '#888', marginTop: '6px', lineHeight: 1.5 }}>
-            Vui lòng kiểm tra thông tin bên dưới và xác nhận. Bạn cần hoàn thành bước này trước khi tiếp tục sử dụng app.
+          {payslip.is_probation && (
+            <span style={{
+              display: 'inline-block', marginTop: '8px',
+              background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+              padding: '2px 10px', borderRadius: '4px',
+              fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
+            }}>
+              ⭐ THỬ VIỆC — miễn BHXH, thuế TNCN cố định
+            </span>
+          )}
+          {isTransition && (
+            <span style={{
+              display: 'inline-block', marginTop: '8px',
+              background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+              padding: '2px 10px', borderRadius: '4px',
+              fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
+            }}>
+              🔄 THÁNG CHUYỂN GIAO — {Math.round((payslip.probation_ratio || 0) * 100)}% thử việc + {Math.round((1 - (payslip.probation_ratio || 0)) * 100)}% chính thức
+            </span>
+          )}
+          <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', lineHeight: 1.5 }}>
+            Vui lòng đối chiếu <strong style={{ color: '#ccc' }}>từng khoản mục</strong> bên dưới với thực tế công việc của bạn, rồi xác nhận. Bạn cần hoàn thành bước này trước khi tiếp tục sử dụng app.
           </p>
         </div>
 
-        {/* Payslip summary */}
+        {/* Payslip full detail — nhân viên PHẢI thấy đủ để đối chiếu đúng/sai */}
         <div style={{ padding: '20px 24px' }}>
-          {/* NET highlight */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.04))',
-            border: '1px solid rgba(16,185,129,0.2)',
-            borderRadius: '12px', padding: '16px', marginBottom: '16px',
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: '11px', color: '#6EE7B7', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '6px' }}>
-              Lương thực lĩnh
-            </p>
-            <p style={{ fontSize: '28px', fontWeight: 900, color: '#10B981', margin: 0 }}>
-              {fmt(payslip.net_salary)} <span style={{ fontSize: '14px' }}>đ</span>
-            </p>
-          </div>
-
-          {/* Key figures */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-            {[
-              { label: 'Gross thực tế', value: fmt(payslip.gross_actual), color: '#fff' },
-              { label: 'BH nhân viên', value: fmt(payslip.employee_bhxh), color: '#FB923C' },
-              { label: 'Thuế TNCN', value: fmt(payslip.pit), color: '#F87171' },
-              { label: 'Ngày công', value: `${payslip.work_days}/${sheet?.standard_work_days ?? 22}`, color: '#A78BFA' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{
-                background: '#161616', borderRadius: '10px', padding: '10px 12px',
-                border: '1px solid #1e1e1e',
-              }}>
-                <p style={{ fontSize: '10px', color: '#666', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-                <p style={{ fontSize: '14px', fontWeight: 700, color, margin: 0 }}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Bonus if any */}
-          {(payslip.bonus ?? 0) > 0 && (
-            <div style={{
-              background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.15)',
-              borderRadius: '10px', padding: '10px 14px', marginBottom: '16px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <span style={{ fontSize: '12px', color: '#CA8A04' }}>
-                🎁 {payslip.bonus_reason || 'Thưởng'}
-              </span>
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#EAB308' }}>
-                +{fmt(payslip.bonus)} đ
-              </span>
-            </div>
-          )}
+          <PayslipDetailSection ps={payslip} />
 
           {/* Company note if any */}
           {payslip.note && (
@@ -185,19 +158,6 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
               ⚠️ {error}
             </p>
           )}
-
-          {/* Confidentiality notice */}
-          <div style={{
-            display: 'flex', alignItems: 'flex-start', gap: '8px',
-            padding: '10px 14px', marginBottom: '14px',
-            background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.15)',
-            borderRadius: '10px',
-          }}>
-            <span style={{ fontSize: '14px', flexShrink: 0 }}>🔒</span>
-            <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,149,0,0.8)', lineHeight: 1.6 }}>
-              Thông tin lương là <strong>bảo mật cá nhân</strong>. Vui lòng không chia sẻ, tiết lộ hoặc cho bất kỳ ai khác biết nội dung phiếu lương này.
-            </p>
-          </div>
 
           {/* Action buttons */}
           {mode === 'view' ? (
