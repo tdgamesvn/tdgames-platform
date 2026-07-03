@@ -31,6 +31,10 @@ interface PayrollInput {
   probationRatio?: number;
   /** Lương CB trước khi lên chính thức. Nếu có và tháng chuyển giao → prorate giữa 2 mức. */
   preOfficialBaseSalary?: number | null;
+  /** Phụ cấp KPI trước khi lên chính thức. Nếu có và tháng chuyển giao → prorate giữa 2 mức. */
+  preOfficialKpiAllowance?: number | null;
+  /** Tăng ca mặc định trước khi lên chính thức. Nếu có và tháng chuyển giao → prorate giữa 2 mức. */
+  preOfficialDefaultOt?: number | null;
   /** Thưởng KPI nhập tay — tính vào thu nhập chịu thuế TNCN (TT 111/2013) */
   bonus?: number;
   /** Miễn BHXH: ngày làm việc chính thức trong tháng < 14 ngày (Luật BHXH VN, TT 59/2015).
@@ -71,7 +75,8 @@ export function calculatePayroll(
   const probRatio = Math.max(0, Math.min(1, input.probationRatio ?? (input.isProbation ? 1 : 0)));
   const officialRatio = 1 - probRatio;
 
-  // Tháng chuyển giao + tăng lương: prorate giữa lương cũ (probation) và lương mới (official)
+  // Tháng chuyển giao + đổi mức lương: prorate giữa mức cũ (probation) và mức mới (official).
+  // Áp dụng cho cả 3 khoản có thể đổi mức khi lên chính thức: Lương CB, KPI, Tăng ca mặc định.
   const hasPreOfficialSalary = input.preOfficialBaseSalary != null && probRatio > 0 && probRatio < 1;
   const effectiveBaseSalary = hasPreOfficialSalary
     ? r(input.preOfficialBaseSalary! * probRatio + input.baseSalary * officialRatio)
@@ -81,8 +86,18 @@ export function calculatePayroll(
   const transportActual = r(input.transportAllowance * ratio);
   const phoneActual = r(input.phoneAllowance * ratio);
   const clothingActual = r(input.clothingAllowance * ratio);
-  const kpiActual = r(input.kpiAllowance * ratio);
-  const defaultOtActual = r(input.defaultOt * ratio);
+
+  const hasPreOfficialKpi = input.preOfficialKpiAllowance != null && probRatio > 0 && probRatio < 1;
+  const effectiveKpiAllowance = hasPreOfficialKpi
+    ? r(input.preOfficialKpiAllowance! * probRatio + input.kpiAllowance * officialRatio)
+    : input.kpiAllowance;
+  const kpiActual = r(effectiveKpiAllowance * ratio);
+
+  const hasPreOfficialDefaultOt = input.preOfficialDefaultOt != null && probRatio > 0 && probRatio < 1;
+  const effectiveDefaultOt = hasPreOfficialDefaultOt
+    ? r(input.preOfficialDefaultOt! * probRatio + input.defaultOt * officialRatio)
+    : input.defaultOt;
+  const defaultOtActual = r(effectiveDefaultOt * ratio);
 
   const hourlyRate = input.baseSalary / std / hpd;
   const extraOt = r(hourlyRate * formula.otRateWeekday * input.extraOtHours);
@@ -416,37 +431,51 @@ export async function createPayrollSheet(
     });
   }
 
-  // For transition employees: find old base salary from hr_employee_salary records.
-  // saveEmployeeSalary() does INSERT (not upsert), so old probation salary records
-  // still exist alongside new official salary records for the same component.
-  const salaryChangeMap: Record<string, number> = {};
+  // For transition employees: find old rate (base salary / KPI / default OT) from
+  // hr_employee_salary records. saveEmployeeSalary() does INSERT (not upsert), so old
+  // probation-era records still exist alongside new official-era records for the same
+  // component. We split records by employee's official_date instead of just diffing the
+  // last 2 rows — same-day correction re-saves (e.g. a typo fixed minutes later, both
+  // AFTER official_date) would otherwise be mistaken for the real pre-official rate.
+  const TRACKED_COMPONENTS: Record<string, 'base' | 'kpi' | 'defaultOt'> = {
+    'Lương cơ bản': 'base',
+    'Phụ cấp năng suất (KPI)': 'kpi',
+    'Tăng ca': 'defaultOt',
+  };
+  const salaryChangeMap: Record<string, Partial<Record<'base' | 'kpi' | 'defaultOt', number>>> = {};
   if (transitionEmpIds.length > 0) {
-    // All "Lương cơ bản" records for transition employees, ordered by created_at
-    const { data: baseSalaryHistory } = await supabase
+    // All tracked-component records for transition employees, ordered by created_at
+    const { data: salaryHistory } = await supabase
       .from('hr_employee_salary')
       .select('employee_id, amount, created_at, component:hr_salary_components(name)')
       .in('employee_id', transitionEmpIds)
       .order('created_at', { ascending: true });
 
-    // Group by employee → find old base salary (second-to-last "Lương cơ bản" record)
-    const empBaseRecords: Record<string, number[]> = {};
-    (baseSalaryHistory || []).forEach((s: any) => {
-      if (s.component?.name === 'Lương cơ bản' && s.amount > 0) {
-        if (!empBaseRecords[s.employee_id]) empBaseRecords[s.employee_id] = [];
-        empBaseRecords[s.employee_id].push(s.amount);
-      }
+    // Group by employee + component → { pre: last value dated BEFORE official_date,
+    // cur: last value overall (chronological "last write wins", covers same-day corrections) }
+    const empComponentRecords: Record<string, Partial<Record<'base' | 'kpi' | 'defaultOt', { pre: number | null; cur: number | null }>>> = {};
+    (salaryHistory || []).forEach((s: any) => {
+      const key = TRACKED_COMPONENTS[s.component?.name];
+      if (!key || !(s.amount > 0)) return;
+      const officialStr = officialDateStrMap[s.employee_id];
+      if (!officialStr) return;
+      const empBucket = empComponentRecords[s.employee_id] || (empComponentRecords[s.employee_id] = {});
+      const entry = empBucket[key] || (empBucket[key] = { pre: null, cur: null });
+      const createdStr = String(s.created_at).slice(0, 10);
+      if (createdStr < officialStr) entry.pre = s.amount;
+      entry.cur = s.amount;
     });
 
     for (const empId of transitionEmpIds) {
-      const amounts = empBaseRecords[empId];
-      // If there are 2+ records and the latest differs from the previous → salary changed
-      if (amounts && amounts.length >= 2) {
-        const oldBase = amounts[amounts.length - 2];
-        const newBase = amounts[amounts.length - 1];
-        if (oldBase !== newBase) {
-          salaryChangeMap[empId] = oldBase;
+      const empBucket = empComponentRecords[empId];
+      if (!empBucket) continue;
+      (['base', 'kpi', 'defaultOt'] as const).forEach(key => {
+        const entry = empBucket[key];
+        // Only set when we have BOTH a confirmed pre-official value AND it differs from current
+        if (entry && entry.pre != null && entry.cur != null && entry.pre !== entry.cur) {
+          (salaryChangeMap[empId] || (salaryChangeMap[empId] = {}))[key] = entry.pre;
         }
-      }
+      });
     }
   }
 
@@ -515,10 +544,12 @@ export async function createPayrollSheet(
     }
     // else: cả tháng chính thức → bhxhExempt = false → đóng full
 
-    // Lương CB trước chính thức (auto-detect từ hr_position_history, hoặc null)
-    const preOfficialBaseSalary = (probationRatio > 0 && probationRatio < 1)
-      ? (salaryChangeMap[emp.id] ?? null)
-      : null;
+    // Mức lương trước chính thức (auto-detect từ lịch sử hr_employee_salary, hoặc null nếu không đổi)
+    const isTransitionMonth = probationRatio > 0 && probationRatio < 1;
+    const empSalaryChange = salaryChangeMap[emp.id];
+    const preOfficialBaseSalary = isTransitionMonth ? (empSalaryChange?.base ?? null) : null;
+    const preOfficialKpiAllowance = isTransitionMonth ? (empSalaryChange?.kpi ?? null) : null;
+    const preOfficialDefaultOt = isTransitionMonth ? (empSalaryChange?.defaultOt ?? null) : null;
 
     const input: PayrollInput = {
       workDays,
@@ -534,6 +565,8 @@ export async function createPayrollSheet(
       isProbation,
       probationRatio,
       preOfficialBaseSalary,
+      preOfficialKpiAllowance,
+      preOfficialDefaultOt,
       bonus: 0,
       bhxhExempt,
     };
@@ -557,6 +590,8 @@ export async function createPayrollSheet(
       is_probation: isProbation,
       probation_ratio: probationRatio,
       pre_official_base_salary: preOfficialBaseSalary,
+      pre_official_kpi_allowance: preOfficialKpiAllowance,
+      pre_official_default_ot: preOfficialDefaultOt,
       bhxh_exempt: bhxhExempt,
       bonus: 0,
       gross_ref: output.grossRef,
@@ -604,6 +639,8 @@ export function recalculateRecord(
     isProbation: rec.is_probation ?? false,
     probationRatio: rec.probation_ratio ?? (rec.is_probation ? 1 : 0),
     preOfficialBaseSalary: rec.pre_official_base_salary ?? null,
+    preOfficialKpiAllowance: rec.pre_official_kpi_allowance ?? null,
+    preOfficialDefaultOt: rec.pre_official_default_ot ?? null,
     // Bonus tính vào TNCT → PIT tự tăng theo bậc lũy tiến
     bonus: rec.bonus ?? 0,
     bhxhExempt: rec.bhxh_exempt ?? false,

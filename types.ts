@@ -1065,6 +1065,10 @@ export interface PayPayrollRecord {
   probation_ratio: number;
   /** Lương CB trước khi lên chính thức — chỉ dùng khi tháng chuyển giao + tăng lương. null = cùng mức. */
   pre_official_base_salary?: number | null;
+  /** Phụ cấp KPI trước khi lên chính thức — chỉ dùng khi tháng chuyển giao + đổi mức KPI. null = cùng mức. */
+  pre_official_kpi_allowance?: number | null;
+  /** Tăng ca mặc định trước khi lên chính thức — chỉ dùng khi tháng chuyển giao + đổi mức tăng ca. null = cùng mức. */
+  pre_official_default_ot?: number | null;
   /** Thưởng KPI nhập tay — cộng thẳng vào net, không tính thuế/BH */
   bonus: number;
   /** Lý do thưởng — ví dụ: "Thưởng KPI Q2", "Thưởng dự án X" */
