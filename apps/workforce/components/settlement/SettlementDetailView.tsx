@@ -153,7 +153,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
         <BackButton onClick={onBack} />
         <div className="flex-1">
           <h2 className="text-3xl font-black text-primary uppercase tracking-tighter">Nghiệm Thu</h2>
-          <p className="text-neutral-medium text-sm">{workerName} — Kỳ {s.period}</p>
+          <p className="text-neutral-medium text-sm">{workerName}{s.project_name ? ` · ${s.project_name}` : ''} — Kỳ {s.period}</p>
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={s.status} labels={STATUS_LABELS} colors={STATUS_COLORS} size="md" />
