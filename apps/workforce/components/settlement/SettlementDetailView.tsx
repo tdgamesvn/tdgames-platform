@@ -95,8 +95,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
       // Refresh
       const updatedTasks = await svc.fetchSettlementTasks(s.id!);
       setDetailTasks(updatedTasks);
-      setS(prev => ({
-        ...prev,
+      const updatedFields: Partial<Settlement> = {
         total_tasks: editTaskIds.length,
         total_amount: editTotal,
         currency: editCurrency,
@@ -108,7 +107,11 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
         net_amount: editPreview.netAmount,
         notes: editNotes,
         account_type: editTaxRate === 0 ? 'personal' : 'company',
-      }));
+      };
+      setS(prev => ({ ...prev, ...updatedFields }));
+      // Đồng bộ lại mảng settlements ở component cha — nếu không, quay lại danh sách
+      // rồi mở lại settlement này sẽ nhận prop cũ (chưa có thay đổi) và trông như mất data.
+      onUpdate(s.id!, updatedFields);
       setEditing(false);
     } catch (e: any) {
       alert(e.message || 'Lỗi lưu');
