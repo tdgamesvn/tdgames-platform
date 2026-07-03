@@ -127,7 +127,31 @@ export function calculatePayroll(
   // Ngưỡng khấu trừ theo điểm i khoản 1 Điều 25 TT 111/2013: chi trả cho cá nhân
   // HĐ < 3 tháng (thử việc) DƯỚI 2.000.000đ/lần thì KHÔNG khấu trừ 10%.
   const PROBATION_PIT_WITHHOLD_MIN = 2_000_000;
-  const taxableProbation = r(taxableIncome * probRatio);
+
+  // Tách taxableProbation theo TỪNG khoản thay vì nhân probRatio lên taxableIncome gộp
+  // (chỉ áp dụng cho tháng CHUYỂN GIAO — 0<probRatio<1 — để không đổi hành vi của tháng
+  // full thử việc/full chính thức đã đúng từ trước):
+  // - CB/xăng/ĐT: mức không đổi khi lên chính thức → nhân thẳng probRatio là đúng bản chất.
+  // - KPI: kpiActual đã là số BLEND (mức cũ×%TV + mức mới×%CT rồi ×ratio ngày công) — nếu
+  //   nhân thêm probRatio một lần nữa sẽ áp probRatio LÊN CHÍNH BLEND đó (double-apply), làm
+  //   phần thử việc bị tính nhầm cao hơn thực tế. Phải tính lại trực tiếp từ mức KPI cũ
+  //   (preOfficialKpiAllowance × probRatio × ratio) — khớp với cách kế toán tính tay.
+  // - Bonus: khoản thưởng tay (VD thưởng lên chính thức) là một lần, không thuộc giai đoạn
+  //   thử việc → không chia theo probRatio, để nguyên 100% rơi vào taxableOfficial (thuế lũy
+  //   tiến), thay vì bị cấn một phần vào mức khấu trừ 10% thử việc.
+  const isTransitionMonth = probRatio > 0 && probRatio < 1;
+  let taxableProbation: number;
+  if (isTransitionMonth) {
+    const flatTaxable = baseSalaryActual + transportActual + phoneActual;
+    const flatTaxableProbation = r(flatTaxable * probRatio);
+    const kpiProbationPortion = hasPreOfficialKpi
+      ? r(input.preOfficialKpiAllowance! * probRatio * ratio)
+      : r(kpiActual * probRatio);
+    taxableProbation = flatTaxableProbation + kpiProbationPortion;
+  } else {
+    // Full thử việc (probRatio=1) hoặc full chính thức (probRatio=0): giữ nguyên hành vi cũ.
+    taxableProbation = r(taxableIncome * probRatio);
+  }
   const pitProbation = taxableProbation >= PROBATION_PIT_WITHHOLD_MIN
     ? r(taxableProbation * formula.probationPitRate)
     : 0;
