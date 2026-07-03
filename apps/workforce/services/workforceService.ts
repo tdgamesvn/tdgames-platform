@@ -172,6 +172,7 @@ export function computeSettlementTotals(
 
 export async function createSettlement(
   workerId: string,
+  projectName: string,
   period: string,
   taskIds: string[],
   totalAmount: number,
@@ -189,6 +190,7 @@ export async function createSettlement(
     .from('wf_settlements')
     .insert({
       worker_id: workerId,
+      project_name: projectName,
       period,
       total_tasks: taskIds.length,
       total_amount: totalAmount,
