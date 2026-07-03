@@ -11,7 +11,7 @@ interface SettlementCreateViewProps {
   tasks: WorkforceTask[];
   vcbSellRate: number;
   onBack: () => void;
-  onCreate: (workerId: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, bonusType: 'percent' | 'amount', bonusValue: number, taxRate: number, accountType: 'company' | 'personal') => void;
+  onCreate: (workerId: string, projectName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, bonusType: 'percent' | 'amount', bonusValue: number, taxRate: number, accountType: 'company' | 'personal') => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -33,6 +33,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   workers, tasks, vcbSellRate, onBack, onCreate,
 }) => {
   const [selWorkerId, setSelWorkerId] = useState('');
+  const [selProjectName, setSelProjectName] = useState('');
   const [selPeriod, setSelPeriod] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -56,10 +57,18 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
     return true;
   });
 
-  // Available ClickUp statuses from worker's tasks
-  const availableClickupStatuses = [...new Set(workerTasks.map(t => t.clickup_status).filter(Boolean))].sort() as string[];
+  // Unique project names among worker's unpaid tasks, with task counts
+  const projectCounts: Record<string, number> = {};
+  workerTasks.forEach(t => { if (t.project) projectCounts[t.project] = (projectCounts[t.project] || 0) + 1; });
+  const projectOptions = Object.entries(projectCounts).sort((a, b) => b[1] - a[1]);
 
-  const eligibleTasks = workerTasks.filter(t => {
+  // Tasks scoped to the selected project (empty until a project is chosen)
+  const workerProjectTasks = selProjectName ? workerTasks.filter(t => t.project === selProjectName) : [];
+
+  // Available ClickUp statuses from worker's tasks in the selected project
+  const availableClickupStatuses = [...new Set(workerProjectTasks.map(t => t.clickup_status).filter(Boolean))].sort() as string[];
+
+  const eligibleTasks = workerProjectTasks.filter(t => {
     // When not including all statuses, require closed_date (original behavior)
     if (!includeAllStatuses) {
       if (!t.closed_date) return false;
@@ -86,6 +95,11 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
     setSelTaskIds([]);
   };
 
+  const changeProject = (name: string) => {
+    setSelProjectName(name);
+    setSelTaskIds([]);
+  };
+
   const selectedTasksData = eligibleTasks.filter(t => selTaskIds.includes(t.id!));
   const selectedPriceTotal = selectedTasksData.reduce((s, t) => s + (t.price || 0), 0);
   const selectedBonusTotal = selectedTasksData.reduce((s, t) => s + (t.bonus || 0), 0);
@@ -106,10 +120,10 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const dominantCurrency = getDominantCurrency();
 
   const handleCreate = () => {
-    if (!selWorkerId || selTaskIds.length === 0) return;
+    if (!selWorkerId || !selProjectName || selTaskIds.length === 0) return;
     const currency = dominantCurrency;
     const accountType = selTaxRate === 0 ? 'personal' : 'company';
-    onCreate(selWorkerId, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, accountType as 'company' | 'personal');
+    onCreate(selWorkerId, selProjectName, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, accountType as 'company' | 'personal');
     onBack();
   };
 
@@ -124,7 +138,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={labelCls}>Nhân sự *</label>
-            <select className={inputCls} value={selWorkerId} onChange={e => { setSelWorkerId(e.target.value); setSelTaskIds([]); }}>
+            <select className={inputCls} value={selWorkerId} onChange={e => { setSelWorkerId(e.target.value); setSelProjectName(''); setSelTaskIds([]); }}>
               <option value="">-- Chọn nhân sự --</option>
               {workers.filter(w => w.is_active).map(w => (
                 <option key={w.id} value={w.id}>{w.full_name}</option>
@@ -140,6 +154,22 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
             <input className={inputCls} value={selNotes} onChange={e => setSelNotes(e.target.value)} placeholder="Ghi chú..." />
           </div>
         </div>
+
+        {/* Project Filter */}
+        {selWorkerId && (
+          <div>
+            <label className={labelCls}>Dự án *</label>
+            <select className={inputCls + ' md:w-1/3'} value={selProjectName} onChange={e => changeProject(e.target.value)}>
+              <option value="">-- Chọn dự án --</option>
+              {projectOptions.map(([name, count]) => (
+                <option key={name} value={name}>{name} ({count} task)</option>
+              ))}
+            </select>
+            {projectOptions.length === 0 && (
+              <p className="text-[10px] text-neutral-medium/50 mt-2">Nhân sự này không có task chưa thanh toán nào.</p>
+            )}
+          </div>
+        )}
 
         {/* Status Filter Toggle */}
         {selWorkerId && (
@@ -228,9 +258,11 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
 
             {eligibleTasks.length === 0 ? (
               <p className="text-neutral-medium text-sm py-4 text-center">
-                {showAllTasks
-                  ? 'Không có task chưa thanh toán nào cho nhân sự này'
-                  : `Không có task khả dụng cho nhân sự này trong kỳ ${selPeriod}`}
+                {!selProjectName
+                  ? 'Vui lòng chọn dự án'
+                  : showAllTasks
+                  ? 'Không có task chưa thanh toán nào cho nhân sự này trong dự án này'
+                  : `Không có task khả dụng cho dự án này trong kỳ ${selPeriod}`}
               </p>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
