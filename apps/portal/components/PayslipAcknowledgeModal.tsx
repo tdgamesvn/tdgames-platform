@@ -142,6 +142,21 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
             </div>
           )}
 
+          {/* Company note if any */}
+          {payslip.note && (
+            <div style={{
+              background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)',
+              borderRadius: '10px', padding: '12px 14px', marginBottom: '16px',
+            }}>
+              <p style={{ fontSize: '10px', color: '#FF9500', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                💌 Lời nhắn từ công ty
+              </p>
+              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                {payslip.note}
+              </p>
+            </div>
+          )}
+
           {/* Dispute textarea */}
           {mode === 'dispute' && (
             <div style={{ marginBottom: '16px' }}>

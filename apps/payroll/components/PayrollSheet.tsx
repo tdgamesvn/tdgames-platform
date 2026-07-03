@@ -447,6 +447,31 @@ const PayrollSheet: React.FC<Props> = ({
                         </div>
                       </div>
 
+                      {/* Lời nhắn cho nhân viên — hiện trên phiếu lương của nhân viên */}
+                      {(isDraft || rec.note) && (
+                        <div className="mt-4 pt-4 border-t border-white/[0.06]">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">
+                            💌 Lời nhắn cho nhân viên
+                          </p>
+                          {isDraft ? (
+                            <div onClick={e => e.stopPropagation()}>
+                              <textarea
+                                rows={2}
+                                placeholder="VD: Chúc mừng bạn lên chính thức! Công ty sẽ bao trọn chi phí cho chuyến du lịch sắp tới. Cảm ơn bạn."
+                                className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-primary/50 resize-none placeholder:text-neutral-700"
+                                value={rec.note ?? ''}
+                                onChange={e => handleStringChange(rec, 'note', e.target.value)}
+                              />
+                              <p className="text-[9px] text-neutral-600 mt-1">Nhân viên sẽ thấy lời nhắn này khi mở phiếu lương trên Portal.</p>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 bg-primary/[0.06] border border-primary/20 rounded-lg">
+                              <p className="text-[11px] text-primary/90 whitespace-pre-wrap">{rec.note}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Khối xác nhận nhân viên — chỉ hiện khi sheet đã confirmed/paid */}
                       {sheet.status !== 'draft' && (() => {
                         const st = rec.employee_status ?? 'pending';
