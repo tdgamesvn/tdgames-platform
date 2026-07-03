@@ -13,6 +13,8 @@ interface Props {
 /**
  * Màn hình blocking bắt buộc — nhân viên phải xác nhận hoặc khiếu nại
  * trước khi tiếp tục dùng app. Không có nút đóng (X).
+ * Kích thước responsive: to & rộng trên desktop, tự co gọn trên mobile
+ * (dùng Tailwind breakpoints thay vì kích thước cố định).
  */
 const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
   const [mode, setMode] = useState<'view' | 'dispute'>('view');
@@ -54,57 +56,40 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
     }
   };
 
+  const badgeCls = 'text-[9px] sm:text-[10px] font-black tracking-wide px-2 py-1 sm:px-2.5 rounded';
+
   return (
     /* Full-screen overlay — không thể đóng */
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.92)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '16px',
-      backdropFilter: 'blur(12px)',
-    }}>
-      <div style={{
-        background: '#111', border: '1px solid #2a2a2a', borderRadius: '20px',
-        width: '100%', maxWidth: '820px', maxHeight: '96vh', overflowY: 'auto',
-        boxShadow: '0 0 60px rgba(0,0,0,0.8)',
-      }}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-6"
+      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}>
+      <div
+        className="w-full max-w-[96vw] sm:max-w-[700px] md:max-w-[920px] lg:max-w-[1100px] max-h-[97vh] sm:max-h-[94vh] overflow-y-auto rounded-2xl sm:rounded-[24px] border border-[#2a2a2a] bg-[#111]"
+        style={{ boxShadow: '0 0 60px rgba(0,0,0,0.8)' }}
+      >
         {/* Header */}
-        <div style={{
-          padding: '16px 24px 12px',
-          borderBottom: '1px solid #1e1e1e',
-          background: 'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.02))',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
-        }}>
+        <div
+          className="flex items-center justify-between flex-wrap gap-2 px-4 sm:px-8 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-[#1e1e1e]"
+          style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.02))' }}
+        >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-              <span style={{ fontSize: '16px' }}>📋</span>
-              <span style={{
-                fontSize: '10px', fontWeight: 900, textTransform: 'uppercase',
-                letterSpacing: '0.1em', color: '#EAB308',
-              }}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-base sm:text-xl">📋</span>
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#EAB308]">
                 Xác nhận phiếu lương bắt buộc
               </span>
             </div>
-            <h2 style={{ fontSize: '17px', fontWeight: 900, color: '#fff', margin: 0 }}>
+            <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-white m-0">
               {monthLabel}
             </h2>
           </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          <div className="flex gap-1.5 sm:gap-2 flex-wrap">
             {payslip.is_probation && (
-              <span style={{
-                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
-                padding: '2px 8px', borderRadius: '4px',
-                fontSize: '9px', fontWeight: 900, letterSpacing: '0.04em',
-              }}>
+              <span className={badgeCls} style={{ background: 'rgba(255,149,0,0.12)', color: '#FF9500' }}>
                 ⭐ THỬ VIỆC
               </span>
             )}
             {isTransition && (
-              <span style={{
-                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
-                padding: '2px 8px', borderRadius: '4px',
-                fontSize: '9px', fontWeight: 900, letterSpacing: '0.04em',
-              }}>
+              <span className={badgeCls} style={{ background: 'rgba(255,149,0,0.12)', color: '#FF9500' }}>
                 🔄 CHUYỂN GIAO {Math.round((payslip.probation_ratio || 0) * 100)}%TV + {Math.round((1 - (payslip.probation_ratio || 0)) * 100)}%CT
               </span>
             )}
@@ -112,19 +97,17 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
         </div>
 
         {/* Payslip full detail — nhân viên PHẢI thấy đủ để đối chiếu đúng/sai */}
-        <div style={{ padding: '14px 24px 20px' }}>
+        <div className="px-4 sm:px-8 py-4 sm:py-6">
           <PayslipDetailSection ps={payslip} />
 
           {/* Company note if any */}
           {payslip.note && (
-            <div style={{
-              background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)',
-              borderRadius: '10px', padding: '10px 14px', marginTop: '12px',
-            }}>
-              <p style={{ fontSize: '9px', color: '#FF9500', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
+            <div className="rounded-xl px-3 py-2.5 sm:px-5 sm:py-4 mt-4 sm:mt-6"
+              style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)' }}>
+              <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-widest text-[#FF9500] mb-1.5">
                 💌 Lời nhắn từ công ty
               </p>
-              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              <p className="m-0 text-[12px] sm:text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">
                 {payslip.note}
               </p>
             </div>
@@ -132,9 +115,9 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
 
           {/* Dispute textarea */}
           {mode === 'dispute' && (
-            <div style={{ marginTop: '12px' }}>
-              <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
-                Mô tả sai sót <span style={{ color: '#F87171' }}>*</span>
+            <div className="mt-4 sm:mt-6">
+              <label className="block mb-2 text-[12px] sm:text-sm font-semibold text-[#aaa]">
+                Mô tả sai sót <span className="text-[#F87171]">*</span>
               </label>
               <textarea
                 autoFocus
@@ -142,76 +125,53 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
                 placeholder="Ví dụ: Ngày công tính thiếu 1 ngày, phụ cấp xăng xe không đúng..."
                 value={comment}
                 onChange={e => setComment(e.target.value)}
-                style={{
-                  width: '100%', background: '#0a0a0a', border: '1px solid #333',
-                  borderRadius: '10px', color: '#fff', fontSize: '13px',
-                  padding: '10px 12px', resize: 'vertical', outline: 'none',
-                  fontFamily: 'inherit', boxSizing: 'border-box',
-                }}
+                className="w-full rounded-xl border border-[#333] bg-[#0a0a0a] text-white text-[13px] sm:text-sm px-3 py-2.5 sm:px-4 sm:py-3 outline-none font-[inherit] box-border resize-y"
               />
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <p style={{ fontSize: '12px', color: '#F87171', marginTop: '12px', padding: '8px 12px', background: 'rgba(248,113,113,0.08)', borderRadius: '8px' }}>
+            <p className="mt-3 sm:mt-4 rounded-lg px-3 py-2 text-[12px] sm:text-sm text-[#F87171]" style={{ background: 'rgba(248,113,113,0.08)' }}>
               ⚠️ {error}
             </p>
           )}
 
           {/* Action buttons */}
           {mode === 'view' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 mt-4 sm:mt-6">
               <button
                 onClick={() => setMode('dispute')}
                 disabled={loading}
-                style={{
-                  padding: '12px', borderRadius: '12px', fontWeight: 800,
-                  fontSize: '13px', border: '1px solid rgba(248,113,113,0.3)',
-                  background: 'rgba(248,113,113,0.08)', color: '#F87171',
-                  cursor: 'pointer', transition: 'all 0.15s',
-                }}
+                className="rounded-xl font-extrabold text-[13px] sm:text-base py-3 sm:py-4 cursor-pointer transition-all disabled:cursor-not-allowed"
+                style={{ border: '1px solid rgba(248,113,113,0.3)', background: 'rgba(248,113,113,0.08)', color: '#F87171' }}
               >
                 ❌ Báo sai sót
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={loading}
-                style={{
-                  padding: '12px', borderRadius: '12px', fontWeight: 800,
-                  fontSize: '13px', border: 'none',
-                  background: loading ? '#333' : 'linear-gradient(135deg, #059669, #10B981)',
-                  color: '#fff', cursor: loading ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s',
-                }}
+                className="rounded-xl font-extrabold text-[13px] sm:text-base py-3 sm:py-4 text-white cursor-pointer transition-all disabled:cursor-not-allowed"
+                style={{ border: 'none', background: loading ? '#333' : 'linear-gradient(135deg, #059669, #10B981)' }}
               >
                 {loading ? 'Đang xử lý...' : '✅ Xác nhận đúng'}
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4 mt-4 sm:mt-6">
               <button
                 onClick={() => { setMode('view'); setComment(''); setError(null); }}
                 disabled={loading}
-                style={{
-                  padding: '12px', borderRadius: '12px', fontWeight: 700,
-                  fontSize: '13px', border: '1px solid #333',
-                  background: 'transparent', color: '#888',
-                  cursor: 'pointer',
-                }}
+                className="rounded-xl font-bold text-[13px] sm:text-base py-3 sm:py-4 bg-transparent text-[#888] cursor-pointer"
+                style={{ border: '1px solid #333' }}
               >
                 ← Quay lại
               </button>
               <button
                 onClick={handleDispute}
                 disabled={loading || !comment.trim()}
-                style={{
-                  padding: '12px', borderRadius: '12px', fontWeight: 800,
-                  fontSize: '13px', border: 'none',
-                  background: loading || !comment.trim() ? '#333' : 'linear-gradient(135deg, #DC2626, #F87171)',
-                  color: '#fff', cursor: loading || !comment.trim() ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.15s',
-                }}
+                className="rounded-xl font-extrabold text-[13px] sm:text-base py-3 sm:py-4 text-white cursor-pointer transition-all disabled:cursor-not-allowed"
+                style={{ border: 'none', background: loading || !comment.trim() ? '#333' : 'linear-gradient(135deg, #DC2626, #F87171)' }}
               >
                 {loading ? 'Đang gửi...' : '📤 Gửi khiếu nại'}
               </button>
