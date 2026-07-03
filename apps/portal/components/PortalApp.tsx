@@ -80,6 +80,8 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
 
   const [activeTab, setActiveTab] = useState<PortalTab>(resolvedInitialTab);
   const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
+  /** id phiếu lương đang mở chi tiết trong danh sách dạng list — null = tất cả đang thu gọn */
+  const [expandedPayslipId, setExpandedPayslipId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceWithSheet[]>([]);
   const [dailyRecords, setDailyRecords] = useState<AttRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -226,63 +228,90 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                   <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.2)', marginTop: '8px' }}>Phiếu lương sẽ hiển thị khi kế toán tạo bảng lương</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {payslips.map((ps: any) => {
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[...payslips]
+                    .sort((a: any, b: any) => {
+                      const ay = a.sheet?.year || 0, by = b.sheet?.year || 0;
+                      if (ay !== by) return by - ay;
+                      const am = a.sheet?.month || 0, bm = b.sheet?.month || 0;
+                      return bm - am;
+                    })
+                    .map((ps: any) => {
                     const sheet = ps.sheet || {};
                     const STANDARD_DAYS = sheet.standard_work_days ?? 22;
                     const ratio = (ps.work_days || 0) / STANDARD_DAYS;
 
                     // Thử việc / tháng chuyển giao (giống bản PaySlip.tsx của admin)
                     const isTransition = !ps.is_probation && (ps.probation_ratio || 0) > 0 && (ps.probation_ratio || 0) < 1;
+                    const isExpanded = expandedPayslipId === ps.id;
+                    const fmt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
 
                     return (
                       <div key={ps.id} style={{
                         background: '#161616', border: '1px solid #222', borderRadius: '16px',
                         padding: '0', overflow: 'hidden',
                       }}>
-                        {/* Header */}
-                        <div style={{
-                          padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          borderBottom: '1px solid #222', background: 'rgba(6,182,212,0.03)',
-                        }}>
-                          <div>
-                            <p style={{ fontSize: '18px', fontWeight: 900, color: '#F5F5F5', letterSpacing: '-0.02em' }}>
-                              📄 Phiếu lương Tháng {sheet.month || '?'}/{sheet.year || '?'}
-                            </p>
-                            <p style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Ngày công: {ps.work_days || 0}/{STANDARD_DAYS} (tỷ lệ: {(ratio * 100).toFixed(1)}%)</p>
-                            {ps.is_probation && (
-                              <span style={{
-                                display: 'inline-block', marginTop: '6px',
-                                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
-                                padding: '2px 10px', borderRadius: '4px',
-                                fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
-                              }}>
-                                ⭐ THỬ VIỆC — miễn BHXH, thuế TNCN cố định
-                              </span>
-                            )}
-                            {isTransition && (
-                              <span style={{
-                                display: 'inline-block', marginTop: '6px',
-                                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
-                                padding: '2px 10px', borderRadius: '4px',
-                                fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
-                              }}>
-                                🔄 THÁNG CHUYỂN GIAO — {Math.round(ps.probation_ratio * 100)}% thử việc + {Math.round((1 - ps.probation_ratio) * 100)}% chính thức
-                              </span>
-                            )}
+                        {/* Header — bấm để mở/thu gọn chi tiết */}
+                        <button
+                          onClick={() => setExpandedPayslipId(isExpanded ? null : ps.id)}
+                          className="w-full text-left"
+                          style={{
+                            padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            gap: '12px', flexWrap: 'wrap',
+                            borderBottom: isExpanded ? '1px solid #222' : 'none',
+                            background: 'rgba(6,182,212,0.03)', cursor: 'pointer', border: 'none',
+                          }}
+                        >
+                          <div className="flex items-center gap-3 flex-wrap min-w-0">
+                            <span style={{ fontSize: '13px', color: '#666', transition: 'transform 0.15s', display: 'inline-block', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>▶</span>
+                            <div className="min-w-0">
+                              <p style={{ fontSize: '15px', fontWeight: 900, color: '#F5F5F5', letterSpacing: '-0.02em' }}>
+                                📄 Tháng {sheet.month || '?'}/{sheet.year || '?'}
+                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                                {ps.is_probation && (
+                                  <span style={{
+                                    background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+                                    padding: '2px 8px', borderRadius: '4px',
+                                    fontSize: '9px', fontWeight: 900, letterSpacing: '0.04em',
+                                  }}>
+                                    ⭐ THỬ VIỆC
+                                  </span>
+                                )}
+                                {isTransition && (
+                                  <span style={{
+                                    background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+                                    padding: '2px 8px', borderRadius: '4px',
+                                    fontSize: '9px', fontWeight: 900, letterSpacing: '0.04em',
+                                  }}>
+                                    🔄 CHUYỂN GIAO
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <span style={{
-                            fontSize: '10px', fontWeight: 700, padding: '4px 12px', borderRadius: '8px',
-                            background: sheet.status === 'confirmed' ? 'rgba(52,199,89,0.1)' : 'rgba(255,149,0,0.1)',
-                            color: sheet.status === 'confirmed' ? '#34C759' : '#FF9500',
-                          }}>
-                            {sheet.status === 'confirmed' ? '✅ Đã duyệt' : '📝 Nháp'}
-                          </span>
-                        </div>
+                          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+                            <div className="text-right">
+                              <p style={{ fontSize: '9px', color: '#666', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net thực lĩnh</p>
+                              <p style={{ fontSize: '16px', fontWeight: 900, color: '#34C759' }}>{fmt(ps.net_salary)} ₫</p>
+                            </div>
+                            <span style={{
+                              fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '8px',
+                              background: sheet.status === 'confirmed' ? 'rgba(52,199,89,0.1)' : 'rgba(255,149,0,0.1)',
+                              color: sheet.status === 'confirmed' ? '#34C759' : '#FF9500',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {sheet.status === 'confirmed' ? '✅ Đã duyệt' : '📝 Nháp'}
+                            </span>
+                          </div>
+                        </button>
 
-                        <div style={{ padding: '16px 24px' }}>
-                          <PayslipDetailSection ps={ps} standardDays={STANDARD_DAYS} />
-                        </div>
+                        {isExpanded && (
+                          <div style={{ padding: '16px 24px' }}>
+                            <p style={{ fontSize: '11px', color: '#666', marginBottom: '12px' }}>Ngày công: {ps.work_days || 0}/{STANDARD_DAYS} (tỷ lệ: {(ratio * 100).toFixed(1)}%)</p>
+                            <PayslipDetailSection ps={ps} standardDays={STANDARD_DAYS} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
