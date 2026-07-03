@@ -232,6 +232,13 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                     const ratio = (ps.work_days || 0) / STANDARD_DAYS;
                     const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
+                    // Thử việc / tháng chuyển giao (giống bản PaySlip.tsx của admin)
+                    const isTransition = !ps.is_probation && (ps.probation_ratio || 0) > 0 && (ps.probation_ratio || 0) < 1;
+                    const hasPreSalary = isTransition && ps.pre_official_base_salary != null;
+                    const effectiveBase = hasPreSalary
+                      ? Math.round(ps.pre_official_base_salary * ps.probation_ratio + (ps.base_salary || 0) * (1 - ps.probation_ratio))
+                      : (ps.base_salary || 0);
+
                     // Row helper styles
                     const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' } as const;
                     const lblStyle = { fontSize: '12px', color: '#aaa' } as const;
@@ -253,6 +260,26 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                               📄 Phiếu lương Tháng {sheet.month || '?'}/{sheet.year || '?'}
                             </p>
                             <p style={{ fontSize: '11px', color: '#666', marginTop: '2px' }}>Ngày công: {ps.work_days || 0}/{STANDARD_DAYS} (tỷ lệ: {(ratio * 100).toFixed(1)}%)</p>
+                            {ps.is_probation && (
+                              <span style={{
+                                display: 'inline-block', marginTop: '6px',
+                                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+                                padding: '2px 10px', borderRadius: '4px',
+                                fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
+                              }}>
+                                ⭐ THỬ VIỆC — miễn BHXH, thuế TNCN cố định
+                              </span>
+                            )}
+                            {isTransition && (
+                              <span style={{
+                                display: 'inline-block', marginTop: '6px',
+                                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+                                padding: '2px 10px', borderRadius: '4px',
+                                fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
+                              }}>
+                                🔄 THÁNG CHUYỂN GIAO — {Math.round(ps.probation_ratio * 100)}% thử việc + {Math.round((1 - ps.probation_ratio) * 100)}% chính thức
+                              </span>
+                            )}
                           </div>
                           <span style={{
                             fontSize: '10px', fontWeight: 700, padding: '4px 12px', borderRadius: '8px',
@@ -277,8 +304,41 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                             </div>
                           </div>
 
+                          {hasPreSalary ? (
+                            <>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>{`Lương CB cũ (TV ${Math.round(ps.probation_ratio * 100)}%)`}</span>
+                                <div style={{ display: 'flex', gap: '32px' }}>
+                                  <span style={{ ...valStyle, color: '#888', width: '90px' }}>{fmt(ps.pre_official_base_salary)}</span>
+                                  <span style={{ ...valStyle, width: '90px' }}>{fmt(Math.round(ps.pre_official_base_salary * ps.probation_ratio * ratio))}</span>
+                                </div>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>{`Lương CB mới (CThức ${Math.round((1 - ps.probation_ratio) * 100)}%)`}</span>
+                                <div style={{ display: 'flex', gap: '32px' }}>
+                                  <span style={{ ...valStyle, color: '#888', width: '90px' }}>{fmt(ps.base_salary || 0)}</span>
+                                  <span style={{ ...valStyle, width: '90px' }}>{fmt(Math.round((ps.base_salary || 0) * (1 - ps.probation_ratio) * ratio))}</span>
+                                </div>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={{ ...lblStyle, color: '#FF9500' }}>Lương CB thực tế (prorate)</span>
+                                <div style={{ display: 'flex', gap: '32px' }}>
+                                  <span style={{ ...valStyle, color: '#888', width: '90px' }}>{fmt(effectiveBase)}</span>
+                                  <span style={{ ...valStyle, color: '#FF9500', width: '90px' }}>{fmt(Math.round(effectiveBase * ratio))}</span>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={rowStyle}>
+                              <span style={lblStyle}>Lương cơ bản</span>
+                              <div style={{ display: 'flex', gap: '32px' }}>
+                                <span style={{ ...valStyle, color: '#888', width: '90px' }}>{fmt(ps.base_salary || 0)}</span>
+                                <span style={{ ...valStyle, width: '90px' }}>{fmt(Math.round((ps.base_salary || 0) * ratio))}</span>
+                              </div>
+                            </div>
+                          )}
+
                           {[
-                            { label: 'Lương cơ bản', ref: ps.base_salary, actual: Math.round((ps.base_salary || 0) * ratio) },
                             { label: 'PC ăn trưa', ref: ps.lunch_allowance, actual: Math.round((ps.lunch_allowance || 0) * ratio) },
                             { label: 'PC xăng xe', ref: ps.transport_allowance, actual: Math.round((ps.transport_allowance || 0) * ratio) },
                             { label: 'PC điện thoại', ref: ps.phone_allowance, actual: Math.round((ps.phone_allowance || 0) * ratio) },
@@ -323,32 +383,61 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                             🛡️ Bảo hiểm & Thuế
                           </p>
 
-                          <div style={rowStyle}>
-                            <span style={lblStyle}>BH nhân viên (10.5%)</span>
-                            <span style={{ ...valStyle, color: '#FF9500' }}>-{fmt(ps.employee_bhxh || 0)} ₫</span>
-                          </div>
-                          <div style={rowStyle}>
-                            <span style={lblStyle}>Thu nhập chịu thuế (CB + KPI)</span>
-                            <span style={valStyle}>{fmt(ps.taxable_income || 0)} ₫</span>
-                          </div>
-                          <div style={rowStyle}>
-                            <span style={lblStyle}>Giảm trừ bản thân</span>
-                            <span style={{ ...valStyle, color: '#888' }}>-15.500.000 ₫</span>
-                          </div>
-                          <div style={rowStyle}>
-                            <span style={lblStyle}>Giảm trừ NPT ({ps.dependents_count || 0} người)</span>
-                            <span style={{ ...valStyle, color: '#888' }}>-{fmt((ps.dependents_count || 0) * 6_200_000)} ₫</span>
-                          </div>
-                          <div style={rowStyle}>
-                            <span style={lblStyle}>Thu nhập tính thuế</span>
-                            <span style={valStyle}>{(ps.assessable_income || 0) > 0 ? fmt(ps.assessable_income) : '0'} ₫</span>
-                          </div>
-                          <div style={rowStyle}>
-                            <span style={lblStyle}>Thuế TNCN</span>
-                            <span style={{ ...valStyle, color: (ps.pit || 0) > 0 ? '#FF3B30' : '#34C759' }}>
-                              {(ps.pit || 0) > 0 ? `-${fmt(ps.pit)}` : '0'} ₫
-                            </span>
-                          </div>
+                          {ps.is_probation ? (
+                            <>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>BH nhân viên</span>
+                                <span style={{ ...valStyle, color: '#888' }}>0 (không đóng — thử việc)</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Thu nhập chịu thuế</span>
+                                <span style={valStyle}>{fmt(ps.taxable_income || 0)} ₫</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Thuế TNCN (cố định, thử việc)</span>
+                                <span style={{ ...valStyle, color: (ps.pit || 0) > 0 ? '#FF3B30' : '#34C759' }}>
+                                  {(ps.pit || 0) > 0 ? `-${fmt(ps.pit)}` : '0'} ₫
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>BH nhân viên (10.5%)</span>
+                                <span style={{ ...valStyle, color: '#FF9500' }}>-{fmt(ps.employee_bhxh || 0)} ₫</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Thu nhập chịu thuế (CB + KPI)</span>
+                                <span style={valStyle}>{fmt(ps.taxable_income || 0)} ₫</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Giảm trừ bản thân</span>
+                                <span style={{ ...valStyle, color: '#888' }}>-15.500.000 ₫</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Giảm trừ NPT ({ps.dependents_count || 0} người)</span>
+                                <span style={{ ...valStyle, color: '#888' }}>-{fmt((ps.dependents_count || 0) * 6_200_000)} ₫</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Thu nhập tính thuế</span>
+                                <span style={valStyle}>{(ps.assessable_income || 0) > 0 ? fmt(ps.assessable_income) : '0'} ₫</span>
+                              </div>
+                              <div style={rowStyle}>
+                                <span style={lblStyle}>Thuế TNCN (lũy tiến)</span>
+                                <span style={{ ...valStyle, color: (ps.pit || 0) > 0 ? '#FF3B30' : '#34C759' }}>
+                                  {(ps.pit || 0) > 0 ? `-${fmt(ps.pit)}` : '0'} ₫
+                                </span>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Thưởng (nếu có) — cộng thẳng vào net, không tính thuế/BH */}
+                          {(ps.bonus || 0) > 0 && (
+                            <div style={rowStyle}>
+                              <span style={{ ...lblStyle, color: '#EAB308' }}>🎁 {ps.bonus_reason || 'Thưởng'}</span>
+                              <span style={{ ...valStyle, color: '#EAB308' }}>+{fmt(ps.bonus)} ₫</span>
+                            </div>
+                          )}
 
                           {/* NET */}
                           <div style={{

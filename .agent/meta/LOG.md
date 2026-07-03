@@ -2,6 +2,571 @@
 
 ---
 
+## 2026-07-03 (session 18, phần 3 — fix bug trùng tên hàm)
+### Task
+Sếp báo Discord nhận 2 tin giống hệt nhau sau khi em chạy thử luồng xác nhận bảng lương T6/2026 (rollback + confirm lại qua SQL để test thay vì bắt sếp bấm tay).
+
+### Root cause
+Hàm `notify_payroll_confirmed()` em tạo ở migration `20260707120000` TRÙNG TÊN với 1 hàm đã tồn tại từ 2026-06-03 (`20260603100000_payroll_employee_acknowledgement.sql`), gắn với trigger có sẵn `trg_notify_payroll_confirmed` — hàm gốc dùng để insert vào bảng `notifications` cho từng nhân viên + kích hoạt gửi email thật ("Phiếu lương cần xác nhận") khi bảng lương được xác nhận. Em không kiểm tra trùng tên trước khi `CREATE OR REPLACE FUNCTION` → ghi đè mất logic gốc mà không có cảnh báo gì (Postgres cho phép replace function tự do). Khi test bằng cách UPDATE status draft→confirmed qua SQL, CẢ 2 trigger (`trg_notify_payroll_confirmed` gốc + `trg_payroll_discord_confirmed` mới) cùng gọi chung 1 hàm (đã bị ghi đè bởi code Discord) → Discord nhận 2 tin giống hệt, đồng thời in-app notification/email thật cho nhân viên bị hỏng ngầm trong lúc đó.
+
+### Work Done
+- Migration `20260707140000_fix_payroll_notify_function_collision.sql`:
+  1. Khôi phục nguyên bản `notify_payroll_confirmed()` (in-app notification + trigger email) — copy chính xác từ `20260603100000`.
+  2. Đổi tên hàm gửi Discord thành `notify_payroll_confirmed_discord()`.
+  3. Trỏ lại trigger `trg_payroll_discord_confirmed` sang hàm mới, giữ nguyên điều kiện WHEN.
+- Verify qua `pg_trigger` (`pg_get_triggerdef`): `trg_notify_payroll_confirmed` → `notify_payroll_confirmed()` (hàm gốc), `trg_payroll_discord_confirmed` → `notify_payroll_confirmed_discord()` (hàm Discord) — 2 hàm tách biệt hoàn toàn, không còn đụng độ.
+
+### Impact thực tế
+- Sheet T6/2026 đã có 1 lần confirm THẬT trước đó (06:10:17, trước khi em đụng vào gì) — email thật đã gửi đúng cho nhân viên lúc đó (verify qua `net._http_response`, thấy request tới `notify-email` thành công, `to: tunv.tdgame@gmail.com`). Lần em test sau (06:28:11, sau khi hàm đã bị ghi đè) KHÔNG gửi lại notification/email cho nhân viên (vì hàm lúc đó là code Discord) — không có nhân viên nào bị spam email trùng, nhưng cũng không có ai được notify thật ở lần test đó. Không cần khắc phục thêm vì nhân viên đã được thông báo đúng ở lần confirm thật.
+
+### Validation
+- Chưa test lại thật (chưa xác nhận thêm 1 lần nữa để xem cả 2 trigger có chạy đúng, độc lập, không đụng nhau không) — nên tránh test thêm trên sheet thật để không gửi thêm Discord/email không cần thiết. Nếu sếp muốn verify lại, nên test trên 1 sheet nháp/demo thay vì sheet thật.
+
+### Blockers
+none
+
+### Next Step
+- **Bài học cho các session sau**: trước khi `CREATE OR REPLACE FUNCTION` cho bất kỳ hàm nào tưởng là mới, PHẢI grep tên hàm trong `supabase/migrations/` (hoặc chạy `gitnexus_impact`) để chắc chắn không trùng tên với hàm đã có — đúng rule "MUST run impact analysis before editing any symbol" trong CLAUDE.md mà session này đã bỏ qua.
+
+---
+
+## 2026-07-03 (session 18, phần 2 — sửa format)
+### Task
+Sếp phát hiện format tin Discord em build lúc trước SAI mục đích: gửi báo cáo tài chính nội bộ (tổng lương Net, tổng chi phí công ty) và định gắn @everyone — sẽ lộ số liệu lương ra toàn công ty. Tính năng thật ra dùng để THÔNG BÁO CHO NHÂN VIÊN vào app tự xác nhận phiếu lương của mình, không phải báo cáo tài chính cho admin.
+
+### Work Done
+- Viết lại `notify_payroll_confirmed()` — bỏ hoàn toàn phần SUM(net_salary)/SUM(total_company_cost)/tên người xác nhận. Nội dung mới: `content: '@everyone'` (mention phải nằm ở content mới ping được, không ping nếu để trong embed) + 1 embed `description` chứa thông báo dạng markdown (heading ### + hướng dẫn 3 bước + lưu ý + link Portal), màu brand `#FF9500`, footer "TD Games • Phòng Hành chính - Nhân sự" — mirror đúng format mẫu sếp đã dùng thủ công ở session 17.
+- Migration: `20260707130000_fix_payroll_discord_employee_announcement.sql` (CREATE OR REPLACE FUNCTION, không đụng trigger đã tạo trước) — applied qua Supabase MCP.
+- Trigger condition giữ nguyên: fire khi `pay_payroll_sheets.status` chuyển sang 'confirmed'.
+
+### Validation
+- Chưa test end-to-end thật trên UI — cần sếp xác nhận/rollback+xác nhận lại 1 bảng lương thật để kiểm tra tin lên đúng kênh, đúng nội dung, @everyone ping đúng.
+
+### Blockers
+none
+
+### Next Step
+- Chờ sếp test thật. Nếu cần chỉnh câu chữ/emoji, sửa trực tiếp trong function `notify_payroll_confirmed()`.
+
+---
+
+## 2026-07-03 (session 18)
+### Task
+Sếp tưởng nhầm tính năng "xác nhận bảng lương → tự động gửi Discord" đã tồn tại (nhầm lẫn với 1 tin gửi tay 1 lần ở session 17). Em xác nhận không có, rồi sếp yêu cầu build thật, kèm sẵn webhook URL Discord.
+
+### Work Done
+- Khảo sát pattern Discord notification hiện có trong repo (attendance, CRM document approval) — tất cả đều dùng DB trigger (`SECURITY DEFINER` + `net.http_post`) đọc webhook URL từ bảng `app_config` (key-value, RLS chặn anon/authenticated), KHÔNG hardcode URL trong migration để tránh lộ qua git history.
+- Tạo `notify_payroll_confirmed()` trigger function: fire trên `pay_payroll_sheets` AFTER UPDATE OF status, chỉ khi `NEW.status = 'confirmed' AND OLD.status IS DISTINCT FROM 'confirmed'` (không fire lặp khi save linh tinh, fire lại nếu rollback rồi confirm lại). Nội dung embed: tóm tắt tổng quan (số nhân viên, tổng lương Net, tổng chi phí công ty, người xác nhận — resolve qua `auth.users` + `hr_employees.auth_user_id`), KHÔNG liệt kê breakdown lương từng người (tránh lộ lương cá nhân lên kênh chung). Không mention `@everyone`.
+- Migration: `supabase/migrations/20260707120000_payroll_discord_notifications.sql` — applied qua Supabase MCP (`apply_migration`).
+- Webhook URL sếp cung cấp (`.../webhooks/1522401822629691492/...`) set trực tiếp vào `app_config` bằng `execute_sql` (INSERT ON CONFLICT), KHÔNG lưu trong file migration/git.
+- Quyết định nội dung/mention/trigger scope dựa trên default "Recommended" trong AskUserQuestion vì sếp không trả lời — chỉ trigger khi status → 'confirmed' (không thêm cho 'paid').
+
+### Validation
+- Chưa test end-to-end thật (chưa bấm nút Xác nhận trên UI thật để xem tin có lên Discord không) — cần sếp xác nhận bằng cách xác nhận (hoặc rollback rồi xác nhận lại) 1 bảng lương thật và kiểm tra kênh Discord.
+- Chưa chạy `npm run build` vì không có thay đổi code frontend (chỉ migration SQL).
+
+### Blockers
+none
+
+### Next Step
+- Chờ sếp test thật trên UI + xác nhận tin nhắn lên đúng kênh, đúng format trước khi coi là done hẳn.
+- Nếu sếp muốn thêm thông báo cho mốc "Đã trả lương" (paid) hoặc breakdown từng nhân viên, mở rộng trigger sau.
+
+---
+
+## 2026-07-03 (session 17)
+### Task
+Sếp báo lương T6/2026 của Nguyễn Văn Tú bị tính sai — lên chính thức giữa tháng nhưng KPI/Tăng ca của cả tháng bị tính theo mức MỚI (sau khi lên chính thức) thay vì blend đúng giai đoạn thử việc/chính thức. Cơ chế blend này đã có sẵn cho Lương cơ bản (từ session 2026-06-12) nhưng chưa bao giờ mở rộng sang KPI/OT. Sếp yêu cầu: tổng quát hoá cơ chế, auto-detect từ lịch sử, không thêm UI nhập tay (ban đầu) — sau đó yêu cầu thêm rà tất cả NV chuyển giao trong tháng (không chỉ Tú), rồi cuối cùng quay lại yêu cầu thêm UI nhập tay mirror UI Lương CB.
+
+### Work Done
+- **Root cause**: `calculatePayroll` (payrollService.ts) có `preOfficialBaseSalary` blend `old*probRatio + new*officialRatio` nhưng KPI/`default_ot` luôn dùng thẳng mức hiện tại × ratio ngày công, không blend theo giai đoạn.
+- **Fix code**: thêm `preOfficialKpiAllowance`/`preOfficialDefaultOt` vào `PayrollInput` + `effectiveKpiAllowance`/`effectiveDefaultOt` (mirror `effectiveBaseSalary`). `createPayrollSheet` tổng quát hoá `salaryChangeMap` sang 3 component (Lương CB/KPI/Tăng ca).
+- **Bug phát hiện giữa chừng**: heuristic ban đầu "so 2 bản ghi `hr_employee_salary` gần nhất" (đúng như code cũ đã làm cho base_salary) SAI khi có sửa/correct nhiều lần trong cùng ngày — case thật: Nguyễn Đức Hiếu bị sửa Tăng ca 2 lần liền trong ngày 23/6 (1.100.000 → 1.070.000, cả 2 đều SAU official_date), heuristic "2 bản ghi cuối" sẽ lấy nhầm 1.100.000 làm mức thử việc (đúng ra là 400.000 từ 4/15). Sửa: tách theo `official_date` (bản ghi cuối TRƯỚC official_date = pre-official, bản ghi cuối cùng overall = current), verify đúng cho cả 3 NV.
+- **DB**: migration `20260707100000_add_pre_official_kpi_ot_pay_payroll_records.sql` — 2 cột `pre_official_kpi_allowance`/`pre_official_default_ot` (bigint, nullable), applied qua Supabase MCP.
+- **UI**: thêm 2 ô nhập tay (KPI cũ TV / Tăng ca cũ TV) trong panel "Chi tiết tính lương" của `PayrollSheet.tsx`, mirror y hệt UI Lương CB đã có (input khi draft, hiển thị Prorate). Giá trị mặc định = auto-detect từ `createPayrollSheet`, kế toán chỉ sửa khi cần.
+- **Data fix T6/2026**: rà toàn bộ sheet, tìm 3 NV chuyển giao (không chỉ Tú): Nguyễn Văn Tú, Nguyễn Đức Hiếu, Đinh Trí Bảo Anh. Tính tay theo đúng công thức (verify ngược khớp 100% với giá trị cũ trong DB trước khi tin công thức), UPDATE trực tiếp `gross_actual`/`taxable_income`/`pit`/`net_salary`/`total_company_cost` + 2 cột pre_official mới cho cả 3 record. KHÔNG xoá-tạo-lại sheet vì sheet có 4/6 record đã nhập bonus tay + 3/6 có note công ty (VD lời chúc mừng của Tú) — xoá-tạo-lại sẽ mất hết vì `createPayrollSheet` insert `bonus: 0` mặc định.
+- **Kết quả net**: Tú 15.965.000→14.216.652, Hiếu 14.010.454→12.716.653, Bảo Anh 13.453.444→11.610.473.
+- **Validation**: `npm run lint` — không phát sinh lỗi TS mới (lỗi pre-existing không liên quan payroll không đụng tới). Không có test runner trong repo (không vitest/jest) nên verify công thức bằng tính tay + đối chiếu ngược với giá trị DB cũ (khớp exact ở từng bước rounding) trước khi áp giá trị mới.
+- Commits: `4e53202` (calculatePayroll + createPayrollSheet + recalculateRecord + types + migration + plan doc), `afd2db7` (UI KPI/OT input).
+- Plan doc: `docs/superpowers/plans/2026-07-03-payroll-pre-official-kpi-ot-blend.md`.
+
+### Ghi chú follow-up
+- Chỉ sheet **mới tạo** (createPayrollSheet) mới auto-detect; các tháng cũ hơn T6/2026 nếu có case tương tự sẽ không tự sửa — cần rà riêng nếu sếp yêu cầu.
+- Nhân viên (Portal) chỉ thấy net/gross/BH/thuế/bonus/note trong `PayslipAcknowledgeModal.tsx` — KHÔNG thấy breakdown probation_ratio hay mức lương cũ/mới. Breakdown chỉ có ở admin side (PayrollSheet.tsx).
+
+## 2026-07-01 (session 16)
+### Task
+Sếp báo: luồng SePay không check được hoá đơn đã ký số chưa, invoice lúc nào cũng bị để "Nháp" mãi. Yêu cầu kiểm tra lại.
+
+### Work Done
+- Gọi trực tiếp `sepay-proxy` action `get-invoice-detail` (curl) cho từng hoá đơn đang `einvoice_status='draft'` trong DB để xem trạng thái THẬT trên SePay:
+  - `INV-202606-011` → SePay trả `status: "issued"`, `invoice_number: "9"`, có `tax_authority_code` (đã ký CQT thật) — nhưng DB vẫn ghi `draft`.
+  - Kiểm tra luôn 6 draft còn lại: `INV-202603-005` (thật sự vẫn `pending`), còn `INV-202604-006/007/008`, `INV-202605-009/010` đều đã `issued` (invoice_number 4,5,6,7,8) nhưng DB vẫn ghi `draft`.
+  - Kết luận: đây là bug lan rộng (5/6 draft hiện có đều đã ký số thật ngoài SePay nhưng app không nhận ra), không phải case đơn lẻ.
+- **Root cause**: code check status (`getEInvoiceDetail` trong `sePayService.ts` + `doSync` trong `useInvoiceState.ts`) hoạt động ĐÚNG về logic (đã verify qua curl) — vấn đề là nó CHỈ chạy khi người dùng tự bấm nút "🔄 Refresh" trong History, không có cơ chế tự động nào cả. Vì vậy hoá đơn ký số xong trên SePay Portal nhưng không ai nhớ bấm Refresh → mãi mãi hiển thị "Nháp" trong app.
+- **Data fix**: update trực tiếp DB cho 6 hoá đơn trên (5 → `issued` + đúng `einvoice_invoice_number`, 1 giữ `draft` vì đúng là còn pending thật).
+- **Code fix**: `useInvoiceState.ts` — `syncEInvoiceStatuses` nhận thêm `opts?: {silent?: boolean}` (dùng `silentSyncRef` để không ép thêm dependency vào effect); khi `silent=true` chỉ hiện toast nếu THẬT SỰ có thay đổi (bỏ qua toast "no drafts"/"no changes" để tránh làm phiền). Effect `[activeTab]` — khi vào tab History, gọi `syncEInvoiceStatuses({silent:true})` thay vì chỉ `loadHistory()` trơn → tự động check + cập nhật trạng thái ký số mỗi lần mở History, không cần nhớ bấm Refresh nữa. Nút "🔄 Refresh" thủ công vẫn giữ nguyên hành vi cũ (luôn báo toast).
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.65s, 0 lỗi TypeScript)
+- Verify sống qua curl trực tiếp `sepay-proxy get-invoice-detail` cho toàn bộ 7 hoá đơn draft trong DB (không chỉ 1 case) — xác nhận chính xác cái nào issued/pending trước khi update SQL.
+- Chưa test lại UI thật (chưa mở `npm run dev` để xác nhận silent sync chạy đúng khi click vào tab History) — sếp nên thử: tạo 1 draft mới, ký số bên SePay Portal, quay lại History (không bấm Refresh) → xem có tự chuyển "Đã Ký" không.
+
+### Result
+6 hoá đơn cũ đã đúng trạng thái thật (5 issued, 1 vẫn pending thật). Từ nay vào History sẽ tự động re-check trạng thái ký số SePay, không còn phụ thuộc việc người dùng nhớ bấm nút Refresh — tránh tái diễn tình trạng hoá đơn ký xong vẫn hiện "Nháp".
+
+### Blockers
+none
+
+### Next Step
+- Chưa commit — chờ sếp xác nhận test OK rồi commit + push.
+
+---
+
+## 2026-07-01 (session 15)
+### Task
+Thêm nút "Tải PDF hoá đơn TD Games" (bản thương hiệu, khác eInvoice SePay) trực tiếp trong History — trước đó chỉ tải được PDF eInvoice của SePay, muốn tải lại PDF hoá đơn TD Games phải bấm Edit → Preview → Export thủ công. Kèm yêu cầu thêm: cho chọn Light/Dark Theme ngay lúc tải, không phụ thuộc theme đã lưu sẵn của hoá đơn.
+
+### Work Done
+- `useInvoiceState.ts`:
+  - `handleExport` nhận thêm `opts?: { targetInvoice?, skipSavePrompt? }` — dùng `targetInvoice` thay vì đọc `invoice` từ closure (tránh bug đọc giá trị cũ do `setInvoice` là async), và `skipSavePrompt` để bỏ qua modal "Save Invoice?" khi chỉ đang tải lại PDF của hoá đơn đã lưu sẵn.
+  - Thêm state `pdfThemeChoiceInv` (giống pattern `resetConfirmId`) + 3 handler: `handleDownloadInvoicePdf(inv)` (mở popup hỏi theme), `confirmDownloadInvoicePdf(theme)` (set `{...inv, theme}` vào `invoice` state, chuyển tab Preview, chờ render, gọi `exportToPDF` → trigger browser print dialog, tự quay lại tab History sau khi đóng dialog in nhờ lắng nghe event `afterprint`, có fallback dọn listener sau 60s), `cancelDownloadInvoicePdf()`.
+- `HistoryTab.tsx`: thêm nút mới (icon download-tray, màu sky, giữa Clone và nút eInvoice) gọi `onDownloadInvoicePdf`; thêm popup chọn Light/Dark Theme (2 nút lớn, style giống preview sáng/tối thật) trước khi export, theo đúng pattern modal `resetConfirmId` đã có sẵn trong file.
+- `InvoiceApp.tsx`: wire 4 prop mới (`onDownloadInvoicePdf`, `pdfThemeChoiceInv`, `onConfirmDownloadInvoicePdf`, `onCancelDownloadInvoicePdf`) từ state hook xuống HistoryTab.
+- Cơ chế in PDF tận dụng nguyên `@media print` CSS có sẵn trong `index.html` (chỉ hiện `#invoice-capture`, ẩn nav/sidebar/button) — không cần code mới cho phần render/in, chỉ cần đảm bảo đúng invoice + đúng theme được load vào state trước khi `window.print()` chạy.
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.65s, 0 lỗi TypeScript)
+- Review thủ công toàn bộ diff (`useInvoiceState.ts` +59/-, `HistoryTab.tsx` +40/-, `InvoiceApp.tsx` +4) — wiring prop tên khớp đúng giữa 2 file.
+- Chưa test tay trên UI thật (chưa chạy `npm run dev` để click thử) — cần sếp xác nhận trước khi commit.
+
+### Result
+History giờ có nút riêng để tải lại PDF hoá đơn TD Games bất kỳ lúc nào (không cần vào Edit), kèm popup cho chọn Light hoặc Dark Theme ngay lúc tải — độc lập với theme đã lưu của hoá đơn đó.
+
+### Blockers
+none
+
+### Next Step
+- Chưa commit — sếp test trên `npm run dev`: bấm icon mới (màu xanh sky, giữa Clone và eInvoice) trên 1 card History → chọn Light hoặc Dark → xác nhận in ra đúng bản PDF theo theme chọn, và tự quay lại History sau khi đóng dialog in.
+
+---
+
+## 2026-07-01 (session 14)
+### Task
+Bỏ phụ thuộc n8n cho luồng "Download Draft PDF" của eInvoice — sếp muốn chuyển hẳn vào app, không qua webhook n8n ngoài nữa.
+
+### Work Done
+- Phát hiện: edge function `sepay-proxy` (deployed, v33, KHÔNG có source lưu local trong repo — check qua Supabase MCP `get_edge_function`) **đã có sẵn** handler `GET ?action=download-pdf&key=...` làm y hệt việc webhook n8n đang làm: thử tải PDF theo thứ tự reference_code → tracking_code → fetch trực tiếp pdf_url (server-side, tránh CORS), trả về binary PDF kèm `Content-Disposition: attachment` để trình duyệt tự tải xuống đúng tên file. Endpoint này tồn tại sẵn nhưng frontend chưa từng được trỏ sang dùng — 2 chỗ trong code vẫn gọi thẳng `https://n8n.tdconsulting.vn/webhook/sepay-invoice-download`.
+- Thêm `getEInvoiceDownloadUrl()` trong `apps/invoice/services/sePayService.ts` — build URL gọi `sepay-proxy` GET (dùng lại `VITE_SEPAY_EDGE_FUNCTION_URL` + `VITE_SEPAY_API_KEY` đã có sẵn cho các call POST khác; `key` truyền qua query param vì đây là điều hướng trình duyệt thuần, không set header được).
+- Thay 2 chỗ gọi n8n: `useInvoiceState.ts` (`handleDownloadEInvoice`, dùng ở nút Download trong HistoryTab) và `EInvoiceModals.tsx` (nút "📥 Download Draft PDF" trong modal Success ngay sau khi tạo draft — đúng cái trong screenshot sếp gửi).
+- Verify sống: query DB tìm hoá đơn `INV-202606-011` (draft, reference_code `4b9eca08-fbd6-478d-a9ca-7398b3dba21f` — đúng chính là hoá đơn trong screenshot, xác nhận sếp đã retry tạo lại draft thành công theo note carry-over session 10/11) → curl trực tiếp `sepay-proxy?action=download-pdf&...` → response `content-type: application/pdf`, `content-length: 366334`, `content-disposition: attachment` → lưu file, `file` xác nhận `PDF document, version 1.4, 1 pages` hợp lệ 100%.
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.53s, 0 lỗi TypeScript)
+- `grep -rn "n8n.tdconsulting" apps/invoice/` → không còn kết quả nào
+- Curl trực tiếp edge function với reference_code thật → tải được PDF hợp lệ (366KB, 1 trang) — verify end-to-end thành công, không chỉ dừng ở build pass
+
+### Result
+Download Draft PDF giờ chạy hoàn toàn qua hạ tầng của app (Supabase Edge Function `sepay-proxy` đã deploy sẵn), không còn phụ thuộc webhook n8n bên ngoài nữa. Không cần deploy backend mới — chỉ đổi 2 điểm gọi ở frontend.
+
+### Blockers
+none
+
+### Next Step
+- Đã commit `3436245` + push `origin/main` theo yêu cầu sếp (verify qua `git log origin/main -1`).
+- (Carry-over, không liên quan trực tiếp) source code của `sepay-proxy` chưa từng được lưu vào `supabase/functions/` trong repo — chỉ tồn tại trên Supabase remote. Nên cân nhắc đồng bộ về local để tránh mất source nếu cần rollback/audit sau này (không xử lý trong session này, chỉ note).
+
+---
+
+## 2026-07-01 (session 13)
+### Task
+Fix "Invoice Theme" (Light/Dark) trong Config panel — trước đây đổi field này làm ĐỔI LUÔN giao diện toàn bộ app Invoice (navbar, sidebar, History, Dashboard, modal...) thay vì chỉ đổi theme của riêng tài liệu hoá đơn (bản Preview/PDF/PNG/Word export). Báo trực tiếp từ sếp.
+
+### Work Done
+- Root cause: `invoice.theme` (field lưu trong DB, đúng ra chỉ để style `InvoicePreview.tsx` — component render tài liệu hoá đơn thật, id="invoice-capture" dùng cho export) bị tái sử dụng làm điều kiện `theme === 'dark'` xuyên suốt TOÀN BỘ UI app: `InvoiceApp.tsx` (background page, Navbar, HistoryTab/DashboardTab/ARAgingTab/ActivityLogTab/RecurringTab props, EInvoiceModals, EmailModal, 3 modal inline: xoá/thanh toán/tỉ giá) và `InvoiceEditor.tsx` (toàn bộ sidebar Actions/Config/Bank/Studio manager, form nhập liệu, bảng items, panel discount/tax) — tổng 59+27 chỗ.
+- Fix: thêm hằng số `APP_UI_IS_DARK = true` (kèm comment giải thích) ở đầu 2 file `InvoiceApp.tsx` và `InvoiceEditor.tsx`; thay toàn bộ `invoice.theme === 'dark'` / `state.invoice.theme === 'dark'` / `theme={state.invoice.theme}` (dùng cho UI chrome) → `APP_UI_IS_DARK`. Giữ nguyên duy nhất chỗ `value={invoice.theme}` của dropdown Select (nay đổi label "Invoice Theme" → "Invoice Document Theme" + thêm dòng chú thích nhỏ "Chỉ áp dụng cho bản hoá đơn... không đổi giao diện trang này") và `InvoicePreview.tsx` (không đụng vào — vẫn đọc `data.theme` để style tài liệu, đúng ý nghĩa gốc).
+- Kết quả: đổi dropdown Invoice Document Theme giờ chỉ ảnh hưởng đến bản xem trước/PDF/PNG/Word của hoá đơn đó; toàn bộ giao diện app Invoice (editor, history, dashboard...) luôn giữ dark theme cố định theo STYLE_GUIDE.
+- Sự cố phụ phát sinh: script Python dùng để bulk-replace đã vô tình đổi line-ending gốc của 2 file từ CRLF → LF, khiến git diff hiện toàn bộ file là thay đổi. Đã phát hiện qua `file` command + convert lại về CRLF để diff gọn về đúng phạm vi thực sự sửa (73 + 128 dòng thay vì cả nghìn dòng).
+
+### Validation
+- `npm run build` ✅ (542 modules, 8.97s/9.28s, 0 lỗi TypeScript) — chạy 2 lần (trước và sau khi fix line-ending)
+- `git diff --stat` sau khi fix CRLF: đúng phạm vi mong đợi (InvoiceApp.tsx 73 dòng, InvoiceEditor.tsx 128 dòng)
+- GitNexus MCP tools không khả dụng trong session này (đã thử `select:gitnexus_impact,...` theo đúng tên tool ghi trong `.agent/meta/CLAUDE.md` — vẫn không match) → review thủ công bằng grep xác nhận chỉ còn 1 usage `invoice.theme` hợp lệ mỗi file (dropdown Select) trước khi replace hàng loạt.
+
+### Result
+"Invoice Document Theme" dropdown trong Config panel giờ hoạt động đúng như tên gọi — chỉ chỉnh theme cho tài liệu hoá đơn (Preview/PDF/PNG/Word), không còn làm đổi giao diện toàn app Invoice.
+
+### Blockers
+none
+
+### Next Step
+- Đã commit + push (xem cuối session 12 log — gộp chung 1 commit theo yêu cầu sếp).
+
+---
+
+## 2026-07-01 (session 12 + 13 — commit)
+### Task
+Commit + push gộp 2 fix trên (History Edit=Update từ session 12, Invoice Document Theme scoping từ session 13) theo yêu cầu trực tiếp của sếp.
+
+### Work Done
+- Stage đúng 5 file code (`HistoryTab.tsx`, `InvoiceApp.tsx`, `InvoiceEditor.tsx`, `useInvoiceState.ts`, `supabaseService.ts`), không đụng `.agent/meta/*` theo quy định.
+- Cân nhắc tách 2 commit riêng theo từng session nhưng thay đổi của 2 fix nằm interleaved trong cùng hunk của `InvoiceEditor.tsx` (label "Update Invoice" nằm sát các dòng `APP_UI_IS_DARK`) → tách an toàn cần `git add -p` tương tác, rủi ro cao hơn lợi ích. Quyết định gộp 1 commit, message liệt kê rõ 2 phần thay đổi.
+- Commit `0d6f0d9`: "fix(invoice): update-not-duplicate on edit + scope theme to document only"
+- Push `origin/main` — remote xác nhận cập nhật đến `0d6f0d9` (verify qua `git log origin/main -1`).
+
+### Validation
+- `git log origin/main -1 --oneline` → `0d6f0d9` ✅ khớp local
+
+### Result
+Cả 2 fix (Invoice History Edit=Update thật + Invoice Document Theme chỉ ảnh hưởng tài liệu hoá đơn) đã lên `main`, sẵn sàng deploy VPS qua auto-deploy git push.
+
+### Blockers
+none
+
+### Next Step
+- Theo dõi VPS auto-deploy, sếp test trực tiếp trên `https://app.tdgamestudio.com`.
+- Invoice `INV-202606-011` vẫn còn `einvoice_status='failed'` — carry-over từ session 10/11, chưa xử lý.
+
+---
+
+## 2026-07-01 (session 12)
+### Task
+Sửa hoá đơn từ Invoice History không update thật — bấm Edit rồi Save đang tạo bản ghi trùng mới thay vì ghi đè bản gốc (báo từ sếp)
+
+### Work Done
+- Thiết kế đã chốt với sếp trước khi code: chỉ cho phép ghi đè khi `status === 'pending' && (!einvoice_status || einvoice_status === 'none' || einvoice_status === 'failed')` — khớp đúng điều kiện hiển thị nút "Xuất eInvoice" sẵn có trong HistoryTab.
+- `apps/invoice/services/supabaseService.ts`: tách `buildInvoiceRecord(data)` dùng chung cho insert/update (tránh lặp code); thêm `canEditInvoice(data)` (export, dùng cả ở UI lẫn hook); thêm `updateInvoiceInCloud(id, data)` — caller phải tự check `canEditInvoice` trước khi gọi.
+- `apps/invoice/hooks/useInvoiceState.ts`: thêm `persistInvoice(data)` điều phối insert (không có `id`) vs update (có `id` + qua guard `canEditInvoice`, throw lỗi tiếng Việt nếu không qua). `handleSaveToCloud` (nút Save trong Editor) và `handleConfirmSave` (luồng Save sau khi Export PDF) đều chuyển sang gọi `persistInvoice` thay vì `saveInvoiceToCloud` trực tiếp. Khi là update, bỏ qua auto-fetch invoice number kế tiếp (hành vi đó chỉ có ý nghĩa khi tạo mới, tránh làm invoiceNumber trên form nhảy số khi vừa sửa xong).
+- `apps/invoice/components/HistoryTab.tsx`: nút Edit disable + tooltip "Hoá đơn đã thanh toán hoặc đã xuất eInvoice — dùng Clone để tạo bản mới" khi `!canEditInvoice(inv)`.
+- `apps/invoice/components/InvoiceEditor.tsx`: label nút Save đổi động "Update Invoice" khi `invoice.id` tồn tại, "Save Invoice" khi tạo mới.
+- Rủi ro chấp nhận (đã báo sếp): guard `canEditInvoice` check trên state đã load trong editor, không re-fetch DB ngay trước khi lưu → có race nhỏ nếu 2 người sửa cùng lúc. Chấp nhận được với quy mô team nội bộ.
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.68s, 0 TypeScript errors)
+- GitNexus MCP tools không khả dụng trong session này (thử `ToolSearch select:gitnexus_impact,gitnexus_detect_changes,gitnexus_context,gitnexus_query` — không match) → thay thế bằng review thủ công: grep xác nhận `handleSaveToCloud`/`handleConfirmSave`/`saveInvoiceToCloud` chỉ có 1 call site UI mỗi cái (InvoiceApp.tsx, EInvoiceModals.tsx save-confirm flow), không có chỗ khác phụ thuộc bị ảnh hưởng ngoài ý muốn.
+- Manual review `git diff` toàn bộ 4 file thay đổi — khớp đúng thiết kế đã duyệt.
+
+### Result
+Sửa hoá đơn pending chưa xuất eInvoice từ History giờ ghi đè đúng bản ghi gốc (UPDATE), không còn tạo bản trùng. Hoá đơn đã paid hoặc đã xuất eInvoice bị khoá sửa trực tiếp trong History — phải dùng Duplicate để tạo bản mới, bảo toàn tính toàn vẹn dữ liệu đã phát hành.
+
+### Blockers
+none
+
+### Next Step
+- Chưa commit — chờ sếp xác nhận test OK trên UI trước khi commit + push.
+- Invoice `INV-202606-011` vẫn còn `einvoice_status='failed'` — vẫn cần vào UI tạo lại eInvoice (carry-over từ session 10/11).
+
+---
+
+## 2026-07-01 (session 11)
+### Task
+Commit + push các thay đổi đang chờ trong working tree (theo yêu cầu trực tiếp của sếp để vào test)
+
+### Work Done
+- Phát hiện thêm 2 chỗ sửa trong `apps/invoice/hooks/useInvoiceState.ts` chưa được ghi log/commit từ trước:
+  - `handleExport`: chuyển `import('../services/exportService')` vào trong `try` + bắt riêng lỗi "stale chunk" (regex match `dynamically imported module|module script failed|Failed to fetch|Importing a module`) — khi bản deploy mới đã thay đổi hash file JS mà tab cũ còn cache, thay vì báo lỗi chung chung thì tự động thông báo + reload trang sau 1.5s.
+  - `executeCreateEInvoice`: chặn sớm nếu `issueDate` (ngày lập hoá đơn) < ngày hiện tại — SePay từ chối phát hành eInvoice lùi ngày — báo lỗi tiếng Việt rõ ràng thay vì để lỗi JSON thô từ SePay.
+- Không có thay đổi logic mới nào khác thêm trong session này ngoài việc tổng hợp + commit các fix đã có sẵn (session 9 + 10) và 2 chỗ trên.
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.61s, 0 TypeScript errors)
+- GitNexus MCP tools không khả dụng trong session này (ToolSearch không tìm thấy `detect_changes`/`impact`) → bỏ qua bước gitnexus theo yêu cầu, đã báo cho sếp.
+
+### Result
+Commit + push toàn bộ thay đổi đang chờ (CRM client dedup fix, SePay foreign tax code fix, export stale-chunk auto-reload, chặn backdated eInvoice issueDate) lên `main` để sếp vào test.
+
+### Blockers
+none
+
+### Next Step
+- Invoice `INV-202606-011` vẫn còn `einvoice_status='failed'` — cần vào UI Invoice, tạo lại eInvoice cho hoá đơn này (xem note session 10).
+
+---
+
+## 2026-07-01 (session 10)
+### Task
+Debug + fix "không xuất được hoá đơn SePay" (báo trực tiếp từ sếp, không kèm ảnh lỗi)
+
+### Work Done
+- Dùng superpowers:systematic-debugging — Phase 1 evidence gathering thay vì đoán:
+  - `list_edge_functions` + `get_logs(edge-function)`: xác nhận `sepay-proxy` (v33) ACTIVE, request gần nhất trả HTTP 200 → không phải lỗi network/CORS/credential
+  - Gọi trực tiếp action `debug` trên `sepay-proxy` qua curl: token OK, `provider_account_id` khớp `provider_accounts`, config không có gì sai
+  - Query `invoice_invoices` theo `einvoice_status`: tìm ra `INV-202606-011` (client "Social Point, S.L.") là hoá đơn `failed` duy nhất, không có tracking_code/reference_code
+  - So sánh `client_info.taxCode` giữa các hoá đơn thành công (draft) vs hoá đơn failed → chỉ khác biệt duy nhất: Social Point S.L. có `taxCode: "B64965437"` (CIF Tây Ban Nha) + `clientType: 'company'`, còn tất cả hoá đơn thành công khác đều có `taxCode` rỗng
+- **Root cause xác nhận**: `mapInvoiceToSePay` (apps/invoice/services/sePayService.ts) set `buyer.type: 'company'` + gửi thẳng `tax_code` bất kỳ khi nào `taxCode` non-empty + `clientType !== 'individual'`, không phân biệt MST Việt Nam (SePay/CQT yêu cầu numeric 10-13 số theo NĐ 123/2020) với mã số thuế nước ngoài (chữ+số) → SePay từ chối validate, tạo draft thất bại
+- **Fix**: thêm regex `isValidVnTaxCode = /^\d{10}(-\d{3})?$/`; chỉ set `buyer.type:'company'` + `tax_code` khi khớp; MST nước ngoài fallback `type:'personal'`, `tax_code:''`, đính kèm vào `notes` gửi SePay dạng "Foreign tax ID: ...". Không đổi `client_info.taxCode` lưu trong DB/PDF nội bộ.
+- **Verify sống**: gọi trực tiếp `sepay-proxy` với payload đã fix (buyer.type='personal', tax_code='') cho đúng data khách Social Point, S.L. → `create-draft` trả `tracking_code`, `check-status` trả `status: "Success"` + `pdf_url` hợp lệ (draft, không tính hạn ngạch vì `is_draft:true`)
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.71s, 0 TypeScript errors)
+- Live test qua curl trực tiếp `sepay-proxy` (create-draft + check-status) với payload đúng logic mới → SePay confirm `"Xuất hóa đơn điện tử thành công"`
+
+### Result
+Khách nước ngoài (MST không đúng định dạng VN) giờ tạo được eInvoice qua SePay bình thường; MST nước ngoài vẫn hiển thị đầy đủ trong hoá đơn nội bộ/PDF, chỉ không gửi field `tax_code` chính thức lên CQT.
+
+### Blockers
+none
+
+### Next Step
+- Invoice `INV-202606-011` vẫn còn `einvoice_status='failed'` trong DB — sếp cần vào UI Invoice app, bấm tạo lại eInvoice cho hoá đơn này để ghi tracking_code/reference_code thật (không dùng draft test đã tạo qua curl, vì draft đó không gắn với record hoá đơn thật)
+- Chưa commit — chờ xác nhận commit message trước khi tạo commit
+
+---
+
+## 2026-07-01 (session 9)
+### Task
+Fix duplicate CRM client "Social Point SL" vs "Social Point, S.L." (báo từ screenshot dropdown Saved Clients trong Invoice)
+
+### Work Done
+- **Root cause**: `handleSaveClient` (apps/invoice/hooks/useInvoiceState.ts) dedup client bằng so sánh string tuyệt đối (`name.toLowerCase()`), không strip dấu câu → 2 lần nhập tên hơi khác format ("Social Point SL" vs "Social Point, S.L.") tạo 2 row riêng trong `crm_clients` dù cùng tax_code B64965437 + contact person
+- **Data audit**: rà tất cả bảng có `client_id` (crm_deals, crm_quotations, crm_contacts, crm_documents, crm_projects, crm_activities, crm_outreach_leads) + `invoice_invoices.client_info.crm_client_id` (jsonb, không phải FK column) để tìm hết chỗ link tới record cũ trước khi xoá
+- **Data merge** (giữ "Social Point, S.L." làm canonical vì đúng tên pháp lý Tây Ban Nha + updated_at mới nhất):
+  - `crm_projects` (Monster Legend) + `crm_documents` (MSA-SOW TD Games↔Take-Two): update client_id → record mới
+  - `invoice_invoices` (3 hoá đơn TC-202602-001/202604-002/202605-003, đã paid + e-invoice issued): update `client_name` + `client_info.name`/`crm_client_id` → "Social Point, S.L." — **không đụng amount/date/tax_code** để bảo toàn tính toàn vẹn hoá đơn đã phát hành
+  - Xoá row `crm_clients` cũ (`f16f48db...`)
+- **Code fix**: thêm `normalizeClientName()` (strip `.`/`,` + gộp whitespace + lowercase) trong `handleSaveClient` để tránh tái diễn duplicate do khác biệt format tên
+
+### Validation
+- SQL verify sau merge: `crm_clients` chỉ còn 1 "Social Point, S.L." ✅; project + document trỏ đúng client mới ✅; 4/4 hoá đơn hiển thị tên mới ✅
+- `npm run build` ✅ (542 modules, 9.61s, 0 TypeScript errors)
+
+### Result
+Dropdown "Saved Clients" hết trùng; dữ liệu liên quan (project, document, invoice) merge nhất quán về 1 client; bug dedup gốc đã fix.
+
+### Blockers
+none
+
+### Next Step
+Chưa commit — chờ sếp confirm trước khi commit+push.
+
+---
+
+## 2026-06-30 (session 8)
+### Task
+Fix Supabase security — sync app_metadata + fix RLS JWT path sai trên acc_loans/savings/bhxh
+
+### Work Done
+- **Phát hiện 3 bugs bảo mật** qua Supabase Advisor dashboard:
+  - `acc_loans` + `acc_savings`: 8 policies dùng `auth.jwt() ->> 'role'` sai (đọc Postgres role 'authenticated', LUÔN FALSE → block mọi admin/ke_toan)
+  - `acc_bhxh_payments`: 4 policies dùng role name `'accountant'` (không tồn tại trong hệ thống) + target `{public}` thay vì `{authenticated}`
+  - `create-employee-auth` edge function: chỉ set `user_metadata.role` khi invite/update user, nhưng RLS policies check `app_metadata.role` → user mới không access được app
+- **DB Migration** `20260630000000_fix_rls_policies_jwt_app_metadata.sql`: drop + recreate 12 policies với `auth.jwt() -> 'app_metadata' ->> 'role'` đúng chuẩn
+- **Deploy Edge Function** `create-employee-auth` v33: thêm `app_metadata: { role }` song song khi update_role, khi invite existing user, và thêm extra `updateUserById` sau `inviteUserByEmail`
+- Commit `f074d6b` + push main ✅
+
+### Validation
+- `apply_migration`: success ✅
+- `deploy_edge_function`: ACTIVE, version 33 ✅
+- `git push`: `5417e72..f074d6b main -> main` ✅
+
+### Result
+- acc_loans/savings: admin + ke_toan giờ có thể read/write đúng
+- acc_bhxh_payments: ke_toan + admin + hr access đúng
+- User invite mới sẽ có `app_metadata.role` set ngay → bypass RLS đúng
+- Supabase Advisor dashboard sẽ không còn báo "RLS references user_metadata" (cache sẽ refresh)
+
+### Blockers
+none
+
+### Next Step
+- Backfill `app_metadata.role` cho các user hiện tại (nếu có user cũ chưa có app_metadata.role)
+
+---
+
+## 2026-06-27 (session 7)
+### Task
+Portal LeaveTab — Simplify UI (bỏ rules section, gọn cards, thêm upcoming leaves)
+
+### Work Done
+- `apps/portal/components/LeaveTab.tsx`:
+  - Xoá toàn bộ block "Quy tắc phúc lợi" (~56 lines)
+  - Gộp 4 balance cards → 2 cards: "Ngày phép còn lại" (totalAvailable) + "Sắp tích luỹ" (monthsRemainingInYear, chỉ hiện nếu official)
+  - Thêm computed `monthsRemainingInYear` và `upcomingApproved` (useMemo)
+  - Thêm section "📆 Đơn đã duyệt sắp tới" — liệt kê các đơn approved có date_from > today, sắp xếp theo ngày
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.07s, 0 TypeScript errors)
+
+---
+
+## 2026-06-26 (session 6)
+### Task
+Handbook — Markdown rendering (react-markdown + remark-gfm)
+
+### Work Done
+- Install `react-markdown@^10.1.0` + `remark-gfm@^4.0.1`
+- Tạo `components/MarkdownRenderer.tsx` — shared component, dark-theme styles (h1-h3, p, bold, italic, ul/ol, blockquote, code/pre, hr, a, table GFM)
+- `HandbookApp.tsx`: import MarkdownRenderer, fix ArticleCard preview (strip markdown syntax bằng regex trước khi truncate), thay ArticleReader's `whitespace-pre-wrap` div bằng `<MarkdownRenderer>`
+- `OnboardingScreen.tsx`: import MarkdownRenderer, thay `whitespace-pre-wrap` div bằng `<MarkdownRenderer>`
+- `HandbookAdminTab.tsx`: import MarkdownRenderer, thêm `EditorWithPreview` component (tab toggle ✏️ Soạn thảo / 👁 Xem trước), thay textarea đơn bằng `<EditorWithPreview>`
+- Commit `ff153e6` + push ✅
+
+### Validation
+- `npm run build` ✅ (540 modules, 9.17s, 0 TypeScript errors)
+- git push: `9ad36e9..ff153e6 main -> main` ✅
+
+### Result
+Handbook content giờ render Markdown đúng (headers, bold, lists, tables, links) ở cả 3 nơi: ArticleReader, OnboardingScreen, và admin editor có tab xem trước.
+
+---
+
+## 2026-06-26 (session 5)
+### Task
+CRM Payment Schedule P3 — hoàn chỉnh PaymentTracker sub-tab "Lịch TT"
+
+### Work Done
+- Phát hiện `PaymentTracker.tsx` còn dở: imports + state đã có nhưng thiếu sub-tab toggle JSX và conditional render
+- Thêm sub-tab toggle (Tất cả invoices / 💳 Lịch TT) vào `PaymentTracker.tsx`
+- Wrap nội dung invoices cũ trong `{activeSubTab === 'invoices' ? <> ... </> : <PaymentScheduleTracker />}`
+- Cập nhật `CrmApp.tsx`: pass `currentUser` xuống `<PaymentTracker>` + `<StudiosTab>`; reorder tabs theo BD workflow
+- Commit `7b429a1` + push ✅
+
+### Validation
+- `npm run build` ✅ (286 modules, 8.03s, 0 TypeScript errors)
+- git push: `ce97d27..7b429a1 main -> main` ✅
+
+### Result
+- CRM tab "Thanh toán" giờ có 2 sub-tab: **Tất cả invoices** (nội dung cũ) và **💳 Lịch TT** (PaymentScheduleTracker)
+- Admin/ke_toan thấy nút [Action ▾] để mark invoiced/paid
+- BD không thấy nút Action
+
+---
+
+## 2026-06-26 (session 4)
+### Task
+Onboarding Acknowledgment Flow — Thực thi plan 5 tasks
+
+### Work Done
+- Task 1 (DB Migration): đã committed + migration applied (schema đã tồn tại từ session trước)
+- Task 2 (Types + handbookService): đã committed — `HandbookArticle.is_required`, `HrEmployee.onboarding_completed_at`, `HrOnboardingAck`, `fetchRequiredArticles`, `checkOnboardingNeeded`, `submitOnboardingAcks`
+- Task 3 (HandbookAdminTab): đã committed — toggle `is_required`, badge "📌 Bắt buộc", `updateArticle`/`createArticle` payload updated
+- Task 4 (OnboardingScreen): tạo `components/OnboardingScreen.tsx` — full-screen step-by-step với progress bar, accordion articles, per-article checkbox, CTA button; commit `fbef396`
+- Bug fix: `checkOnboardingNeeded` dùng `{ count: artsCount }` thay vì `(arts as any)?.length` — với `head: true` data là null, không phải array
+- Task 5 (App.tsx): import OnboardingScreen + checkOnboardingNeeded, thêm `needsOnboarding` state, `checkAndSetOnboarding` helper, wire vào `checkNeedsOnboarding` Case 3 (sau profile check), cập nhật `ProfileCompletionScreen.onComplete` async, thêm Step 3 render block; commit `837a980`
+- Push to origin/main ✅
+
+### Validation
+- `npm run build` ✅ (2 lần, 0 TypeScript errors)
+- Supabase schema verified: `handbook_articles.is_required`, `hr_employees.onboarding_completed_at`, `hr_onboarding_acknowledgments` table — tất cả đều có
+- `git push`: `1f3378e..837a980 main -> main` ✅
+
+### Result
+- Nhân viên mới (member/freelancer) sau khi hoàn thành profile sẽ thấy OnboardingScreen
+- Admin có thể đánh dấu bài handbook "Bắt buộc" → nhân viên phải tick xong tất cả mới vào app
+- Admin/ke_toan/hr bypass hoàn toàn — không bị chặn
+- "Once completed = always done" — `onboarding_completed_at` không reset
+
+---
+
+## 2026-06-26 (session 3)
+### Task
+Handbook — Danh bạ nhân viên tab (move employee directory from Portal to Handbook)
+
+### Work Done
+- Confirmed all code changes were already committed in a prior session
+- HandbookApp.tsx: added "👥 Danh bạ" tab — TAB_MAP/REVERSE_TAB, activeTab state, lazy-load useEffect, directory grid JSX (cyan cards, avatar, dept badge, contact fields)
+- PortalApp.tsx: removed directory tab entirely — no HrEmployee/HrDepartment imports, no state/useEffect, no JSX block; default tab changed from 'directory' → 'payslip'
+- Plan file: `docs/superpowers/plans/2026-06-26-handbook-directory-tab.md`
+- Executed finishing-a-development-branch skill: already on main, already pushed, tests pass
+
+### Validation
+- `npm run build` ✅ (285 modules, 7.94s, 0 errors)
+- git push: already at origin/main (commit 262b8fc)
+
+### Result
+- `#handbook` now has 2 tabs: 📖 Sổ tay + 👥 Danh bạ
+- Employee directory (Danh bạ) accessible from Handbook for all roles (admin/hr/ke_toan/member/bd)
+- Employee Portal no longer has "Thông tin công ty" tab; lands on Bảng lương by default
+
+## 2026-06-26 (session 2)
+### Task
+Sổ tay nhân viên (Employee Handbook) — `#handbook` mini-app
+
+### Work Done
+- Phát hiện code đã partial implement từ session trước (HandbookApp.tsx, handbookService.ts, HandbookAdminTab.tsx, migration file, types) nhưng chưa được wire vào routing
+- Wire vào App.tsx: import HandbookApp, thêm `'handbook'` vào VALID_APPS, thêm route handler
+- Wire vào config/apps.ts: thêm entry `handbook` (icon 📖, màu xanh lá, roles: admin/hr/ke_toan/member/bd)
+- Apply DB migration via Supabase MCP: `handbook_categories` + `handbook_articles` + RLS + 5 seed categories
+- Commit `1aa36ed` + push main ✅
+
+### Validation
+- `npm run build` ✅ (285 modules, 7.92s, 0 errors)
+- Supabase migration: success ✅
+- git push: `c66b9f2..1aa36ed main -> main` ✅
+
+### Result
+- `#handbook` route live và accessible với tất cả internal roles
+- Member/BD: đọc bài viết theo danh mục, tìm kiếm full-text
+- Admin/HR: CRUD danh mục + bài viết qua CompanyApp → tab "Sổ tay"
+- 5 danh mục mặc định seeded: Nội quy, Lương thưởng, Phúc lợi, Quy trình HR, Onboarding
+
+### Note — Session Memory Issue
+- Root cause: brainstorming sessions không tự động lưu vào TASKS.md → mất context khi session mới
+- Fix: từ nay save task vào TASKS.md NGAY khi plan được confirm (trước khi code)
+
+## 2026-06-26
+### Task
+BD Dashboard Enhancement (Tasks 3-5) merge + CRM Payment Schedule verify — mọi thứ đều đã xong
+
+### Work Done
+- Kiểm tra trạng thái: CRM Payment Schedule (P1/P2/P3) đã committed trên main (5 commits: bd2bb02→8dc8d5a) ✅
+- BD Dashboard Enhancement Tasks 3-5 đã coded trong worktree `feat/bd-dashboard-enhancement`:
+  - Task 3: StudiosTab — Owner Assignment column (assign BD phụ trách cho từng studio)
+  - Task 4: BdDashboard — Date filter + Studios KPI card + Contract KPI card + BD table extra columns
+  - Task 5: DocumentList — Contract value + currency fields hiện khi doc_type=contract
+- Rebase worktree branch lên main (vì main đã tiến thêm 5 Payment Schedule commits sau khi branch)
+- Fast-forward merge `feat/bd-dashboard-enhancement` → `main` (7 files, 280 insertions)
+- Push lên remote: `9032e97..c66b9f2` ✅
+- Applied Supabase migration `20260625_bd_enhancement`:
+  - `crm_studios`: +owner_id (uuid FK auth.users), +owner_name (text), index
+  - `crm_documents`: +contract_value (numeric 15,2), +contract_currency (text, DEFAULT 'USD', CHECK IN ('USD','VND')), index on (created_by, doc_type) WHERE doc_type='contract'
+- Cleanup: worktree removed, feature branch deleted, stash dropped
+
+### Validation
+- `npm run build` ✅ (282 modules, 7.85s, 0 errors) — run trong worktree trước khi merge
+- Supabase migration applied: success ✅
+- git push: `9032e97..c66b9f2 main -> main` ✅
+
+### Result
+- Tất cả BD Dashboard Enhancement tasks (3-5) + CRM Payment Schedule (P1-P3) đều DONE và deployed
+- main branch clean, worktree removed
+- DB schema cập nhật với studio owner + contract value columns
+
+### Next Step
+- Không còn task pending — sẵn sàng nhận feature mới
+
+---
+
+## 2026-06-25 (session 2)
+### Task
+Sync project memory files — PROJECT.md update + Supabase RLS inspection
+
+### Work Done
+- Inspected live Supabase RLS/policies cho `att_requests` và `leave_balances` qua Supabase MCP
+- Confirmed: RLS enabled ✅ trên cả 2 bảng
+- `att_requests`: 7 policies đầy đủ (SELECT/INSERT/UPDATE/DELETE cho staff + self-service cho employee với status=pending guard)
+- `leave_balances`: 4 policies đúng (staff full CRUD; employee chỉ SELECT balance của mình)
+- Kết luận: không cần thêm migration — RLS đã đúng và đầy đủ
+- Updated `.agent/meta/PROJECT.md` (ngày 2026-05-29 → 2026-06-25):
+  - Thêm apps/ai-agent/ và apps/company/ vào directory structure
+  - Update VALID_APPS list (10 → 12 apps)
+  - Update CRM section: BD Dashboard, Deal Pipeline, Quotation, Follow-up, Client Ownership
+  - Update HR section: Change Request workflow, Evaluation, vehicle fields, multi-role
+  - Thêm AI Agent module (#11) và Company module (#12) documentation
+  - Thêm Edge Functions: agent-run, notify-email + pg_cron jobs list (7 jobs)
+  - Thêm Multi-role Support section
+  - Update Database Migrations chronological list đến 2026-07-01
+
+### Validation
+- Supabase MCP: execute_sql confirmed live RLS state on production DB
+- PROJECT.md updated successfully
+
+### Result
+- PROJECT.md đã sync với thực tế codebase (features đến 2026-07-01)
+- RLS policies cho leave workflow confirmed correct — blocker từ session 2026-05-15 đã được giải quyết hoàn toàn
+
+---
+
 ## 2026-07-01
 ### Task
 CRM P2 — Quotation (Báo giá) — CRM ROADMAP COMPLETE
@@ -1907,3 +2472,235 @@ Debug leave request creation and restore employee-facing leave submission in Pla
 - approve Supabase MCP permission in Claude Code
 - inspect live RLS/policies for `att_requests` and `leave_balances`
 - add exact SQL migration only if live policy is missing or incorrect
+
+## 2026-07-01 (session 16)
+### Task
+Check lại luồng SePay xem có phát hiện được hoá đơn đã ký số chưa — sếp báo invoice lúc nào cũng bị kẹt ở "Nháp" dù đã ký thật trên SePay Portal.
+
+### Work Done
+- Gọi trực tiếp `sepay-proxy?action=get-invoice-detail` cho toàn bộ 7 hoá đơn đang `einvoice_status='draft'` trong DB → phát hiện 6/7 hoá đơn ĐÃ ký số thật (status "issued", có invoice_number CQT #4-#9), chỉ 1 hoá đơn (INV-202603-005) còn pending thật.
+- Root cause: code check trạng thái (`getEInvoiceDetail` + `doSync` trong `useInvoiceState.ts`) hoàn toàn ĐÚNG và hoạt động tốt khi được gọi (verify bằng curl trực tiếp) — nhưng chỉ chạy khi người dùng tự bấm nút "🔄 Refresh" trong History, không có cơ chế tự động nào cả. Không ai nhớ bấm → hoá đơn kẹt ở "Nháp" vĩnh viễn dù đã ký xong.
+- Data fix: update thủ công 6 hoá đơn trực tiếp trong DB (INV-202606-011 #9, INV-202605-010 #8, INV-202605-009 #7, INV-202604-008 #6, INV-202604-007 #5, INV-202604-006 #4) → `einvoice_status='issued'` + đúng `einvoice_invoice_number`.
+- Code fix (`useInvoiceState.ts`): `syncEInvoiceStatuses` nhận thêm `opts?: {silent?: boolean}` (dùng `silentSyncRef` để truyền vào effect); khi `silent=true` chỉ hiện toast nếu THỰC SỰ có thay đổi (bỏ toast "no drafts"/"no changes" gây phiền). useEffect theo `[activeTab]`: khi vào tab `history` giờ tự gọi `syncEInvoiceStatuses({silent:true})` thay vì chỉ `loadHistory()` — tự động check ký số mỗi lần mở History, không cần nhớ bấm Refresh nữa. Nút "🔄 Refresh" thủ công vẫn giữ nguyên hành vi cũ (luôn báo toast).
+
+### Validation
+- `npm run build` ✅ (542 modules, 9.65s, 0 lỗi TypeScript)
+- Verify sống bằng curl trực tiếp `sepay-proxy` cho cả 7 reference_code — xác nhận đúng trạng thái thật trước khi update DB.
+
+### Result
+6 hoá đơn hiển thị sai "Nháp" đã được sửa đúng thành "Đã Ký" trong DB. Từ giờ mỗi lần vào tab History, app tự động âm thầm check với SePay xem có hoá đơn nào vừa được ký số không, không còn phụ thuộc vào việc người dùng nhớ bấm Refresh thủ công.
+
+### Blockers
+none
+
+### Next Step
+- Chưa commit — chờ sếp xác nhận trên UI (vào History xem 6 hoá đơn đã đổi badge "Đã Ký" chưa, và thử luồng tự động lần sau có hoá đơn mới ký) rồi commit + push.
+
+---
+
+## 2026-07-02 (session 17)
+### Task
+Sếp báo: tài khoản ketoan@tdconsulting.vn không xuất/lưu nháp được hợp đồng nhân viên trong app HR.
+
+### Root Cause
+- User có primary role `ke_toan` + secondary_roles `["hr"]` → UI (hasAnyRole) cho vào app HR, nhưng RLS dùng `get_jwt_role()` chỉ đọc primary role → INSERT `hr_contracts` bị chặn ("Lưu thất bại").
+- Cùng lỗi tiềm ẩn ở: `hr_change_requests` (cr_admin_hr_full), `hr_departments`, `hr_salary_components`.
+
+### Work Done
+- Migration `20260702090000_multirole_rls_jwt_has_any_role.sql` (đã apply lên Supabase prod qua MCP):
+  - Tạo `jwt_roles()` (text[]: primary + secondary_roles từ JWT, fallback 'member') + `jwt_has_any_role(text[])`.
+  - Nâng cấp `is_staff()` → dùng `jwt_has_any_role(['admin','hr','ke_toan'])` (secondary-aware).
+  - Recreate 6 policy: hr_contracts_admin_hr_full, cr_admin_hr_full, hr_dept_admin_hr_full, hr_salary_comp_admin_hr_full (admin/hr), hr_admin_hr_full, hr_salary_admin_hr_full (admin/hr/ke_toan).
+
+### Validation
+- Giả lập JWT `ke_toan + secondary [hr]` dưới role authenticated: INSERT hr_contracts thành công (rollback sạch).
+- Negative: role `member` → jwt_has_any_role(['admin','hr']) = false. Không JWT → jwt_roles() = ['member'].
+- Lưu ý: user cần đăng xuất/đăng nhập lại nếu JWT cũ chưa chứa secondary_roles.
+
+## 2026-07-02 (RLS audit & tighten)
+### Task
+Audit RLS toàn platform sau bug ketoan/hr; siết các policy quá rộng.
+
+### Work Done
+- Migration `20260702120000_tighten_rls_role_policies.sql` — applied prod (MCP `tighten_rls_role_policies`):
+  - finance_fx_rates: read all auth, write admin/ke_toan
+  - Outreach (config, batch_log, leads, email_log, email_templates, hiring_studios): policy anon giữ cho external API nhưng ALTER POLICY ... TO anon (trước là {public}); authenticated → jwt_has_any_role(admin/ke_toan/bd)
+  - CRM core (clients, contacts, documents, projects, project_files, quotations, studios) → admin/ke_toan/bd
+  - expense_budgets → is_admin_or_ke_toan(); acc_bhxh_payments xoá 3 policy "Authenticated users can ..." trùng wide-open
+  - hr_change_requests: read = admin/hr hoặc employee chính chủ; xoá insert-true (staff dùng cr_admin_hr_full)
+  - hr_evaluation_cycles/submissions: read mở (evaluator là member), write = admin/hr | leader_user_id | created_by | evaluator_user_id
+- Frontend 5 file CRM (CrmApp, DealPipeline, EmailOutreach, ClientList, ProjectList): `role === 'bd'` → hasRole/hasAnyRole (isBd = có bd nhưng KHÔNG có admin/ke_toan) — admin kiêm bd hết bị bó quyền.
+- wf_* (workforce) chưa siết — cần ownership predicate cho freelancer portal (task To Do).
+
+### Validation
+- Migration apply thành công (lần 1 fail vì crm_hiring_studios_staff đã tồn tại → thêm DROP IF EXISTS, idempotent).
+- npm run build ✅ (9.5s, 0 lỗi TS).
+- Chưa commit git (chờ sếp yêu cầu).
+
+## 2026-07-02 (payroll T6 rỗng — thiếu cột bhxh_exempt)
+### Task
+Sếp báo bảng lương T6 tạo ra nhưng rỗng (0 records). Truy nguyên + fix.
+
+### Work Done
+- Root cause: prod `pay_payroll_records` thiếu cột `bhxh_exempt` (code frontend mới ghi cột này, migration chưa từng tạo) → insert records fail silent → sheet tạo ra nhưng rỗng.
+- Apply migration prod qua MCP (`add_bhxh_exempt_to_pay_payroll_records`):
+  `ALTER TABLE pay_payroll_records ADD COLUMN IF NOT EXISTS bhxh_exempt boolean NOT NULL DEFAULT false;`
+- Lưu file đồng bộ history: `supabase/migrations/20260707000000_add_bhxh_exempt_pay_payroll_records.sql`.
+
+### Validation
+- Verify qua information_schema: cột `bhxh_exempt boolean DEFAULT false` đã tồn tại trên prod ✅.
+- Bước tiếp theo (kế toán thao tác): xoá sheet T6 rỗng và tạo lại bảng lương T6.
+- Chưa commit git (chờ sếp yêu cầu).
+
+## 2026-07-02 (payroll — filter nhân viên onboard sau tháng lương)
+### Task
+Sếp báo Quỳnh Châu (start_date 01/07) vẫn xuất hiện trong bảng lương T6 với 0 công.
+
+### Work Done
+- Root cause: `payrollService.ts` (generate sheet, ~L319) fetch tất cả fulltime active, không lọc theo start_date.
+- Fix: filter JS sau fetch — loại nhân viên có `start_date > ngày cuối tháng lương` (null start_date giữ lại).
+- Xoá record rỗng của Quỳnh Châu khỏi sheet T6 draft trên prod (work_days=0, net=0, không ảnh hưởng tổng).
+- Giải thích badge "CHUYỂN GIAO" cho sếp: Hiếu/Văn Tú official 15/06, Bảo Anh 22/06 → tháng split probation/official, T7 hết badge. BH NV=0 do bhxh_exempt (<14 ngày công chính thức).
+
+### Validation
+- npm run build ✅ (10.3s). DELETE có RETURNING xác nhận đúng 1 record net=0.
+- Chưa commit (chờ sếp).
+
+## 2026-07-02 — Fix probation_ratio tính theo ngày công
+### Task
+Kế toán (chị Thảo) phát hiện tỷ lệ thử việc/chính thức lệch: app chia theo ngày lịch (14/30=46,7%), chuẩn kế toán là ngày công T2-T6 (10/22=45,5%).
+
+### Work Done
+- `apps/payroll/services/payrollService.ts` (createPayrollSheet): đổi công thức tháng chuyển giao:
+  `probationRatio = (stdDays - countWeekdaysFromDate(year, month, officialDay)) / stdDays` (ngày công T2-T6, dùng helper sẵn có của BHXH).
+- Xoá biến `totalDaysInMonth` không còn dùng.
+- Kiểm chứng: Hiếu/Tú (official 15/06) 10/22=45,5% ✓; Bảo Anh (official 22/06) 15/22=68,2% ✓ — khớp số kế toán.
+- Lưu ý: recalculateRecord dùng ratio ĐÃ LƯU → bảng lương T6 (đang draft) phải xoá & tạo lại sheet để ăn ratio mới.
+
+### Validation
+- `npm run build` ✓ (9.89s)
+
+## 2026-07-02 (label fix)
+### Work Done
+- `PayrollSheet.tsx`: sửa label "TNCT (CB + ĐT + KPI)" → "TNCT (CB + Xăng + ĐT + KPI)" — số taxable_income vốn đã gồm PC xăng, chỉ label thiếu.
+- Verify lại bảng lương T6 sau khi tạo lại sheet: PIT Hiếu 504.091 / Bảo Anh 738.951 / Hải 977.936 khớp công thức probation ratio theo ngày công. BHXH=0 cho chuyển giao (<14 công chính thức) đúng luật.
+- Ghi chú: công ty thử việc 100% lương → field "Lương CB cũ (TV)" để trống là đúng.
+### Validation
+- `npm run build` ✓ — commit 776e63d, pushed (auto-deploy).
+
+## 2026-07-02 (KPI dashboard)
+### Task
+Workforce Financial Dashboard: thêm % KPI theo mục tiêu x-lần lương + thưởng phần dư (chỉ tham khảo).
+### Work Done
+- Migration `wf_kpi_settings` (đã apply lên Supabase qua MCP): multiplier/bonus_percent, global row (seed 3x/20%) + override per employee (unique employee_id).
+- `dashboardService.ts`: FulltimeKPI thêm grossActual, kpiTargetVND, kpiPercent, kpiBonusVND, kpiMultiplier, kpiBonusPercent; fetch gross_actual từ pay_payroll_records (confirmed/paid); hàm saveKpiSettings(employeeId|null,...). Summary trả thêm kpiSettings.
+- `FinancialDashboard.tsx`: bỏ điểm A-F (ROI), thay bằng cột % KPI (progress bar, xanh ≥100% / vàng ≥70% / đỏ) + cột Thưởng (tham khảo); editor inline chỉnh Target ×N · Thưởng N% dư. Tooltip hiện target & công thức.
+- Quyết định: KHÔNG đẩy thưởng vào payroll — sếp nhập tay cột Thưởng nếu duyệt. Tỷ giá đã dùng vcbAvgRate live sẵn có.
+- Ghi chú: % KPI trống ("—") nếu tháng chưa có bảng lương confirmed/paid. Override per người đã hỗ trợ ở service/DB, UI chỉnh riêng từng người để phase sau.
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-02 (thuế TNCN tháng chuyển giao — round 2)
+### Task
+Kế toán báo lệch thuế Bảo Anh (app 738.951 vs 756.136) + rule dưới 2M không khấu trừ.
+### Work Done
+- Điều tra: đơn nghỉ không lương Bảo Anh ngày 09/06 (TRƯỚC official_date 22/06) → nghỉ thuộc giai đoạn thử việc; số đúng = 11.09M × 14.5/22 × 10% = 730.977 (kế toán giả định nghỉ sau chính thức nên ra 756.136 — sai).
+- `createPayrollSheet`: fetch att_requests (leave, unpaid, approved) của nhân viên chuyển giao; phân bổ deficit công theo giai đoạn thực tế; probationRatio = probActualWorkDays/workDays (fallback trải đều nếu không có đơn).
+- `calculatePayroll`: pitProbation = 0 nếu taxableProbation < 2.000.000đ (TT 111/2013 Đ25.1.i). Ngưỡng hiện hành 2M (dự thảo nâng 3M chưa thông qua).
+- Lưu ý vận hành: bảng lương T6 phải XÓA + TẠO LẠI để áp ratio mới → Bảo Anh 730.977.
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-02 (KPI dashboard — hiện số từ draft)
+### Work Done
+- `dashboardService.ts`: bỏ filter status khi fetch acceptances + payroll sheets; per-employee breakdown dùng mọi status (ưu tiên confirmed/paid cho cost/gross), taskRevenues gồm cả phiếu nghiệm thu draft. P&L tổng công ty vẫn chỉ tính accepted + confirmed/paid (số thực).
+- `FinancialDashboard.tsx`: cập nhật tooltip "—".
+- Lý do: KPI/thưởng tham khảo phải thấy TRƯỚC khi duyệt bảng lương, vì duyệt rồi không nhập thưởng được nữa.
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-02 (fix currency settlement USD)
+### Work Done
+- Bug T5: settlement Trần Lê Hưng lưu USD (total 300, tax 33, net 297) — dashboard hiện "Thực nhận 297đ" và cộng 297 (như VND) vào freelancerPayments → chi phí P&L thiếu ~7.8M.
+- `dashboardService.ts`: quy đổi net_amount × exchangeRate khi currency='USD' (một chỗ, dùng cho cả P&L + breakdown).
+- Ghi chú data: settlement này tax 33 nhưng net 297 (300−33=267 ≠ 297) — số DB tự mâu thuẫn, cần kế toán xem lại phiếu.
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-02 (cột Bonus freelancer)
+### Work Done
+- Xác minh lại 3 phiếu "tưởng lệch": Hưng (300+30 bonus)×90%=297 ✓, Minh Châu (10M+1M)×90%=9.9M ✓, Khiêm TK cá nhân tax 0 ✓ — DB đúng, KHÔNG sửa data. total_amount không gồm bonus là nguồn hiểu nhầm.
+- `dashboardService.ts`: FreelancerPaymentSummary thêm bonusAmount (select bonus_amount).
+- `FinancialDashboard.tsx`: cột Bonus (vàng, +X, quy đổi USD→VND theo tỷ giá live), colSpan 7.
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-02 (drill-down task per nhân viên)
+### Work Done
+- `dashboardService.ts`: FulltimeKPI thêm tasks[] (FulltimeTaskDetail: title/project/client/priceUSD, fallback ClickUp space/folder); fetch thêm cột từ wf_tasks; sort giá giảm dần.
+- `FinancialDashboard.tsx`: click dòng nhân viên toggle expand (▶ xoay), row phụ colSpan 7 hiện bảng Task/Dự án/Khách hàng/Số tiền (USD + ≈VND).
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-02 (UI popover thưởng)
+### Work Done
+- `PayrollSheet.tsx`: thay 2 input trần (số tiền + lý do thưởng) bằng popover card chuẩn style guide — chip "+ Thưởng" khi trống, popover z-30 anchor phải, nút Xong / Enter / Esc đóng. Logic bonus giữ nguyên (handleCellChange live).
+### Validation
+- `npm run build` ✓ — commit + push (auto-deploy).
+
+## 2026-07-03 (session 17)
+### Task
+Lời nhắn cá nhân cho nhân viên trên phiếu lương (VD: chúc mừng lên chính thức, công ty bao chi phí du lịch).
+
+### Work Done
+- Phát hiện `pay_payroll_records.note` đã có sẵn trong DB + type `PayPayrollRecord` nhưng chưa có UI nào dùng → KHÔNG tạo cột mới.
+- `apps/payroll/components/PayrollSheet.tsx`: thêm block "💌 Lời nhắn cho nhân viên" trong expanded row — textarea khi sheet draft (auto-save debounce qua `handleStringChange` → `note`), read-only card khi confirmed/paid.
+- `apps/portal/components/PayslipAcknowledgeModal.tsx`: hiển thị block "💌 Lời nhắn từ công ty" (viền cam brand) khi `payslip.note` có nội dung — đặt trên phần xác nhận.
+- Ngoài lề: gửi thông báo bảng lương T6/2026 lên Discord webhook (@everyone, embed brand color); bản sửa message_id 1522404138602856460.
+
+### Validation
+- `npm run build` pass (9.49s).
+- Hotfix follow-up: popover "🎁 Thưởng" mở xuống dưới (`top-full`) bị cắt khỏi viewport ở 2 hàng cuối bảng lương → lật lên trên (`bottom-full`) cho `recIdx >= length-2`. Build pass, commit 0f0fbb6 pushed.
+
+## 2026-07-03 (session 18 — settlement theo dự án, tiếp nối)
+### Task
+Tiếp tục phiên trước: hoàn tất plan `docs/superpowers/plans/2026-07-03-settlement-per-project.md` (Task 1-4 đã commit sẵn, Task 5-7 đã sửa code nhưng chưa commit).
+
+### Work Done
+- Review thủ công diff 3 file còn lại (`SettlementCreateView.tsx`, `SettlementListView.tsx`, `SettlementDetailView.tsx`) so với plan — khớp chính xác từng bước (dropdown Dự án, reset state, placeholder, hiển thị tên dự án).
+- `npm run build` ✅ (vite build, 9.36s, 0 lỗi). `npm run lint` (tsc --noEmit) có lỗi TS pre-existing không liên quan (EmailOutreach.tsx, EmployeeForm.tsx, hrService.ts, types.ts contract_value duplicate...) — xác nhận các file này không nằm trong diff của task, không phải lỗi mới phát sinh.
+- Commit 3 task còn lại: `3fed7a3` (SettlementCreateView), `0fe54e2` (SettlementListView), `47e853f` (SettlementDetailView).
+- GitNexus MCP không khả dụng session này (như session trước) — bỏ qua `impact`/`detect_changes`, thay bằng review diff thủ công.
+
+### Validation
+- Build ✅. Chưa chạy `npm run dev` để test tay UI (Step 11/Manual verification trong plan) — sếp cần tự kiểm tra hoặc yêu cầu verify thêm nếu cần trước khi tin tưởng hoàn toàn.
+
+## 2026-07-03 (session 19 — fix PIT tháng chuyển giao, double-apply probRatio)
+### Task
+Kế toán gửi bảng tính tay lương T6/2026 của Hiếu, báo lệch với app. Sếp yêu cầu kiểm tra đúng/sai.
+
+### Work Done
+- Đối chiếu từng bước: phần prorate Lương CB/KPI/Tăng ca (blend TV/CT) của app khớp 100% với kế toán — không sai ở bước này (khác với nghi ngờ ban đầu về "làm tròn %", hoá ra đó chỉ là lỗi hiển thị dòng "Prorate" ở UI, không phải lỗi tính — không sửa vì không ảnh hưởng số thật).
+- **Root cause thật (lỗi tính, không phải hiển thị)**: `calculatePayroll` tính `taxableProbation = taxableIncome × probRatio` — nhân probRatio lên TOÀN BỘ taxableIncome gộp. Điều này đúng cho CB/xăng/ĐT (mức không đổi), nhưng SAI cho:
+  1. KPI: `kpiActual` đã là số BLEND (mức cũ×%TV + mức mới×%CT) — nhân thêm probRatio một lần nữa = double-apply, làm phần thử việc bị tính cao hơn thực tế.
+  2. Bonus (thưởng tay, VD thưởng lên chính thức): bị cấn tỷ lệ vào phần thử việc (thuế flat 10%) thay vì để nguyên 100% vào phần chính thức (thuế lũy tiến, thường = 0 do giảm trừ 15.5M).
+- Verify bằng kế toán's bảng tay (Hiếu): PIT đúng = 400.455 (app cũ tính 502.438, lệch 101.983đ theo hướng khấu trừ THỪA — NV bị nhận thiếu).
+- **Fix** (`apps/payroll/services/payrollService.ts`, `calculatePayroll`): thêm nhánh `isTransitionMonth` (0<probRatio<1) — tách `taxableProbation` = (CB+xăng+ĐT thực tế)×probRatio + KPI phần thử việc tính TRỰC TIẾP từ `preOfficialKpiAllowance × probRatio × ratio` (không qua kpiActual blend); bonus KHÔNG chia probRatio nữa → tự động rơi hết vào `taxableOfficial`. Tháng full thử việc/full chính thức (probRatio=0 hoặc 1) giữ nguyên logic cũ — không regression.
+- Verify công thức mới bằng script node độc lập cho cả 3 NV chuyển giao T6/2026 — khớp TUYỆT ĐỐI (từng đồng) với bảng kế toán tính tay cho Hiếu (400.455 / 12.818.636).
+- Data fix: update trực tiếp `pit`/`net_salary` của 3 record trong sheet T6/2026 (đang draft):
+  - Hiếu: pit 502.438→400.455, net 12.716.653→**12.818.636**
+  - Tú: pit 547.893→400.455, net 14.216.652→**14.364.090**
+  - Bảo Anh: pit 697.027→580.659, net 11.610.473→**11.726.841**
+  (gross_actual, employee_bhxh, total_company_cost không đổi — cả 3 đều bhxh_exempt nên company_bhxh=0=total_company_cost=gross_actual, không bị ảnh hưởng bởi fix này)
+
+### Validation
+- `npm run build` ✅ (9.31s, 0 lỗi TS mới — chỉ warning chunk size pre-existing không liên quan).
+- Verify công thức bằng script node độc lập (tính tay lại từ đầu, không đọc code cũ) — đối chiếu khớp exact với bảng kế toán.
+- Commit `df0e115`.
+- GitNexus MCP không khả dụng session này (như các session trước) — review bằng đọc code trực tiếp + verify số học độc lập.
+
+### Result
+PIT/Net lương T6/2026 của 3 NV chuyển giao (Hiếu, Tú, Bảo Anh) đã đúng, khớp với kế toán. Sheet vẫn đang draft, chưa confirm/paid nên không ảnh hưởng gì đã phát sinh ra ngoài trước khi fix.
+
+### Next Step
+- Sếp/kế toán review lại sheet T6/2026 trên UI để xác nhận số đã đúng trước khi confirm/paid.

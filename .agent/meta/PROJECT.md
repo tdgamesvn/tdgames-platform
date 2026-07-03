@@ -1,6 +1,6 @@
 # PROJECT.md — tdgames-platforms
 
-_Cập nhật: 2026-05-29_
+_Cập nhật: 2026-06-25_
 
 ---
 
@@ -68,7 +68,9 @@ tdgames-platforms/
 │   ├── attendance/          # Chấm công
 │   ├── payroll/             # Bảng lương
 │   ├── portal/              # Employee self-service portal
-│   └── freelancer-portal/   # Freelancer self-service portal
+│   ├── freelancer-portal/   # Freelancer self-service portal
+│   ├── ai-agent/            # AI Agent chat + insights
+│   └── company/             # Hồ sơ công ty + tài liệu pháp lý
 ├── supabase/
 │   ├── functions/           # Edge Functions (Deno)
 │   └── migrations/          # SQL migration history
@@ -111,7 +113,7 @@ Khởi động
 
 ### Hash Router
 URL hash dạng `#app/tab`, ví dụ `#workforce/tasks`
-- VALID_APPS: dashboard, invoice, expense, workforce, crm, hr, attendance, payroll, portal, freelancer-portal
+- VALID_APPS: dashboard, invoice, expense, workforce, crm, hr, attendance, payroll, portal, freelancer-portal, ai-agent, company
 - Back button → HomeScreen (xoá hash)
 
 ---
@@ -163,26 +165,33 @@ URL hash dạng `#app/tab`, ví dụ `#workforce/tasks`
 ### 5. CRM (`/apps/crm`)
 - **Route:** `#crm`
 - **Access:** admin, ke_toan
-- **Chức năng:** Quản lý khách hàng, dự án, tài liệu, thanh toán, outreach email
-- **Tabs:** Khách hàng, Dự án, Tài liệu, Thanh toán, Hoạt động, Outreach
-- **Types:** `CrmClient`, `CrmContact`, `CrmProject`, `CrmDocument`, `CrmActivity`, `CrmOutreachLead`, `CrmEmailTemplate`
+- **Chức năng:** Quản lý khách hàng, deal pipeline, báo giá, outreach email
+- **Default tab:** `dashboard` (BD Dashboard)
+- **Tabs:** Tổng quan (BD Dashboard), Clients, Deal Pipeline (Kanban), Quotation (Báo giá), Tài liệu, Thanh toán, Hoạt động, Outreach
+- **Types:** `CrmClient`, `CrmDeal`, `CrmQuotation`, `CrmActivity`, `CrmOutreachLead`, `CrmEmailTemplate`, `CrmDiscoveredStudio`
 - **Features nổi bật:**
-  - Lead lifecycle: `lead → contacted → negotiating → active → completed`
-  - Email outreach tự động (3 bước: initial, followup1, followup2)
-  - Activity timeline per client
-  - Payment tracker
+  - **BD Dashboard**: KPI (Pipeline/Won/WinRate/Clients), pipeline funnel, deals needing attention (overdue/stale), per-BD performance table, recent activities sidebar
+  - **Deal Pipeline**: Kanban board 7 stages (Lead→Won/Lost), drag-drop, tabbed detail panel, inline edit, stage transition rules (Won→auto close_date, Lost→require reason), filters (stage/owner/currency), days-in-stage badge
+  - **Quotation**: line items (desc/qty/unit/price), auto subtotal, validity period, status flow (draft→sent→accepted/rejected), auto QT-YYYYMM-NNN number
+  - **Follow-up**: next_follow_up date per deal (card indicator, detail panel, dashboard section)
+  - **Client Ownership**: assigned_bd per client
+  - Email outreach tự động (3 bước: initial, followup1, followup2), Apollo discovery, hiring signal pipeline
+  - Activity timeline per client; Payment tracker
 
 ### 6. HR (`/apps/hr`)
 - **Route:** `#hr`
 - **Access:** admin, hr
-- **Chức năng:** Quản lý nhân viên fulltime/freelancer, phòng ban, nhắc việc
-- **Tabs:** Nhân sự, Thêm/Sửa, Phòng ban, Nhắc việc
-- **Types:** `HrEmployee`, `HrDepartment`, `HrContract`, `HrEquipmentHandover`, `HrParkingRegistration`, `HrReminder`
+- **Chức năng:** Quản lý nhân viên fulltime/freelancer, phòng ban, nhắc việc, đánh giá, đề xuất nhân sự
+- **Tabs:** Nhân sự, Thêm/Sửa, Phòng ban, Nhắc việc, Đề xuất, Đánh giá
+- **Types:** `HrEmployee`, `HrDepartment`, `HrContract`, `HrEquipmentHandover`, `HrChangeRequest`, `HrEvaluationCycle`, `HrEvaluationSubmission`, `HrReminder`
 - **Features nổi bật:**
   - Employee types: fulltime, freelancer, parttime
+  - Thông tin xe nhân viên inline trong profile (vehicle_type, license_plate, brand, color)
   - Biên bản bàn giao tài sản (PDF ký)
-  - Đăng ký gửi xe (parking)
-  - Evaluation & position history
+  - **Change Request workflow**: 5 loại đề xuất (probation_end, salary_change, promotion, department_transfer, termination) → HR tạo → admin duyệt → auto-apply (salary/position/department)
+  - **Evaluation (Đánh giá)**: HR tạo cycle với deadline → NV tự đánh giá qua Portal → leader nộp → gap check → 1-on-1 nếu gap > 1.0 → completed; email noti tự động
+  - Inline salary edit trên ChangeRequestTab (pending + approved)
+  - Position history timeline
   - Reminder dashboard (hợp đồng, sinh nhật, đánh giá...)
 
 ### 7. Attendance (`/apps/attendance`)
@@ -214,17 +223,64 @@ URL hash dạng `#app/tab`, ví dụ `#workforce/tasks`
 - **Tabs:** Dashboard, Tasks, Nghiệm thu, Hồ sơ
 - **Services:** `freelancerPortalService`
 
+### 11. AI Agent (`/apps/ai-agent`)
+- **Route:** `#ai-agent`
+- **Access:** admin, hr
+- **Chức năng:** Chat với AI agents nội bộ, xem insights, manage agents
+- **Tabs:** Feed (unified insights), CHRO, CFO, CTO, BD, Cài đặt (config editor)
+- **4 active agents**: CHRO (HR), CFO (Finance), CTO (Tech), BD (Business Dev)
+- **Features nổi bật:**
+  - In-app chat với từng agent (Telegram-style UI)
+  - Unified Feed view: tất cả insights từ mọi agent, filter by agent/status
+  - Agent Config Editor: edit model/temperature/personality/emoji/is_active
+  - Notification badge (red dot) trên HomeScreen khi có insights mới
+  - pg_cron scheduled runs: 08:30–09:00 VN, Mon–Fri
+  - Edge function `agent-run` (verify_jwt: false — pg_cron trigger)
+  - LLM qua 9Router (`9router.tdgamestudio.com`)
+
+### 12. Company (`/apps/company`)
+- **Route:** `#company`
+- **Access:** admin, ke_toan
+- **Chức năng:** Hồ sơ công ty, ngân hàng, tài liệu pháp lý
+- **Tabs:** Thông tin, Ngân hàng, Tài liệu
+- **Features nổi bật:**
+  - View/edit legal info (MST, địa chỉ, người đại diện, ngày hoạt động)
+  - Upload tài liệu (PDF/ảnh/doc) lên Supabase Storage bucket `company-documents`
+  - Signed URL viewer 1h
+  - Entity switcher nếu nhiều pháp nhân (TD GAMES / TD CONSULTING)
+  - Bank accounts từ `finance_bank_accounts`
+
 ---
 
 ## Supabase Edge Functions
 
 | Function | Mô tả |
 |----------|-------|
+| `agent-run` | Trigger AI agent chạy + tạo insights; verify_jwt: false (pg_cron) |
 | `billing-report` | Xuất báo cáo billing |
-| `create-employee-auth` | Tạo auth user khi invite nhân viên |
+| `create-employee-auth` | Tạo auth user khi invite nhân viên; update_secondary_roles action |
+| `notify-email` | Email notification (eval, payslip, change request, eval deadlines) |
 | `outreach-auto-batch` | Gửi email outreach tự động theo batch |
 | `outreach-proxy` | Proxy gửi email outreach đơn lẻ |
 | `platform-data` | API data tổng hợp cho CEO Dashboard |
+
+**pg_cron jobs (7 active):**
+- `refresh-leave-balances` — monthly accrual 1 ngày/tháng cho fulltime official
+- `expire-leave-balances` — 1/4 hàng năm expire unused balances
+- `eval-deadline-reminder` — 01:00 UTC (08:00 VN) daily — nhắc NV 1 ngày trước deadline eval
+- `ai-agent-*` — CHRO/CFO/CTO/BD runs 08:30–09:00 VN Mon–Fri
+- `outreach-auto-discovery` — 02:00 UTC — Apollo discovery per country rotation
+
+---
+
+## Multi-role Support
+
+Users có thể có `primary role` + `secondary_roles[]`:
+- Helpers: `hasRole(user, role)`, `hasAnyRole(user, roles)`, `getUserRoles(user)` — file `utils/roleUtils.ts`
+- `authService.ts` parse `secondary_roles` từ `user_metadata`
+- Edge function `create-employee-auth` → `update_secondary_roles` action; `check_email` trả về `secondary_roles`
+- Toggle secondary roles UI trong `EmployeeDetail` (HR app)
+- **Backward compatible**: user chỉ có primary role vẫn hoạt động bình thường
 
 ---
 
@@ -232,8 +288,18 @@ URL hash dạng `#app/tab`, ví dụ `#workforce/tasks`
 
 Migrations gần đây nhất:
 - `20260509` — Security: revoke public execute on sensitive RPCs; payroll formula settings
-- `20260510` — HR: equipment handover, parking self-service, signed PDF
+- `20260510` — HR: equipment handover, signed PDF
 - `20260513` — Invoice: revenue sync
+- `20260529` — Payroll: bonus (KPI thưởng) field
+- `20260531` — Outreach: trigger_source + lead_score
+- `20260603` — Payroll: standard_work_days (dynamic T2-T6), bonus_reason, exclude_from_payroll
+- `20260608` — Evaluation: hr_evaluation_cycles + hr_evaluation_submissions; deadline column; pg_cron eval reminder
+- `20260612` — Payroll: pre_official_base_salary (mid-month proration)
+- `20260617` — HR: hr_change_requests (5 types, auto-apply); AI Agent: 6 tables (ai_agents, runs, insights, episodes, knowledge, conversations)
+- `20260618` — HR: vehicle fields inline (vehicle_type/plate/brand/color on hr_employees)
+- `20260622` — HR: secondary_roles support
+- `20260625` — CRM: next_follow_up on crm_deals; assigned_bd on crm_clients; crm_quotations table
+- `20260701` — CRM: crm_quotations (items JSONB, status, RLS, indexes)
 
 ---
 

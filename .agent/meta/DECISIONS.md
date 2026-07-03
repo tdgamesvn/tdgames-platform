@@ -1,5 +1,26 @@
 # DECISIONS
 
+## 2026-06-26 — VCB Exchange Rate chỉ hiện trên các app tài chính
+
+Decision:
+- Props `vcbRate` / `vcbRateLoading` chỉ truyền vào `<Navbar>` của các app **liên quan tài chính**.
+- Các app không tài chính KHÔNG gọi `useExchangeRate()` và KHÔNG truyền props này.
+
+Apps có tỷ giá (finance):
+- `invoice`, `expense`, `workforce`, `dashboard`, `accounting`, `payroll`
+
+Apps KHÔNG có tỷ giá:
+- `company`, `handbook` (Company Hub), `hr`, `attendance`, `crm`, `portal`, `freelancer-portal`, `ai-agent`, `system-monitor`
+
+Reason:
+- Tỷ giá USD→VND không liên quan đến workflow của các app phi tài chính → noise.
+- Giữ Navbar gọn, tránh load API VCB thừa.
+
+Impact:
+- Khi thêm app mới: kiểm tra xem app có xử lý tiền tệ ngoại tệ không → nếu có mới thêm `useExchangeRate()`.
+
+---
+
 ## 2026-06-17 — AI Agent as separate app module, not HR tab
 
 Decision:
@@ -134,3 +155,5 @@ Reason:
 Impact:
 - Telegram file handling for this project should use `telegram-inbox` with `--project tdgames-platforms`
 - no file should be downloaded or imported unless explicitly requested by the operator
+
+- [2026-07-02] RLS multi-role: dùng `jwt_has_any_role(text[])` / `jwt_roles()` (đọc primary + secondary_roles từ JWT) thay `get_jwt_role() = ANY(...)` cho mọi policy mới.
