@@ -91,7 +91,7 @@ const SettlementListView: React.FC<SettlementListViewProps> = ({
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="text-white font-bold text-base">{workerName}</p>
+                      <p className="text-white font-bold text-base">{workerName}{s.project_name ? ` · ${s.project_name}` : ''}</p>
                       <p className="text-neutral-medium text-xs mt-0.5">Kỳ: {s.period}</p>
                     </div>
                     <div className="flex items-center gap-2">
