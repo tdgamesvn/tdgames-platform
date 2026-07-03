@@ -65,66 +65,66 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
     }}>
       <div style={{
         background: '#111', border: '1px solid #2a2a2a', borderRadius: '20px',
-        width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto',
+        width: '100%', maxWidth: '820px', maxHeight: '96vh', overflowY: 'auto',
         boxShadow: '0 0 60px rgba(0,0,0,0.8)',
       }}>
         {/* Header */}
         <div style={{
-          padding: '24px 24px 16px',
+          padding: '16px 24px 12px',
           borderBottom: '1px solid #1e1e1e',
           background: 'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(234,179,8,0.02))',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <span style={{ fontSize: '22px' }}>📋</span>
-            <span style={{
-              fontSize: '11px', fontWeight: 900, textTransform: 'uppercase',
-              letterSpacing: '0.12em', color: '#EAB308',
-            }}>
-              Xác nhận phiếu lương bắt buộc
-            </span>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+              <span style={{ fontSize: '16px' }}>📋</span>
+              <span style={{
+                fontSize: '10px', fontWeight: 900, textTransform: 'uppercase',
+                letterSpacing: '0.1em', color: '#EAB308',
+              }}>
+                Xác nhận phiếu lương bắt buộc
+              </span>
+            </div>
+            <h2 style={{ fontSize: '17px', fontWeight: 900, color: '#fff', margin: 0 }}>
+              {monthLabel}
+            </h2>
           </div>
-          <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fff', margin: 0 }}>
-            {monthLabel}
-          </h2>
-          {payslip.is_probation && (
-            <span style={{
-              display: 'inline-block', marginTop: '8px',
-              background: 'rgba(255,149,0,0.12)', color: '#FF9500',
-              padding: '2px 10px', borderRadius: '4px',
-              fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
-            }}>
-              ⭐ THỬ VIỆC — miễn BHXH, thuế TNCN cố định
-            </span>
-          )}
-          {isTransition && (
-            <span style={{
-              display: 'inline-block', marginTop: '8px',
-              background: 'rgba(255,149,0,0.12)', color: '#FF9500',
-              padding: '2px 10px', borderRadius: '4px',
-              fontSize: '9px', fontWeight: 900, letterSpacing: '0.06em',
-            }}>
-              🔄 THÁNG CHUYỂN GIAO — {Math.round((payslip.probation_ratio || 0) * 100)}% thử việc + {Math.round((1 - (payslip.probation_ratio || 0)) * 100)}% chính thức
-            </span>
-          )}
-          <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', lineHeight: 1.5 }}>
-            Vui lòng đối chiếu <strong style={{ color: '#ccc' }}>từng khoản mục</strong> bên dưới với thực tế công việc của bạn, rồi xác nhận. Bạn cần hoàn thành bước này trước khi tiếp tục sử dụng app.
-          </p>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {payslip.is_probation && (
+              <span style={{
+                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+                padding: '2px 8px', borderRadius: '4px',
+                fontSize: '9px', fontWeight: 900, letterSpacing: '0.04em',
+              }}>
+                ⭐ THỬ VIỆC
+              </span>
+            )}
+            {isTransition && (
+              <span style={{
+                background: 'rgba(255,149,0,0.12)', color: '#FF9500',
+                padding: '2px 8px', borderRadius: '4px',
+                fontSize: '9px', fontWeight: 900, letterSpacing: '0.04em',
+              }}>
+                🔄 CHUYỂN GIAO {Math.round((payslip.probation_ratio || 0) * 100)}%TV + {Math.round((1 - (payslip.probation_ratio || 0)) * 100)}%CT
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Payslip full detail — nhân viên PHẢI thấy đủ để đối chiếu đúng/sai */}
-        <div style={{ padding: '20px 24px' }}>
+        <div style={{ padding: '14px 24px 20px' }}>
           <PayslipDetailSection ps={payslip} />
 
           {/* Company note if any */}
           {payslip.note && (
             <div style={{
               background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)',
-              borderRadius: '10px', padding: '12px 14px', marginBottom: '16px',
+              borderRadius: '10px', padding: '10px 14px', marginTop: '12px',
             }}>
-              <p style={{ fontSize: '10px', color: '#FF9500', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+              <p style={{ fontSize: '9px', color: '#FF9500', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '4px' }}>
                 💌 Lời nhắn từ công ty
               </p>
-              <p style={{ margin: 0, fontSize: '13px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: 'rgba(255,255,255,0.85)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
                 {payslip.note}
               </p>
             </div>
@@ -132,13 +132,13 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
 
           {/* Dispute textarea */}
           {mode === 'dispute' && (
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
+            <div style={{ marginTop: '12px' }}>
+              <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '6px', fontWeight: 600 }}>
                 Mô tả sai sót <span style={{ color: '#F87171' }}>*</span>
               </label>
               <textarea
                 autoFocus
-                rows={3}
+                rows={2}
                 placeholder="Ví dụ: Ngày công tính thiếu 1 ngày, phụ cấp xăng xe không đúng..."
                 value={comment}
                 onChange={e => setComment(e.target.value)}
@@ -154,14 +154,14 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
 
           {/* Error */}
           {error && (
-            <p style={{ fontSize: '12px', color: '#F87171', marginBottom: '12px', padding: '8px 12px', background: 'rgba(248,113,113,0.08)', borderRadius: '8px' }}>
+            <p style={{ fontSize: '12px', color: '#F87171', marginTop: '12px', padding: '8px 12px', background: 'rgba(248,113,113,0.08)', borderRadius: '8px' }}>
               ⚠️ {error}
             </p>
           )}
 
           {/* Action buttons */}
           {mode === 'view' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px' }}>
               <button
                 onClick={() => setMode('dispute')}
                 disabled={loading}
@@ -189,7 +189,7 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '14px' }}>
               <button
                 onClick={() => { setMode('view'); setComment(''); setError(null); }}
                 disabled={loading}
