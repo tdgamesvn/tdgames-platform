@@ -218,6 +218,7 @@ export interface Settlement {
   tax_amount: number;
   net_amount: number;
   notes: string;
+  project_name?: string;
   account_type?: 'company' | 'personal';
   created_at?: string;
   tasks?: WorkforceTask[];
