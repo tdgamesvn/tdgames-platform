@@ -201,11 +201,13 @@ const PayrollSheet: React.FC<Props> = ({
             </div>
 
             {/* Table rows */}
-            {records.map(rec => {
+            {records.map((rec, recIdx) => {
               const isExpanded = expandedId === rec.id;
               const empName = rec.employee?.full_name || 'N/A';
               const std = sheet.standard_work_days ?? formula.standardWorkDays;
               const ratio = rec.work_days / std;
+              /** Hàng gần cuối bảng → popover thưởng lật lên trên để không bị cắt khỏi viewport */
+              const popoverUp = recIdx >= records.length - 2 && records.length > 2;
 
               return (
                 <div key={rec.id}>
@@ -298,7 +300,7 @@ const PayrollSheet: React.FC<Props> = ({
                     <div className="text-right relative" onClick={e => e.stopPropagation()}>
                       {isDraft && editingCell?.id === rec.id && editingCell?.field === 'bonus' && (
                         <div
-                          className="absolute right-0 top-full mt-1 z-30 w-60 bg-surface border border-yellow-500/30 rounded-xl shadow-2xl shadow-black/70 p-3 text-left space-y-2.5"
+                          className={`absolute right-0 ${popoverUp ? 'bottom-full mb-1' : 'top-full mt-1'} z-30 w-60 bg-surface border border-yellow-500/30 rounded-xl shadow-2xl shadow-black/70 p-3 text-left space-y-2.5`}
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingCell(null); }}
                         >
                           <p className="text-[10px] font-black text-yellow-400 uppercase tracking-wider">🎁 Thưởng tháng này</p>
