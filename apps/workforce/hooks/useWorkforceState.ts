@@ -223,6 +223,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
   // ── Settlement ──
   const handleCreateSettlement = async (
     workerId: string,
+    projectName: string,
     period: string,
     taskIds: string[],
     totalAmount: number,
@@ -234,7 +235,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
     accountType: 'company' | 'personal' = 'company'
   ) => {
     try {
-      const saved = await svc.createSettlement(workerId, period, taskIds, totalAmount, currency, notes, bonusType, bonusValue, taxRate, accountType);
+      const saved = await svc.createSettlement(workerId, projectName, period, taskIds, totalAmount, currency, notes, bonusType, bonusValue, taxRate, accountType);
       setSettlements(prev => [saved, ...prev]);
       // Refresh tasks since they've been marked approved
       const updatedTasks = await svc.fetchTasks();
