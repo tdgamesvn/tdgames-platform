@@ -397,7 +397,57 @@ const PayrollSheet: React.FC<Props> = ({
                           <Row label="PC điện thoại" value={fmt(rec.phone_allowance)} sub={`Thực: ${fmt(Math.round(rec.phone_allowance * ratio))}`} />
                           <Row label="PC trang phục" value={fmt(rec.clothing_allowance)} sub={`Thực: ${fmt(Math.round(rec.clothing_allowance * ratio))}`} />
                           <Row label="KPI" value={fmt(rec.kpi_allowance)} sub={`Thực: ${fmt(Math.round(rec.kpi_allowance * ratio))}`} />
+                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
+                            <div className="pl-3 border-l-2 border-orange-500/30 space-y-1">
+                              {isDraft ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-orange-300/80 font-semibold whitespace-nowrap">KPI cũ (TV):</span>
+                                  <input
+                                    type="number" step="100000"
+                                    className="w-28 px-1.5 py-0.5 rounded bg-black/40 border border-orange-500/30 text-orange-300 text-[11px] text-right outline-none focus:border-orange-500/60"
+                                    value={rec.pre_official_kpi_allowance ?? ''}
+                                    placeholder="Nhập KPI cũ..."
+                                    onChange={e => handleCellChange(rec, 'pre_official_kpi_allowance', +e.target.value || 0)}
+                                  />
+                                </div>
+                              ) : rec.pre_official_kpi_allowance != null ? (
+                                <Row label="KPI cũ (thử việc)" value={fmt(rec.pre_official_kpi_allowance)} color="text-orange-300/80" />
+                              ) : null}
+                              {rec.pre_official_kpi_allowance != null && (
+                                <Row
+                                  label="Prorate"
+                                  value={`${fmt(rec.pre_official_kpi_allowance)} × ${Math.round(rec.probation_ratio * 100)}% + ${fmt(rec.kpi_allowance)} × ${Math.round((1 - rec.probation_ratio) * 100)}%`}
+                                  color="text-orange-200/60"
+                                />
+                              )}
+                            </div>
+                          )}
                           <Row label="Tăng ca MĐ" value={fmt(rec.default_ot)} sub={`Thực: ${fmt(Math.round(rec.default_ot * ratio))}`} />
+                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
+                            <div className="pl-3 border-l-2 border-orange-500/30 space-y-1">
+                              {isDraft ? (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-orange-300/80 font-semibold whitespace-nowrap">Tăng ca cũ (TV):</span>
+                                  <input
+                                    type="number" step="100000"
+                                    className="w-28 px-1.5 py-0.5 rounded bg-black/40 border border-orange-500/30 text-orange-300 text-[11px] text-right outline-none focus:border-orange-500/60"
+                                    value={rec.pre_official_default_ot ?? ''}
+                                    placeholder="Nhập tăng ca cũ..."
+                                    onChange={e => handleCellChange(rec, 'pre_official_default_ot', +e.target.value || 0)}
+                                  />
+                                </div>
+                              ) : rec.pre_official_default_ot != null ? (
+                                <Row label="Tăng ca cũ (thử việc)" value={fmt(rec.pre_official_default_ot)} color="text-orange-300/80" />
+                              ) : null}
+                              {rec.pre_official_default_ot != null && (
+                                <Row
+                                  label="Prorate"
+                                  value={`${fmt(rec.pre_official_default_ot)} × ${Math.round(rec.probation_ratio * 100)}% + ${fmt(rec.default_ot)} × ${Math.round((1 - rec.probation_ratio) * 100)}%`}
+                                  color="text-orange-200/60"
+                                />
+                              )}
+                            </div>
+                          )}
                           <Row label="Tăng ca phát sinh" value={rec.extra_ot_hours > 0 ? `${rec.extra_ot_hours}h → ${fmt(rec.extra_ot)}đ` : '—'} highlight />
                           <div className="border-t border-white/[0.06] pt-2 mt-2">
                             <Row label="Gross tham chiếu" value={fmt(rec.gross_ref)} bold />
