@@ -100,19 +100,6 @@ const PayslipAcknowledgeModal: React.FC<Props> = ({ payslip, onDone }) => {
         <div className="px-4 sm:px-8 py-4 sm:py-6">
           <PayslipDetailSection ps={payslip} />
 
-          {/* Company note if any */}
-          {payslip.note && (
-            <div className="rounded-xl px-3 py-2.5 sm:px-5 sm:py-4 mt-4 sm:mt-6"
-              style={{ background: 'rgba(255,149,0,0.06)', border: '1px solid rgba(255,149,0,0.2)' }}>
-              <p className="text-[9px] sm:text-[11px] font-bold uppercase tracking-widest text-[#FF9500] mb-1.5">
-                💌 Lời nhắn từ công ty
-              </p>
-              <p className="m-0 text-[12px] sm:text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">
-                {payslip.note}
-              </p>
-            </div>
-          )}
-
           {/* Dispute textarea */}
           {mode === 'dispute' && (
             <div className="mt-4 sm:mt-6">
