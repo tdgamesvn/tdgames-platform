@@ -10,7 +10,7 @@ interface SettlementManagerProps {
   workers: Worker[];
   tasks: WorkforceTask[];
   vcbSellRate: number;
-  onCreateSettlement: (workerId: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, bonusType: 'percent' | 'amount', bonusValue: number, taxRate: number, accountType: 'company' | 'personal') => void;
+  onCreateSettlement: (workerId: string, projectName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, bonusType: 'percent' | 'amount', bonusValue: number, taxRate: number, accountType: 'company' | 'personal') => void;
   onUpdateSettlement: (id: string, updates: Partial<Settlement>) => void;
   onDeleteSettlement: (id: string) => void;
 }
