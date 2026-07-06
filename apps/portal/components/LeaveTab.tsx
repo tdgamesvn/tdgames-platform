@@ -207,8 +207,15 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
           ? 'Đã dùng 1 ngày remote tuần này'
           : undefined,
     },
-    // Hiếu hỉ: áp dụng theo Điều 115 BLLĐ — tất cả nhân viên, không giới hạn số dư
-    { value: 'hieu_hi', label: '🎊 Hiếu hỉ' },
+    {
+      value: 'hieu_hi',
+      label: '🎊 Hiếu hỉ',
+      why: !isOfficial
+        ? 'Chỉ áp dụng sau khi chính thức'
+        : workedMonths < 12
+          ? `Cần đủ 1 năm (còn ${12 - workedMonths} tháng)`
+          : undefined,
+    },
   ].filter(o => !o.why); // ẩn những loại không đủ điều kiện
 
   // Ensure selected type stays valid
@@ -234,6 +241,9 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     }
     if ((leaveType === 'birthday' || leaveType === 'remote') && dateFrom !== dateTo) {
       onToast(`${LEAVE_LABELS[leaveType]} chỉ được chọn 1 ngày`, 'error'); return;
+    }
+    if (leaveType === 'hieu_hi' && leaveDays > 3) {
+      onToast('Hiếu hỉ tối đa 3 ngày', 'error'); return;
     }
 
     setSubmitting(true);
@@ -343,7 +353,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             { label: 'Nghỉ không lương', status: 'Không giới hạn · trừ lương ngày tương ứng' },
             { label: '🎂 Sinh nhật', status: !isOfficial ? 'Chưa chính thức' : workedMonths < 6 ? `Cần đủ 6 tháng (còn ${6 - workedMonths})` : birthdayUsedThisYear ? 'Đã dùng năm nay' : '1 ngày/năm, có lương' },
             { label: '🏠 Remote', status: !isOfficial ? 'Chưa chính thức' : remoteUsedThisWeek ? 'Đã dùng tuần này' : '1 ngày/tuần' },
-            { label: '🎊 Hiếu hỉ', status: 'Không trừ phép năm · số ngày theo sự kiện (HR duyệt)' },
+            { label: '🎊 Hiếu hỉ', status: !isOfficial ? 'Chưa chính thức' : workedMonths < 12 ? `Cần đủ 1 năm (còn ${12 - workedMonths} tháng)` : 'Tối đa 3 ngày, không trừ phép năm' },
           ].map(item => (
             <div key={item.label}>
               <p style={{ fontSize: '12px', fontWeight: 700, color: '#F5F5F5', marginBottom: '4px' }}>{item.label}</p>
@@ -451,7 +461,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
           )}
           {leaveType === 'hieu_hi' && (
             <div style={{ background: 'rgba(255,149,0,0.05)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '10px', padding: '10px 14px', marginBottom: '16px', fontSize: '12px', color: '#FF9500' }}>
-              🎊 <strong>Nghỉ hiếu hỉ có lương</strong> (Điều 115 BLLĐ) — Vui lòng ghi rõ sự kiện trong phần lý do.<br />
+              🎊 <strong>Nghỉ hiếu hỉ có lương</strong> (Điều 115 BLLĐ) — Tối đa 3 ngày/lần. Vui lòng ghi rõ sự kiện trong phần lý do.<br />
               <span style={{ color: '#888', marginTop: '4px', display: 'block' }}>
                 Cưới bản thân: 3 ngày · Con kết hôn: 1 ngày · Bố/mẹ/vợ/chồng/con mất: 3 ngày · Ông bà/anh chị em mất: 1 ngày
               </span>

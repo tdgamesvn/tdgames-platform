@@ -146,7 +146,7 @@ export const ATTENDANCE_HELP: HelpContent[] = [
           '<strong>Nghỉ không lương</strong> — Không trừ phép năm nhưng trừ lương ngày tương ứng.',
           '<strong>🎂 Nghỉ sinh nhật</strong> — Chính thức đủ 6 tháng, 1 ngày/năm, có lương.',
           '<strong>🏠 Làm remote</strong> — 1 ngày/tuần, chỉ áp dụng sau khi chính thức.',
-          '<strong>🎊 Hiếu hỉ</strong> — Theo Điều 115 BLLĐ, không trừ phép năm, có lương.',
+          '<strong>🎊 Hiếu hỉ</strong> — Chính thức đủ 1 năm, tối đa 3 ngày/lần, theo Điều 115 BLLĐ, không trừ phép năm.',
         ],
       },
     ],
