@@ -4,9 +4,8 @@ import {
   fetchMyLeaveRequests,
   submitLeaveRequest,
   deleteLeaveRequest,
-  fetchLeaveBalances,
+  fetchYearlyBalance,
   getAvailableLeaveDays,
-  getCurrentQuarter,
 } from '../services/leaveService';
 import { supabase } from '@/services/supabaseClient';
 
@@ -85,7 +84,6 @@ function startOfWeek(date: Date): Date {
 const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   const [requests, setRequests]             = useState<AttRequest[]>([]);
   const [yearlyBalance, setYearlyBalance]   = useState<LeaveBalance | null>(null);
-  const [carryOverBalance, setCarryOverBalance] = useState<LeaveBalance | null>(null);
   const [employee, setEmployee]             = useState<HrEmployee | null>(null);
   const [isLoading, setIsLoading]           = useState(true);
   const [showForm, setShowForm]             = useState(false);
@@ -101,7 +99,6 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentQ    = getCurrentQuarter(now);
 
   useEffect(() => {
     if (!currentUser.employee_id) return;
@@ -117,14 +114,11 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         .eq('id', currentUser.employee_id).single();
       setEmployee(emp);
       if (emp) {
-        // Balance creation requires is_staff() RLS — employees can only READ existing balances.
-        // Wrap separately so a missing balance record doesn't block the leave request list.
+        // accrued_days do DB trigger/cron tự tính (xem leaveService.ts) — chỉ đọc, không tạo/ghi.
         try {
-          const { yearlyBalance: yb, carryOverBalance: cob } = await ensureBalancesForYear(emp, currentYear);
-          setYearlyBalance(yb);
-          setCarryOverBalance(cob);
+          setYearlyBalance(await fetchYearlyBalance(emp.id, currentYear));
         } catch (balErr) {
-          console.warn('LeaveTab: không thể tạo bản ghi leave_balances (HR cần tạo thủ công):', balErr);
+          console.warn('LeaveTab: không đọc được leave_balances:', balErr);
         }
       }
       // Luôn load danh sách đơn nghỉ, kể cả khi balance lỗi
@@ -138,8 +132,8 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   };
 
   const leaveInfo = useMemo(
-    () => getAvailableLeaveDays(yearlyBalance, carryOverBalance, currentQ),
-    [yearlyBalance, carryOverBalance, currentQ]
+    () => getAvailableLeaveDays(yearlyBalance),
+    [yearlyBalance]
   );
 
   const { hours: leaveHours, days: leaveDays } = useMemo(
@@ -188,7 +182,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
       label: 'Phép năm',
       why: !isOfficial
         ? 'Chỉ áp dụng sau khi chính thức'
-        : leaveInfo.totalAvailable <= 0
+        : leaveInfo.available <= 0
           ? 'Hết ngày phép năm'
           : undefined,
     },
@@ -235,8 +229,8 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
     if (leaveDays <= 0) {
       onToast('Thời gian nghỉ phải lớn hơn 0', 'error'); return;
     }
-    if (leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable) {
-      onToast(`Bạn chỉ còn ${leaveInfo.totalAvailable} ngày phép khả dụng`, 'error'); return;
+    if (leaveType === 'annual' && leaveDays > leaveInfo.available) {
+      onToast(`Bạn chỉ còn ${leaveInfo.available} ngày phép khả dụng`, 'error'); return;
     }
     if ((leaveType === 'birthday' || leaveType === 'remote') && dateFrom !== dateTo) {
       onToast(`${LEAVE_LABELS[leaveType]} chỉ được chọn 1 ngày`, 'error'); return;
@@ -324,18 +318,10 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
       <div style={{ display: 'grid', gridTemplateColumns: isOfficial && monthsRemainingInYear > 0 ? '1fr 1fr' : '1fr', gap: '12px', marginBottom: '24px' }}>
         <div style={{ background: 'linear-gradient(135deg, rgba(6,182,212,0.15) 0%, rgba(8,145,178,0.08) 100%)', border: '1px solid rgba(6,182,212,0.2)', borderRadius: '16px', padding: '20px' }}>
           <p style={{ fontSize: '11px', fontWeight: 700, color: '#06B6D4', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Ngày phép còn lại</p>
-          <p style={{ fontSize: '40px', fontWeight: 900, color: '#06B6D4', lineHeight: 1 }}>{leaveInfo.totalAvailable}</p>
-          <p style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>ngày có thể dùng</p>
-          {leaveInfo.carryOver > 0 && leaveInfo.carryOverAvailable > 0 && !leaveInfo.carryOverExpired && (
-            <p style={{ fontSize: '11px', color: '#8B5CF6', marginTop: '4px' }}>
-              trong đó {leaveInfo.carryOverAvailable} ngày dư từ {currentYear - 1} (hết 31/3)
-            </p>
-          )}
-          {leaveInfo.carryOverExpired && leaveInfo.carryOver > 0 && (
-            <p style={{ fontSize: '11px', color: '#555', marginTop: '4px' }}>
-              ⚠️ Ngày dư từ {currentYear - 1} đã hết hạn
-            </p>
-          )}
+          <p style={{ fontSize: '40px', fontWeight: 900, color: '#06B6D4', lineHeight: 1 }}>{leaveInfo.available}</p>
+          <p style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>
+            ngày có thể dùng {leaveInfo.expired > 0 && <span style={{ color: '#555' }}>· {leaveInfo.expired} ngày năm {currentYear - 1} đã hết hạn</span>}
+          </p>
         </div>
         {isOfficial && monthsRemainingInYear > 0 && (
           <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px' }}>
@@ -344,6 +330,26 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             <p style={{ fontSize: '11px', color: '#888', marginTop: '6px' }}>ngày sẽ cộng thêm từ nay đến hết {currentYear}</p>
           </div>
         )}
+      </div>
+
+      {/* Quyền lợi nghỉ phép */}
+      <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '16px', padding: '20px', marginBottom: '24px' }}>
+        <p style={{ fontSize: '11px', fontWeight: 800, color: '#888', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '14px' }}>
+          🎁 Quyền lợi nghỉ phép
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+          {[
+            { label: 'Phép năm', status: !isOfficial ? 'Chưa chính thức' : `${leaveInfo.available} ngày còn lại` },
+            { label: '🎂 Sinh nhật', status: !isOfficial ? 'Chưa chính thức' : workedMonths < 6 ? `Cần đủ 6 tháng (còn ${6 - workedMonths})` : birthdayUsedThisYear ? 'Đã dùng năm nay' : '1 ngày/năm, có lương' },
+            { label: '🏠 Remote', status: !isOfficial ? 'Chưa chính thức' : remoteUsedThisWeek ? 'Đã dùng tuần này' : '1 ngày/tuần' },
+            { label: '🎊 Hiếu hỉ', status: 'Không giới hạn, có lương' },
+          ].map(item => (
+            <div key={item.label}>
+              <p style={{ fontSize: '12px', fontWeight: 700, color: '#F5F5F5', marginBottom: '4px' }}>{item.label}</p>
+              <p style={{ fontSize: '12px', color: '#06B6D4' }}>{item.status}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Đơn đã duyệt sắp tới */}
@@ -427,9 +433,9 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
                 {leaveDays > 0
                   ? isFullWorkday ? `${leaveDays} ngày` : `${leaveHours}h = ${leaveDays} ngày`
                   : '—'}
-                {leaveType === 'annual' && leaveDays > leaveInfo.totalAvailable && (
+                {leaveType === 'annual' && leaveDays > leaveInfo.available && (
                   <span style={{ color: '#FF3B30', fontSize: '11px', marginLeft: '8px' }}>
-                    (vượt {+(leaveDays - leaveInfo.totalAvailable).toFixed(2)} ngày)
+                    (vượt {+(leaveDays - leaveInfo.available).toFixed(2)} ngày)
                   </span>
                 )}
               </div>
