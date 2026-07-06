@@ -15,8 +15,8 @@ interface LeaveTabProps {
 }
 
 const LEAVE_LABELS: Record<string, string> = {
-  annual:   'Phép năm',
-  unpaid:   'Nghỉ không lương',
+  annual:   '🏖️ Phép năm',
+  unpaid:   '💸 Nghỉ không lương',
   birthday: '🎂 Nghỉ sinh nhật',
   remote:   '🏠 Làm remote',
   hieu_hi:  '🎊 Hiếu hỉ',
@@ -179,14 +179,14 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   const leaveTypeOptions: { value: AttRequest['leave_type']; label: string; why?: string }[] = [
     {
       value: 'annual',
-      label: 'Phép năm',
+      label: '🏖️ Phép năm',
       why: !isOfficial
         ? 'Chỉ áp dụng sau khi chính thức'
         : leaveInfo.available <= 0
           ? 'Hết ngày phép năm'
           : undefined,
     },
-    { value: 'unpaid', label: 'Nghỉ không lương' },
+    { value: 'unpaid', label: '💸 Nghỉ không lương' },
     {
       value: 'birthday',
       label: '🎂 Nghỉ sinh nhật',
@@ -349,8 +349,8 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
           {[
-            { label: 'Phép năm', status: !isOfficial ? 'Chưa chính thức' : `${leaveInfo.available} ngày còn lại` },
-            { label: 'Nghỉ không lương', status: 'Không giới hạn · trừ lương ngày tương ứng' },
+            { label: '🏖️ Phép năm', status: !isOfficial ? 'Chưa chính thức' : `${leaveInfo.available} ngày còn lại` },
+            { label: '💸 Nghỉ không lương', status: 'Không giới hạn · trừ lương ngày tương ứng' },
             { label: '🎂 Sinh nhật', status: !isOfficial ? 'Chưa chính thức' : workedMonths < 6 ? `Cần đủ 6 tháng (còn ${6 - workedMonths})` : birthdayUsedThisYear ? 'Đã dùng năm nay' : '1 ngày/năm, có lương' },
             { label: '🏠 Remote', status: !isOfficial ? 'Chưa chính thức' : remoteUsedThisWeek ? 'Đã dùng tuần này' : '1 ngày/tuần' },
             { label: '🎊 Hiếu hỉ', status: !isOfficial ? 'Chưa chính thức' : workedMonths < 12 ? `Cần đủ 1 năm (còn ${12 - workedMonths} tháng)` : 'Tối đa 3 ngày, không trừ phép năm' },

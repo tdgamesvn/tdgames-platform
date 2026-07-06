@@ -14,8 +14,8 @@ interface LeaveApprovalProps {
 }
 
 const LEAVE_TYPES: Record<string, string> = {
-  annual:   'Phép năm',
-  unpaid:   'Không lương',
+  annual:   '🏖️ Phép năm',
+  unpaid:   '💸 Không lương',
   birthday: '🎂 Nghỉ sinh nhật',
   remote:   '🏠 Làm remote',
   hieu_hi:  '🎊 Hiếu hỉ',
