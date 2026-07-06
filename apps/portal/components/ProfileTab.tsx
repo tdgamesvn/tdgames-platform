@@ -215,6 +215,7 @@ const ProfileTab: React.FC<Props> = ({ currentUser, onToast }) => {
           {renderReadonly('Loại', profile.type === 'fulltime' ? 'Fulltime' : profile.type === 'parttime' ? 'Part-time' : 'Freelancer')}
           {renderReadonly('Ngày bắt đầu', profile.start_date || '')}
           {renderReadonly('Hết thử việc', profile.probation_end || '')}
+          {renderReadonly('Ngày lên chính thức', profile.official_date || '')}
           {renderReadonly('Trạng thái', profile.status === 'active' ? 'Đang làm việc' : profile.status)}
         </div>
       </div>
