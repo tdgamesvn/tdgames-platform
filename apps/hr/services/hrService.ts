@@ -117,6 +117,7 @@ const EMPLOYEE_LITE_SELECT = [
   'department_id', 'avatar_url', 'email', 'phone', 'work_email',
   'start_date', 'worker_id', 'exclude_from_payroll', 'is_hidden',
   'specializations', 'tags', 'rate_amount', 'rate_currency', 'rate_type',
+  'probation_end', 'official_date',
   'department:hr_departments!hr_employees_department_id_fkey(id, name)',
 ].join(', ');
 
