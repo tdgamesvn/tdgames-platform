@@ -340,6 +340,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
           {[
             { label: 'Phép năm', status: !isOfficial ? 'Chưa chính thức' : `${leaveInfo.available} ngày còn lại` },
+            { label: 'Nghỉ không lương', status: 'Không giới hạn · trừ lương ngày tương ứng' },
             { label: '🎂 Sinh nhật', status: !isOfficial ? 'Chưa chính thức' : workedMonths < 6 ? `Cần đủ 6 tháng (còn ${6 - workedMonths})` : birthdayUsedThisYear ? 'Đã dùng năm nay' : '1 ngày/năm, có lương' },
             { label: '🏠 Remote', status: !isOfficial ? 'Chưa chính thức' : remoteUsedThisWeek ? 'Đã dùng tuần này' : '1 ngày/tuần' },
             { label: '🎊 Hiếu hỉ', status: 'Không trừ phép năm · số ngày theo sự kiện (HR duyệt)' },
