@@ -21,7 +21,7 @@
 | Framework | React 19 + TypeScript |
 | Build | Vite 6.4.x |
 | Styling | Tailwind CSS (config trong `index.html`) |
-| Backend | Supabase (Auth + PostgreSQL + Edge Functions) |
+| Backend | Supabase (Auth + PostgreSQL + Edge Functions) — sửa migration/Edge Function: dùng skill `supabase:supabase-postgres-best-practices` trước khi viết SQL |
 | File Storage | Cloudflare R2 (`VITE_R2_PUBLIC_URL`) |
 | Payment QR | SePay (`VITE_SEPAY_EDGE_FUNCTION_URL`, `VITE_SEPAY_API_KEY`) |
 | Email Outreach | Custom Outreach API (`VITE_OUTREACH_API_URL`) |
@@ -192,6 +192,15 @@ Users có thể có `primary role` + `secondary_roles[]`.
 
 ---
 
+## ✅ Quy trình trước khi commit
+
+1. GitNexus `detect_changes({scope: "compare", base_ref: "main"})` — xác nhận đúng phạm vi thay đổi
+2. `npm run build` — bắt buộc pass
+3. Skill `/verify` hoặc `/run` nếu có sửa UI/luồng người dùng — xác nhận chạy thật trên localhost:3000
+4. Skill `/code-review` cho diff trước khi tạo PR/commit lớn
+
+---
+
 ## 📚 Memory Protocol
 
 Sau mỗi session có code thay đổi, PHẢI cập nhật:
@@ -206,7 +215,7 @@ Sau mỗi session có code thay đổi, PHẢI cập nhật:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **tdgames-platform** (3266 symbols, 6705 relationships, 275 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **tdgames-platform** (4320 symbols, 8609 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
