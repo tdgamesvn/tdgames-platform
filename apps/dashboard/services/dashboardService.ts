@@ -1,11 +1,13 @@
 import { supabase } from '@/services/supabaseClient';
+import { fetchExchangeRate, avgRate } from '@/services/exchangeRateService';
+import { fetchLatestBalances } from '@/services/bankBalanceService';
 
 // ═══════════════════════════════════════════════════════════
 // Types
 // ═══════════════════════════════════════════════════════════
 
-// Tỷ giá quy đổi USD → VND (cập nhật định kỳ)
-const USD_TO_VND = 25_500;
+// Fallback nếu VCB edge function lỗi — chỉ dùng khi fetch thất bại.
+const FALLBACK_USD_TO_VND = 25_500;
 
 export interface MonthlyData {
   month: number;
@@ -77,6 +79,36 @@ export interface CeoDashboardData {
     emailsSent: number;
     newLeadsThisMonth: number;
   };
+  // ── Cash position (real bank balance) ──
+  cashPosition: {
+    totalVnd: number;
+    accounts: { name: string; balance: number; currency: string; staleDays: number | null; source: string }[];
+    staleDays: number | null;
+  };
+  // ── Data confidence per block ──
+  confidence: {
+    revenue: { mapped: number; total: number };
+    projectCost: { mapped: number; total: number };
+    cashPosition: { staleDays: number | null };
+  };
+  // ── Project profitability (estimated vs verified) ──
+  projectProfitability: {
+    projectId: string;
+    projectName: string;
+    estimatedRevenue: number;
+    estimatedCost: number;
+    estimatedProfit: number;
+    verifiedRevenue: number;
+    verifiedCost: number;
+    verifiedProfit: number;
+  }[];
+  // ── AR/AP summary ──
+  arApSummary: {
+    arTotal: number;
+    arBuckets: { bucket: string; total: number }[];
+    apTotal: number;
+    apTopVendors: { vendor: string; total: number }[];
+  };
   // ── Health score ──
   healthScore: number;
   // ── Selected period ──
@@ -133,6 +165,14 @@ export async function fetchCeoDashboard(
   const prev = getPrevMonth(selMonth, selYear);
   const last6 = getLast6Months(selMonth, selYear);
 
+  let usdToVnd = FALLBACK_USD_TO_VND;
+  try {
+    usdToVnd = avgRate(await fetchExchangeRate());
+  } catch {
+    // ponytail: VCB edge function down → fall back to last known static rate,
+    // dashboard still renders instead of hard-failing.
+  }
+
   // Date range for 6-month window
   const firstMonthRange = getMonthRange(last6[0].m, last6[0].y);
   const lastMonthRange = getMonthRange(last6[5].m, last6[5].y);
@@ -153,12 +193,12 @@ export async function fetchCeoDashboard(
     outreachRes,
     emailRes,
   ] = await Promise.all([
-    supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at'),
-    supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type'),
+    supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at, due_date, crm_project_id'),
+    supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type, vendor, crm_project_id'),
     supabase.from('wf_workers').select('id, status'),
-    supabase.from('wf_tasks').select('id, status, price, currency, exchange_rate, payment_status, created_at'),
+    supabase.from('wf_tasks').select('id, status, price, currency, exchange_rate, payment_status, created_at, crm_project_id'),
     supabase.from('crm_clients').select('id, status'),
-    supabase.from('crm_projects').select('id, status, budget, currency'),
+    supabase.from('crm_projects').select('id, name, status, budget, currency'),
     supabase.from('hr_employees').select('id, status, department_id'),
     supabase.from('hr_departments').select('id, name'),
     supabase.from('pay_payroll_sheets').select('id, title, status, month, year, total_net_salary, total_company_cost')
@@ -196,7 +236,7 @@ export async function fetchCeoDashboard(
       const d = new Date(inv.paid_date || inv.issue_date || inv.created_at);
       if (d.getMonth() + 1 !== m || d.getFullYear() !== y) continue;
       const total = inv.amount_received ? Number(inv.amount_received) : calcInvoiceTotal(inv.items);
-      rev += (inv.currency || 'USD') === 'VND' ? total : total * USD_TO_VND;
+      rev += (inv.currency || 'USD') === 'VND' ? total : total * usdToVnd;
     }
 
     // Expenses this month
@@ -226,7 +266,7 @@ export async function fetchCeoDashboard(
   for (const inv of invoices) {
     if (inv.status === 'paid') continue;
     const total = calcInvoiceTotal(inv.items);
-    receivable += (inv.currency || 'USD') === 'VND' ? total : total * USD_TO_VND;
+    receivable += (inv.currency || 'USD') === 'VND' ? total : total * usdToVnd;
     receivableCount++;
   }
 
@@ -234,7 +274,7 @@ export async function fetchCeoDashboard(
   for (const t of tasks) {
     if (t.payment_status === 'paid') continue;
     const price = Number(t.price) || 0;
-    const rate = Number(t.exchange_rate) || USD_TO_VND;
+    const rate = Number(t.exchange_rate) || usdToVnd;
     workforcePayable += t.currency === 'USD' ? price * rate : price;
   }
 
@@ -421,6 +461,124 @@ export async function fetchCeoDashboard(
   );
 
   // ═══════════════════════════════════════════════════════════
+  // Cash Position — real bank balances (Task 4)
+  // ═══════════════════════════════════════════════════════════
+
+  const balances = await fetchLatestBalances().catch(() => []);
+  const bankAccountsRes = await supabase.from('finance_bank_accounts').select('id, name, currency');
+  const bankAccounts = bankAccountsRes.data || [];
+  const bankAccMap: Record<string, { name: string; currency: string }> = {};
+  for (const a of bankAccounts) bankAccMap[a.id] = { name: (a as any).name, currency: (a as any).currency };
+
+  const nowTs = Date.now();
+  const cashAccounts = balances.map(b => {
+    const staleDays = Math.floor((nowTs - new Date(b.snapshot_date).getTime()) / 86400000);
+    const meta = bankAccMap[b.account_id] || { name: 'Unknown', currency: 'VND' };
+    return { name: meta.name, balance: b.balance, currency: meta.currency, staleDays, source: b.source };
+  });
+  const totalVnd = cashAccounts.reduce((s, a) => s + (a.currency === 'VND' ? a.balance : a.balance * usdToVnd), 0);
+  const maxStale = cashAccounts.length ? Math.max(...cashAccounts.map(a => a.staleDays)) : null;
+
+  // ═══════════════════════════════════════════════════════════
+  // Confidence — % of rows mapped to a project (Task 4)
+  // ═══════════════════════════════════════════════════════════
+
+  const revMapped = invoices.filter((i: any) => i.crm_project_id).length;
+  const costItems = [...expenses.filter((e: any) => e.type !== 'revenue'), ...tasks];
+  const costMapped = costItems.filter((x: any) => x.crm_project_id).length;
+
+  // ═══════════════════════════════════════════════════════════
+  // Project Profitability — estimated vs verified (Task 4)
+  // ═══════════════════════════════════════════════════════════
+
+  const projMap: Record<string, { name: string }> = {};
+  for (const p of projects) projMap[p.id] = { name: (p as any).name };
+
+  const profitByProject: Record<string, any> = {};
+  const ensureProj = (id: string) => {
+    if (!profitByProject[id]) {
+      profitByProject[id] = {
+        projectId: id, projectName: projMap[id]?.name || 'Unknown',
+        estimatedRevenue: 0, estimatedCost: 0, verifiedRevenue: 0, verifiedCost: 0,
+      };
+    }
+    return profitByProject[id];
+  };
+
+  for (const inv of invoices) {
+    const pid = (inv as any).crm_project_id;
+    if (!pid) continue;
+    const total = inv.amount_received ? Number(inv.amount_received) : calcInvoiceTotal(inv.items);
+    const vnd = (inv.currency || 'USD') === 'VND' ? total : total * usdToVnd;
+    const p = ensureProj(pid);
+    p.estimatedRevenue += vnd;
+    if (inv.status === 'paid') p.verifiedRevenue += vnd;
+  }
+  for (const t of tasks) {
+    const pid = (t as any).crm_project_id;
+    if (!pid) continue;
+    const price = Number(t.price) || 0;
+    const rate = Number(t.exchange_rate) || usdToVnd;
+    const vnd = t.currency === 'USD' ? price * rate : price;
+    const p = ensureProj(pid);
+    p.estimatedCost += vnd;
+    if (t.payment_status === 'paid') p.verifiedCost += vnd;
+  }
+  for (const e of expenses) {
+    if (e.type === 'revenue') continue;
+    const pid = (e as any).crm_project_id;
+    if (!pid) continue;
+    const vnd = (e.currency || 'VND') === 'VND' ? Number(e.amount) : Number(e.amount) * usdToVnd;
+    const p = ensureProj(pid);
+    p.estimatedCost += vnd;
+    if (e.status === 'paid') p.verifiedCost += vnd;
+  }
+
+  const projectProfitability = Object.values(profitByProject).map((p: any) => ({
+    ...p,
+    estimatedProfit: p.estimatedRevenue - p.estimatedCost,
+    verifiedProfit: p.verifiedRevenue - p.verifiedCost,
+  }));
+
+  // ═══════════════════════════════════════════════════════════
+  // AR/AP Summary (Task 4)
+  // ═══════════════════════════════════════════════════════════
+
+  const arBucketDefs = [
+    { key: 'current', label: 'Chưa đến hạn', max: 0 },
+    { key: '1-30', label: '1–30 ngày', max: 30 },
+    { key: '31-60', label: '31–60 ngày', max: 60 },
+    { key: '61-90', label: '61–90 ngày', max: 90 },
+    { key: '90+', label: 'Trên 90 ngày', max: Infinity },
+  ];
+  const arBucketTotals: Record<string, number> = {};
+  for (const b of arBucketDefs) arBucketTotals[b.key] = 0;
+  let arTotal = 0;
+  for (const inv of invoices) {
+    if (inv.status === 'paid') continue;
+    const total = calcInvoiceTotal(inv.items);
+    const vnd = (inv.currency || 'USD') === 'VND' ? total : total * usdToVnd;
+    const due = new Date((inv as any).due_date || inv.issue_date || inv.created_at);
+    const dpd = Math.floor((Date.now() - due.getTime()) / 86400000);
+    const bucket = dpd <= 0 ? 'current' : dpd <= 30 ? '1-30' : dpd <= 60 ? '31-60' : dpd <= 90 ? '61-90' : '90+';
+    arBucketTotals[bucket] += vnd;
+    arTotal += vnd;
+  }
+
+  const apByVendor: Record<string, number> = {};
+  for (const e of expenses) {
+    if (e.type === 'revenue' || e.status === 'paid') continue;
+    const vendor = (e as any).vendor?.trim() || '(Không có nhà cung cấp)';
+    const vnd = (e.currency || 'VND') === 'VND' ? Number(e.amount) : Number(e.amount) * usdToVnd;
+    apByVendor[vendor] = (apByVendor[vendor] || 0) + vnd;
+  }
+  const apTopVendors = Object.entries(apByVendor)
+    .map(([vendor, total]) => ({ vendor, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+  const apTotal = Object.values(apByVendor).reduce((s, v) => s + v, 0);
+
+  // ═══════════════════════════════════════════════════════════
   // Return
   // ═══════════════════════════════════════════════════════════
 
@@ -464,6 +622,19 @@ export async function fetchCeoDashboard(
       outreachTier1,
       emailsSent,
       newLeadsThisMonth,
+    },
+    cashPosition: { totalVnd, accounts: cashAccounts, staleDays: maxStale },
+    confidence: {
+      revenue: { mapped: revMapped, total: invoices.length },
+      projectCost: { mapped: costMapped, total: costItems.length },
+      cashPosition: { staleDays: maxStale },
+    },
+    projectProfitability,
+    arApSummary: {
+      arTotal,
+      arBuckets: arBucketDefs.map(b => ({ bucket: b.label, total: arBucketTotals[b.key] })),
+      apTotal,
+      apTopVendors,
     },
     healthScore,
     selectedMonth: selMonth,

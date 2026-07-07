@@ -11,8 +11,8 @@ import { fetchLoans } from '../services/loansService';
 import { setHashTab } from '@/App';
 import { supabase } from '@/services/supabaseClient';
 
-export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' | 'vat' | 'tncn' | 'bhxh' | 'savings' | 'loans';
-const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh', 'savings', 'loans'];
+export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' | 'vat' | 'tncn' | 'bhxh' | 'savings' | 'loans' | 'bank-balance';
+const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh', 'savings', 'loans', 'bank-balance'];
 
 export function useAccountingState(currentUser: string, initialTab?: string | null) {
   const [activeTab, _setActiveTab] = useState<AccountingTab>(() => {
