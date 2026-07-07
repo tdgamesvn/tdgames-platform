@@ -5,6 +5,9 @@ import { Navbar } from '@/components/Navbar';
 import { fetchCeoDashboard, CeoDashboardData, Alert } from '../services/dashboardService';
 import TrendChart from './TrendChart';
 import PlTable from './PlTable';
+import BankBalancePanel from './BankBalancePanel';
+import ProjectProfitabilityPanel from './ProjectProfitabilityPanel';
+import ArApPanel from './ArApPanel';
 
 interface Props { currentUser: AccountUser; onBack: () => void; initialTab?: string | null }
 
@@ -183,6 +186,13 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
                   </div>
                 </div>
               </Panel>
+            </div>
+
+            {/* ══════ Section 3.5: Financial Truth ══════ */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <BankBalancePanel data={data.cashPosition} />
+              <ProjectProfitabilityPanel data={data.projectProfitability} />
+              <ArApPanel data={data.arApSummary} />
             </div>
 
             {/* ══════ Section 4: P&L Table ══════ */}
