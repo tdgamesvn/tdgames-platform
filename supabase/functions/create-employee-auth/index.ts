@@ -42,6 +42,67 @@ async function discordAdminEvent(
   }).catch(() => { /* never block main flow */ });
 }
 
+// ── Resend email sender for auth flows (invite / reset password) ──
+// ponytail: template duplicated in manage-employee-auth/index.ts (2 separate
+// Deno edge functions, no shared runtime between them) — mirrors the visual
+// style of notify-email/index.ts. Update both if the look changes.
+async function sendAuthEmail(opts: {
+  to: string;
+  subject: string;
+  title: string;
+  bodyText: string;
+  ctaUrl: string;
+  ctaLabel: string;
+}) {
+  const resendKey = Deno.env.get("RESEND_API_KEY");
+  const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "noreply@tdgamestudio.com";
+  if (!resendKey) throw new Error("RESEND_API_KEY not set");
+
+  const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="vi"><head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:0;background-color:#f6f6f6;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f6f6f6;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background-color:#ffffff;border-radius:8px;border:1px solid #e8e8e8;">
+        <tr><td style="padding:22px 36px;background-color:#FF9500;border-radius:8px 8px 0 0;">
+          <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:900;color:#000000;letter-spacing:0.05em;text-transform:uppercase;">TD Games</span>
+          <span style="font-family:Helvetica,Arial,sans-serif;font-size:14px;color:rgba(0,0,0,0.55);">&nbsp;Platform</span>
+        </td></tr>
+        <tr><td style="padding:28px 36px 32px 36px;">
+          <p style="margin:0 0 10px 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;font-weight:600;color:#999999;text-transform:uppercase;letter-spacing:0.06em;">Tài khoản</p>
+          <h1 style="margin:0 0 14px 0;font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;color:#111111;line-height:1.4;">${opts.title}</h1>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;"><tr><td style="height:1px;background-color:#f0f0f0;font-size:0;">&nbsp;</td></tr></table>
+          <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:15px;color:#444444;line-height:1.7;">${opts.bodyText.replace(/\n/g, "<br>")}</p>
+          <table cellpadding="0" cellspacing="0" style="margin-top:24px;"><tr><td style="border-radius:6px;background-color:#FF9500;">
+            <a href="${opts.ctaUrl}" target="_blank" style="display:inline-block;padding:11px 28px;font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:700;color:#000000;text-decoration:none;border-radius:6px;white-space:nowrap;">${opts.ctaLabel} &rarr;</a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:16px 36px 20px 36px;border-top:1px solid #f0f0f0;">
+          <p style="margin:0 0 4px 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#aaaaaa;">Email t&#x1ef1; &#x111;&#x1ed9;ng t&#x1eeb; <strong style="color:#888888;">TD Games Platform</strong>. Vui l&#xf2;ng kh&#xf4;ng reply.</p>
+          <p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#cccccc;">TD GAMES COMPANY LIMITED</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  const text = `TD GAMES PLATFORM | TAI KHOAN\n${"-".repeat(50)}\n\n${opts.title}\n\n${opts.bodyText}\n\n${opts.ctaLabel}: ${opts.ctaUrl}\n\n${"-".repeat(50)}\nEmail nay duoc gui tu dong tu he thong noi bo TD Games Platform.\nVui long khong tra loi email nay.\n\nTD GAMES COMPANY LIMITED\nXom Ngoai, Dong Anh Commune, Hanoi City, Vietnam\nMST: 0111386856 | tdgames.vn@gmail.com`;
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: `TD Games <${fromEmail}>`,
+      reply_to: fromEmail,
+      to: [opts.to],
+      subject: opts.subject,
+      html,
+      text,
+    }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+}
+
 // Helper: find auth user by email using RPC (reliable, no pagination issues)
 async function findAuthUserByEmail(supabaseAdmin: any, email: string) {
   const { data, error } = await supabaseAdmin.rpc('find_auth_user_by_email', {
@@ -304,20 +365,31 @@ Deno.serve(async (req: Request) => {
       userMetadata.worker_id = worker_id;
     }
 
-    // Invite new user by email
-    const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: userMetadata,
-      redirectTo: `${Deno.env.get("SITE_URL") || "https://app.tdgamestudio.com"}`,
+    // Create user + get invite link WITHOUT letting Supabase send its own email
+    // (built-in mailer is unreliable — see notify-email which already moved to Resend)
+    const redirectTo = `${Deno.env.get("SITE_URL") || "https://app.tdgamestudio.com"}`;
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: { data: userMetadata, redirectTo },
     });
 
     if (error) throw error;
+    if (!data.user?.id) throw new Error("generateLink không trả về user (kiểm tra Redirect URL trong Auth settings)");
 
-    // Set app_metadata (admin-only, used in RLS) — inviteUserByEmail only sets user_metadata
-    if (data.user?.id) {
-      await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
-        app_metadata: { role: role || "member" },
-      });
-    }
+    // Set app_metadata (admin-only, used in RLS) — generateLink only sets user_metadata
+    await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+      app_metadata: { role: role || "member" },
+    });
+
+    await sendAuthEmail({
+      to: email,
+      subject: "Tài khoản TD Games Platform của bạn đã sẵn sàng",
+      title: "Chào mừng đến với TD Games Platform",
+      bodyText: `Xin chào ${full_name},\n\nTài khoản của bạn đã được tạo. Bấm nút bên dưới để đặt mật khẩu và bắt đầu sử dụng hệ thống.`,
+      ctaUrl: data.properties.action_link,
+      ctaLabel: "Đặt mật khẩu & Đăng nhập",
+    });
 
     await discordAdminEvent("invite", email, {
       "👤 Tên": full_name,
