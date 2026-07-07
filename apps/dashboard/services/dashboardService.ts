@@ -1,11 +1,12 @@
 import { supabase } from '@/services/supabaseClient';
+import { fetchExchangeRate, avgRate } from '@/services/exchangeRateService';
 
 // ═══════════════════════════════════════════════════════════
 // Types
 // ═══════════════════════════════════════════════════════════
 
-// Tỷ giá quy đổi USD → VND (cập nhật định kỳ)
-const USD_TO_VND = 25_500;
+// Fallback nếu VCB edge function lỗi — chỉ dùng khi fetch thất bại.
+const FALLBACK_USD_TO_VND = 25_500;
 
 export interface MonthlyData {
   month: number;
@@ -133,6 +134,14 @@ export async function fetchCeoDashboard(
   const prev = getPrevMonth(selMonth, selYear);
   const last6 = getLast6Months(selMonth, selYear);
 
+  let usdToVnd = FALLBACK_USD_TO_VND;
+  try {
+    usdToVnd = avgRate(await fetchExchangeRate());
+  } catch {
+    // ponytail: VCB edge function down → fall back to last known static rate,
+    // dashboard still renders instead of hard-failing.
+  }
+
   // Date range for 6-month window
   const firstMonthRange = getMonthRange(last6[0].m, last6[0].y);
   const lastMonthRange = getMonthRange(last6[5].m, last6[5].y);
@@ -153,12 +162,12 @@ export async function fetchCeoDashboard(
     outreachRes,
     emailRes,
   ] = await Promise.all([
-    supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at'),
-    supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type'),
+    supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at, due_date, crm_project_id'),
+    supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type, vendor, crm_project_id'),
     supabase.from('wf_workers').select('id, status'),
-    supabase.from('wf_tasks').select('id, status, price, currency, exchange_rate, payment_status, created_at'),
+    supabase.from('wf_tasks').select('id, status, price, currency, exchange_rate, payment_status, created_at, crm_project_id'),
     supabase.from('crm_clients').select('id, status'),
-    supabase.from('crm_projects').select('id, status, budget, currency'),
+    supabase.from('crm_projects').select('id, name, status, budget, currency'),
     supabase.from('hr_employees').select('id, status, department_id'),
     supabase.from('hr_departments').select('id, name'),
     supabase.from('pay_payroll_sheets').select('id, title, status, month, year, total_net_salary, total_company_cost')
@@ -196,7 +205,7 @@ export async function fetchCeoDashboard(
       const d = new Date(inv.paid_date || inv.issue_date || inv.created_at);
       if (d.getMonth() + 1 !== m || d.getFullYear() !== y) continue;
       const total = inv.amount_received ? Number(inv.amount_received) : calcInvoiceTotal(inv.items);
-      rev += (inv.currency || 'USD') === 'VND' ? total : total * USD_TO_VND;
+      rev += (inv.currency || 'USD') === 'VND' ? total : total * usdToVnd;
     }
 
     // Expenses this month
@@ -226,7 +235,7 @@ export async function fetchCeoDashboard(
   for (const inv of invoices) {
     if (inv.status === 'paid') continue;
     const total = calcInvoiceTotal(inv.items);
-    receivable += (inv.currency || 'USD') === 'VND' ? total : total * USD_TO_VND;
+    receivable += (inv.currency || 'USD') === 'VND' ? total : total * usdToVnd;
     receivableCount++;
   }
 
@@ -234,7 +243,7 @@ export async function fetchCeoDashboard(
   for (const t of tasks) {
     if (t.payment_status === 'paid') continue;
     const price = Number(t.price) || 0;
-    const rate = Number(t.exchange_rate) || USD_TO_VND;
+    const rate = Number(t.exchange_rate) || usdToVnd;
     workforcePayable += t.currency === 'USD' ? price * rate : price;
   }
 
