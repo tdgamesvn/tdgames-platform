@@ -42,6 +42,15 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
 
   useEffect(load, [selMonth, selYear]);
 
+  // ponytail: 60s polling instead of Supabase Realtime — dashboard has no
+  // sub-second latency requirement, and polling avoids managing 5+ realtime
+  // channel subscriptions for a single-viewer admin screen. Upgrade to
+  // Realtime if multiple CEOs view concurrently and 60s staleness becomes noticeable.
+  useEffect(() => {
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, [selMonth, selYear]);
+
   return (
     <div className="min-h-screen bg-bg-dark relative overflow-hidden">
       <AppBackground />
@@ -82,7 +91,8 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
             {/* ══════ Section 1: KPI Strip ══════ */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <KpiCard icon="💰" label="Doanh thu" value={fmtM(data.current.revenue)} suffix="đ"
-                change={pctChange(data.current.revenue, data.prev.revenue)} gradient="from-emerald-500 to-teal-600" />
+                change={pctChange(data.current.revenue, data.prev.revenue)} gradient="from-emerald-500 to-teal-600"
+                footer={<ConfidenceBadge mapped={data.confidence.revenue.mapped} total={data.confidence.revenue.total} />} />
               <KpiCard icon="📉" label="Chi phí" value={fmtM(data.current.expense)} suffix="đ"
                 change={pctChange(data.current.expense, data.prev.expense)} invertColor gradient="from-red-500 to-orange-600" />
               <KpiCard icon={data.current.profit >= 0 ? '📈' : '📉'} label="Lợi nhuận"
@@ -212,8 +222,8 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
 
 const KpiCard: React.FC<{
   icon: string; label: string; value: string; suffix: string;
-  change?: number; gradient: string; invertColor?: boolean;
-}> = ({ icon, label, value, suffix, change, gradient, invertColor }) => {
+  change?: number; gradient: string; invertColor?: boolean; footer?: React.ReactNode;
+}> = ({ icon, label, value, suffix, change, gradient, invertColor, footer }) => {
   const hasChange = change !== undefined && change !== 0;
   const isPositive = invertColor ? change! < 0 : change! > 0;
   return (
@@ -232,8 +242,16 @@ const KpiCard: React.FC<{
           {isPositive ? '▲' : '▼'} {Math.abs(change!).toFixed(0)}% vs tháng trước
         </p>
       )}
+      {footer}
     </div>
   );
+};
+
+const ConfidenceBadge: React.FC<{ mapped: number; total: number }> = ({ mapped, total }) => {
+  if (total === 0) return null;
+  const pct = Math.round((mapped / total) * 100);
+  const color = pct >= 80 ? 'text-emerald-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400';
+  return <span className={`text-[9px] font-bold ${color}`}>({pct}% gán dự án)</span>;
 };
 
 const HealthCard: React.FC<{ score: number; margin: number }> = ({ score, margin }) => {
