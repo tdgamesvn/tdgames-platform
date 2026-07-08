@@ -6,6 +6,8 @@ _Cập nhật: 2026-06-17_
 
 ## To Do
 
+- [ ] [SECURITY] `App.tsx` router không có role-guard theo từng route (`activeApp === 'invoice'` v.v.) — chỉ chặn bằng cách ẩn tile ở HomeScreen (`config/apps.ts` roles filter). Phát hiện lại khi test `ke_toan_thue` truy cập thẳng `#invoice` qua URL vẫn load được UI đầy đủ (RLS vẫn chặn ghi/đọc data không được phép ở tầng DB, nhưng UI/form vẫn lộ ra). Áp dụng cho MỌI role hạn chế (member, freelancer, ke_toan_thue...), không riêng tính năng nào. Cần thêm guard chung trong `App.tsx` kiểm tra `activeApp` có trong `roles` của user trước khi render, hoặc redirect về HomeScreen. Phát hiện: 2026-07-08, session Tax Portal.
+
 - [ ] Siết RLS nhóm bảng `wf_*` (workforce) — hiện qual=true cho authenticated; cần ownership predicate cho freelancer portal (match qua email/auth_user_id) trước khi siết. Deferred từ session 2026-07-02.
 
 - [x] Build Accounting — Tiết kiệm & Vay nợ (2 tabs mới)
@@ -39,6 +41,10 @@ _Cập nhật: 2026-06-17_
 _(trống)_
 
 ## Done (mới)
+
+- [x] Tax Portal — kế toán thuế thuê ngoài (`ke_toan_thue` role)
+  - Done: 2026-07-08
+  - Result: role mới `ke_toan_thue` + `#tax-portal` app (6 tab: Tổng quan/Hoá đơn/Chi phí/Ngân hàng/Tài sản&BHXH/Lương-TNCN), RLS SELECT-only trên 12 bảng accounting/tax, CSV/Excel export. Tài khoản thật `tax.tdgames@gmail.com` đã tạo + verify login qua Playwright: app picker chỉ hiện đúng 1 tile, 5/6 tab load data thật (tab Ngân hàng trống vì DB chưa có snapshot, không phải bug). Commits `1a10867`..`eb336c1` (worktree `tax-portal`). Phát hiện 1 gap bảo mật pre-existing (route không role-guard) → tách thành task riêng ở To Do, không tự vá ngoài phạm vi.
 
 - [x] Payroll → Discord notification khi xác nhận bảng lương
   - Done: 2026-07-03
