@@ -36,7 +36,11 @@ _Cập nhật: 2026-06-17_
 
 ## Doing
 
-_(trống)_
+- [ ] Tax Portal — kế toán thuế thuê ngoài (`ke_toan_thue` role)
+  - Started: 2026-07-08
+  - Progress: Task 1-6/7 xong (role+shell, RLS SELECT-only 12 bảng, read service, CSV/Excel export, 6 tab UI, wired vào TaxPortalApp). Build pass mỗi task.
+  - Blocked: Task 7 (tạo tài khoản thật + regression pass qua Playwright) — chờ sếp cung cấp email thật của kế toán thuế ngoài, không tự bịa.
+  - Plan: `docs/superpowers/plans/2026-07-08-tax-portal.md`, worktree `tax-portal`
 
 ## Done (mới)
 

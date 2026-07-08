@@ -2704,3 +2704,22 @@ PIT/Net lương T6/2026 của 3 NV chuyển giao (Hiếu, Tú, Bảo Anh) đã �
 
 ### Next Step
 - Sếp/kế toán review lại sheet T6/2026 trên UI để xác nhận số đã đúng trước khi confirm/paid.
+
+## 2026-07-08 (session 26 — Tax Portal Task 1-6)
+### Task
+Xây "Tax Portal" — role mới `ke_toan_thue` cho kế toán thuế thuê ngoài (không phải nhân viên), đọc-only accounting/tax data + export CSV/Excel, theo plan `docs/superpowers/plans/2026-07-08-tax-portal.md`. Sếp chọn chỉ làm đến Task 6, dừng trước Task 7 (chờ email thật của kế toán thuế).
+
+### Work Done
+- Task 1 (`1a10867`): role `ke_toan_thue` thêm vào `types.ts`/`authService.ts`/`App.tsx` VALID_ROLES, `App.tsx` router branch + `config/apps.ts` tile mới, `TaxPortalApp.tsx` placeholder.
+- Task 2 (`ac10f29`): migration `20260708100000_tax_portal_role_rls.sql` — 12 policy SELECT-only cho `ke_toan_thue` (invoice_invoices, expense_*, finance_bank_*, acc_savings, acc_loans, acc_bhxh_payments, finance_fx_rates, pay_payroll_*). Applied qua Supabase MCP + verify pg_policies (12 rows) + advisors check (không có warning mới). `invoice_line_items` bị bỏ vì không tồn tại như bảng riêng (đã inline JSONB trong `invoice_invoices.items`).
+- Task 3 (`3c6f6e0`): `taxPortalService.ts` — 10 hàm fetch. Kiểm tra schema thật qua `information_schema.columns` phát hiện nhiều cột khác tên so với plan ban đầu (acc_savings/acc_loans dùng `principal` không phải `amount`, acc_loans dùng `lender_name`, acc_bhxh_payments dùng `total_amount`/`paid_date`/`month`+`year` không có cột `period` gộp sẵn, expense_expenses không có `description` (dùng `title`), pay_payroll_records dùng `gross_actual`/`employee_bhxh`/`company_bhxh`) — dùng Postgrest column alias (`amount:principal` v.v.) để giữ nguyên tên field trong TypeScript interface, tránh phải sửa Task 4/5.
+- Task 4 (`ed6c785`): `taxPortalExportService.ts` — CSV cho 6 domain + Excel cho payroll (xlsx, cùng pattern `payrollExportService.ts`).
+- Task 5 (`3d25d74`): 6 tab component (Overview, Invoice, Expense, Bank, Assets, Payroll) theo Style Guide.
+- Task 6 (`e693eaa`): wire 6 tab thật vào `TaxPortalApp` (thay placeholder). GitNexus không kết nối phiên này — skip impact() theo đúng contingency ghi trong plan, note vào commit message (rủi ro thấp: route entrypoint mới, chỉ App.tsx router gọi).
+
+### Validation
+- `npm run build` pass sau mỗi task (chỉ warning chunk-size cũ, không có lỗi TS mới).
+- Chưa chạy Playwright / tạo tài khoản thật — đó là Task 7, cố ý dừng lại.
+
+### Next Step
+- Task 7: cần sếp cung cấp email thật của kế toán thuế thuê ngoài → tạo tài khoản `ke_toan_thue`, test đăng nhập thật qua Playwright (chỉ thấy tile Tax Portal, 6 tab load đúng data, export hoạt động, negative test không vào được `#invoice`).
