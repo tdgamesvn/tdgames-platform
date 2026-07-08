@@ -98,6 +98,27 @@ export interface TaxPayrollRecord {
   bhxh_company: number;
 }
 
+export interface TaxEmployee {
+  id: string;
+  employee_code: string | null;
+  full_name: string;
+  date_of_birth: string | null;
+  gender: string | null;
+  id_number: string | null;
+  id_issue_date: string | null;
+  id_issue_place: string | null;
+  address: string | null;
+  insurance_number: string | null;
+  tax_code: string | null;
+  start_date: string | null;
+  official_date: string | null;
+  position: string | null;
+  department_id: string | null;
+  status: string | null;
+  id_card_front_url: string | null;
+  id_card_back_url: string | null;
+}
+
 export async function fetchTaxInvoices(): Promise<TaxInvoice[]> {
   const { data, error } = await supabase
     .from('invoice_invoices')
@@ -194,4 +215,16 @@ export async function fetchTaxPayrollRecords(sheetId: string): Promise<TaxPayrol
     .eq('sheet_id', sheetId);
   if (error) throw error;
   return (data || []) as unknown as TaxPayrollRecord[];
+}
+
+// Reads from `hr_employees_tax_view` (migration 20260708110000) — a column-limited
+// view, NOT the full `hr_employees` table. Only BHXH-relevant fields are exposed;
+// salary, bank account, internal notes etc. are never selectable through this path.
+export async function fetchTaxEmployees(): Promise<TaxEmployee[]> {
+  const { data, error } = await supabase
+    .from('hr_employees_tax_view')
+    .select('id, employee_code, full_name, date_of_birth, gender, id_number, id_issue_date, id_issue_place, address, insurance_number, tax_code, start_date, official_date, position, department_id, status, id_card_front_url, id_card_back_url')
+    .order('full_name', { ascending: true });
+  if (error) throw error;
+  return (data || []) as TaxEmployee[];
 }

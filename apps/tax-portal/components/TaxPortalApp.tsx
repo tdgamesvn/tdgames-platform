@@ -8,13 +8,14 @@ import TaxPortalExpenseTab from './TaxPortalExpenseTab';
 import TaxPortalBankTab from './TaxPortalBankTab';
 import TaxPortalAssetsTab from './TaxPortalAssetsTab';
 import TaxPortalPayrollTab from './TaxPortalPayrollTab';
+import TaxPortalEmployeeTab from './TaxPortalEmployeeTab';
 
 interface Props {
   currentUser: AccountUser;
   onBack: () => void;
 }
 
-type Tab = 'overview' | 'invoice' | 'expense' | 'bank' | 'assets' | 'payroll';
+type Tab = 'overview' | 'invoice' | 'expense' | 'bank' | 'assets' | 'payroll' | 'employees';
 
 const TAB_LABELS: Record<Tab, string> = {
   overview: 'Tổng quan',
@@ -23,8 +24,9 @@ const TAB_LABELS: Record<Tab, string> = {
   bank: 'Ngân hàng',
   assets: 'Tài sản & BHXH',
   payroll: 'Lương / TNCN',
+  employees: 'Nhân sự',
 };
-const ACCESSIBLE_TABS: Tab[] = ['overview', 'invoice', 'expense', 'bank', 'assets', 'payroll'];
+const ACCESSIBLE_TABS: Tab[] = ['overview', 'invoice', 'expense', 'bank', 'assets', 'payroll', 'employees'];
 
 const TaxPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
   const [tab, setTab] = useState<Tab>('overview');
@@ -58,6 +60,7 @@ const TaxPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
         {tab === 'bank' && <TaxPortalBankTab />}
         {tab === 'assets' && <TaxPortalAssetsTab />}
         {tab === 'payroll' && <TaxPortalPayrollTab />}
+        {tab === 'employees' && <TaxPortalEmployeeTab />}
       </main>
       <footer className="py-12 border-t border-white/5 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
