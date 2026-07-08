@@ -23,6 +23,7 @@ const TaxPortalExpenseTab: React.FC = () => {
             <tr className="text-left text-neutral-600 uppercase text-[10px] font-black border-b border-white/10">
               <th className="p-3">Ngày</th>
               <th className="p-3">Loại</th>
+              <th className="p-3">Diễn giải</th>
               <th className="p-3">NCC</th>
               <th className="p-3 text-right">Số tiền</th>
             </tr>
@@ -32,6 +33,7 @@ const TaxPortalExpenseTab: React.FC = () => {
               <tr key={r.id} className="border-b border-white/5">
                 <td className="p-3 text-white">{r.expense_date}</td>
                 <td className="p-3 text-neutral-medium">{r.type}</td>
+                <td className="p-3 text-white">{r.description || '—'}</td>
                 <td className="p-3 text-neutral-medium">{r.vendor || '—'}</td>
                 <td className="p-3 text-right text-white font-bold">{fmt(r.amount)} {r.currency}</td>
               </tr>

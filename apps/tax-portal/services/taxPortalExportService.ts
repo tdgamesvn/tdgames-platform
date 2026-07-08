@@ -24,8 +24,9 @@ export function exportInvoicesCSV(rows: TaxInvoice[]) {
 }
 
 export function exportExpensesCSV(rows: TaxExpense[]) {
-  const headers = ['ID', 'Số tiền', 'Tiền tệ', 'Loại', 'Trạng thái', 'Ngày', 'NCC'];
-  const csvRows = rows.map(r => [r.id, r.amount, r.currency, r.type, r.status, r.expense_date, r.vendor || '']);
+  const headers = ['ID', 'Số tiền', 'Tiền tệ', 'Loại', 'Trạng thái', 'Ngày', 'Diễn giải', 'NCC'];
+  // ponytail: quote-escape only description — free text có thể chứa dấu phẩy, các cột khác thì không.
+  const csvRows = rows.map(r => [r.id, r.amount, r.currency, r.type, r.status, r.expense_date, `"${(r.description || '').replace(/"/g, '""')}"`, r.vendor || '']);
   downloadCSV(headers, csvRows, `TaxPortal_ChiPhi_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
