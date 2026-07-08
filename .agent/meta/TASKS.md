@@ -44,7 +44,21 @@ _(trống)_
 
 - [x] Tax Portal — kế toán thuế thuê ngoài (`ke_toan_thue` role)
   - Done: 2026-07-08
-  - Result: role mới `ke_toan_thue` + `#tax-portal` app (6 tab: Tổng quan/Hoá đơn/Chi phí/Ngân hàng/Tài sản&BHXH/Lương-TNCN), RLS SELECT-only trên 12 bảng accounting/tax, CSV/Excel export. Tài khoản thật `tax.tdgames@gmail.com` đã tạo + verify login qua Playwright: app picker chỉ hiện đúng 1 tile, 5/6 tab load data thật (tab Ngân hàng trống vì DB chưa có snapshot, không phải bug). Commits `1a10867`..`eb336c1` (worktree `tax-portal`). Phát hiện 1 gap bảo mật pre-existing (route không role-guard) → tách thành task riêng ở To Do, không tự vá ngoài phạm vi.
+  - Result: role mới `ke_toan_thue` + `#tax-portal` app (6 tab: Tổng quan/Hoá đơn/Chi phí/Ngân hàng/Tài sản&BHXH/Lương-TNCN), RLS SELECT-only trên 12 bảng accounting/tax, CSV/Excel export. Tài khoản thật `tax.tdgames@gmail.com` đã tạo + verify login qua Playwright: app picker chỉ hiện đúng 1 tile, 5/6 tab load data thật (tab Ngân hàng trống vì DB chưa có snapshot, không phải bug). Đã merge vào main + push prod (commit `78d6c98`). Phát hiện 1 gap bảo mật pre-existing (route không role-guard) → tách thành task riêng ở To Do, không tự vá ngoài phạm vi.
+
+- [x] Dashboard Financial Truth Layer (8 tasks, plan `docs/superpowers/plans/2026-07-07-dashboard-financial-truth.md`, worktree `.claude/worktrees/dashboard-financial-truth`, branch `worktree-dashboard-financial-truth`, commits `9ece8c0`→`b9b5111`)
+  - Done: 2026-07-08
+  - Result: (1) tỷ giá live VCB thay hardcode `USD_TO_VND=25500`. (2) migration `finance_bank_balance_snapshots` + `crm_project_id` FK trên `expense_expenses`/`wf_tasks`/`invoice_invoices`. (3) `bankBalanceService.ts` + `BankBalanceEntryTab.tsx` nhập số dư thủ công. (4) `dashboardService.ts`: cash position + confidence (% chi phí gán được dự án) + project profitability + AR/AP. (5) 3 panel mới (BankBalance/ProjectProfitability/ArAp) wire vào `DashboardApp.tsx`. (6+7) confidence badge trên KPI Doanh thu + auto-refresh polling 60s. (8) regression pass: verify UI thật qua Playwright với tài khoản admin thật (`toan.dang@tdgamestudio.com`) trên `#dashboard` — login OK, cả 4 panel/badge hiện đúng dữ liệu thật (confidence 47%, AR 435.180.240đ, AP 222.443.516đ, project profitability Monster Legend/ORCA). Build ✅ mọi task.
+  - **Root cause tìm ra giữa chừng**: login admin fail "Tài khoản hoặc mật khẩu không đúng" — KHÔNG phải bug code/sai mật khẩu (verify SQL: `pw_matches=true`), mà do anon key trong `.env.local` local đã bị rotate/hết hạn (`Invalid API key` khi curl trực tiếp `/auth/v1/token`). Đã cập nhật `.env.local` (root + worktree) với anon key hiện hành lấy qua `mcp__supabase__get_publishable_keys`. File này không commit (đã gitignore).
+  - **2 phát hiện phụ cần theo dõi** (ngoài phạm vi plan, chưa fix): (a) `finance_fx_rates` upsert bị 401 lúc app khởi động trước khi login — RLS chặn ghi tỷ giá; (b) 400 lặp lại ở `wf_workers`, `crm_outreach_leads`, `pay_payroll_sheets` khi load Dashboard — nghi ngờ pre-existing, chưa xác nhận root cause.
+
+- [x] Fix Evaluation kẹt "Chờ NV tự đánh giá" sau khi NV đã nộp — RLS siết ngày 2/7 chặn âm thầm bước advance status
+  - Done: 2026-07-07
+  - Result: Root cause `hr_eval_cycles_write` policy (từ `20260702120000_tighten_rls_role_policies.sql`) không cho phép chính NV được đánh giá update cycle của mình → bước 2 trong `submitEvaluation()` (advance status pending_self→pending_leader) bị RLS chặn im lặng, không lỗi. Fix + backfill trong `20260707200000_fix_eval_cycle_self_submit_rls_and_backfill.sql`, applied qua MCP. Chỉ 1 cycle bị ảnh hưởng (Nguyễn Nam Hải) — đã backfill xong, verify DB đúng. Sếp đã confirm trên UI badge hiện đúng "CHỜ LEADER ĐÁNH GIÁ" ✅.
+
+- [x] Reset password không gửi mail — chuyển 3 luồng auth email (invite/resend_invite/reset_password) sang Resend
+  - Done: 2026-07-07
+  - Result: `create-employee-auth` + `manage-employee-auth` đổi từ `inviteUserByEmail()`/mailer mặc định sang `generateLink()` + tự gửi qua Resend (giống `notify-email`). Deploy prod v35/v18, giữ nguyên `verify_jwt`. Commit `c716e53`. Build ✅. Sếp đã test thật trên prod — nhận được mail reset password bình thường. Confirmed ✅.
 
 - [x] Payroll → Discord notification khi xác nhận bảng lương
   - Done: 2026-07-03
@@ -288,6 +302,18 @@ _(trống)_
 - [x] RLS audit + siết policy toàn platform (17 bảng) + fix frontend `isBd` multi-role
   - Done: 2026-07-02
   - Result: Migration `20260702120000_tighten_rls_role_policies.sql` (applied prod qua MCP): finance_fx_rates (write→admin/ke_toan), outreach 6 bảng (anon policies scope TO anon cho external API, authenticated→admin/ke_toan/bd), CRM core 7 bảng (→admin/ke_toan/bd), expense_budgets (→is_admin_or_ke_toan), acc_bhxh_payments (xoá 3 policy trùng wide-open), hr_change_requests (read=admin/hr hoặc chính chủ), hr_evaluation_cycles/submissions (write scoped leader/evaluator/hr). Frontend: 5 file CRM đổi `role === 'bd'` → `hasRole/hasAnyRole` (admin kiêm bd không bị bó quyền). Build ✅. wf_* deferred (xem To Do).
+
+- [x] Fix lỗi tạo đơn nghỉ phép/remote — "record new has no field start_date"
+  - Done: 2026-07-07
+  - Result: Trigger `notify_leave_new`/`notify_leave_status_change` (từ `20260520033918_create_notifications_system.sql`) tham chiếu sai tên cột (`start_date`/`end_date`/`notes` thay vì `date_from`/`date_to`/`reviewer_note` thật sự có trên `att_requests`) → mọi INSERT (nghỉ phép lẫn remote) crash + rollback từ lúc tạo trigger. Fix: `CREATE OR REPLACE FUNCTION` đúng tên cột, migration `20260707190000_fix_leave_notify_triggers_column_names.sql`, applied qua MCP. Verify insert/delete thử qua SQL — sạch. Commit `1128198`, đã push.
+
+- [x] Leave balance: reset hàng năm (bỏ carry-over) + fix root cause quarter/công thức/trigger
+  - Done: 2026-07-06
+  - Result: Chốt quy tắc "mỗi tháng lên chính thức +1 ngày phép, cộng dồn, hết năm không dùng hết thì reset". Migration `20260707160000` (fallback `official_date`→`probation_end+1`) + `20260707170000` (cron/trigger đồng bộ ghi `quarter=0`, dùng chung công thức `count_official_months_in_year`, trigger thêm `official_date`, `DO UPDATE` thay `DO NOTHING`, bỏ cron carry-over). Bonus fix: `fetchEmployeesLite()` thiếu cột probation_end/official_date (commit `0928883`). Commits `a3e5c86`, `0928883`, `255d28d`.
+  - **Follow-up (session 20, cùng ngày)**: frontend (`leaveService.ts`/`LeaveTab.tsx`) vẫn tự tính công thức 0.5 ngày cũ + carry-over quarter=1 — lệch với DB. Đã đồng bộ: xoá `calculateYearlyAccrual`/`getCurrentQuarter`/`ensureBalancesForYear`/`upsertLeaveBalance`, thêm `fetchYearlyBalance()` chỉ đọc quarter=0; `getAvailableLeaveDays()` đổi signature. Thêm section "Quyền lợi nghỉ phép" tổng quan 4 loại phép trong Portal. Build ✅. Chưa commit.
+
+## Backlog (ghi nhận 2026-07-08)
+- [ ] Dashboard `fetchCeoDashboard` select sai tên cột (400, âm thầm ra 0) — phát hiện lúc verify Dashboard Financial Truth Layer, KHÔNG liên quan diff đó (code cũ). 3 chỗ: `wf_workers` select `status` (bảng không có cột này), `pay_payroll_sheets` select `total_net_salary`/`total_company_cost` (không tồn tại), `crm_outreach_leads` select `status` (không tồn tại). Cần xem schema thật 3 bảng trước khi sửa đúng tên cột/logic.
 
 ## Backlog (ghi nhận 2026-07-02)
 - [ ] ClickUp sync: task nhiều assignee — hiện chỉ gán người đầu tiên khớp email; rủi ro duplicate nếu thứ tự assignee đổi giữa các lần sync (check tồn tại theo cặp clickup_task_id+worker_id). Sếp quyết định TẠM GIỮ NGUYÊN. Khi làm: tối thiểu fix duplicate (check theo clickup_task_id), cân nhắc chia client_price cho nhiều người.
