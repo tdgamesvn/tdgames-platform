@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
+import { Navbar } from '@/components/Navbar';
 import TaxPortalOverviewTab from './TaxPortalOverviewTab';
 import TaxPortalInvoiceTab from './TaxPortalInvoiceTab';
 import TaxPortalExpenseTab from './TaxPortalExpenseTab';
@@ -14,45 +16,52 @@ interface Props {
 
 type Tab = 'overview' | 'invoice' | 'expense' | 'bank' | 'assets' | 'payroll';
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'overview', label: 'Tổng quan' },
-  { id: 'invoice', label: 'Hoá đơn' },
-  { id: 'expense', label: 'Chi phí' },
-  { id: 'bank', label: 'Ngân hàng' },
-  { id: 'assets', label: 'Tài sản & BHXH' },
-  { id: 'payroll', label: 'Lương / TNCN' },
-];
+const TAB_LABELS: Record<Tab, string> = {
+  overview: 'Tổng quan',
+  invoice: 'Hoá đơn',
+  expense: 'Chi phí',
+  bank: 'Ngân hàng',
+  assets: 'Tài sản & BHXH',
+  payroll: 'Lương / TNCN',
+};
+const ACCESSIBLE_TABS: Tab[] = ['overview', 'invoice', 'expense', 'bank', 'assets', 'payroll'];
 
 const TaxPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
   const [tab, setTab] = useState<Tab>('overview');
 
   return (
-    <div className="min-h-screen bg-bg text-white p-6">
-      <button onClick={onBack} className="text-neutral-medium text-xs font-bold uppercase tracking-wider mb-4">
-        ← Trang chủ
-      </button>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-black">🧾 Tax Portal</h1>
-          <p className="text-neutral-medium text-sm">Xin chào {currentUser.username} — chỉ xem, có thể xuất dữ liệu</p>
+    <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
+      <AppBackground />
+      <Navbar
+        theme="dark"
+        currentUser={currentUser}
+        activeTab={tab}
+        accessibleTabs={ACCESSIBLE_TABS as any}
+        onTabChange={(t) => setTab(t as Tab)}
+        onLogout={onBack}
+        onBack={onBack}
+        appName="Tax Portal"
+        tabLabels={TAB_LABELS}
+      />
+      <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
+        <div className="mb-8">
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
+            🧾 {TAB_LABELS[tab]}
+          </h2>
+          <p className="text-sm text-neutral-medium mt-1">
+            Xin chào {currentUser.username} — chỉ xem, có thể xuất dữ liệu
+          </p>
         </div>
-      </div>
-      <div className="flex gap-2 mb-6 border-b border-white/8 overflow-x-auto">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-xs font-black uppercase whitespace-nowrap border-b-2 transition-colors ${
-              tab === t.id ? 'border-primary text-primary' : 'border-transparent text-neutral-medium hover:text-white'
-            }`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {tab === 'overview' && <TaxPortalOverviewTab />}
-      {tab === 'invoice' && <TaxPortalInvoiceTab />}
-      {tab === 'expense' && <TaxPortalExpenseTab />}
-      {tab === 'bank' && <TaxPortalBankTab />}
-      {tab === 'assets' && <TaxPortalAssetsTab />}
-      {tab === 'payroll' && <TaxPortalPayrollTab />}
+        {tab === 'overview' && <TaxPortalOverviewTab />}
+        {tab === 'invoice' && <TaxPortalInvoiceTab />}
+        {tab === 'expense' && <TaxPortalExpenseTab />}
+        {tab === 'bank' && <TaxPortalBankTab />}
+        {tab === 'assets' && <TaxPortalAssetsTab />}
+        {tab === 'payroll' && <TaxPortalPayrollTab />}
+      </main>
+      <footer className="py-12 border-t border-white/5 text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
+        TD Games • Enterprise Platform • v3.0
+      </footer>
     </div>
   );
 };

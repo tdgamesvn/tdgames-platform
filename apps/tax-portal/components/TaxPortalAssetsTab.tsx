@@ -18,7 +18,7 @@ const TaxPortalAssetsTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="bg-surface border border-white/8 rounded-xl p-4">
+      <div className="bg-surface border border-primary/10 rounded-[20px] p-4">
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-xs font-black uppercase text-white">Tiết kiệm & Vay</h3>
           <button onClick={() => exportSavingsLoansCSV(savings, loans)}
@@ -26,7 +26,7 @@ const TaxPortalAssetsTab: React.FC = () => {
         </div>
         <p className="text-neutral-medium text-xs">{savings.length} khoản tiết kiệm, {loans.length} khoản vay</p>
       </div>
-      <div className="bg-surface border border-white/8 rounded-xl p-4">
+      <div className="bg-surface border border-primary/10 rounded-[20px] p-4">
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-xs font-black uppercase text-white">BHXH</h3>
           <button onClick={() => exportBhxhCSV(bhxh)}
@@ -34,7 +34,7 @@ const TaxPortalAssetsTab: React.FC = () => {
         </div>
         <p className="text-neutral-medium text-xs">{bhxh.length} lần đóng, tổng {fmt(bhxh.reduce((s, b) => s + b.amount, 0))} đ</p>
       </div>
-      <div className="bg-surface border border-white/8 rounded-xl p-4">
+      <div className="bg-surface border border-primary/10 rounded-[20px] p-4">
         <div className="flex justify-between items-center mb-2">
           <h3 className="text-xs font-black uppercase text-white">Tỷ giá</h3>
           <button onClick={() => exportFxRatesCSV(fx)}

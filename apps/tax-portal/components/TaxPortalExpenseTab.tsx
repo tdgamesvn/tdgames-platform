@@ -17,10 +17,10 @@ const TaxPortalExpenseTab: React.FC = () => {
           ⬇ Xuất CSV
         </button>
       </div>
-      <div className="bg-surface border border-white/8 rounded-xl overflow-x-auto">
+      <div className="bg-surface border border-primary/10 rounded-[20px] overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-neutral-600 uppercase text-[10px] font-black border-b border-white/8">
+            <tr className="text-left text-neutral-600 uppercase text-[10px] font-black border-b border-white/10">
               <th className="p-3">Ngày</th>
               <th className="p-3">Loại</th>
               <th className="p-3">NCC</th>

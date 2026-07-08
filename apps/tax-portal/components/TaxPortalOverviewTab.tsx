@@ -21,19 +21,19 @@ const TaxPortalOverviewTab: React.FC = () => {
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <div className="p-4 rounded-2xl bg-surface border border-white/8">
+      <div className="p-4 rounded-[20px] bg-surface border border-primary/10">
         <p className="text-[10px] font-black uppercase text-neutral-600 tracking-wider">Doanh thu đã thu</p>
         <p className="text-2xl font-black text-white">{fmt(totals.revenue)} đ</p>
       </div>
-      <div className="p-4 rounded-2xl bg-surface border border-white/8">
+      <div className="p-4 rounded-[20px] bg-surface border border-primary/10">
         <p className="text-[10px] font-black uppercase text-neutral-600 tracking-wider">Tổng chi phí</p>
         <p className="text-2xl font-black text-white">{fmt(totals.expense)} đ</p>
       </div>
-      <div className="p-4 rounded-2xl bg-surface border border-white/8">
+      <div className="p-4 rounded-[20px] bg-surface border border-primary/10">
         <p className="text-[10px] font-black uppercase text-neutral-600 tracking-wider">Số hoá đơn</p>
         <p className="text-2xl font-black text-white">{totals.invoiceCount}</p>
       </div>
-      <div className="p-4 rounded-2xl bg-surface border border-white/8">
+      <div className="p-4 rounded-[20px] bg-surface border border-primary/10">
         <p className="text-[10px] font-black uppercase text-neutral-600 tracking-wider">Bảng lương</p>
         <p className="text-2xl font-black text-white">{totals.sheetCount}</p>
       </div>
