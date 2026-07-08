@@ -2920,3 +2920,14 @@ Tab Chi phí + KPI Tổng chi phí ở Tax Portal hiện cả dòng `type='reven
 
 ### Validation
 `npm run build` ✅. Commit `235ab28` pushed lên main.
+
+---
+
+## 2026-07-08 (session 26b — Tax Portal: cột Diễn giải + dọn dòng payroll 2099)
+
+### Work Done
+- Tab Chi phí + CSV export thêm cột "Diễn giải" (title) — dòng payroll sync vendor='TD Games Studio' giờ hiện rõ "Bảng lương Txx/2026". CSV quote-escape riêng cột description.
+- Xoá dòng rác trong prod DB: expense "Bảng lương T12/2099" (0đ, sheet gốc đã bị xoá, expense mồ côi) — id d44728e9.
+
+### Validation
+`npm run build` ✅. Commit `8b6b7fc` pushed lên main.
