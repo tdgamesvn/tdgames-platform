@@ -13,6 +13,8 @@ export interface TaxInvoice {
   created_at: string;
   client_info: any;
   billing_entity: string | null;
+  einvoice_invoice_number: string | null;
+  einvoice_pdf_url: string | null;
 }
 
 export interface TaxExpense {
@@ -122,7 +124,7 @@ export interface TaxEmployee {
 export async function fetchTaxInvoices(): Promise<TaxInvoice[]> {
   const { data, error } = await supabase
     .from('invoice_invoices')
-    .select('id, status, currency, amount_received, items, issue_date, paid_date, due_date, created_at, client_info, billing_entity')
+    .select('id, status, currency, amount_received, items, issue_date, paid_date, due_date, created_at, client_info, billing_entity, einvoice_invoice_number, einvoice_pdf_url')
     .order('issue_date', { ascending: false });
   if (error) throw error;
   return (data || []) as TaxInvoice[];

@@ -18,8 +18,8 @@ function downloadCSV(headers: string[], rows: (string | number)[][], filename: s
 }
 
 export function exportInvoicesCSV(rows: TaxInvoice[]) {
-  const headers = ['ID', 'Trạng thái', 'Tiền tệ', 'Đã thu', 'Ngày xuất', 'Ngày thanh toán', 'Pháp nhân'];
-  const csvRows = rows.map(r => [r.id, r.status, r.currency, r.amount_received ?? 0, r.issue_date || '', r.paid_date || '', r.billing_entity || '']);
+  const headers = ['ID', 'Số HĐ', 'Trạng thái', 'Tiền tệ', 'Đã thu', 'Ngày xuất', 'Ngày thanh toán', 'Pháp nhân', 'Link PDF'];
+  const csvRows = rows.map(r => [r.id, r.einvoice_invoice_number || '', r.status, r.currency, r.amount_received ?? 0, r.issue_date || '', r.paid_date || '', r.billing_entity || '', r.einvoice_pdf_url || '']);
   downloadCSV(headers, csvRows, `TaxPortal_HoaDon_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
