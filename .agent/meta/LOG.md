@@ -2723,3 +2723,27 @@ Xây "Tax Portal" — role mới `ke_toan_thue` cho kế toán thuế thuê ngo�
 
 ### Next Step
 - Task 7: cần sếp cung cấp email thật của kế toán thuế thuê ngoài → tạo tài khoản `ke_toan_thue`, test đăng nhập thật qua Playwright (chỉ thấy tile Tax Portal, 6 tab load đúng data, export hoạt động, negative test không vào được `#invoice`).
+
+## 2026-07-08 (session 27 — Tax Portal Task 7, hoàn tất)
+### Task
+Tiếp nối session 26: tạo tài khoản thật cho kế toán thuế thuê ngoài + regression pass qua Playwright.
+
+### Work Done
+- Tạo tài khoản `tax.tdgames@gmail.com` (role `ke_toan_thue`) qua `auth.users`/`auth.identities` insert trực tiếp.
+- Bug gặp phải: login trả 500 lần đầu — log GoTrue báo `error finding user: sql: Scan error on column index 3, name "confirmation_token": converting NULL to string is unsupported`. Nguyên nhân: các cột token (`confirmation_token`, `recovery_token`, `email_change*`, `phone_change*`, `reauthentication_token`) bị NULL thay vì chuỗi rỗng khi insert thủ công — GoTrue không chấp nhận NULL cho các cột này. Fix bằng `UPDATE ... SET x = coalesce(x, '')` cho toàn bộ token columns của user này. Login thành công sau fix.
+- Playwright walkthrough thật trên dev server (worktree `tax-portal`, port động do nhiều dev server song song từ các worktree khác):
+  1. Login OK, app picker **chỉ hiện đúng 1 tile "Tax Portal"** — xác nhận `config/apps.ts` roles filter hoạt động đúng.
+  2. 5/6 tab load đúng data thật: Tổng quan (doanh thu/chi phí/số hoá đơn/bảng lương), Hoá đơn, Chi phí, Tài sản&BHXH (BHXH + tỷ giá có data, tiết kiệm/vay rỗng vì DB chưa có), Lương/TNCN (4 bảng lương, số liệu thật).
+  3. Tab Ngân hàng trống — verify qua SQL: `finance_bank_accounts` có 6 dòng nhưng `finance_bank_balance_snapshots` có 0 dòng → không phải bug, tính năng snapshot mới thêm session trước chưa ai nhập liệu.
+  4. Negative test: vào thẳng `http://localhost:PORT/#invoice` — **role vẫn load được UI Invoice app đầy đủ** (form/actions hiện ra, dù RLS chặn ghi/đọc data thật ở tầng DB). Grep `App.tsx` xác nhận route `activeApp === 'invoice'` (dòng 304) không có role check nào — cơ chế chặn duy nhất là ẩn tile ở HomeScreen. Đây là gap **pre-existing, áp dụng cho mọi role hạn chế** (member, freelancer...), không phải lỗi riêng của Tax Portal. Đã tách thành task riêng trong TASKS.md To Do thay vì tự vá ngoài phạm vi plan gốc.
+- GitNexus không kết nối trong cả 2 session (26 và 27) — không chạy được `detect_changes()` cuối cùng; đã note rõ trong LOG/commit message theo đúng contingency của repo.
+
+### Validation
+- `npm run build` pass ở mọi task trước đó (session 26).
+- Verify thật qua Playwright: login + 6 tab + export button hiện diện + negative test — như log ở trên.
+- Không tạo lỗi mới cho các role khác (RLS chỉ thêm policy mới cho `ke_toan_thue`, additive-only).
+
+### Next Step
+- Sếp/kế toán thuế đăng nhập thử bằng `tax.tdgames@gmail.com`, đổi mật khẩu nếu muốn.
+- Cân nhắc làm task "route role-guard" mới phát hiện (áp dụng chung cho toàn bộ app, không chỉ Tax Portal) khi có thời gian — không khẩn cấp vì RLS DB vẫn là lớp bảo vệ chính, đây chỉ là UI leak.
+- Khi rảnh: nhập dữ liệu `finance_bank_balance_snapshots` để tab Ngân hàng của Tax Portal (và Dashboard) có số liệu.
