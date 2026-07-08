@@ -145,4 +145,13 @@ export const APPS: AppConfig[] = [
     gradient: 'linear-gradient(135deg, #22C55E 0%, #16A34A 100%)',
     roles: ['member', 'bd'],
   },
+  {
+    id: 'tax-portal',
+    name: 'Tax Portal',
+    icon: '🧾',
+    description: 'Kế toán thuế — xem & xuất dữ liệu',
+    color: '#EAB308',
+    gradient: 'linear-gradient(135deg, #EAB308 0%, #CA8A04 100%)',
+    roles: ['ke_toan_thue'],
+  },
 ];

@@ -15,6 +15,7 @@ import PayrollApp from './apps/payroll/components/PayrollApp';
 import DashboardApp from './apps/dashboard/components/DashboardApp';
 import PortalApp from './apps/portal/components/PortalApp';
 import FreelancerPortalApp from './apps/freelancer-portal/components/FreelancerPortalApp';
+import TaxPortalApp from './apps/tax-portal/components/TaxPortalApp';
 import AccountingApp from './apps/accounting/components/AccountingApp';
 import CompanyApp from './apps/company/components/CompanyApp';
 import AiAgentApp from './apps/ai-agent/components/AiAgentApp';
@@ -26,14 +27,14 @@ import { hasRole, hasAnyRole } from './utils/roleUtils';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { checkOnboardingNeeded } from './apps/handbook/services/handbookService';
 
-const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd'] as const;
+const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd', 'ke_toan_thue'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
 const parseSecondaryRoles = (raw: unknown): string[] | undefined => {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
   const valid = raw.filter(r => typeof r === 'string' && VALID_ROLES.includes(r as any));
   return valid.length > 0 ? valid : undefined;
 };
-const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent', 'system-monitor', 'handbook'];
+const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent', 'system-monitor', 'handbook', 'tax-portal'];
 
 /** Parse hash like #workforce/tasks or #hr/requests/uuid → { app, tab, param } */
 const parseHash = (): { app: string | null; tab: string | null; param: string | null } => {
@@ -334,6 +335,10 @@ const App: React.FC = () => {
 
   if (activeApp === 'freelancer-portal') {
     return <FreelancerPortalApp currentUser={currentUser} onBack={handleBack} />;
+  }
+
+  if (activeApp === 'tax-portal') {
+    return <TaxPortalApp currentUser={currentUser} onBack={handleBack} />;
   }
 
   if (activeApp === 'accounting') {
