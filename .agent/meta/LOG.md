@@ -2907,3 +2907,16 @@ Tiếp nối session 26: tạo tài khoản thật cho kế toán thuế thuê n
 - Sếp/kế toán thuế đăng nhập thử bằng `tax.tdgames@gmail.com`, đổi mật khẩu nếu muốn.
 - Cân nhắc làm task "route role-guard" mới phát hiện (áp dụng chung cho toàn bộ app, không chỉ Tax Portal) khi có thời gian — không khẩn cấp vì RLS DB vẫn là lớp bảo vệ chính, đây chỉ là UI leak.
 - Khi rảnh: nhập dữ liệu `finance_bank_balance_snapshots` để tab Ngân hàng của Tax Portal (và Dashboard) có số liệu.
+
+---
+
+## 2026-07-08 (session 26 — fix Tax Portal: revenue lẫn vào chi phí)
+
+### Vấn đề
+Tab Chi phí + KPI Tổng chi phí ở Tax Portal hiện cả dòng `type='revenue'` (nghiệm thu khách hàng, giải ngân vay, tất toán tiết kiệm) từ `expense_expenses` — cộng nhầm doanh thu vào chi phí, đồng thời trùng với doanh thu đã lấy từ `invoice_invoices`.
+
+### Fix
+`fetchTaxExpenses` thêm `.eq('type', 'expense')` — 1 chỗ, cả Overview / tab Chi phí / CSV export dùng chung. Nghiệm thu freelancer (type='expense', source_type='settlement') giữ nguyên là chi phí.
+
+### Validation
+`npm run build` ✅. Commit `235ab28` pushed lên main.
