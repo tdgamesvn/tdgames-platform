@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { Navbar } from '@/components/Navbar';
+import { useExchangeRate } from '@/services/ExchangeRateContext';
 import TaxPortalOverviewTab from './TaxPortalOverviewTab';
 import TaxPortalInvoiceTab from './TaxPortalInvoiceTab';
 import TaxPortalExpenseTab from './TaxPortalExpenseTab';
@@ -30,6 +31,7 @@ const ACCESSIBLE_TABS: Tab[] = ['overview', 'invoice', 'expense', 'bank', 'asset
 
 const TaxPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
   const [tab, setTab] = useState<Tab>('overview');
+  const { rate: vcbRate, loading: vcbRateLoading } = useExchangeRate();
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -41,6 +43,8 @@ const TaxPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
         accessibleTabs={ACCESSIBLE_TABS as any}
         onTabChange={(t) => setTab(t as Tab)}
         onLogout={onBack}
+        vcbRate={vcbRate}
+        vcbRateLoading={vcbRateLoading}
         onBack={onBack}
         appName="Tax Portal"
         tabLabels={TAB_LABELS}
