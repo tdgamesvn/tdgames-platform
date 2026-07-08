@@ -130,9 +130,13 @@ export async function fetchTaxInvoices(): Promise<TaxInvoice[]> {
 
 export async function fetchTaxExpenses(): Promise<TaxExpense[]> {
   // ponytail: expense_expenses has no `description` column — alias `title` as description.
+  // Chỉ lấy type='expense' — các dòng type='revenue' (nghiệm thu khách hàng, giải ngân vay,
+  // tất toán tiết kiệm) không phải chi phí, và doanh thu thuế đã lấy từ invoice_invoices rồi
+  // (tránh double-count với hoá đơn cần xuất).
   const { data, error } = await supabase
     .from('expense_expenses')
     .select('id, amount, currency, type, status, expense_date, vendor, category_id, description:title')
+    .eq('type', 'expense')
     .order('expense_date', { ascending: false });
   if (error) throw error;
   return (data || []) as unknown as TaxExpense[];
