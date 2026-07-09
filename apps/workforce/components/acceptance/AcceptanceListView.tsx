@@ -1,6 +1,7 @@
 import React from 'react';
 import { ProjectAcceptance } from '@/types';
 import { StatusBadge } from '../shared/StatusBadge';
+import { acceptanceNetAmount } from '../../services/projectAcceptanceService';
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
@@ -30,8 +31,8 @@ const fmtUSD = (n: number) => `$${n.toLocaleString('en-US')}`;
 const AcceptanceListView: React.FC<AcceptanceListViewProps> = ({
   acceptances, onOpenDetail, onCreateNew, onDelete,
 }) => {
-  const totalAccepted = acceptances.filter(a => a.status === 'accepted').reduce((s, a) => s + a.total_amount, 0);
-  const totalPending = acceptances.filter(a => a.status !== 'accepted').reduce((s, a) => s + a.total_amount, 0);
+  const totalAccepted = acceptances.filter(a => a.status === 'accepted').reduce((s, a) => s + acceptanceNetAmount(a), 0);
+  const totalPending = acceptances.filter(a => a.status !== 'accepted').reduce((s, a) => s + acceptanceNetAmount(a), 0);
 
   return (
     <div className="animate-fadeInUp space-y-8">
@@ -103,7 +104,7 @@ const AcceptanceListView: React.FC<AcceptanceListViewProps> = ({
                   </span>
                 </div>
                 <p className="text-neutral-medium text-xs">{a.total_tasks} tasks</p>
-                <p className="text-blue-400 font-black text-2xl mt-3">{fmtUSD(a.total_amount)}</p>
+                <p className="text-blue-400 font-black text-2xl mt-3">{fmtUSD(acceptanceNetAmount(a))}</p>
                 {a.notes && <p className="text-neutral-medium/60 text-[11px] mt-2 line-clamp-1 italic">📝 {a.notes}</p>}
                 <p className="text-neutral-medium/30 text-[9px] mt-2">🔄 {a.created_at ? new Date(a.created_at).toLocaleString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</p>
               </div>

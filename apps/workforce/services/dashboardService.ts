@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabaseClient';
 import { fetchEmployees } from '@/apps/hr/services/hrService';
+import { acceptanceNetAmount } from './projectAcceptanceService';
 
 export interface FulltimeKPI {
   employeeId: string;
@@ -91,7 +92,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // nghiệm thu được TẠO; riêng P&L tổng công ty chỉ tính phiếu đã 'accepted'.
   let acceptanceQuery = supabase
     .from('wf_project_acceptances')
-    .select('id, total_amount, currency, status')
+    .select('id, total_amount, currency, status, discount_type, discount_value')
     .eq('period', periodStr);
   if (accountTypeFilter !== 'all') acceptanceQuery = acceptanceQuery.eq('account_type', accountTypeFilter);
   const { data: acceptances } = await acceptanceQuery;
@@ -99,7 +100,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // P&L tổng: chỉ phiếu accepted (số thực)
   const totalRevenueUSD = (acceptances || [])
     .filter(acc => acc.status === 'accepted')
-    .reduce((sum, acc) => sum + Number(acc.total_amount || 0), 0);
+    .reduce((sum, acc) => sum + acceptanceNetAmount(acc), 0);
   const revenueVND = totalRevenueUSD * exchangeRate;
 
   // 2. Get Fulltime Payroll Cost

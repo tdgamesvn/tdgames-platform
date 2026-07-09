@@ -18,8 +18,7 @@ const STATUS_FLOW: Record<string, string> = { draft: 'sent', sent: 'accepted' };
 const STATUS_NEXT_LABEL: Record<string, string> = { draft: '📤 Send to Client', sent: '✅ Client Accepted' };
 
 const fmtUSD = (n: number) => `$${n.toLocaleString('en-US')}`;
-const calcDiscount = (subtotal: number, type: string, value: number) =>
-  type === 'percent' ? subtotal * (value || 0) / 100 : (value || 0);
+const calcDiscount = paSvc.calcDiscount;
 
 interface AcceptanceDetailViewProps {
   acceptance: ProjectAcceptance;

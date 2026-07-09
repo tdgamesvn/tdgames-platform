@@ -1,6 +1,14 @@
 import { supabase } from '@/services/supabaseClient';
 import { ProjectAcceptance, WorkforceTask } from '@/types';
 
+// ── Discount helpers ───────────────────────────────────────────
+// ponytail: total_amount trong DB = subtotal (chưa trừ discount); net tính lúc hiển thị
+export const calcDiscount = (subtotal: number, type: string | undefined, value: number | undefined) =>
+  type === 'percent' ? subtotal * (value || 0) / 100 : (value || 0);
+
+export const acceptanceNetAmount = (a: { total_amount: number; discount_type?: string; discount_value?: number }) =>
+  Math.max(0, (a.total_amount || 0) - calcDiscount(a.total_amount || 0, a.discount_type, a.discount_value));
+
 // ── Fetch all project acceptances ─────────────────────────────
 export async function fetchProjectAcceptances(): Promise<ProjectAcceptance[]> {
   const { data, error } = await supabase
