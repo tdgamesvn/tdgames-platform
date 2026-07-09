@@ -37,6 +37,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   const [selNotes, setSelNotes] = useState('');
   const [selTaskIds, setSelTaskIds] = useState<string[]>([]);
   const [selClickupStatusFilter, setSelClickupStatusFilter] = useState<string[]>([]);
+  const [selListFilter, setSelListFilter] = useState<string[]>([]);
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
   const [acceptedTaskIds, setAcceptedTaskIds] = useState<Set<string>>(new Set());
   const [showExcluded, setShowExcluded] = useState(false);
@@ -85,6 +86,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   });
 
   const availableClickupStatuses = [...new Set(scopedTasks.map(t => t.clickup_status).filter(Boolean))].sort() as string[];
+  const availableLists = [...new Set(scopedTasks.map(t => t.clickup_list_name).filter(Boolean))].sort() as string[];
 
   const eligibleTasks = scopedTasks.filter(t => {
     // Period-based date filter (when a period is selected and showAllMonths is OFF)
@@ -94,8 +96,16 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
     }
     // ClickUp status filter
     if (selClickupStatusFilter.length > 0 && !selClickupStatusFilter.includes(t.clickup_status || '')) return false;
+    // ClickUp list filter
+    if (selListFilter.length > 0 && !selListFilter.includes(t.clickup_list_name || '')) return false;
     return true;
   });
+
+  const toggleListFilter = (list: string) => {
+    setSelListFilter(prev => prev.includes(list) ? prev.filter(l => l !== list) : [...prev, list]);
+    setSelTaskIds([]);
+    setCustomPrices({});
+  };
 
   const toggleStatusFilter = (status: string) => {
     setSelClickupStatusFilter(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]);
@@ -154,14 +164,14 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className={labelCls}>Client (Space)</label>
-            <select className={inputCls} value={selClient} onChange={e => { setSelClient(e.target.value); setSelProject(''); setSelTaskIds([]); setCustomPrices({}); setSelClickupStatusFilter([]); }}>
+            <select className={inputCls} value={selClient} onChange={e => { setSelClient(e.target.value); setSelProject(''); setSelTaskIds([]); setCustomPrices({}); setSelClickupStatusFilter([]); setSelListFilter([]); }}>
               <option value="">-- All clients --</option>
               {uniqueClients.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label className={labelCls}>Project (Folder) *</label>
-            <select className={inputCls} value={selProject} onChange={e => { setSelProject(e.target.value); setSelTaskIds([]); setCustomPrices({}); setSelClickupStatusFilter([]); }}>
+            <select className={inputCls} value={selProject} onChange={e => { setSelProject(e.target.value); setSelTaskIds([]); setCustomPrices({}); setSelClickupStatusFilter([]); setSelListFilter([]); }}>
               <option value="">-- Select project --</option>
               {uniqueProjects.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
@@ -261,6 +271,26 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                 })}
               </div>
             )}
+            {availableLists.length > 1 && (
+              <div className="mt-3">
+                <label className={labelCls}>Filter by List ({selListFilter.length}/{availableLists.length})</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {availableLists.map((list, idx) => {
+                    const isActive = selListFilter.includes(list);
+                    const colorCls = CLICKUP_STATUS_PALETTE[idx % CLICKUP_STATUS_PALETTE.length];
+                    const count = scopedTasks.filter(t => t.clickup_list_name === list).length;
+                    return (
+                      <button key={list} onClick={() => toggleListFilter(list)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider transition-all border ${
+                          isActive ? colorCls : 'text-neutral-medium/50 border-primary/10 hover:text-white hover:bg-white/5'
+                        }`}>
+                        {isActive ? '✓ ' : ''}{list} <span className="opacity-50 ml-1">({count})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {selClickupStatusFilter.length === 0 && availableClickupStatuses.length > 0 && (
               <p className="text-neutral-medium/40 text-[10px] mt-1.5">
                 💡 No status filter — showing all {eligibleTasks.length} eligible tasks
@@ -306,7 +336,8 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                       <div className="space-y-1.5 pl-1">
                         {groupTasks.map(t => {
                           const isSelected = selTaskIds.includes(t.id!);
-                          const clientPrice = customPrices[t.id!] ?? 0;
+                          // ponytail: undefined = chưa nhập, 0 = nhập 0 thật (task giá 0 vẫn hợp lệ)
+                          const clientPrice = customPrices[t.id!];
                           const clickupStatus = t.clickup_status || t.status || '';
                           const statusStyle = getClickupStatusStyle(clickupStatus);
                           return (
@@ -328,8 +359,12 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                               </div>
                               <div className="shrink-0 flex items-center gap-2">
                                 <span className="text-neutral-medium/40 text-xs">$</span>
-                                <input type="number" min="0" step="1" value={clientPrice || ''}
-                                  onChange={e => setCustomPrice(t.id!, parseFloat(e.target.value) || 0)}
+                                <input type="number" min="0" step="1" value={clientPrice ?? ''}
+                                  onChange={e => {
+                                    const v = e.target.value;
+                                    if (v === '') setCustomPrices(prev => { const { [t.id!]: _, ...rest } = prev; return rest; });
+                                    else setCustomPrice(t.id!, parseFloat(v) || 0);
+                                  }}
                                   placeholder="0"
                                   className="w-24 bg-transparent border border-primary/10 rounded-lg px-3 py-1.5 text-blue-400 font-bold text-sm text-right focus:outline-none focus:border-blue-500/40 transition-all placeholder-neutral-medium/20"
                                 />
