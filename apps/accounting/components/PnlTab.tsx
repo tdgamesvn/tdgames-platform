@@ -12,10 +12,13 @@ type View = 'overview' | 'byCategory' | 'byClient';
 
 function periodRange(period: Period): { from: Date; to: Date; label: string } {
   const now = new Date();
+  // `to` = 23:59:59.999 ngày cuối kỳ — tránh loại nhầm invoice rơi đúng ngày cuối
+  // (date string "YYYY-MM-DD" parse ra UTC midnight = 7h sáng giờ VN)
+  const endOfDay = (y: number, m: number, d: number) => new Date(y, m, d, 23, 59, 59, 999);
   if (period === 'month') {
     return {
       from: new Date(now.getFullYear(), now.getMonth(), 1),
-      to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+      to: endOfDay(now.getFullYear(), now.getMonth() + 1, 0),
       label: `Tháng ${now.getMonth() + 1}/${now.getFullYear()}`,
     };
   }
@@ -24,13 +27,13 @@ function periodRange(period: Period): { from: Date; to: Date; label: string } {
     const fromMonth = (q - 1) * 3;
     return {
       from: new Date(now.getFullYear(), fromMonth, 1),
-      to: new Date(now.getFullYear(), fromMonth + 3, 0),
+      to: endOfDay(now.getFullYear(), fromMonth + 3, 0),
       label: `Q${q}/${now.getFullYear()}`,
     };
   }
   return {
     from: new Date(now.getFullYear(), 0, 1),
-    to: new Date(now.getFullYear(), 11, 31),
+    to: endOfDay(now.getFullYear(), 11, 31),
     label: `Năm ${now.getFullYear()}`,
   };
 }
@@ -55,11 +58,20 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
     return d >= from && d <= to;
   };
 
-  // Revenue (accrual): invoices phát sinh trong kỳ theo issue_date, trừ draft
+  // Revenue (accrual): invoices phát sinh trong kỳ theo issue_date, trừ cancelled
   const revenueRows = useMemo(() =>
-    invoices.filter(inv => !['draft'].includes(inv.status) && inRange(inv.issueDate)),
+    invoices.filter(inv => inv.status !== 'cancelled' && inRange(inv.issueDate)),
     [invoices, period]
   );
+
+  // Net revenue của 1 invoice: subtotal - discount (chưa gồm thuế)
+  const netOf = (inv: InvoiceData) => {
+    const subtotal = (inv.items || []).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+    const discount = inv.discountType === 'percentage'
+      ? subtotal * (inv.discountValue || 0) / 100
+      : (inv.discountValue || 0);
+    return subtotal - discount;
+  };
 
   // Expense (accrual): chi phí phát sinh trong kỳ, tính cả approved + paid
   const expenseRows = useMemo(() =>
@@ -75,10 +87,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
   const toVnd = (amount: number, currency: string) =>
     currency === 'USD' ? amount * rate : amount;
 
-  const totalRevenue = revenueRows.reduce((s, inv) => {
-    const subtotal = (inv.items || []).reduce((ss, it) => ss + it.quantity * it.unitPrice, 0);
-    return s + toVnd(subtotal, inv.currency);
-  }, 0);
+  const totalRevenue = revenueRows.reduce((s, inv) => s + toVnd(netOf(inv), inv.currency), 0);
 
   const totalExpense = expenseRows.reduce((s, e) => s + toVnd(e.amount, e.currency), 0);
   const netProfit = totalRevenue - totalExpense;
@@ -100,8 +109,7 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
     for (const inv of revenueRows) {
       const key = inv.clientInfo?.name || 'Không rõ';
       if (!map.has(key)) map.set(key, { revenue: 0, expense: 0 });
-      const sub = (inv.items || []).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-      map.get(key)!.revenue += toVnd(sub, inv.currency);
+      map.get(key)!.revenue += toVnd(netOf(inv), inv.currency);
     }
     for (const e of expenseRows) {
       const key = e.client_name?.trim() || 'Không rõ';
@@ -211,11 +219,11 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
                   <th className="text-left px-5 py-2 text-neutral-500">Số HĐ</th>
                   <th className="text-left px-5 py-2 text-neutral-500">Client</th>
                   <th className="text-right px-5 py-2 text-neutral-500">Giá trị</th>
-                  <th className="text-right px-5 py-2 text-neutral-500">Ngày thu</th>
+                  <th className="text-right px-5 py-2 text-neutral-500">Ngày phát hành</th>
                 </tr></thead>
                 <tbody>
                   {revenueRows.map((inv, i) => {
-                    const sub = (inv.items || []).reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+                    const sub = netOf(inv);
                     return (
                       <tr key={inv.id || i} className="border-b border-white/3 hover:bg-white/2">
                         <td className="px-5 py-2 text-neutral-300 font-mono">{inv.invoiceNumber}</td>
