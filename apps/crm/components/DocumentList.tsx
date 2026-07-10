@@ -22,6 +22,8 @@ const toPublicUrl = (url: string): string => {
 interface Props {
   clients: CrmClient[];
   currentUser: AccountUser;
+  /** ponytail: khi set, list bị khoá theo 1 khách (dùng trong panel chi tiết khách hàng) */
+  fixedClient?: CrmClient;
 }
 
 const DOC_TYPES: Record<string, { label: string; icon: string; color: string }> = {
@@ -52,11 +54,11 @@ const APPROVAL_BADGE: Record<string, { label: string; color: string; icon: strin
   rejected:         { label: 'Từ chối',  color: '#F44336', icon: '❌' },
 };
 
-const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
+const DocumentList: React.FC<Props> = ({ clients, currentUser, fixedClient }) => {
   const [docs, setDocs] = useState<CrmDocument[]>([]);
   const [allProjects, setAllProjects] = useState<CrmProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filterClient, setFilterClient] = useState('');
+  const [filterClient, setFilterClient] = useState(fixedClient?.id || '');
   const [filterProject, setFilterProject] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -350,15 +352,15 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>
-          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài liệu</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{fixedClient ? 'Tài liệu của khách' : 'Tài liệu'}</h2>
           <p className="text-sm text-neutral-medium mt-1">Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setPickerClientId(''); setPickerProjectId(''); setShowContractPicker(true); }}
+          <button onClick={() => { setPickerClientId(fixedClient?.id || ''); setPickerProjectId(''); setShowContractPicker(true); }}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
             📋 Tạo hợp đồng
           </button>
-          <button onClick={() => { setEditingDoc(null); setForm(emptyForm); setShowForm(!showForm); }}
+          <button onClick={() => { setEditingDoc(null); setForm({ ...emptyForm, client_id: fixedClient?.id || '' }); setShowForm(!showForm); }}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"
             style={{ background: '#FF9500' }}>
             ＋ Thêm tài liệu
@@ -381,7 +383,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <select
+        {!fixedClient && <select
           className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
           style={{ background: '#1a1a1a', width: '260px' }}
           value={filterClient} onChange={e => {
@@ -390,7 +392,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
           }}>
           <option value="">Tất cả khách hàng</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+        </select>}
         <select
           className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
           style={{ background: '#1a1a1a', width: '260px' }}
@@ -415,7 +417,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
               <select
                 className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
                 style={{ background: '#1a1a1a', width: '100%' }}
-                value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value, project_id: null })}>
+                value={form.client_id} disabled={!!fixedClient} onChange={e => setForm({ ...form, client_id: e.target.value, project_id: null })}>
                 <option value="">-- Chọn --</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -729,14 +731,16 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser }) => {
             {/* Client select */}
             <div style={{ marginBottom: 16 }}>
               <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider" style={{ display: 'block', marginBottom: 6 }}>Khách hàng *</label>
-              <select value={pickerClientId} onChange={e => { setPickerClientId(e.target.value); setPickerProjectId(''); }}
+              {fixedClient ? (
+                <p className="rounded-xl border border-white/10 px-3 py-2 text-sm text-white" style={{ background: '#1a1a1a' }}>{fixedClient.name}</p>
+              ) : (<select value={pickerClientId} onChange={e => { setPickerClientId(e.target.value); setPickerProjectId(''); }}
                 className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
                 style={{ background: '#1a1a1a', width: '100%' }}>
                 <option value="">— Chọn khách hàng —</option>
                 {clients.filter(c => c.status === 'active' || c.status === 'contracting' || c.status === 'negotiating').map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
-              </select>
+              </select>)}
               {!pickerClientId && (
                 <p style={{ fontSize: 11, color: '#666', marginTop: 6, fontStyle: 'italic' }}>Cần tạo thông tin khách hàng trong tab Clients trước</p>
               )}

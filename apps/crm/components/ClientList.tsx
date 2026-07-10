@@ -13,6 +13,7 @@ interface Props {
   statusCounts: Record<string, number>;
   totalClients: number;
   onEdit: (client: CrmClient) => void;
+  onView: (client: CrmClient) => void;
   onDelete: (id: string) => void;
   onRefresh: () => void;
   onAdd: () => void;
@@ -35,7 +36,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 const ClientList: React.FC<Props> = ({
   clients, isLoading, searchQuery, setSearchQuery, filterStatus, setFilterStatus,
   filterIndustry, setFilterIndustry, industries, statusCounts, totalClients,
-  onEdit, onDelete, onRefresh, onAdd, currentUser,
+  onEdit, onView, onDelete, onRefresh, onAdd, currentUser,
 }) => {
   const canDelete = !currentUser || hasAnyRole(currentUser, ['admin', 'ke_toan']) || !hasAnyRole(currentUser, ['bd']);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -119,7 +120,7 @@ const ClientList: React.FC<Props> = ({
             <div key={client.id}
               className="flex items-center gap-4 p-4 rounded-[20px] border border-primary/10 hover:border-primary/20 transition-all bg-surface"
               style={{ cursor: 'pointer' }}
-              onClick={() => onEdit(client)}
+              onClick={() => onView(client)}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#FF9500'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = ''; }}
             >

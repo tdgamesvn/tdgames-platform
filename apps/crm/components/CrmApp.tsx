@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AppBackground from '@/components/AppBackground';
-import { AccountUser, CrmActivity } from '@/types';
+import { AccountUser, CrmActivity, CrmClient } from '@/types';
 import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
@@ -170,14 +170,18 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useCrmState(initialTab);
   const [showForm, setShowForm] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [viewingClientId, setViewingClientId] = useState<string | null>(null);
+  // Luôn lấy bản mới nhất từ state.clients (tên/contacts có thể đổi sau khi sửa)
+  const viewingClient: CrmClient | null = viewingClientId ? (state.clients.find(c => c.id === viewingClientId) || null) : null;
 
   const navbarTab = TAB_MAP[state.activeTab];
   // BD-restricted view: has 'bd' but no admin/ke_toan (primary OR secondary)
   const isBd = hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
   // BD workflow order: Overview → Find targets → Contacts → Reach out → Track interactions → Deal → Project → Docs → Payment
+  // ponytail: bỏ tab Tài liệu khỏi navbar — tài liệu xem trong panel chi tiết khách hàng; route #crm/settings vẫn hoạt động cho deep-link cũ
   const accessibleTabs = isBd
-    ? ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'settings']
-    : ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'settings', 'activity'];
+    ? ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks']
+    : ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'activity'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -201,6 +205,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
           if (crmTab) {
             setShowForm(false);
             state.setEditingClient(null);
+            setViewingClientId(null);
             state.setActiveTab(crmTab);
           }
         }}
@@ -239,6 +244,23 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
                 onDeleteContact={state.handleDeleteContact}
                 actor={currentUser.username}
               />
+            ) : viewingClient ? (
+              <div className="animate-fadeInUp">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                    <button onClick={() => setViewingClientId(null)}
+                      className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                    >← Quay lại</button>
+                    <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter truncate" style={{ color: '#FF9500' }}>
+                      {viewingClient.name}
+                    </h2>
+                  </div>
+                  <button onClick={() => state.setEditingClient(viewingClient)}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                  >✏️ Sửa khách hàng</button>
+                </div>
+                <DocumentList clients={state.clients} currentUser={currentUser} fixedClient={viewingClient} />
+              </div>
             ) : (
               <ClientList
                 clients={state.filteredClients}
@@ -250,6 +272,7 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
                 statusCounts={state.statusCounts}
                 totalClients={state.clients.length}
                 onEdit={(c) => state.setEditingClient(c)}
+                onView={(c) => setViewingClientId(c.id)}
                 onDelete={state.handleDeleteClient}
                 onRefresh={state.loadClients}
                 onAdd={() => { state.setEditingClient(null); setShowForm(true); }}
