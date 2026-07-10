@@ -31,11 +31,25 @@ export async function createProjectAcceptance(
   clientPrices?: Record<string, number>,
   accountType: 'company' | 'personal' = 'company'
 ): Promise<ProjectAcceptance> {
+  // ponytail: resolve mapping lúc tạo; đổi mapping sau không tự cập nhật bản ghi cũ
+  const { data: maps } = await supabase
+    .from('wf_clickup_crm_map')
+    .select('clickup_type, clickup_name, client_id, project_id')
+    .in('clickup_name', [projectName, clientName]);
+  const projectId = maps?.find(m => m.clickup_type === 'folder' && m.clickup_name === projectName)?.project_id ?? null;
+  let clientId = maps?.find(m => m.clickup_type === 'space' && m.clickup_name === clientName)?.client_id ?? null;
+  if (!clientId && projectId) {
+    const { data: p } = await supabase.from('crm_projects').select('client_id').eq('id', projectId).single();
+    clientId = p?.client_id ?? null;
+  }
+
   const { data, error } = await supabase
     .from('wf_project_acceptances')
     .insert({
       project_name: projectName,
       client_name: clientName,
+      project_id: projectId,
+      client_id: clientId,
       period,
       total_tasks: taskIds.length,
       total_amount: totalAmount,

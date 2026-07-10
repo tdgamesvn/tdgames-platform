@@ -4,6 +4,7 @@ import * as svc from '../../services/workforceService';
 import { BackButton } from '../shared/BackButton';
 import { CompanySelector, CompanyId } from '../shared/CompanySelector';
 import { StatusBadge } from '../shared/StatusBadge';
+import { SignedScanButton } from '../shared/SignedScanButton';
 import { exportSettlementPdf } from './settlementPdfExport';
 
 const inputCls = "w-full bg-transparent border border-primary/10 rounded-xl px-4 py-3 text-white placeholder-neutral-medium/40 focus:outline-none focus:border-primary/40 transition-all text-sm";
@@ -197,6 +198,10 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
           className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest border border-primary/20 text-primary hover:bg-primary/10 transition-all">
           📄 Export PDF
         </button>}
+        {!editing && <SignedScanButton
+          signedFileUrl={s.signed_file_url}
+          onUploaded={url => { onUpdate(s.id!, { signed_file_url: url }); setS(prev => ({ ...prev, signed_file_url: url })); }}
+        />}
         {!editing && <button
           onClick={() => onRequestConfirm('Xóa nghiệm thu này?', () => { onDelete(s.id!); onBack(); }, 'Task sẽ được rollback về CHƯA THANH TOÁN.')}
           className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all ml-auto"

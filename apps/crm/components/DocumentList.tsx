@@ -29,6 +29,7 @@ const DOC_TYPES: Record<string, { label: string; icon: string; color: string }> 
   nda:      { label: 'NDA', icon: '🔒', color: '#FF9500' },
   invoice:  { label: 'Invoice', icon: '🧾', color: '#0A84FF' },
   proposal: { label: 'Proposal', icon: '📝', color: '#AF52DE' },
+  acceptance: { label: 'BB nghiệm thu', icon: '✅', color: '#30D158' },
   other:    { label: 'Khác', icon: '📎', color: '#888' },
 };
 

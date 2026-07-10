@@ -220,6 +220,7 @@ export interface Settlement {
   notes: string;
   project_name?: string;
   account_type?: 'company' | 'personal';
+  signed_file_url?: string | null;
   created_at?: string;
   tasks?: WorkforceTask[];
 }
@@ -244,6 +245,9 @@ export interface ProjectAcceptance {
   discount_type: 'amount' | 'percent';
   discount_value: number;
   account_type?: 'company' | 'personal';
+  signed_file_url?: string | null;
+  client_id?: string | null;   // FK crm_clients (map từ ClickUp Space)
+  project_id?: string | null;  // FK crm_projects (map từ ClickUp Folder)
   created_at?: string;
 }
 
@@ -295,7 +299,7 @@ export interface CrmDocument {
   id: string;
   client_id: string;
   project_id?: string | null;
-  doc_type: 'contract' | 'nda' | 'invoice' | 'proposal' | 'other';
+  doc_type: 'contract' | 'nda' | 'invoice' | 'proposal' | 'acceptance' | 'other';
   title: string;
   file_url: string;
   file_name: string;

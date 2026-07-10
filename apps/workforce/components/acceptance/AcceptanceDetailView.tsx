@@ -4,6 +4,7 @@ import * as paSvc from '../../services/projectAcceptanceService';
 import { BackButton } from '../shared/BackButton';
 import { CompanySelector, CompanyId } from '../shared/CompanySelector';
 import { StatusBadge } from '../shared/StatusBadge';
+import { SignedScanButton } from '../shared/SignedScanButton';
 import { getClickupStatusStyle, exportAcceptancePdf } from './acceptancePdfExport';
 
 type AcceptanceTask = WorkforceTask & { client_price: number; acceptance_note: string };
@@ -105,6 +106,10 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
           className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest border border-blue-500/20 text-blue-400 hover:bg-blue-500/10 transition-all">
           📄 Export PDF
         </button>
+        <SignedScanButton
+          signedFileUrl={a.signed_file_url}
+          onUploaded={url => { onUpdate(a.id!, { signed_file_url: url }); setA(prev => ({ ...prev, signed_file_url: url })); }}
+        />
         <button
           onClick={() => onRequestConfirm('Delete this project acceptance?', () => { onDelete(a.id!); onBack(); })}
           className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all ml-auto"

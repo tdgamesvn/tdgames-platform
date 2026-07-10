@@ -31,6 +31,42 @@ const ClickUpConfigComponent: React.FC<ClickUpConfigProps> = ({ onToast }) => {
   const [autoSyncTimes, setAutoSyncTimes] = useState<string[]>(['07:00', '19:00']);
   const [savingSchedule, setSavingSchedule] = useState(false);
 
+  // CRM mapping state
+  const [crmMap, setCrmMap] = useState<clickup.CrmMapEntry[]>([]);
+  const [cuNames, setCuNames] = useState<{ spaces: string[]; folders: string[] }>({ spaces: [], folders: [] });
+  const [crmOpts, setCrmOpts] = useState<{ clients: { id: string; name: string }[]; projects: { id: string; name: string }[] }>({ clients: [], projects: [] });
+  const [mapLoading, setMapLoading] = useState(false);
+
+  useEffect(() => {
+    if (step !== 'done') return;
+    setMapLoading(true);
+    Promise.all([clickup.loadCrmMap(), clickup.fetchClickUpNames(), clickup.fetchCrmOptions()])
+      .then(([map, names, opts]) => { setCrmMap(map); setCuNames(names); setCrmOpts(opts); })
+      .catch((e: any) => onToast(`Lỗi tải mapping CRM: ${e.message}`, 'error'))
+      .finally(() => setMapLoading(false));
+  }, [step]);
+
+  const mapVal = (type: 'space' | 'folder', name: string) => {
+    const m = crmMap.find(x => x.clickup_type === type && x.clickup_name === name);
+    return (type === 'space' ? m?.client_id : m?.project_id) || '';
+  };
+
+  const handleMapChange = async (type: 'space' | 'folder', name: string, value: string) => {
+    const entry: clickup.CrmMapEntry = {
+      clickup_type: type,
+      clickup_name: name,
+      client_id: type === 'space' ? (value || null) : null,
+      project_id: type === 'folder' ? (value || null) : null,
+    };
+    try {
+      await clickup.saveCrmMapEntry(entry);
+      setCrmMap(prev => [...prev.filter(m => !(m.clickup_type === type && m.clickup_name === name)), entry]);
+      onToast('Đã lưu mapping', 'success');
+    } catch (e: any) {
+      onToast(`Lỗi: ${e.message}`, 'error');
+    }
+  };
+
   // Load existing config
   useEffect(() => {
     (async () => {
@@ -275,6 +311,49 @@ const ClickUpConfigComponent: React.FC<ClickUpConfigProps> = ({ onToast }) => {
                 >
                   {savingSchedule ? '⏳ Đang lưu...' : '💾 Lưu lịch sync'}
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* CRM Mapping */}
+          <div className="border-t border-primary/10 pt-4 space-y-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">🔗 Mapping CRM</p>
+              <p className="text-neutral-medium/60 text-[11px]">Gắn Space → Khách hàng, Folder → Dự án (CRM là nguồn chuẩn). Nghiệm thu mới sẽ tự liên kết theo mapping này.</p>
+            </div>
+            {mapLoading ? (
+              <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {([
+                  { type: 'space' as const, title: 'Space → Khách hàng', names: cuNames.spaces, options: crmOpts.clients },
+                  { type: 'folder' as const, title: 'Folder → Dự án', names: cuNames.folders, options: crmOpts.projects },
+                ]).map(group => (
+                  <div key={group.type} className="p-4 rounded-xl border border-primary/10 space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">{group.title}</p>
+                    {group.names.length === 0 && (
+                      <p className="text-neutral-medium/50 text-xs">Chưa có dữ liệu — hãy Sync task trước.</p>
+                    )}
+                    {group.names.map(name => (
+                      <div key={name} className="flex items-center gap-2">
+                        <span className="text-white text-xs font-medium flex-1 truncate" title={name}>{name}</span>
+                        {!mapVal(group.type, name) && (
+                          <span className="text-[10px] font-black uppercase text-amber-400">Chưa map</span>
+                        )}
+                        <select
+                          value={mapVal(group.type, name)}
+                          onChange={e => handleMapChange(group.type, name, e.target.value)}
+                          className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-primary/40 transition-all max-w-[180px]"
+                        >
+                          <option value="">— Chọn —</option>
+                          {group.options.map(o => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             )}
           </div>

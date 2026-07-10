@@ -108,6 +108,55 @@ export async function updateConfigSyncTime(): Promise<void> {
   if (error) throw error;
 }
 
+// ── CRM Mapping (Space → client, Folder → project) ────────────
+export interface CrmMapEntry {
+  id?: string;
+  clickup_type: 'space' | 'folder';
+  clickup_name: string;
+  client_id: string | null;
+  project_id: string | null;
+}
+
+export async function loadCrmMap(): Promise<CrmMapEntry[]> {
+  const { data, error } = await supabase.from('wf_clickup_crm_map').select('*');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveCrmMapEntry(entry: CrmMapEntry): Promise<void> {
+  const { error } = await supabase
+    .from('wf_clickup_crm_map')
+    .upsert(
+      { ...entry, updated_at: new Date().toISOString() },
+      { onConflict: 'clickup_type,clickup_name' }
+    );
+  if (error) throw error;
+}
+
+// Distinct Space/Folder names từ task đã sync — nguồn cho màn mapping
+export async function fetchClickUpNames(): Promise<{ spaces: string[]; folders: string[] }> {
+  const { data, error } = await supabase
+    .from('wf_tasks')
+    .select('clickup_space_name, clickup_folder_name');
+  if (error) throw error;
+  const spaces = [...new Set((data || []).map(t => t.clickup_space_name).filter(Boolean))] as string[];
+  const folders = [...new Set((data || []).map(t => t.clickup_folder_name).filter(Boolean))] as string[];
+  return { spaces: spaces.sort(), folders: folders.sort() };
+}
+
+export async function fetchCrmOptions(): Promise<{
+  clients: { id: string; name: string }[];
+  projects: { id: string; name: string }[];
+}> {
+  const [c, p] = await Promise.all([
+    supabase.from('crm_clients').select('id, name').order('name'),
+    supabase.from('crm_projects').select('id, name').order('name'),
+  ]);
+  if (c.error) throw c.error;
+  if (p.error) throw p.error;
+  return { clients: c.data || [], projects: p.data || [] };
+}
+
 // ── Webhook Management ────────────────────────────────────────
 
 const CLICKUP_API = 'https://api.clickup.com/api/v2';
