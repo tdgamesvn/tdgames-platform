@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ExpenseRecord, ExpenseCategory } from '@/types';
 import { supabase } from '@/services/supabaseClient';
+import { useWorkspace } from '@/services/WorkspaceContext';
 
 const R2_UPLOAD_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-expense-upload`;
 
@@ -36,12 +37,14 @@ const EMPTY: Omit<ExpenseRecord, 'id' | 'created_at' | 'updated_at' | 'category'
   receipt_url: '',
   created_by: '',
   account_type: 'company',
+  entity: 'TD GAMES' as const,
 };
 
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png,.webp';
 const MAX_SIZE_MB = 10;
 
 const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUpdate, onCancel }) => {
+  const { workspace } = useWorkspace();
   const [form, setForm] = useState(EMPTY);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -52,7 +55,8 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
       const { id, created_at, updated_at, category, ...rest } = editingExpense;
       setForm(rest as any);
     } else {
-      setForm({ ...EMPTY, expense_date: getToday() });
+      // Tạo mới: default entity theo workspace đang chọn (edit giữ nguyên entity của record)
+      setForm({ ...EMPTY, expense_date: getToday(), entity: workspace === 'TD CONSULTING' ? 'TD CONSULTING' : 'TD GAMES' });
     }
   }, [editingExpense]);
 
@@ -231,6 +235,23 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
                   }`}>
                   👤 Cá nhân
                 </button>
+              </div>
+            </div>
+
+            {/* Entity — sổ sách */}
+            <div>
+              <label className={labelClass}>Công ty</label>
+              <div className="flex gap-2">
+                {(['TD GAMES', 'TD CONSULTING'] as const).map(e => (
+                  <button key={e} type="button" onClick={() => update('entity', e)}
+                    className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                      ((form as any).entity || 'TD GAMES') === e
+                        ? 'border-primary/40 bg-primary/10 text-primary'
+                        : 'border-primary/10 text-neutral-medium hover:border-primary/20'
+                    }`}>
+                    {e === 'TD GAMES' ? 'TD Games' : 'TD Consulting'}
+                  </button>
+                ))}
               </div>
             </div>
 

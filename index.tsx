@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { WorkspaceProvider } from './services/WorkspaceContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,6 +12,9 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    {/* WorkspaceProvider ở root vì các mini-app return sớm trong App.tsx (ngoài nhánh HomeScreen) */}
+    <WorkspaceProvider>
+      <App />
+    </WorkspaceProvider>
   </React.StrictMode>
 );

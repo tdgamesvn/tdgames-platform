@@ -266,6 +266,9 @@ const ExpenseList: React.FC<Props> = ({
                     }`}>
                       {exp.account_type === 'personal' ? '👤' : '🏢'}
                     </span>
+                    {exp.entity === 'TD CONSULTING' && (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-blue-500/15 text-blue-400">TDC</span>
+                    )}
                   </div>
 
                   {/* Row 4: Amount */}

@@ -23,7 +23,6 @@ import SystemMonitorApp from './apps/system-monitor/components/SystemMonitorApp'
 import HandbookApp from './apps/handbook/components/HandbookApp';
 import { supabase } from './services/supabaseClient';
 import { ExchangeRateProvider } from './services/ExchangeRateContext';
-import { WorkspaceProvider } from './services/WorkspaceContext';
 import { hasRole, hasAnyRole } from './utils/roleUtils';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { checkOnboardingNeeded } from './apps/handbook/services/handbookService';
@@ -363,13 +362,11 @@ const App: React.FC = () => {
 
   // ── Home Screen ──
   return (
-    <WorkspaceProvider>
-      <HomeScreen
-        currentUser={currentUser}
-        onSelectApp={setActiveApp}
-        onLogout={handleLogout}
-      />
-    </WorkspaceProvider>
+    <HomeScreen
+      currentUser={currentUser}
+      onSelectApp={setActiveApp}
+      onLogout={handleLogout}
+    />
   );
 };
 

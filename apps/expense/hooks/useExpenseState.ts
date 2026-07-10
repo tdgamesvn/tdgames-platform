@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { ExpenseCategory, ExpenseRecord, RecurringExpense } from '@/types';
 import {
   fetchCategories,
@@ -32,7 +33,10 @@ export function useExpenseState(currentUser: string, initialTab?: string | null)
     setHashTab(tab);
   }, []);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [allExpenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const { workspace } = useWorkspace();
+  // ponytail: filter workspace tại 1 điểm chung — mọi tab (list/dashboard/reports/cashflow) đọc từ đây
+  const expenses = allExpenses.filter(e => matchesWorkspace(e.entity, workspace));
   const [recurring, setRecurring] = useState<RecurringExpense[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
