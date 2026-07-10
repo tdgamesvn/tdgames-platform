@@ -115,6 +115,7 @@ export interface ExpenseRecord {
   receipt_url: string;
   created_by: string;
   account_type?: 'company' | 'personal';
+  entity?: 'TD GAMES' | 'TD CONSULTING' | 'Cá nhân';
   approver_id?: string | null;
   approved_at?: string | null;
   approval_note?: string;
