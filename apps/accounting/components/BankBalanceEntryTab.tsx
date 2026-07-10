@@ -52,7 +52,7 @@ const BankBalanceEntryTab: React.FC<Props> = ({ currentUser }) => {
         const l = latestFor(acc.id);
         const stale = staleDays(l?.snapshot_date);
         return (
-          <div key={acc.id} className="bg-surface border border-white/8 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div key={acc.id} className="bg-surface border border-primary/10 rounded-[20px] p-4 flex items-center justify-between gap-4">
             <div>
               <p className="text-white font-bold text-sm">{acc.name} <span className="text-neutral-medium text-xs">({acc.bank_name})</span></p>
               <p className="text-xs text-neutral-medium mt-1">

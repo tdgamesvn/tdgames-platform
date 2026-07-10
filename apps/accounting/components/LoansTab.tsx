@@ -92,7 +92,7 @@ function AddForm({ currentUser, onSave, onClose }: AddFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="rounded-2xl border border-white/10 p-6 w-full max-w-md space-y-4 animate-scaleIn"
+      <div className="rounded-[20px] border border-primary/10 p-6 w-full max-w-md space-y-4 animate-scaleIn"
         style={{ background: '#1A1A1A' }}>
         <h3 className="text-sm font-black uppercase tracking-wider text-white">+ Khoản vay mới</h3>
 
@@ -200,7 +200,7 @@ function RepayModal({ loan, currentUser, onDone, onClose }: RepayModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="rounded-2xl border border-white/10 p-6 w-full max-w-sm space-y-4 animate-scaleIn"
+      <div className="rounded-[20px] border border-primary/10 p-6 w-full max-w-sm space-y-4 animate-scaleIn"
         style={{ background: '#1A1A1A' }}>
         <h3 className="text-sm font-black uppercase tracking-wider text-white">Cập nhật trả nợ</h3>
         <div className="rounded-xl border border-white/5 p-3 space-y-1" style={{ background: 'rgba(255,255,255,0.02)' }}>

@@ -177,7 +177,7 @@ function MarkPaidForm({ month, year, suggestedAmount, currentUser, existing, onS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="rounded-2xl border border-white/10 p-6 w-full max-w-sm space-y-4"
+      <div className="rounded-[20px] border border-primary/10 p-6 w-full max-w-sm space-y-4"
         style={{ background: '#1A1A1A' }}>
         <h3 className="text-sm font-black uppercase tracking-wider text-white">
           {existing ? 'Cập nhật' : 'Đánh dấu đã nộp'} BHXH tháng {month}/{year}

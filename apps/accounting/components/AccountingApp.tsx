@@ -39,13 +39,23 @@ const TAB_LABELS: Record<string, string> = {
   'bank-balance': '💵 Số dư ngân hàng',
 };
 
-const ACCESSIBLE_TABS = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh', 'savings', 'loans', 'bank-balance'] as const;
+// ponytail: grouping sống ở đây, Navbar chung không cần biết — nó chỉ render 4 "tab" là 4 group id
+const TAB_GROUPS = [
+  { id: 'ops',    label: '⚙️ Vận hành',       tabs: ['assets', 'advances', 'payables'] },
+  { id: 'money',  label: '🏦 Ngân hàng & Vốn', tabs: ['bank', 'bank-balance', 'savings', 'loans'] },
+  { id: 'tax',    label: '🧾 Thuế & BH',       tabs: ['vat', 'tncn', 'bhxh'] },
+  { id: 'report', label: '📈 Báo cáo',         tabs: ['pnl'] },
+] as const;
+
+const GROUP_LABELS: Record<string, string> = Object.fromEntries(TAB_GROUPS.map(g => [g.id, g.label]));
 
 const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const state = useAccountingState(currentUser.username, initialTab);
   const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+
+  const activeGroup = TAB_GROUPS.find(g => (g.tabs as readonly string[]).includes(state.activeTab)) ?? TAB_GROUPS[0];
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ message: msg, type });
@@ -75,19 +85,40 @@ const AccountingApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
       <Navbar
         theme="dark"
         currentUser={currentUser}
-        activeTab={state.activeTab}
-        accessibleTabs={ACCESSIBLE_TABS as any}
-        onTabChange={tab => state.setActiveTab(tab as AccountingTab)}
+        activeTab={activeGroup.id}
+        accessibleTabs={TAB_GROUPS.map(g => g.id)}
+        onTabChange={id => {
+          const g = TAB_GROUPS.find(g => g.id === id);
+          if (g) state.setActiveTab(g.tabs[0] as AccountingTab);
+        }}
         onLogout={onBack}
         onBack={onBack}
         vcbRate={vcbRate}
         vcbRateLoading={vcbRateLoading}
         appName="Kế toán"
-        tabLabels={TAB_LABELS}
+        tabLabels={GROUP_LABELS}
         onHelp={() => setHelpOpen(true)}
       />
 
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
+        {/* Sub-tabs của group đang chọn */}
+        {activeGroup.tabs.length > 1 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {activeGroup.tabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => state.setActiveTab(tab as AccountingTab)}
+                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                  state.activeTab === tab
+                    ? 'bg-primary text-black'
+                    : 'text-neutral-400 border border-white/10 hover:text-white hover:border-white/20'
+                }`}
+              >
+                {TAB_LABELS[tab]}
+              </button>
+            ))}
+          </div>
+        )}
         {state.loading ? (
           <div className="flex items-center justify-center py-32">
             <div className="w-8 h-8 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />

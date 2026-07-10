@@ -168,7 +168,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
           const ws = warrantyStatus(a.warranty_expires);
           return (
             <div key={a.id} onClick={() => setSelected(selected?.id === a.id ? null : a)}
-              className="rounded-2xl border border-white/5 p-4 cursor-pointer hover:border-white/10 transition-all"
+              className="rounded-[20px] border border-primary/10 p-4 cursor-pointer hover:border-primary/20 transition-all"
               style={{ background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -248,7 +248,7 @@ const FixedAssetTab: React.FC<Props> = ({ assets, onAdd, onEdit, onDelete, onToa
       {/* Form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl border border-white/10 p-6 max-h-[90vh] overflow-y-auto"
+          <div className="w-full max-w-lg rounded-[20px] border border-primary/10 p-6 max-h-[90vh] overflow-y-auto"
             style={{ background: '#1A1A1A' }}>
             <h3 className="text-base font-black uppercase tracking-wider text-white mb-6">
               {editId ? '✏️ Sửa tài sản' : '+ Thêm tài sản cố định'}

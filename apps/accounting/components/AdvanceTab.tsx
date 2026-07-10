@@ -209,7 +209,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       {/* Add form modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 p-6" style={{ background: '#1A1A1A' }}>
+          <div className="w-full max-w-md rounded-[20px] border border-primary/10 p-6" style={{ background: '#1A1A1A' }}>
             <h3 className="text-base font-black uppercase tracking-wider text-white mb-6">Tạo phiếu tạm ứng</h3>
             <form onSubmit={handleAdd} className="space-y-4">
               <div className="flex flex-col gap-1">
@@ -281,7 +281,7 @@ const AdvanceTab: React.FC<Props> = ({ advances, openTotal, onAdd, onSettle, onC
       {/* Settle modal */}
       {settleId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 p-6" style={{ background: '#1A1A1A' }}>
+          <div className="w-full max-w-md rounded-[20px] border border-primary/10 p-6" style={{ background: '#1A1A1A' }}>
             {(() => {
               const adv = advances.find(a => a.id === settleId)!;
               return (
