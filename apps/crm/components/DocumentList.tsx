@@ -350,11 +350,14 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser, fixedClient }) =>
         document.body
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
-        <div>
-          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{fixedClient ? 'Tài liệu của khách' : 'Tài liệu'}</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: fixedClient ? 'center' : 'flex-start', marginBottom: fixedClient ? '16px' : '28px' }}>
+        {fixedClient ? (
+          // ponytail: tên khách đã là tiêu đề chính ở CrmApp — chỉ cần label section nhỏ
+          <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">📁 Tài liệu</p>
+        ) : (<div>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Tài liệu</h2>
           <p className="text-sm text-neutral-medium mt-1">Quản lý hợp đồng, NDA, invoice — upload file hoặc dán link</p>
-        </div>
+        </div>)}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setPickerClientId(fixedClient?.id || ''); setPickerProjectId(''); setShowContractPicker(true); }}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">

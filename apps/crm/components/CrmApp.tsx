@@ -180,8 +180,8 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   // BD workflow order: Overview → Find targets → Contacts → Reach out → Track interactions → Deal → Project → Docs → Payment
   // ponytail: bỏ tab Tài liệu khỏi navbar — tài liệu xem trong panel chi tiết khách hàng; route #crm/settings vẫn hoạt động cho deep-link cũ
   const accessibleTabs = isBd
-    ? ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks']
-    : ['dashboard', 'studios', 'history', 'outreach', 'board', 'deals', 'tasks', 'activity'];
+    ? ['dashboard', 'history', 'tasks', 'deals', 'studios', 'outreach', 'board']
+    : ['dashboard', 'history', 'tasks', 'deals', 'studios', 'outreach', 'board', 'activity'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
