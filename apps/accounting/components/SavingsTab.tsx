@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { SavingsDeposit } from '@/types';
+import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
 import {
   addSaving, settleSaving, renewSaving, deleteSaving,
   calcMaturityDate, daysUntilMaturity,
@@ -56,7 +57,7 @@ interface AddFormProps {
 }
 
 const BLANK_FORM = {
-  bank_name: '', account_number: '', principal: '',
+  bank_account_id: '', bank_name: '', account_number: '', principal: '',
   currency: 'VND' as const, interest_rate: '', term_months: '3',
   start_date: today, notes: '',
 };
@@ -65,19 +66,25 @@ function AddForm({ currentUser, onSave, onClose }: AddFormProps) {
   const [f, setF] = useState(BLANK_FORM);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+
+  useEffect(() => {
+    fetchBankAccounts().then(setAccounts).catch(() => setAccounts([]));
+  }, []);
 
   const maturityDate = f.start_date && f.term_months
     ? calcMaturityDate(f.start_date, Number(f.term_months))
     : '';
 
   const handleSubmit = async () => {
-    if (!f.bank_name.trim()) { setErr('Nhập tên ngân hàng'); return; }
+    if (!f.bank_account_id) { setErr('Chọn tài khoản ngân hàng'); return; }
     if (!f.principal || Number(f.principal) <= 0) { setErr('Nhập số tiền gốc'); return; }
     if (!f.interest_rate || Number(f.interest_rate) <= 0) { setErr('Nhập lãi suất'); return; }
     if (!f.start_date) { setErr('Chọn ngày gửi'); return; }
     setSaving(true); setErr('');
     try {
       const result = await addSaving({
+        bank_account_id: f.bank_account_id,
         bank_name: f.bank_name.trim(),
         account_number: f.account_number.trim() || undefined,
         principal: Number(f.principal),
@@ -130,10 +137,30 @@ function AddForm({ currentUser, onSave, onClose }: AddFormProps) {
         <h3 className="text-sm font-black uppercase tracking-wider text-white">+ Gửi tiết kiệm mới</h3>
 
         <div className="grid grid-cols-2 gap-4">
-          {field('Ngân hàng *',
-            input({ value: f.bank_name, onChange: e => setF(p => ({ ...p, bank_name: e.target.value })), placeholder: 'VD: Vietcombank' })
+          {field('Tài khoản ngân hàng *',
+            select({
+              value: f.bank_account_id,
+              onChange: e => {
+                const acc = accounts.find(a => a.id === e.target.value);
+                setF(p => ({
+                  ...p,
+                  bank_account_id: e.target.value,
+                  bank_name: acc ? acc.bank_name : '',
+                  currency: acc && (acc.currency === 'VND' || acc.currency === 'USD') ? acc.currency : p.currency,
+                }));
+              },
+            },
+              <>
+                <option value="">— Chọn tài khoản —</option>
+                {accounts.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.bank_name} · {a.account_number || a.name} · {a.entity}
+                  </option>
+                ))}
+              </>
+            )
           )}
-          {field('Số tài khoản',
+          {field('Số sổ/TK tiết kiệm',
             input({ value: f.account_number, onChange: e => setF(p => ({ ...p, account_number: e.target.value })), placeholder: 'Tuỳ chọn' })
           )}
           {field('Số tiền gốc *',
@@ -288,6 +315,7 @@ function RenewModal({ saving, currentUser, onDone, onClose }: RenewModalProps) {
       await renewSaving(
         saving.id!,
         {
+          bank_account_id: saving.bank_account_id,
           bank_name: saving.bank_name,
           account_number: saving.account_number,
           principal: saving.principal,

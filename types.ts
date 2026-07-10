@@ -1113,6 +1113,7 @@ export interface PayPayrollRecord {
 
 export interface SavingsDeposit {
   id?: string;
+  bank_account_id?: string | null; // FK finance_bank_accounts — null cho record cũ
   bank_name: string;
   account_number?: string;
   principal: number;
