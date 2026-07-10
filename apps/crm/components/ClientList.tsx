@@ -33,6 +33,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   lost:        { label: 'Mất khách', color: '#FF453A', bg: 'rgba(255,69,58,0.12)', icon: '❌' },
 };
 
+// Đang hợp tác lên đầu, dừng/mất khách xuống cuối
+const STATUS_RANK: Record<string, number> = {
+  active: 0, contracting: 1, negotiating: 2, responding: 3, contacted: 4, no_response: 5, lead: 6,
+  paused: 7, completed: 8, lost: 9,
+};
+const INACTIVE_STATUSES = new Set(['paused', 'completed', 'lost']);
+
 const ClientList: React.FC<Props> = ({
   clients, isLoading, searchQuery, setSearchQuery, filterStatus, setFilterStatus,
   filterIndustry, setFilterIndustry, industries, statusCounts, totalClients,
@@ -114,12 +121,14 @@ const ClientList: React.FC<Props> = ({
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {clients.map(client => {
+        {[...clients].sort((a, b) => (STATUS_RANK[a.status] ?? 5) - (STATUS_RANK[b.status] ?? 5)).map(client => {
           const sc = STATUS_CONFIG[client.status] || STATUS_CONFIG.active;
+          const inactive = INACTIVE_STATUSES.has(client.status);
           return (
             <div key={client.id}
               className="flex items-center gap-4 p-4 rounded-[20px] border border-primary/10 hover:border-primary/20 transition-all bg-surface"
-              style={{ cursor: 'pointer' }}
+              // ponytail: boxShadow inset thay vì borderLeft — hover đổi style.borderColor sẽ không đè mất thanh màu
+              style={{ cursor: 'pointer', boxShadow: `inset 4px 0 0 ${sc.color}`, opacity: inactive ? 0.55 : 1 }}
               onClick={() => onView(client)}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#FF9500'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = ''; }}

@@ -240,7 +240,9 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const filtered = projects.filter(p => !filterStatus || p.status === filterStatus);
+  const PROJECT_RANK: Record<string, number> = { active: 0, paused: 1, completed: 2, cancelled: 3 };
+  const filtered = projects.filter(p => !filterStatus || p.status === filterStatus)
+    .sort((a, b) => (PROJECT_RANK[a.status] ?? 0) - (PROJECT_RANK[b.status] ?? 0));
   const clientName = (id: string) => clients.find(c => c.id === id)?.name || '—';
 
   return (
@@ -350,7 +352,8 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
           const st = PROJECT_STATUS[proj.status] || PROJECT_STATUS.active;
           const isExpanded = expandedId === proj.id;
           return (
-            <div key={proj.id} className="rounded-[20px] border border-primary/10 p-4 bg-surface hover:border-primary/20 transition-all" style={{ overflow: 'hidden' }}>
+            <div key={proj.id} className="rounded-[20px] border border-primary/10 p-4 bg-surface hover:border-primary/20 transition-all"
+              style={{ overflow: 'hidden', boxShadow: `inset 4px 0 0 ${st.color}`, opacity: proj.status === 'active' || isExpanded ? 1 : 0.55 }}>
               <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                 onClick={() => { const next = isExpanded ? null : proj.id; setExpandedId(next); if (next) { loadBilling(next); loadProjectDocs(next); } }}>
                 <div style={{ flex: 1 }}>
