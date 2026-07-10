@@ -5,6 +5,7 @@ import { supabase } from '@/services/supabaseClient';
 import { hasAnyRole } from '@/utils/roleUtils';
 import { createAndPollDraft, getEInvoiceDetail, getEInvoiceDownloadUrl } from '../services/sePayService';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   saveInvoiceToCloud,
   updateInvoiceInCloud,
@@ -49,7 +50,10 @@ export function useInvoiceState(initialTab?: string | null) {
       : ['edit', 'preview'];
 
   // ── Data State ──
-  const [history, setHistory] = useState<InvoiceData[]>([]);
+  const [allHistory, setHistory] = useState<InvoiceData[]>([]);
+  const { workspace } = useWorkspace();
+  // ponytail: filter workspace tại 1 điểm chung — History/Dashboard/ARAging đều đọc từ đây
+  const history = allHistory.filter(inv => matchesWorkspace(inv.billing_entity, workspace));
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [crmProjects, setCrmProjects] = useState<{ id: string; name: string; client_id: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);

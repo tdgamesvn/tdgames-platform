@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useWorkspace } from '@/services/WorkspaceContext';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser } from '@/types';
 import { Navbar } from '@/components/Navbar';
@@ -27,6 +28,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const YEARS = [2024, 2025, 2026, 2027];
 
 const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
+  const { workspace } = useWorkspace();
   const [data, setData] = useState<CeoDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selMonth, setSelMonth] = useState(new Date().getMonth() + 1);
@@ -34,13 +36,13 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
 
   const load = () => {
     setLoading(true);
-    fetchCeoDashboard(selMonth, selYear)
+    fetchCeoDashboard(selMonth, selYear, workspace)
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [selMonth, selYear]);
+  useEffect(load, [selMonth, selYear, workspace]);
 
   // ponytail: 60s polling instead of Supabase Realtime — dashboard has no
   // sub-second latency requirement, and polling avoids managing 5+ realtime
@@ -63,6 +65,9 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
         <div className="flex items-end justify-between mb-6">
           <div>
             <h1 className="text-2xl font-black text-white uppercase tracking-tight">📊 CEO Dashboard</h1>
+            <span className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">
+              {workspace === 'all' ? 'Sổ hợp nhất' : workspace === 'TD GAMES' ? 'Sổ thực tế — TD Games' : 'Sổ TD Consulting'}
+            </span>
             <p className="text-neutral-medium text-sm mt-1">
               Xin chào <span className="text-primary font-bold">{currentUser.username}</span> — tổng quan TD Games
             </p>

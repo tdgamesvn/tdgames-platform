@@ -95,7 +95,8 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
           </Button>
           <button
             onClick={onCreateEInvoice}
-            disabled={!!eInvoiceProgress}
+            disabled={!!eInvoiceProgress || (invoice.billing_entity || 'TD GAMES') !== 'TD GAMES'}
+            title={(invoice.billing_entity || 'TD GAMES') !== 'TD GAMES' ? 'E-invoice chỉ khả dụng cho TD Games' : undefined}
             className="w-full py-4 rounded-2xl text-sm font-black uppercase tracking-widest border-2 border-dashed border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/60 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {eInvoiceProgress ? 'Processing...' : 'Create eInvoice'}

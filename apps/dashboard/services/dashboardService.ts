@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
+import { Workspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { fetchExchangeRate, avgRate } from '@/services/exchangeRateService';
 import { fetchLatestBalances } from '@/services/bankBalanceService';
 
@@ -157,7 +158,8 @@ function monthLabel(m: number) {
 
 export async function fetchCeoDashboard(
   targetMonth?: number,
-  targetYear?: number
+  targetYear?: number,
+  workspace: Workspace = 'all'
 ): Promise<CeoDashboardData> {
   const now = new Date();
   const selMonth = targetMonth || now.getMonth() + 1;
@@ -193,8 +195,8 @@ export async function fetchCeoDashboard(
     outreachRes,
     emailRes,
   ] = await Promise.all([
-    supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at, due_date, crm_project_id'),
-    supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type, vendor, crm_project_id'),
+    supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at, due_date, crm_project_id, billing_entity'),
+    supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type, vendor, crm_project_id, entity'),
     supabase.from('wf_workers').select('id, status'),
     supabase.from('wf_tasks').select('id, status, price, currency, exchange_rate, payment_status, created_at, crm_project_id'),
     supabase.from('crm_clients').select('id, status'),
@@ -209,8 +211,9 @@ export async function fetchCeoDashboard(
     supabase.from('crm_email_log').select('id, status, sent_at'),
   ]);
 
-  const invoices = invoiceRes.data || [];
-  const expenses = expenseRes.data || [];
+  // Filter workspace TRƯỚC mọi aggregation — mọi số phía dưới theo sổ đang chọn
+  const invoices = (invoiceRes.data || []).filter((r: any) => matchesWorkspace(r.billing_entity, workspace));
+  const expenses = (expenseRes.data || []).filter((r: any) => matchesWorkspace(r.entity, workspace));
   const tasks = taskRes.data || [];
   const employees = (employeeRes.data || []);
   const depts = deptRes.data || [];
