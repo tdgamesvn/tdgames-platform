@@ -183,7 +183,6 @@ export async function fetchCeoDashboard(
   const [
     invoiceRes,
     expenseRes,
-    workerRes,
     taskRes,
     clientRes,
     projectRes,
@@ -197,17 +196,16 @@ export async function fetchCeoDashboard(
   ] = await Promise.all([
     supabase.from('invoice_invoices').select('id, status, currency, amount_received, items, issue_date, paid_date, created_at, due_date, crm_project_id, billing_entity'),
     supabase.from('expense_expenses').select('id, amount, currency, type, status, expense_date, source_type, vendor, crm_project_id, entity'),
-    supabase.from('wf_workers').select('id, status'),
     supabase.from('wf_tasks').select('id, status, price, currency, exchange_rate, payment_status, created_at, crm_project_id'),
     supabase.from('crm_clients').select('id, status'),
     supabase.from('crm_projects').select('id, name, status, budget, currency'),
     supabase.from('hr_employees').select('id, status, department_id'),
     supabase.from('hr_departments').select('id, name'),
-    supabase.from('pay_payroll_sheets').select('id, title, status, month, year, total_net_salary, total_company_cost')
+    supabase.from('pay_payroll_sheets').select('id, title, status, month, year')
       .order('year', { ascending: false }).order('month', { ascending: false }).limit(1),
     supabase.from('hr_contracts').select('id, employee_id, status, end_date').eq('status', 'active'),
     supabase.from('att_requests').select('id, status').eq('request_type', 'leave').eq('status', 'pending'),
-    supabase.from('crm_outreach_leads').select('id, status, tier, created_at'),
+    supabase.from('crm_outreach_leads').select('id, tier, created_at'),
     supabase.from('crm_email_log').select('id, status, sent_at'),
   ]);
 
