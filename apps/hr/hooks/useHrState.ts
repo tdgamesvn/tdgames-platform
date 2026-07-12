@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { HrEmployee, HrDepartment, HrContract, HrEvaluation, HrReminder, HrChangeRequest } from '@/types';
 import * as svc from '../services/hrService';
 import { setHashTab } from '@/App';
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 
 export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd' | 'evaluation' | 'changeRequests';
 const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation', 'changeRequests'];
 
 export function useHrState(initialTab?: string | null) {
+  const { workspace } = useWorkspace();
   // Tabs that require in-memory state (selected employee) — can't restore from URL on F5
   const STATE_DEPENDENT_TABS: HrTab[] = ['employeeDetail', 'employeeForm', 'quickAdd'];
 
@@ -262,8 +264,13 @@ export function useHrState(initialTab?: string | null) {
     }
   };
 
+  // ── Tách sổ: chỉ hiện record thuộc workspace đang chọn (fetch giữ nguyên, filter client-side để đổi sổ không cần refetch) ──
+  const wsEmployees = employees.filter(e => matchesWorkspace(e.entity, workspace));
+  const wsDepartments = departments.filter(d => matchesWorkspace(d.entity, workspace));
+  const wsChangeRequests = changeRequests.filter(r => matchesWorkspace((r as any).employee?.entity, workspace));
+
   // ── Filtered employees ──
-  const filteredEmployees = employees.filter(e => {
+  const filteredEmployees = wsEmployees.filter(e => {
     if (filterType && e.type !== filterType) return false;
     if (filterStatus && e.status !== filterStatus) return false;
     if (filterDepartment && e.department_id !== filterDepartment) return false;
@@ -284,7 +291,7 @@ export function useHrState(initialTab?: string | null) {
     const { fetchChangeRequests: fetch } = await import('../services/changeRequestService');
     setChangeRequests(await fetch());
   }, []);
-  const pendingChangeRequests = changeRequests.filter(r => r.status === 'pending');
+  const pendingChangeRequests = wsChangeRequests.filter(r => r.status === 'pending');
 
   // ── Computed ──
   const pendingReminders = reminders.filter(r => r.status === 'pending');
@@ -292,7 +299,7 @@ export function useHrState(initialTab?: string | null) {
   return {
     activeTab, setActiveTab,
     isLoading, toast, setToast,
-    employees, filteredEmployees, departments,
+    employees: wsEmployees, filteredEmployees, departments: wsDepartments,
     contracts, evaluations, reminders, pendingReminders,
     editingEmployee, setEditingEmployee,
     viewingEmployee, setViewingEmployee,
@@ -307,6 +314,6 @@ export function useHrState(initialTab?: string | null) {
     handleGenerateReminders, handleDismissReminder,
     handleSyncAllToWorkforce,
     loadAll, loadEmployeeDetail,
-    changeRequests, pendingChangeRequests, loadChangeRequests,
+    changeRequests: wsChangeRequests, pendingChangeRequests, loadChangeRequests,
   };
 }

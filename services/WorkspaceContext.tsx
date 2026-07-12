@@ -31,3 +31,7 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 };
 
 export const useWorkspace = () => useContext(WorkspaceContext);
+
+// Đọc workspace ngoài React — service dùng để tag entity lúc insert
+export const getWorkspace = (): Workspace =>
+  localStorage.getItem(KEY) === 'TD CONSULTING' ? 'TD CONSULTING' : 'TD GAMES';

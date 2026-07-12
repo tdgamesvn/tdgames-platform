@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabaseClient';
+import { getWorkspace } from '@/services/WorkspaceContext';
 import {
   HrEmployee, HrDepartment, HrContract, HrPositionHistory,
   HrEvaluation, HrProjectHistory, HrDocument, HrReminder,
@@ -115,7 +116,7 @@ export async function fetchEmployees(): Promise<HrEmployee[]> {
 const EMPLOYEE_LITE_SELECT = [
   'id', 'employee_code', 'full_name', 'type', 'status', 'position', 'level',
   'department_id', 'avatar_url', 'email', 'phone', 'work_email',
-  'start_date', 'worker_id', 'exclude_from_payroll', 'is_hidden',
+  'start_date', 'worker_id', 'exclude_from_payroll', 'is_hidden', 'entity',
   'specializations', 'tags', 'rate_amount', 'rate_currency', 'rate_type',
   'probation_end', 'official_date',
   'department:hr_departments!hr_employees_department_id_fkey(id, name)',
@@ -149,7 +150,7 @@ export async function saveEmployee(
 
   const { data, error } = await supabase
     .from('hr_employees')
-    .insert(dbFields)
+    .insert({ entity: getWorkspace(), ...dbFields }) // tag sổ đang active
     .select('*, department:hr_departments!hr_employees_department_id_fkey(*)')
     .single();
   if (error) throw error;
@@ -423,7 +424,7 @@ export async function saveDepartment(
 ): Promise<HrDepartment> {
   const { data, error } = await supabase
     .from('hr_departments')
-    .insert(dept)
+    .insert({ entity: getWorkspace(), ...dept })
     .select()
     .single();
   if (error) throw error;

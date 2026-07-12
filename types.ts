@@ -480,6 +480,7 @@ export interface CrmEmailTemplate {
 // ── HR Module Types ───────────────────────────────────────────
 
 export interface HrDepartment {
+  entity?: string;
   id: string;
   name: string;
   code: string;
@@ -490,6 +491,7 @@ export interface HrDepartment {
 }
 
 export interface HrEmployee {
+  entity?: string;
   id: string;
   employee_code: string;
   type: 'fulltime' | 'freelancer' | 'parttime';

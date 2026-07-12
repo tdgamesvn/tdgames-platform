@@ -59,14 +59,18 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
     );
   }
 
-  const filtered = cycles.filter(c => {
+  // Tách sổ: cycle theo employee thuộc workspace — prop `employees` đã filter sẵn ở useHrState
+  const empIds = new Set(employees.map(e => e.id));
+  const wsCycles = cycles.filter(c => empIds.has(c.employee_id));
+
+  const filtered = wsCycles.filter(c => {
     if (filter === 'active')    return c.status !== 'completed';
     if (filter === 'completed') return c.status === 'completed';
     return true;
   });
 
-  const pendingCount   = cycles.filter(c => c.status !== 'completed').length;
-  const completedCount = cycles.filter(c => c.status === 'completed').length;
+  const pendingCount   = wsCycles.filter(c => c.status !== 'completed').length;
+  const completedCount = wsCycles.filter(c => c.status === 'completed').length;
 
   return (
     <div className="animate-fadeInUp space-y-8">
@@ -90,7 +94,7 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Tổng kỳ', value: cycles.length, color: '#FF9500' },
+          { label: 'Tổng kỳ', value: wsCycles.length, color: '#FF9500' },
           { label: 'Đang chờ', value: pendingCount, color: '#FFA726' },
           { label: 'Hoàn thành', value: completedCount, color: '#34C759' },
         ].map(c => (
