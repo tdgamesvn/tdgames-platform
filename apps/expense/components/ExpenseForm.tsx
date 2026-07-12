@@ -242,14 +242,14 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
             <div>
               <label className={labelClass}>Công ty</label>
               <div className="flex gap-2">
-                {(['TD GAMES', 'TD CONSULTING'] as const).map(e => (
+                {((workspace === 'TD CONSULTING' ? ['TD CONSULTING'] : ['TD GAMES', 'Cá nhân']) as readonly string[]).map(e => (
                   <button key={e} type="button" onClick={() => update('entity', e)}
                     className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
                       ((form as any).entity || 'TD GAMES') === e
                         ? 'border-primary/40 bg-primary/10 text-primary'
                         : 'border-primary/10 text-neutral-medium hover:border-primary/20'
                     }`}>
-                    {e === 'TD GAMES' ? 'TD Games' : 'TD Consulting'}
+                    {e === 'TD GAMES' ? 'TD Games' : e === 'TD CONSULTING' ? 'TD Consulting' : 'Cá nhân'}
                   </button>
                 ))}
               </div>

@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import React from 'react';
 import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioRecord, StudioInfo } from '@/types';
 import { Button } from '@/components/Button';
@@ -169,11 +170,10 @@ export const InvoiceEditor: React.FC<InvoiceEditorProps> = ({
           {/* ── Pháp nhân & TK nhận tiền ── */}
           <Select
             label="🏢 Pháp nhân phát hành"
-            value={invoice.billing_entity || 'TD GAMES'}
+            value={invoice.billing_entity || getWorkspace()}
             onChange={(e) => updateInvoice('billing_entity', e.target.value)}
           >
-            <option value="TD GAMES">TD GAMES</option>
-            <option value="TD CONSULTING">TD CONSULTING</option>
+            <option value={getWorkspace()}>{getWorkspace()}</option>
             <option value="Cá nhân">Cá nhân (không xuất HĐ)</option>
           </Select>
           {bankAccounts.length > 0 && (

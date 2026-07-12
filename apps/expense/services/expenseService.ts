@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { ExpenseCategory, ExpenseRecord, RecurringExpense } from '@/types';
 
@@ -106,7 +107,7 @@ export async function fetchRecurringExpenses(): Promise<RecurringExpense[]> {
 export async function saveRecurringExpense(item: Omit<RecurringExpense, 'id' | 'created_at' | 'category'>): Promise<RecurringExpense> {
   const { data, error } = await supabase
     .from('expense_recurring')
-    .insert(item)
+    .insert({ entity: getWorkspace(), ...item })
     .select('*, category:expense_categories(*)')
     .single();
   if (error) throw error;

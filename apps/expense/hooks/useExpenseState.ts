@@ -202,7 +202,8 @@ export function useExpenseState(currentUser: string, initialTab?: string | null)
 
   return {
     activeTab, setActiveTab,
-    categories, expenses, filteredExpenses, recurring,
+    categories, expenses, filteredExpenses,
+    recurring: recurring.filter(r => matchesWorkspace((r as any).entity, workspace)), // tách sổ
     isLoading, toast, setToast,
     filterCategory, setFilterCategory,
     filterDateFrom, setFilterDateFrom,

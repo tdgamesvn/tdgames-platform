@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_INVOICE } from '@/constants';
 import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioInfo, AccountUser } from '@/types';
@@ -34,7 +35,7 @@ export function useInvoiceState(initialTab?: string | null) {
   const setCurrentUser = (user: AccountUser | null) => {
     _setCurrentUser(user);
   };
-  const [invoice, setInvoice] = useState<InvoiceData>(DEFAULT_INVOICE);
+  const [invoice, setInvoice] = useState<InvoiceData>({ ...DEFAULT_INVOICE, billing_entity: getWorkspace() });
   const [activeTab, _setActiveTab] = useState<InvoiceTab>(() => {
     if (initialTab && VALID_TABS.includes(initialTab as InvoiceTab)) return initialTab as InvoiceTab;
     return 'edit';
