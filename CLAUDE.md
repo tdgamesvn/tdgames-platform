@@ -255,3 +255,10 @@ This project is indexed by GitNexus as **tdgames-platform** (4320 symbols, 8609 
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## 🏢 Workspace — 2 sổ công ty
+
+- `Workspace = 'TD GAMES' | 'TD CONSULTING'` (`services/WorkspaceContext.tsx`), switcher trên Navbar (admin/ke_toan/hr). "Hợp nhất" chỉ còn là toggle local trong CEO Dashboard.
+- Mọi bảng gốc có cột `entity` (default `'TD GAMES'`, migration `20260712090000`). Record null/cũ + `'Cá nhân'` (expense) thuộc sổ TD GAMES.
+- Pattern: **filter client-side** bằng `matchesWorkspace(entity, workspace)` tại hook giữ state (reactive khi đổi sổ); **tag lúc insert** bằng `getWorkspace()` tại service (khỏi sửa form). Bảng con (deals, tasks, cycles, records...) kế thừa qua membership của bảng cha đã filter.
+- Verify: `node scripts/verify-two-books.mjs <port>` (dev server chạy ngoài sandbox).
