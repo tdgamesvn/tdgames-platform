@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import {
   AttShift, AttEmployeeShift, AttRecord, AttRequest, AttQrSession,
@@ -20,7 +21,7 @@ export async function fetchShifts(): Promise<AttShift[]> {
 export async function saveShift(shift: Omit<AttShift, 'id' | 'created_at'>): Promise<AttShift> {
   const { data, error } = await supabase
     .from('att_shifts')
-    .insert(shift)
+    .insert({ entity: getWorkspace(), ...shift })
     .select()
     .single();
   if (error) throw error;
@@ -265,7 +266,7 @@ export async function createMonthlySheet(
   // Create the sheet
   const { data: sheet, error: sheetErr } = await supabase
     .from('att_monthly_sheets')
-    .insert({ month, year, title })
+    .insert({ month, year, title, entity: getWorkspace() })
     .select()
     .single();
   if (sheetErr) throw sheetErr;

@@ -1,3 +1,4 @@
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import React, { useState, useEffect, useCallback } from 'react';
 import { HrEmployee, AttMonthlySheet, AttMonthlyRecord } from '@/types';
 import * as svc from '../services/attendanceService';
@@ -11,6 +12,8 @@ const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Th�
 
 const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const [sheets, setSheets] = useState<AttMonthlySheet[]>([]);
+  const { workspace } = useWorkspace();
+  const wsSheets = sheets.filter(s => matchesWorkspace((s as any).entity, workspace)); // tách sổ
   const [selectedSheet, setSelectedSheet] = useState<AttMonthlySheet | null>(null);
   const [records, setRecords] = useState<AttMonthlyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +56,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   // ── Create new sheet ──
   const handleCreate = async () => {
     try {
-      const existing = sheets.find(s => s.month === createMonth && s.year === createYear);
+      const existing = wsSheets.find(s => s.month === createMonth && s.year === createYear);
       if (existing) {
         setToast({ message: `Bảng chấm công Tháng ${createMonth}/${createYear} đã tồn tại!`, type: 'error' });
         return;
@@ -136,13 +139,13 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
         </div>
         <div className="flex gap-3">
           {/* Sheet selector */}
-          {sheets.length > 0 && (
+          {wsSheets.length > 0 && (
             <select
               value={selectedSheet?.id || ''}
               onChange={e => { const s = sheets.find(s => s.id === e.target.value); if (s) setSelectedSheet(s); }}
               className="px-4 py-2 rounded-xl bg-surface border border-primary/10 text-white text-sm"
             >
-              {sheets.map(s => (
+              {wsSheets.map(s => (
                 <option key={s.id} value={s.id}>
                   {s.title} {s.status === 'finalized' ? '✅' : '📝'}
                 </option>
@@ -186,7 +189,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
       )}
 
       {/* No sheets */}
-      {!isLoading && sheets.length === 0 && !showCreate && (
+      {!isLoading && wsSheets.length === 0 && !showCreate && (
         <div className="text-center py-20 opacity-40">
           <div className="text-6xl mb-4">📋</div>
           <div className="text-xl font-bold">Chưa có bảng chấm công nào</div>

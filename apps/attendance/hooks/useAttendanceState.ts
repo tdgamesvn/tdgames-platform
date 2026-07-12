@@ -1,3 +1,4 @@
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback } from 'react';
 import { HrEmployee, AttShift, AttRecord, AttRequest, AttEmployeeShift } from '@/types';
 import * as svc from '../services/attendanceService';
@@ -8,6 +9,7 @@ export type AttTab = 'dashboard' | 'log' | 'shifts' | 'reports' | 'leaves';
 const VALID_TABS: AttTab[] = ['dashboard', 'log', 'shifts', 'reports', 'leaves'];
 
 export function useAttendanceState(initialTab?: string | null) {
+  const { workspace } = useWorkspace();
   const [activeTab, _setActiveTab] = useState<AttTab>(() => {
     if (initialTab && VALID_TABS.includes(initialTab as AttTab)) return initialTab as AttTab;
     return 'dashboard';
@@ -137,16 +139,24 @@ export function useAttendanceState(initialTab?: string | null) {
   };
 
   // ── Computed ──
-  const todayRecords = records.filter(r => r.date === selectedDate);
+  // Tách sổ: filter client-side theo workspace (đổi sổ không cần refetch)
+  const wsEmployees = employees.filter(e => matchesWorkspace(e.entity, workspace));
+  const empIds = new Set(wsEmployees.map(e => e.id));
+  const wsShifts = shifts.filter(s => matchesWorkspace((s as any).entity, workspace));
+  const wsRequests = requests.filter(r => empIds.has(r.employee_id));
+  const wsRecords = records.filter(r => empIds.has(r.employee_id));
+  const wsEmployeeShifts = employeeShifts.filter(es => empIds.has(es.employee_id));
+
+  const todayRecords = wsRecords.filter(r => r.date === selectedDate);
   const checkedInCount = todayRecords.filter(r => r.check_in && !r.check_out).length;
   const completedCount = todayRecords.filter(r => r.check_in && r.check_out).length;
   const lateCount = todayRecords.filter(r => r.status === 'late').length;
-  const pendingRequests = requests.filter(r => r.status === 'pending');
+  const pendingRequests = wsRequests.filter(r => r.status === 'pending');
 
   return {
     activeTab, setActiveTab,
     isLoading, toast, setToast,
-    employees, shifts, records, requests, employeeShifts,
+    employees: wsEmployees, shifts: wsShifts, records: wsRecords, requests: wsRequests, employeeShifts: wsEmployeeShifts,
     selectedDate, setSelectedDate,
     todayRecords, checkedInCount, completedCount, lateCount, pendingRequests,
     handleSaveShift, handleUpdateShift, handleDeleteShift,

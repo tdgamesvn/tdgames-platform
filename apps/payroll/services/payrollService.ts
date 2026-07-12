@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import {
   PayPayrollSheet, PayPayrollRecord,
@@ -349,7 +350,7 @@ export async function createPayrollSheet(
   const stdDays = countWeekdays(year, month);
 
   const title = `Bảng lương Tháng ${month}/${year}`;
-  const insertSheet: Record<string, unknown> = { month, year, title, standard_work_days: stdDays };
+  const insertSheet: Record<string, unknown> = { month, year, title, standard_work_days: stdDays, entity: getWorkspace() };
   if (formulaRow?.id) insertSheet.formula_settings_id = formulaRow.id;
 
   const { data: sheet, error: sheetErr } = await supabase
@@ -363,6 +364,7 @@ export async function createPayrollSheet(
   const { data: allEmployees } = await supabase
     .from('hr_employees')
     .select('*')
+    .eq('entity', getWorkspace()) // tách sổ: chỉ tính lương nhân viên sổ đang chọn
     .eq('type', 'fulltime')
     .eq('status', 'active')
     .neq('exclude_from_payroll', true);
@@ -386,6 +388,7 @@ export async function createPayrollSheet(
   const { data: attSheets } = await supabase
     .from('att_monthly_sheets')
     .select('id')
+    .eq('entity', getWorkspace())
     .eq('month', month)
     .eq('year', year);
 

@@ -1,3 +1,4 @@
+import { useWorkspace, matchesWorkspace, getWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback } from 'react';
 import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
 import { supabase } from '@/services/supabaseClient';
@@ -13,6 +14,7 @@ async function getSessionUserId(): Promise<string | null> {
 }
 
 export function usePayrollState(initialTab?: string | null) {
+  const { workspace } = useWorkspace();
   const [view, setView] = useState<PayrollView>('sheets');
   const [sheets, setSheets] = useState<PayPayrollSheet[]>([]);
   const [records, setRecords] = useState<PayPayrollRecord[]>([]);
@@ -56,6 +58,7 @@ export function usePayrollState(initialTab?: string | null) {
       const { data: attSheets } = await supabase
         .from('att_monthly_sheets')
         .select('id, status')
+        .eq('entity', getWorkspace()) // đọc lúc action — tránh stale closure deps
         .eq('month', month)
         .eq('year', year);
 
@@ -254,7 +257,7 @@ export function usePayrollState(initialTab?: string | null) {
   }, []);
 
   return {
-    view, sheets, records, activeSheet, activeFormula, loading, toast,
+    view, sheets: sheets.filter(s => matchesWorkspace((s as any).entity, workspace)), records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
     updateRecord, saveRecord, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, refreshRecords, backToSheets,
   };
