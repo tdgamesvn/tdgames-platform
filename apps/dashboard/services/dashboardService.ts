@@ -159,7 +159,7 @@ function monthLabel(m: number) {
 export async function fetchCeoDashboard(
   targetMonth?: number,
   targetYear?: number,
-  workspace: Workspace = 'all'
+  workspace: Workspace | 'all' = 'all' // 'all' (Hợp nhất) chỉ còn ở Dashboard — Task 8 toggle riêng
 ): Promise<CeoDashboardData> {
   const now = new Date();
   const selMonth = targetMonth || now.getMonth() + 1;
@@ -210,8 +210,9 @@ export async function fetchCeoDashboard(
   ]);
 
   // Filter workspace TRƯỚC mọi aggregation — mọi số phía dưới theo sổ đang chọn
-  const invoices = (invoiceRes.data || []).filter((r: any) => matchesWorkspace(r.billing_entity, workspace));
-  const expenses = (expenseRes.data || []).filter((r: any) => matchesWorkspace(r.entity, workspace));
+  const inBook = (e: string | null | undefined) => workspace === 'all' || matchesWorkspace(e, workspace);
+  const invoices = (invoiceRes.data || []).filter((r: any) => inBook(r.billing_entity));
+  const expenses = (expenseRes.data || []).filter((r: any) => inBook(r.entity));
   const tasks = taskRes.data || [];
   const employees = (employeeRes.data || []);
   const depts = deptRes.data || [];

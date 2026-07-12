@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState } from 'react';
 
-export type Workspace = 'TD GAMES' | 'TD CONSULTING' | 'all';
+export type Workspace = 'TD GAMES' | 'TD CONSULTING';
 
 const KEY = 'workspace_entity';
 
-// Record cũ/null coi là TD GAMES. 'Cá nhân' chỉ hiện ở workspace 'all'.
+// Record cũ/null coi là TD GAMES. 'Cá nhân' (chỉ có ở expense) thuộc sổ gốc TD GAMES.
 export function matchesWorkspace(entity: string | null | undefined, w: Workspace): boolean {
-  if (w === 'all') return true;
-  return (entity || 'TD GAMES') === w;
+  return (entity || 'TD GAMES') === w || (w === 'TD GAMES' && entity === 'Cá nhân');
 }
 
 const WorkspaceContext = createContext<{
@@ -18,7 +17,7 @@ const WorkspaceContext = createContext<{
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [workspace, setWs] = useState<Workspace>(() => {
     const saved = localStorage.getItem(KEY);
-    return saved === 'TD CONSULTING' || saved === 'all' ? saved : 'TD GAMES';
+    return saved === 'TD CONSULTING' ? saved : 'TD GAMES'; // 'all' cũ trong localStorage tự về TD GAMES
   });
   const setWorkspace = (w: Workspace) => {
     localStorage.setItem(KEY, w);

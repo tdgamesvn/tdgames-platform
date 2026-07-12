@@ -23,7 +23,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels, onHelp }) => {
   const { workspace, setWorkspace } = useWorkspace();
 
-  const WS_DOT: Record<string, string> = { 'TD GAMES': 'bg-primary', 'TD CONSULTING': 'bg-blue-400', all: 'bg-neutral-400' };
+  const WS_DOT: Record<string, string> = { 'TD GAMES': 'bg-primary', 'TD CONSULTING': 'bg-blue-400' };
 
   return (
   <nav className={`sticky top-0 backdrop-blur-md border-b z-50 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-primary/10' : 'bg-white/95 border-gray-200 shadow-sm'}`}>
@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
         <NotificationBell userId={currentUser.id} theme={theme} />
 
         {/* Workspace Switcher */}
-        {hasAnyRole(currentUser, ['admin', 'ke_toan']) && (
+        {hasAnyRole(currentUser, ['admin', 'ke_toan', 'hr']) && (
           <div className={`relative flex items-center gap-1.5 ${theme === 'dark' ? 'bg-surface border border-white/10' : 'bg-gray-100 border border-gray-200'} rounded-lg px-2 py-1`}>
             <span className={`w-2 h-2 rounded-full ${WS_DOT[workspace]}`} />
             <select
@@ -125,7 +125,6 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
             >
               <option value="TD GAMES" className="bg-[#1a1a1a]">Sổ TD Games</option>
               <option value="TD CONSULTING" className="bg-[#1a1a1a]">Sổ TD Consulting</option>
-              <option value="all" className="bg-[#1a1a1a]">Hợp nhất</option>
             </select>
           </div>
         )}

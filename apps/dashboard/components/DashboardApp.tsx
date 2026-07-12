@@ -66,7 +66,7 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
           <div>
             <h1 className="text-2xl font-black text-white uppercase tracking-tight">📊 CEO Dashboard</h1>
             <span className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">
-              {workspace === 'all' ? 'Sổ hợp nhất' : workspace === 'TD GAMES' ? 'Sổ thực tế — TD Games' : 'Sổ TD Consulting'}
+              {workspace === 'TD GAMES' ? 'Sổ thực tế — TD Games' : 'Sổ TD Consulting'}
             </span>
             <p className="text-neutral-medium text-sm mt-1">
               Xin chào <span className="text-primary font-bold">{currentUser.username}</span> — tổng quan TD Games
