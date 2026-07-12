@@ -13,6 +13,13 @@ Spec 2026-07-10 chỉ tách **sổ sách** (invoice/expense/bank). Ý đồ th�
 (nhân sự, chấm công, lương, kế toán, CRM, workforce...) đổi theo công ty đang chọn.
 Thêm nhân sự/chi phí bên TD Consulting không liên quan gì TD Games.
 
+## Định vị 2 sổ (chốt 2026-07-12)
+
+- **TD GAMES = sổ gốc** — sổ thuế/giấy tờ chính thức, mặc định, dữ liệu hiện tại
+  bảo toàn tuyệt đối. Migration chỉ ADD COLUMN default 'TD GAMES', không UPDATE/DROP.
+- **TD CONSULTING = sổ phụ nội bộ** — theo dõi chi phí/doanh thu/nhân sự TD Games
+  phát sinh bên đó, chỉ lưu hành nội bộ: không e-invoice, không giấy tờ thuế từ app.
+
 ## Quyết định đã chốt (qua chat)
 
 1. **Tách tất cả module có dữ liệu**: HR, Attendance, Payroll, Accounting, Expense, Invoice, CRM, Workforce, Dashboard.
