@@ -33,16 +33,18 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [selMonth, setSelMonth] = useState(new Date().getMonth() + 1);
   const [selYear, setSelYear] = useState(new Date().getFullYear());
+  // Hợp nhất chỉ tồn tại ở Dashboard — toggle local, không đụng switcher navbar
+  const [consolidated, setConsolidated] = useState(false);
 
   const load = () => {
     setLoading(true);
-    fetchCeoDashboard(selMonth, selYear, workspace)
+    fetchCeoDashboard(selMonth, selYear, consolidated ? 'all' : workspace)
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [selMonth, selYear, workspace]);
+  useEffect(load, [selMonth, selYear, workspace, consolidated]);
 
   // ponytail: 60s polling instead of Supabase Realtime — dashboard has no
   // sub-second latency requirement, and polling avoids managing 5+ realtime
@@ -51,7 +53,7 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
   useEffect(() => {
     const id = setInterval(load, 60_000);
     return () => clearInterval(id);
-  }, [selMonth, selYear]);
+  }, [selMonth, selYear, workspace, consolidated]);
 
   return (
     <div className="min-h-screen bg-bg-dark relative overflow-hidden">
@@ -66,7 +68,7 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
           <div>
             <h1 className="text-2xl font-black text-white uppercase tracking-tight">📊 CEO Dashboard</h1>
             <span className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">
-              {workspace === 'TD GAMES' ? 'Sổ thực tế — TD Games' : 'Sổ TD Consulting'}
+              {consolidated ? 'Sổ hợp nhất — TD Games + TD Consulting' : workspace === 'TD GAMES' ? 'Sổ thực tế — TD Games' : 'Sổ TD Consulting'}
             </span>
             <p className="text-neutral-medium text-sm mt-1">
               Xin chào <span className="text-primary font-bold">{currentUser.username}</span> — tổng quan TD Games
@@ -83,6 +85,14 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
               className="border border-primary/20 text-xs rounded-lg px-3 py-2 font-bold focus:outline-none focus:border-primary appearance-none cursor-pointer">
               {YEARS.map(y => <option key={y} value={y} style={{ backgroundColor: '#1a1a2e', color: '#fff' }}>{y}</option>)}
             </select>
+            <button onClick={() => setConsolidated(c => !c)}
+              className={`px-3 py-2 rounded-lg text-xs font-bold border transition ${
+                consolidated
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-primary/20 text-neutral-medium hover:border-primary/40'
+              }`}>
+              Hợp nhất
+            </button>
             <button onClick={load} className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition text-sm">🔄</button>
           </div>
         </div>
