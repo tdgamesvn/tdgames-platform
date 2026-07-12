@@ -1,3 +1,4 @@
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback } from 'react';
 import {
   FixedAsset, Advance, BankStatement, BankStatementRow,
@@ -15,6 +16,7 @@ export type AccountingTab = 'assets' | 'advances' | 'payables' | 'pnl' | 'bank' 
 const VALID_TABS: AccountingTab[] = ['assets', 'advances', 'payables', 'pnl', 'bank', 'vat', 'tncn', 'bhxh', 'savings', 'loans', 'bank-balance'];
 
 export function useAccountingState(currentUser: string, initialTab?: string | null) {
+  const { workspace } = useWorkspace();
   const [activeTab, _setActiveTab] = useState<AccountingTab>(() => {
     if (initialTab && VALID_TABS.includes(initialTab as AccountingTab))
       return initialTab as AccountingTab;
@@ -186,7 +188,12 @@ export function useAccountingState(currentUser: string, initialTab?: string | nu
 
   return {
     activeTab, setActiveTab,
-    assets, advances, statements, invoices, expenses, payrollRecords, employees, freelancerSettlements, bhxhEmployees, savings, loans,
+    // Tách sổ: filter client-side theo workspace (reactive khi đổi sổ)
+    assets: assets.filter(x => matchesWorkspace((x as any).entity, workspace)),
+    advances: advances.filter(x => matchesWorkspace((x as any).entity, workspace)),
+    savings: savings.filter(x => matchesWorkspace((x as any).entity, workspace)),
+    loans: loans.filter(x => matchesWorkspace((x as any).entity, workspace)),
+    statements, invoices, expenses, payrollRecords, employees, freelancerSettlements, bhxhEmployees,
     loading, error, reload: loadAll,
     addAsset, editAsset, removeAsset,
     addAdvance, settle, cancel, removeAdvance,

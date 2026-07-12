@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { LoanRecord } from '@/types';
 
@@ -19,13 +20,14 @@ export async function addLoan(
 ): Promise<LoanRecord> {
   const { data, error } = await supabase
     .from('acc_loans')
-    .insert(loan)
+    .insert({ entity: getWorkspace(), ...loan })
     .select()
     .single();
   if (error) throw error;
 
   // CashFlow: tiền vào khi nhận vay
   await supabase.from('expense_expenses').insert({
+    entity: getWorkspace(),
     title: `Vay: ${loan.lender_name} ${loan.term_months}T`,
     amount: loan.principal,
     currency: loan.currency,
@@ -66,6 +68,7 @@ export async function recordLoanRepayment(
 
   // CashFlow: tiền ra khi trả nợ
   await supabase.from('expense_expenses').insert({
+    entity: getWorkspace(),
     title: `Trả nợ: ${loan.lender_name}`,
     amount: amountPaid,
     currency: loan.currency,

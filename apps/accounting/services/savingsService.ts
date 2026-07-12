@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { SavingsDeposit } from '@/types';
 
@@ -19,13 +20,14 @@ export async function addSaving(
 ): Promise<SavingsDeposit> {
   const { data, error } = await supabase
     .from('acc_savings')
-    .insert(saving)
+    .insert({ entity: getWorkspace(), ...saving })
     .select()
     .single();
   if (error) throw error;
 
   // CashFlow: tiền ra khi gửi tiết kiệm
   await supabase.from('expense_expenses').insert({
+    entity: getWorkspace(), // dòng tiền theo sổ của khoản tiết kiệm
     title: `Gửi TK: ${saving.bank_name} ${saving.term_months}T`,
     amount: saving.principal,
     currency: saving.currency,
@@ -62,6 +64,7 @@ export async function settleSaving(
   // CashFlow: tiền về (gốc + lãi)
   const totalReceived = saving.principal + interestEarned;
   await supabase.from('expense_expenses').insert({
+    entity: getWorkspace(), // dòng tiền theo sổ của khoản tiết kiệm
     title: `Tất toán TK: ${saving.bank_name} ${saving.term_months}T`,
     amount: totalReceived,
     currency: saving.currency,
@@ -97,7 +100,7 @@ export async function renewSaving(
   // Tạo bản ghi mới với parent_id
   const { data, error } = await supabase
     .from('acc_savings')
-    .insert({ ...newData, parent_id: oldId })
+    .insert({ entity: getWorkspace(), ...newData, parent_id: oldId })
     .select()
     .single();
   if (error) throw error;
@@ -106,6 +109,7 @@ export async function renewSaving(
 
   // CashFlow: tiền về từ khoản cũ
   await supabase.from('expense_expenses').insert({
+    entity: getWorkspace(), // dòng tiền theo sổ của khoản tiết kiệm
     title: `Tất toán TK (tái tục): ${oldSaving.bank_name} ${oldSaving.term_months}T`,
     amount: oldSaving.principal,
     currency: oldSaving.currency,
@@ -126,6 +130,7 @@ export async function renewSaving(
 
   // CashFlow: tiền ra cho khoản mới
   await supabase.from('expense_expenses').insert({
+    entity: getWorkspace(), // dòng tiền theo sổ của khoản tiết kiệm
     title: `Gửi TK (tái tục): ${newData.bank_name} ${newData.term_months}T`,
     amount: newData.principal,
     currency: newData.currency,

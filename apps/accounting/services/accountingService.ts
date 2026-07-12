@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { FixedAsset, Advance } from '@/types';
 
@@ -19,7 +20,7 @@ export async function saveFixedAsset(
 ): Promise<FixedAsset> {
   const { data, error } = await supabase
     .from('acc_fixed_assets')
-    .insert(asset)
+    .insert({ entity: getWorkspace(), ...asset })
     .select()
     .single();
   if (error) throw error;
@@ -126,7 +127,7 @@ export async function saveAdvance(
 ): Promise<Advance> {
   const { data, error } = await supabase
     .from('acc_advances')
-    .insert(advance)
+    .insert({ entity: getWorkspace(), ...advance })
     .select()
     .single();
   if (error) throw error;

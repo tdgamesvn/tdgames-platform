@@ -163,7 +163,8 @@ export async function fetchTaxSavings(): Promise<TaxSaving[]> {
   // ponytail: acc_savings column is `principal`, not `amount` — alias to match interface.
   const { data, error } = await supabase
     .from('acc_savings')
-    .select('id, amount:principal, bank_name, term_months, interest_rate, start_date, maturity_date, status');
+    .select('id, amount:principal, bank_name, term_months, interest_rate, start_date, maturity_date, status')
+    .eq('entity', 'TD GAMES'); // tax portal = giấy tờ thuế, chỉ sổ gốc
   if (error) throw error;
   return (data || []) as unknown as TaxSaving[];
 }
@@ -172,7 +173,8 @@ export async function fetchTaxLoans(): Promise<TaxLoan[]> {
   // ponytail: acc_loans columns are `principal`/`lender_name`, not `amount`/`lender` — alias to match interface.
   const { data, error } = await supabase
     .from('acc_loans')
-    .select('id, amount:principal, lender:lender_name, interest_rate, start_date, due_date, status');
+    .select('id, amount:principal, lender:lender_name, interest_rate, start_date, due_date, status')
+    .eq('entity', 'TD GAMES');
   if (error) throw error;
   return (data || []) as unknown as TaxLoan[];
 }
@@ -183,6 +185,7 @@ export async function fetchTaxBhxhPayments(): Promise<TaxBhxhPayment[]> {
   const { data, error } = await supabase
     .from('acc_bhxh_payments')
     .select('id, amount:total_amount, payment_date:paid_date, month, year')
+    .eq('entity', 'TD GAMES')
     .order('paid_date', { ascending: false });
   if (error) throw error;
   return ((data || []) as any[]).map(r => ({
