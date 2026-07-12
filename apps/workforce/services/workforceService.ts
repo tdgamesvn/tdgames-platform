@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { Worker, WorkerContract, WorkforceTask, Settlement } from '@/types';
 
@@ -65,7 +66,7 @@ export async function syncWorkersFromHR(): Promise<number> {
 export async function saveWorker(w: Omit<Worker, 'id' | 'created_at'>): Promise<Worker> {
   const { data, error } = await supabase
     .from('wf_workers')
-    .insert(w)
+    .insert({ entity: getWorkspace(), ...w })
     .select()
     .single();
   if (error) throw error;

@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { CrmOutreachLead, CrmEmailLog, CrmEmailTemplate } from '@/types';
 import { outreachRequest } from './outreachApi';
@@ -16,6 +17,7 @@ export async function fetchLeads(filters?: {
     .order('lead_score', { ascending: false })  // hiring signal leads (score 55–85) lên trước
     .order('tier')
     .order('created_at', { ascending: false });
+  q = q.eq('entity', getWorkspace()); // tách sổ (đọc lúc fetch)
 
   if (filters?.status) q = q.eq('outreach_status', filters.status);
   if (filters?.tier) q = q.eq('tier', filters.tier);
@@ -38,7 +40,7 @@ export async function fetchLeads(filters?: {
 export async function createLead(
   lead: Omit<CrmOutreachLead, 'id' | 'created_at' | 'updated_at'>
 ): Promise<CrmOutreachLead> {
-  const { data, error } = await supabase.from('crm_outreach_leads').insert(lead).select().single();
+  const { data, error } = await supabase.from('crm_outreach_leads').insert({ entity: getWorkspace(), ...lead }).select().single();
   if (error) throw error;
   return data;
 }
@@ -46,7 +48,7 @@ export async function createLead(
 export async function createLeadsBatch(
   leads: Omit<CrmOutreachLead, 'id' | 'created_at' | 'updated_at'>[]
 ): Promise<CrmOutreachLead[]> {
-  const { data, error } = await supabase.from('crm_outreach_leads').insert(leads).select();
+  const { data, error } = await supabase.from('crm_outreach_leads').insert(leads.map(l => ({ entity: getWorkspace(), ...l }))).select();
   if (error) throw error;
   return data || [];
 }

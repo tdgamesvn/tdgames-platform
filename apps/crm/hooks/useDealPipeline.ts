@@ -1,9 +1,11 @@
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { CrmDeal, CrmDealStage } from '@/types';
 import * as svc from '../services/crmService';
 import { useDealFilters } from './useDealFilters';
 
 export function useDealPipeline(ownerFilter?: string) {
+  const { workspace } = useWorkspace();
   const [deals, setDeals] = useState<CrmDeal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -50,7 +52,7 @@ export function useDealPipeline(ownerFilter?: string) {
   const columns: Record<CrmDealStage, CrmDeal[]> = {
     lead: [], contacted: [], negotiating: [], proposal_sent: [], contracting: [], won: [], lost: [],
   };
-  dealFilters.filtered.forEach(d => { columns[d.stage]?.push(d); });
+  dealFilters.filtered.filter(d => matchesWorkspace((d as any).client_entity, workspace)).forEach(d => { columns[d.stage]?.push(d); }); // tách sổ theo client
 
   // ── Drag & Drop ───────────────────────────────────────────
   const handleDragStart = (_e: React.DragEvent, dealId: string) => {
@@ -150,7 +152,7 @@ export function useDealPipeline(ownerFilter?: string) {
 
   return {
     // Data
-    deals,
+    deals: deals.filter(d => matchesWorkspace((d as any).client_entity, workspace)),
     columns,
     isLoading,
 

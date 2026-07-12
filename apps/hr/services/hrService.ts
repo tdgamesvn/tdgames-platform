@@ -1043,6 +1043,7 @@ export async function syncEmployeeToWorkforce(employee: HrEmployee): Promise<str
       .from('wf_workers')
       .insert({
         ...workerData,
+        entity: employee.entity || 'TD GAMES', // worker theo sổ của employee
         notes: `Auto-synced from HR - ${employee.employee_code || ''}`,
       })
       .select('id')

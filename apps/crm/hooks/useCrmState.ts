@@ -1,3 +1,4 @@
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback } from 'react';
 import { CrmClient, CrmContact } from '@/types';
 import * as svc from '../services/crmService';
@@ -5,6 +6,7 @@ import * as svc from '../services/crmService';
 export type CrmTab = 'dashboard' | 'deals' | 'clients' | 'projects' | 'documents' | 'payments' | 'activities' | 'outreach' | 'studios';
 
 export function useCrmState(initialTab?: string | null) {
+  const { workspace } = useWorkspace();
   const [clients, setClients] = useState<CrmClient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<CrmTab>(() => {
@@ -105,7 +107,8 @@ export function useCrmState(initialTab?: string | null) {
   };
 
   // ── Filtered list ──
-  const filteredClients = clients.filter(c => {
+  const wsClients = clients.filter(c => matchesWorkspace((c as any).entity, workspace)); // tách sổ
+  const filteredClients = wsClients.filter(c => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const contactMatch = (c.contacts || []).some(ct =>
@@ -132,7 +135,7 @@ export function useCrmState(initialTab?: string | null) {
   clients.forEach(c => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
 
   return {
-    clients,
+    clients: wsClients,
     filteredClients,
     isLoading,
     activeTab, setActiveTab,

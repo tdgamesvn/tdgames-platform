@@ -1,3 +1,4 @@
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback } from 'react';
 import { Worker, WorkerContract, WorkforceTask, Settlement, ProjectAcceptance } from '@/types';
 import * as svc from '../services/workforceService';
@@ -10,6 +11,7 @@ export type WorkforceTab = 'workers' | 'workerForm' | 'tasks' | 'settlements' | 
 const VALID_TABS: WorkforceTab[] = ['workers', 'workerForm', 'tasks', 'settlements', 'projectAcceptance', 'financials', 'config'];
 
 export function useWorkforceState(currentUsername: string, initialTab?: string | null) {
+  const { workspace } = useWorkspace();
   const [activeTab, _setActiveTab] = useState<WorkforceTab>(() => {
     if (initialTab && VALID_TABS.includes(initialTab as WorkforceTab)) return initialTab as WorkforceTab;
     return 'workers';
@@ -316,12 +318,18 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
   };
 
   // ── Filtered data ──
-  const filteredWorkers = workers.filter(w => {
+  // Tách sổ: workers theo entity; tasks/settlements kế thừa qua worker membership
+  const wsWorkers = workers.filter(w => matchesWorkspace((w as any).entity, workspace));
+  const wIds = new Set(wsWorkers.map(w => w.id));
+  const wsTasks = tasks.filter(t => wIds.has(t.worker_id));
+  const wsSettlements = settlements.filter(s => wIds.has((s as any).worker_id));
+
+  const filteredWorkers = wsWorkers.filter(w => {
     if (filterWorkerType && w.type !== filterWorkerType) return false;
     return true;
   });
 
-  const filteredTasks = tasks.filter(t => {
+  const filteredTasks = wsTasks.filter(t => {
     if (filterTaskStatus && t.status !== filterTaskStatus) return false;
     if (filterTaskWorker && t.worker_id !== filterTaskWorker) return false;
     return true;
@@ -330,10 +338,10 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
   return {
     activeTab, setActiveTab,
     isLoading, toast, setToast,
-    workers, filteredWorkers,
+    workers: wsWorkers, filteredWorkers,
     contracts, loadContracts,
-    tasks, filteredTasks,
-    settlements,
+    tasks: wsTasks, filteredTasks,
+    settlements: wsSettlements,
     projectAcceptances,
     editingWorker, setEditingWorker,
     selectedWorkerId, setSelectedWorkerId,

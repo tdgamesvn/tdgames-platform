@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 
 export interface CrmStudio {
@@ -57,6 +58,7 @@ export async function fetchStudios(
   let query = supabase
     .from('crm_studios')
     .select('*', { count: 'exact' })
+    .eq('entity', getWorkspace())
     .order('studio_name', { ascending: true })
     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -88,7 +90,8 @@ export async function fetchStudios(
 export async function fetchStudioStats(): Promise<StudioStats | null> {
   const { data, error } = await supabase
     .from('crm_studios')
-    .select('bd_status, source');
+    .select('bd_status, source')
+    .eq('entity', getWorkspace());
   if (error) return null;
 
   const stats: StudioStats = {

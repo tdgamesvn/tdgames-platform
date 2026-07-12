@@ -1,3 +1,4 @@
+import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation } from '@/types';
 
@@ -19,7 +20,7 @@ export async function createClient(
 ): Promise<CrmClient> {
   const { data, error } = await supabase
     .from('crm_clients')
-    .insert(client)
+    .insert({ entity: getWorkspace(), ...client })
     .select('*, contacts:crm_contacts(*)')
     .single();
   if (error) throw error;
@@ -265,12 +266,13 @@ export async function deleteActivity(id: string): Promise<void> {
 export async function fetchDeals(): Promise<CrmDeal[]> {
   const { data, error } = await supabase
     .from('crm_deals')
-    .select('*, client:crm_clients(name)')
+    .select('*, client:crm_clients(name, entity)')
     .order('updated_at', { ascending: false });
   if (error) throw error;
   return (data || []).map((d: any) => ({
     ...d,
     client_name: d.client?.name || '',
+    client_entity: d.client?.entity, // tách sổ: deal theo sổ của client
     client: undefined,
   }));
 }
@@ -279,10 +281,10 @@ export async function createDeal(deal: Omit<CrmDeal, 'id' | 'created_at' | 'upda
   const { data, error } = await supabase
     .from('crm_deals')
     .insert(deal)
-    .select('*, client:crm_clients(name)')
+    .select('*, client:crm_clients(name, entity)')
     .single();
   if (error) throw error;
-  return { ...data, client_name: data.client?.name || '', client: undefined };
+  return { ...data, client_name: data.client?.name || '', client_entity: data.client?.entity, client: undefined };
 }
 
 export async function updateDeal(id: string, updates: Partial<CrmDeal>): Promise<void> {
@@ -315,7 +317,7 @@ export async function deleteDeal(id: string): Promise<void> {
 export async function fetchQuotations(dealId: string): Promise<CrmQuotation[]> {
   const { data, error } = await supabase
     .from('crm_quotations')
-    .select('*, client:crm_clients(name)')
+    .select('*, client:crm_clients(name, entity)')
     .eq('deal_id', dealId)
     .order('created_at', { ascending: false });
   if (error) throw error;
