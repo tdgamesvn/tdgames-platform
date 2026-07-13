@@ -104,15 +104,10 @@ export async function approveLeaveRequest(
   approvedBy: string,
   reviewerNote: string = ''
 ): Promise<void> {
-  // Get the request info first
-  const { data: req, error: fetchErr } = await supabase
-    .from('att_requests')
-    .select('*')
-    .eq('id', requestId)
-    .single();
-  if (fetchErr) throw fetchErr;
-
-  // Update request status
+  // Update request status. DB trigger `handle_leave_request_status_change`
+  // (fires on UPDATE OF status) deducts used_days from leave_balances for
+  // annual leave — do NOT also deduct here, that double-counts (was the
+  // root cause of 0.5-day requests deducting 1.0 day). See LOG 2026-07-13.
   const { error } = await supabase
     .from('att_requests')
     .update({
@@ -123,28 +118,6 @@ export async function approveLeaveRequest(
     })
     .eq('id', requestId);
   if (error) throw error;
-
-  // Deduct from yearly balance (only for annual leave) — quarter=0, no carry-over
-  if (req.leave_type === 'annual') {
-    const reqDate = new Date(req.date_from);
-    const year = reqDate.getFullYear();
-    const leaveDays = Number(req.leave_days || 1);
-
-    const { data: yearly } = await supabase
-      .from('leave_balances')
-      .select('*')
-      .eq('employee_id', req.employee_id)
-      .eq('year', year)
-      .eq('quarter', 0)
-      .maybeSingle();
-
-    if (yearly) {
-      await supabase
-        .from('leave_balances')
-        .update({ used_days: Number(yearly.used_days || 0) + leaveDays })
-        .eq('id', yearly.id);
-    }
-  }
 }
 
 export async function rejectLeaveRequest(
