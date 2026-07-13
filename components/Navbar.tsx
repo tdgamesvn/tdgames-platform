@@ -2,7 +2,7 @@ import React from 'react';
 import { AccountUser } from '@/types';
 import { hasRole, hasAnyRole, getUserRoles } from '@/utils/roleUtils';
 import { ExchangeRateData } from '@/services/exchangeRateService';
-import { useWorkspace, Workspace } from '@/services/WorkspaceContext';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { NotificationBell } from './NotificationBell';
 
 interface NavbarProps {
@@ -21,10 +21,6 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels, onHelp }) => {
-  const { workspace, setWorkspace } = useWorkspace();
-
-  const WS_DOT: Record<string, string> = { 'TD GAMES': 'bg-primary', 'TD CONSULTING': 'bg-blue-400' };
-
   return (
   <nav className={`sticky top-0 backdrop-blur-md border-b z-50 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-primary/10' : 'bg-white/95 border-gray-200 shadow-sm'}`}>
     {/* Row 1: Logo + controls */}
@@ -115,18 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
 
         {/* Workspace Switcher */}
         {hasAnyRole(currentUser, ['admin', 'ke_toan', 'hr']) && (
-          <div className={`relative flex items-center gap-1.5 ${theme === 'dark' ? 'bg-surface border border-white/10' : 'bg-gray-100 border border-gray-200'} rounded-lg px-2 py-1`}>
-            <span className={`w-2 h-2 rounded-full ${WS_DOT[workspace]}`} />
-            <select
-              value={workspace}
-              onChange={e => setWorkspace(e.target.value as Workspace)}
-              className={`bg-transparent text-[10px] font-black uppercase tracking-wider ${theme === 'dark' ? 'text-white' : 'text-black'} outline-none cursor-pointer appearance-none pr-4`}
-              title="Chọn sổ sách"
-            >
-              <option value="TD GAMES" className="bg-[#1a1a1a]">Sổ TD Games</option>
-              <option value="TD CONSULTING" className="bg-[#1a1a1a]">Sổ TD Consulting</option>
-            </select>
-          </div>
+          <WorkspaceSwitcher variant="compact" theme={theme} />
         )}
 
         {/* User info + Logout */}

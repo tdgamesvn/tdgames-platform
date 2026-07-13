@@ -3,6 +3,7 @@ import { AccountUser } from '@/types';
 import { APPS, AppConfig } from '@/config/apps';
 import { fetchTotalNewInsights } from '@/apps/ai-agent/services/aiAgentService';
 import { hasRole, hasAnyRole, getUserRoles } from '@/utils/roleUtils';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 
 interface HomeScreenProps {
   currentUser: AccountUser;
@@ -35,6 +36,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
           <img src="https://pub-f0ef2ac3b67c4d4da2fe20c73ab57f83.r2.dev/logo_td.png" alt="Logo" className="w-8 h-8 object-contain" />
           <span className="text-white/40 text-[10px] font-black uppercase tracking-[0.3em]">TD GAMES Platform</span>
         </div>
+        {hasAnyRole(currentUser, ['admin', 'ke_toan', 'hr']) && (
+          <div className="absolute left-1/2 -translate-x-1/2 hidden sm:block">
+            <WorkspaceSwitcher variant="pill" />
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <div className="hidden md:flex flex-col items-end leading-none">
             <span className="text-[11px] font-black uppercase tracking-widest text-white">{currentUser.username}</span>
