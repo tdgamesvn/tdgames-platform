@@ -4,6 +4,32 @@ import { CrmOutreachLead, CrmEmailLog, CrmEmailTemplate } from '@/types';
 import { outreachRequest } from './outreachApi';
 
 // ══════════════════════════════════════════════════════════════
+// ── MANUAL SEND (BD gửi tay ngoài hệ thống, vẫn ghi log) ───────
+// ══════════════════════════════════════════════════════════════
+
+const MANUAL_SEND_STATUS_MAP: Record<string, [string, string]> = {
+  initial_outreach: ['initial_sent', 'initial_sent_at'],
+  followup_1: ['followup1_sent', 'followup1_sent_at'],
+  followup_2: ['followup2_sent', 'followup2_sent_at'],
+};
+
+export async function logManualSend(
+  leadId: string, templateName: string, toEmail: string, sentBy: string,
+): Promise<void> {
+  const { error: logErr } = await supabase.from('crm_email_log').insert({
+    lead_id: leadId, template_name: templateName, to_email: toEmail,
+    subject: '[Gửi thủ công]', gmail_message_id: '', status: 'sent',
+    error_message: '', sent_by: sentBy, channel: 'manual',
+  });
+  if (logErr) throw logErr;
+  const [newStatus, tsField] = MANUAL_SEND_STATUS_MAP[templateName] || ['initial_sent', 'initial_sent_at'];
+  const { error: updErr } = await supabase.from('crm_outreach_leads')
+    .update({ outreach_status: newStatus, [tsField]: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', leadId);
+  if (updErr) throw updErr;
+}
+
+// ══════════════════════════════════════════════════════════════
 // ── OUTREACH LEADS ────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
@@ -84,6 +110,28 @@ export async function updateTemplate(id: string, updates: Partial<CrmEmailTempla
     .from('crm_email_templates')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id);
+  if (error) throw error;
+}
+
+/** Tạo template riêng cho 1 BD (created_by = chính họ) — không phải template mặc định công ty. */
+export async function createTemplate(
+  tpl: { name: string; subject_lines: string[]; html_content: string; delay_days?: number },
+  createdBy: string,
+): Promise<CrmEmailTemplate> {
+  const { data, error } = await supabase
+    .from('crm_email_templates')
+    .insert({
+      name: tpl.name, subject_lines: tpl.subject_lines, html_content: tpl.html_content,
+      delay_days: tpl.delay_days ?? 0, is_active: true, created_by: createdBy,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from('crm_email_templates').delete().eq('id', id);
   if (error) throw error;
 }
 

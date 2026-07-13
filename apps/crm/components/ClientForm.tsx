@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { CrmClient, CrmContact } from '@/types';
+import { supabase } from '@/services/supabaseClient';
 import ActivityTimeline from './ActivityTimeline';
+
+interface BdUser {
+  id: string;
+  full_name: string;
+  role: string;
+}
 
 interface Props {
   editingClient: CrmClient | null;
@@ -38,6 +45,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
     lead_source_detail: '',
     notes: '',
     tags: [] as string[],
+    assigned_bd_id: null as string | null,
     assigned_bd_name: '',
   });
   const [tagInput, setTagInput] = useState('');
@@ -45,6 +53,18 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
   const [showNewContact, setShowNewContact] = useState(false);
   const [editContactId, setEditContactId] = useState<string | null>(null);
   const [editContactData, setEditContactData] = useState({ ...emptyContact });
+  const [bdUsers, setBdUsers] = useState<BdUser[]>([]);
+
+  // Fetch BD users once on mount (same pattern as StudiosTab)
+  useEffect(() => {
+    supabase
+      .from('account_users')
+      .select('id, full_name, role')
+      .ilike('role', '%bd%')
+      .then(({ data }) => {
+        if (data) setBdUsers(data as BdUser[]);
+      });
+  }, []);
 
   useEffect(() => {
     if (editingClient) {
@@ -65,6 +85,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         lead_source_detail: editingClient.lead_source_detail || '',
         notes: editingClient.notes || '',
         tags: editingClient.tags || [],
+        assigned_bd_id: editingClient.assigned_bd_id || null,
         assigned_bd_name: editingClient.assigned_bd_name || '',
       });
     }
@@ -217,12 +238,19 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           </div>
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">BD phụ trách</label>
-            <input
+            <select
               className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
               style={{ background: '#1a1a1a' }}
-              value={form.assigned_bd_name}
-              onChange={e => setForm({ ...form, assigned_bd_name: e.target.value })}
-              placeholder="Tên BD..." />
+              value={form.assigned_bd_id || ''}
+              onChange={e => {
+                const bd = bdUsers.find(u => u.id === e.target.value);
+                setForm({ ...form, assigned_bd_id: bd?.id || null, assigned_bd_name: bd?.full_name || '' });
+              }}>
+              <option value="">-- Chưa gán --</option>
+              {bdUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.full_name}</option>
+              ))}
+            </select>
           </div>
         </div>
 

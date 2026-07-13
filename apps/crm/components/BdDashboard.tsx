@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { AccountUser, CrmClient, CrmDeal, CrmActivity } from '@/types';
 import { fetchDeals, fetchActivities, fetchApprovedContracts } from '../services/crmService';
 import { supabase } from '@/services/supabaseClient';
+import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './pipeline/constants';
 
 // ── Date preset filter ────────────────────────────────────────
@@ -115,7 +116,11 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
       fetchApprovedContracts().catch(() => []),
       supabase.from('crm_studios').select('id', { count: 'exact', head: true }).eq('owner_id', currentUser.id),
     ]).then(([d, a, contracts, studiosRes]) => {
-      setDeals(d);
+      // Ghi chú thương lượng (notes) là riêng tư — BD thuần (không kiêm admin/ke_toan) không đọc được
+      // notes của deal người khác, dù vẫn thấy số liệu tổng hợp (title/value/stage) để so sánh hiệu suất.
+      const isBdOnly = hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
+      const dd = isBdOnly ? d.map(x => x.owner_id === currentUser.id ? x : { ...x, notes: '' }) : d;
+      setDeals(dd);
       setActivities(a);
       setApprovedContracts(contracts);
       setMyStudiosCount(studiosRes.count ?? 0);

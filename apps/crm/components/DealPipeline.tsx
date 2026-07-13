@@ -97,6 +97,7 @@ const DealPipeline: React.FC<Props> = ({ currentUser, clients }) => {
       {p.selectedDeal && (
         <DealDetailPanel
           deal={p.selectedDeal}
+          currentUser={currentUser}
           onClose={() => p.setSelectedDeal(null)}
           onEdit={() => {
             p.openEditModal(p.selectedDeal!);

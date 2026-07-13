@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import type { CrmDeal, CrmDealStage, CrmActivity, CrmDocument, CrmQuotation, CrmQuotationItem } from '@/types';
+import type { AccountUser, CrmDeal, CrmDealStage, CrmActivity, CrmDocument, CrmQuotation, CrmQuotationItem } from '@/types';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './constants';
 import StageBadge from './StageBadge';
 import { fetchActivities, createActivity, fetchDocuments, fetchQuotations, createQuotation, updateQuotation, deleteQuotation } from '../../services/crmService';
@@ -10,6 +10,7 @@ type DetailTab = 'overview' | 'activity' | 'documents' | 'quotations';
 
 interface Props {
   deal: CrmDeal;
+  currentUser: AccountUser;
   onClose: () => void;
   onEdit: () => void;
   onDelete: (id: string) => void;
@@ -46,7 +47,7 @@ const TABS: { key: DetailTab; label: string; icon: string }[] = [
 // MINI ACTIVITY LIST (embedded, read + quick-add)
 // ═══════════════════════════════════════════════════════════════
 
-const MiniActivityList: React.FC<{ clientId: string; clientName: string }> = ({ clientId, clientName }) => {
+const MiniActivityList: React.FC<{ clientId: string; clientName: string; currentUser: AccountUser }> = ({ clientId, clientName, currentUser }) => {
   const [activities, setActivities] = useState<CrmActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -73,7 +74,7 @@ const MiniActivityList: React.FC<{ clientId: string; clientName: string }> = ({ 
         description: '',
         outcome: '',
         activity_date: new Date().toISOString(),
-        actor: '',
+        actor: currentUser.username,
       });
       setFormTitle('');
       setShowForm(false);
@@ -270,8 +271,8 @@ const STATUS_BADGE: Record<string, { label: string; color: string }> = {
 const emptyItem: CrmQuotationItem = { description: '', quantity: 1, unit: 'service', unit_price: 0 };
 
 const MiniQuotationList: React.FC<{
-  dealId: string; clientId: string; dealTitle: string; currency: 'USD' | 'VND'; dealValue: number;
-}> = ({ dealId, clientId, dealTitle, currency, dealValue }) => {
+  dealId: string; clientId: string; dealTitle: string; currency: 'USD' | 'VND'; dealValue: number; currentUser: AccountUser;
+}> = ({ dealId, clientId, dealTitle, currency, dealValue, currentUser }) => {
   const [quotations, setQuotations] = useState<CrmQuotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -313,7 +314,7 @@ const MiniQuotationList: React.FC<{
         status: 'draft',
         valid_until: validUntil,
         notes,
-        created_by: '',
+        created_by: currentUser.id,
       });
       setShowForm(false);
       setItems([{ ...emptyItem }]);
@@ -591,7 +592,7 @@ const InlineEditField: React.FC<{
 // MAIN PANEL
 // ═══════════════════════════════════════════════════════════════
 
-const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onStageChange, onUpdateField }) => {
+const DealDetailPanel: React.FC<Props> = ({ deal, currentUser, onClose, onEdit, onDelete, onStageChange, onUpdateField }) => {
   const stage = STAGE_MAP[deal.stage];
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -782,7 +783,7 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
 
           {/* ════ ACTIVITY TAB ════ */}
           {activeTab === 'activity' && (
-            <MiniActivityList clientId={deal.client_id} clientName={deal.client_name || ''} />
+            <MiniActivityList clientId={deal.client_id} clientName={deal.client_name || ''} currentUser={currentUser} />
           )}
 
           {/* ════ DOCUMENTS TAB ════ */}
@@ -792,7 +793,7 @@ const DealDetailPanel: React.FC<Props> = ({ deal, onClose, onEdit, onDelete, onS
 
           {/* ════ QUOTATIONS TAB ════ */}
           {activeTab === 'quotations' && (
-            <MiniQuotationList dealId={deal.id} clientId={deal.client_id} dealTitle={deal.title} currency={deal.currency} dealValue={deal.value} />
+            <MiniQuotationList dealId={deal.id} clientId={deal.client_id} dealTitle={deal.title} currency={deal.currency} dealValue={deal.value} currentUser={currentUser} />
           )}
         </div>
       </div>

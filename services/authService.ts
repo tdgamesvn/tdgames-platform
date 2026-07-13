@@ -24,6 +24,7 @@ export const loginWithCredentials = async (
   return {
     id: data.user.id,
     username: meta.username || data.user.email?.split('@')[0] || username,
+    email: data.user.email || undefined,
     role: parseRole(meta.role || 'member'),
     secondary_roles: parseSecondaryRoles(meta.secondary_roles),
     employee_id: meta.employee_id || undefined,
@@ -43,6 +44,7 @@ export const getAuthUser = async (): Promise<AccountUser | null> => {
   return {
     id: session.user.id,
     username: meta.username || session.user.email?.split('@')[0] || 'unknown',
+    email: session.user.email || undefined,
     role: parseRole(meta.role || 'member'),
     secondary_roles: parseSecondaryRoles(meta.secondary_roles),
     employee_id: meta.employee_id || undefined,

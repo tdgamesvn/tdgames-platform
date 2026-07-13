@@ -115,6 +115,7 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
             filterTrigger={filterTrigger} setFilterTrigger={setFilterTrigger}
             onRefresh={loadAll}
             isBd={isBd}
+            currentUser={currentUser}
           />
         )}
 
@@ -122,7 +123,7 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
         {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} leads={leads} isBd={isBd} />}
 
         {/* ── EMAILS/TEMPLATES ── */}
-        {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} />}
+        {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} currentUser={currentUser} />}
 
         {/* ── ANALYTICS ── */}
         {tab === 'analytics' && <AnalyticsTab />}
@@ -291,15 +292,18 @@ interface LeadsProps {
   filterTrigger: string; setFilterTrigger: (v: string) => void;
   onRefresh: () => void;
   isBd?: boolean;
+  currentUser?: AccountUser;
 }
 
-const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh, isBd }) => {
+const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh, isBd, currentUser }) => {
   const [showImport, setShowImport] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState({ studio_name: '', contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
   const fileRef = useRef<HTMLInputElement>(null);
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const myTemplates = templates.filter(t => t.created_by && t.created_by === currentUser?.id);
+  const [templateOverride, setTemplateOverride] = useState<Record<string, string>>({});
   const [bulkSending, setBulkSending] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 });
   // Ref for the polling interval so we can clear it on unmount (avoid memory leak / API spam)
@@ -340,7 +344,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Send email to a single lead
-  const handleSendEmail = async (leadId: string, templateName: string = 'initial_outreach') => {
+  const handleSendEmail = async (leadId: string, templateName: string = 'initial_outreach', contentTemplateId?: string) => {
     if (!getOutreachApiBase()) {
       alert('Outreach API chưa cấu hình: VITE_OUTREACH_API_URL hoặc Supabase + Edge outreach-proxy.');
       return;
@@ -351,7 +355,13 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     try {
       const res = await outreachRequest('/api/email/send', {
         method: 'POST',
-        body: JSON.stringify({ lead_id: leadId, template_name: templateName }),
+        // from_email/reply_to: email công việc của BD đang bấm gửi — backend override thay cho cấu hình chung
+        body: JSON.stringify({
+          lead_id: leadId, template_name: templateName,
+          from_email: currentUser?.email || undefined,
+          reply_to: currentUser?.email || undefined,
+          content_template_id: contentTemplateId || undefined,
+        }),
       });
       if (res.status === 429) { alert('Đã đạt giới hạn email/ngày. Thử lại ngày mai.'); return; }
       if (!res.ok) { const err = await res.json().catch(() => ({})); alert(`Gửi thất bại: ${err.detail || res.status}`); return; }
@@ -484,7 +494,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       return;
     }
     try {
-      await svc.createLeadsBatch(parsed);
+      await svc.createLeadsBatch(parsed.map(l => ({ ...l, assigned_bd_id: currentUser?.id || null })));
       onRefresh(); setShowImport(false);
       const skipNote = skipped.length > 0 ? `\n⚠️ Đã bỏ qua ${skipped.length} dòng (email trống/không hợp lệ)` : '';
       alert(`✅ Đã import ${parsed.length} leads!${skipNote}`);
@@ -504,6 +514,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
             job_title: ct.role || '', linkedin_url: '', tier: 3,
             outreach_status: 'pending', initial_sent_at: null, followup1_sent_at: null,
             followup2_sent_at: null, replied_at: null, source: 'crm_import', tags: [], notes: '',
+            assigned_bd_id: currentUser?.id || null,
           });
         }
       });
@@ -533,6 +544,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
         ...addForm, client_id: null, outreach_status: 'pending',
         initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null,
         replied_at: null, source: 'manual', tags: [], notes: '',
+        assigned_bd_id: currentUser?.id || null,
       });
       setShowAddForm(false);
       setAddForm({ studio_name: '', contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
@@ -783,12 +795,26 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                     <td style={{ padding: '10px', fontSize: '10px', color: '#555' }}>{lead.source}</td>
                     <td style={{ padding: '10px' }}>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        {myTemplates.length > 0 && (
+                          <select
+                            title="Dùng nội dung template riêng của tôi thay cho mặc định công ty"
+                            value={templateOverride[lead.id] || ''}
+                            onChange={e => setTemplateOverride({ ...templateOverride, [lead.id]: e.target.value })}
+                            style={{
+                              fontSize: '10px', fontWeight: 700, padding: '3px 6px', borderRadius: '4px',
+                              background: '#1a1a1a', color: templateOverride[lead.id] ? '#FF9500' : '#888',
+                              border: '1px solid #333', cursor: 'pointer', maxWidth: '110px',
+                            }}>
+                            <option value="">Mặc định</option>
+                            {myTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                        )}
                         {(() => {
                           const next = getNextTemplate(lead);
                           if (!next) return null;
                           return (
                             <button
-                              onClick={() => { if (confirm(`Gửi "${next.label}" tới ${lead.email}?`)) handleSendEmail(lead.id, next.name); }}
+                              onClick={() => { if (confirm(`Gửi "${next.label}" tới ${lead.email}?`)) handleSendEmail(lead.id, next.name, templateOverride[lead.id] || undefined); }}
                               disabled={sendingId === lead.id}
                               style={{
                                 padding: '4px 10px', border: 'none', borderRadius: '4px',
@@ -797,6 +823,27 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                                 fontSize: '10px', fontWeight: 700, cursor: sendingId === lead.id ? 'wait' : 'pointer', whiteSpace: 'nowrap',
                               }}
                             >{sendingId === lead.id ? '⏳...' : `📧 ${next.label}`}</button>
+                          ) as React.ReactNode;
+                        })()}
+                        {(() => {
+                          const next = getNextTemplate(lead);
+                          if (!next || !currentUser) return null;
+                          return (
+                            <button
+                              title="Đã gửi email này thủ công (ngoài hệ thống) — chỉ đánh dấu lại trạng thái"
+                              onClick={async () => {
+                                if (!confirm(`Đánh dấu đã gửi thủ công "${next.label}" tới ${lead.email}?`)) return;
+                                try {
+                                  await svc.logManualSend(lead.id, next.name, lead.email, currentUser.id);
+                                  onRefresh();
+                                } catch (err: any) { alert('Lỗi: ' + err.message); }
+                              }}
+                              style={{
+                                padding: '4px 10px', border: 'none', borderRadius: '4px',
+                                background: 'rgba(136,136,136,0.15)', color: '#aaa',
+                                fontSize: '10px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                              }}
+                            >✍️ Thủ công</button>
                           );
                         })()}
                         <button onClick={() => { if (confirm('Xoá lead?')) handleDelete(lead.id); }} style={{
@@ -1620,9 +1667,12 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
 // ── TEMPLATES TAB ─────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => void; onPreview: (html: string) => void }> = ({ templates, onRefresh, onPreview }) => {
+const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => void; onPreview: (html: string) => void; currentUser?: AccountUser }> = ({ templates, onRefresh, onPreview, currentUser }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ subject_lines: [''], html_content: '', delay_days: 0 });
+
+  const companyTemplates = templates.filter(t => !t.created_by);
+  const myTemplates = templates.filter(t => t.created_by && t.created_by === currentUser?.id);
 
   const handleEdit = (tpl: CrmEmailTemplate) => {
     setEditingId(tpl.id);
@@ -1645,6 +1695,34 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
+  // ── Template riêng (created_by = chính BD, không phải mặc định công ty) ──
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newForm, setNewForm] = useState({ name: '', subject_lines: [''], html_content: '' });
+
+  const RESERVED_TEMPLATE_NAMES = ['initial_outreach', 'followup_1', 'followup_2'];
+  const handleCreateMine = async () => {
+    if (!currentUser?.id || !newForm.name.trim()) return;
+    if (RESERVED_TEMPLATE_NAMES.includes(newForm.name.trim())) {
+      alert('Tên này trùng tên bước mặc định công ty (initial_outreach/followup_1/followup_2) — đặt tên khác nhé.');
+      return;
+    }
+    try {
+      await svc.createTemplate({
+        name: newForm.name.trim(),
+        subject_lines: newForm.subject_lines.filter(s => s.trim()),
+        html_content: newForm.html_content,
+      }, currentUser.id);
+      setShowNewForm(false);
+      setNewForm({ name: '', subject_lines: [''], html_content: '' });
+      onRefresh();
+    } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
+  const handleDeleteMine = async (id: string) => {
+    if (!confirm('Xoá template này?')) return;
+    try { await svc.deleteTemplate(id); onRefresh(); } catch (err: any) { alert('Error: ' + err.message); }
+  };
+
   const STEP_NAMES: Record<string, { step: number; desc: string; icon: string }> = {
     'initial_outreach': { step: 1, desc: 'First Contact — Giới thiệu TD Games + Free Trial', icon: '📤' },
     'followup_1':       { step: 2, desc: 'Follow-up — Portfolio highlights + Case study', icon: '📨' },
@@ -1654,12 +1732,12 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <p style={{ fontSize: '13px', color: '#888' }}>
-        Email sequence 3 bước. Mỗi step có delay tính từ step trước. Dùng biến: {'{contact_name}'}, {'{studio_name}'}, {'{company}'}.
+        Email sequence 3 bước — mặc định công ty, không bắt buộc dùng. Mỗi step có delay tính từ step trước. Dùng biến: {'{contact_name}'}, {'{studio_name}'}, {'{company}'}.
       </p>
 
       {/* Sequence Timeline */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {templates.map((tpl, idx) => {
+        {companyTemplates.map((tpl, idx) => {
           const info = STEP_NAMES[tpl.name] || { step: idx + 1, desc: tpl.name, icon: '📧' };
           const isEditing = editingId === tpl.id;
 
@@ -1767,8 +1845,7 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
         })}
       </div>
 
-      {/* Arrow connectors between steps */}
-      {templates.length === 0 && (
+      {companyTemplates.length === 0 && (
         <div className="text-center py-16 text-neutral-700 text-sm">
           <p className="text-3xl mb-3">📝</p>
           <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
@@ -1776,7 +1853,116 @@ const TemplatesTab: React.FC<{ templates: CrmEmailTemplate[]; onRefresh: () => v
         </div>
       )}
 
+      {/* ── Template riêng của tôi ── */}
+      {currentUser && (
+        <div style={{ marginTop: '8px' }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
+            <p style={{ fontSize: '13px', color: '#888' }}>
+              📝 Template riêng của tôi — chỉ mình bạn thấy/sửa/xoá, BD khác không thấy được.
+            </p>
+            <button onClick={() => setShowNewForm(!showNewForm)}
+              className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">
+              {showNewForm ? '✕ Huỷ' : '+ Tạo template riêng'}
+            </button>
+          </div>
 
+          {showNewForm && (
+            <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px', marginBottom: '12px' }}>
+              <div style={{ marginBottom: '14px' }}>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên template</label>
+                <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a' }} value={newForm.name}
+                  onChange={e => setNewForm({ ...newForm, name: e.target.value })}
+                  placeholder="VD: intro_riêng_của_tôi" />
+              </div>
+              <div style={{ marginBottom: '14px' }}>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Subject</label>
+                <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                  style={{ background: '#1a1a1a' }} value={newForm.subject_lines[0]}
+                  onChange={e => setNewForm({ ...newForm, subject_lines: [e.target.value] })}
+                  placeholder="Subject email..." />
+              </div>
+              <div style={{ marginBottom: '14px' }}>
+                <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">HTML Content</label>
+                <textarea className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none"
+                  style={{ background: '#1a1a1a', minHeight: '140px', fontFamily: 'monospace', fontSize: '11px' }}
+                  value={newForm.html_content} onChange={e => setNewForm({ ...newForm, html_content: e.target.value })} />
+              </div>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                <button onClick={handleCreateMine} disabled={!newForm.name.trim()}
+                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+                  style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>💾 Tạo</button>
+              </div>
+            </div>
+          )}
+
+          {myTemplates.length === 0 ? (
+            <p className="text-xs text-neutral-700 py-4 text-center">Chưa có template riêng nào.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {myTemplates.map(tpl => {
+                const isEditing = editingId === tpl.id;
+                return (
+                  <div key={tpl.id} className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden', ...(isEditing ? { borderColor: '#FF9500' } : {}) }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', padding: '16px 20px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 700, fontSize: '14px', color: '#F5F5F5' }}>{tpl.name}</span>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px' }}>
+                          {tpl.subject_lines.map((s, si) => (
+                            <span key={si} style={{
+                              fontSize: '11px', padding: '3px 8px', borderRadius: '4px',
+                              background: '#0A84FF15', color: '#0A84FF', fontWeight: 600, maxWidth: '300px',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>📧 {s}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        {tpl.html_content && (
+                          <button onClick={() => onPreview(tpl.html_content)} style={{
+                            padding: '6px 10px', border: '1px solid #0A84FF30', borderRadius: '6px',
+                            background: 'rgba(10,132,255,0.1)', color: '#0A84FF', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                          }}>👁️ Preview</button>
+                        )}
+                        <button onClick={() => isEditing ? setEditingId(null) : handleEdit(tpl)} style={{
+                          padding: '6px 10px', border: '1px solid #FF950030', borderRadius: '6px',
+                          background: 'rgba(255,149,0,0.1)', color: '#FF9500', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                        }}>{isEditing ? '✕ Đóng' : '✏️ Sửa'}</button>
+                        <button onClick={() => handleDeleteMine(tpl.id)} style={{
+                          padding: '6px 10px', border: '1px solid #FF453A30', borderRadius: '6px',
+                          background: 'rgba(255,69,58,0.1)', color: '#FF453A', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                        }}>🗑️</button>
+                      </div>
+                    </div>
+                    {isEditing && (
+                      <div style={{ borderTop: '1px solid #222', padding: '20px', background: '#111' }}>
+                        <div style={{ marginBottom: '14px' }}>
+                          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Subject Lines</label>
+                          {editForm.subject_lines.map((s, i) => (
+                            <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px' }}>
+                              <input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a', flex: 1 }} value={s}
+                                onChange={e => { const arr = [...editForm.subject_lines]; arr[i] = e.target.value; setEditForm({ ...editForm, subject_lines: arr }); }} />
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ marginBottom: '14px' }}>
+                          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">HTML Content</label>
+                          <textarea className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none" style={{ background: '#1a1a1a', minHeight: '140px', fontFamily: 'monospace', fontSize: '11px' }}
+                            value={editForm.html_content} onChange={e => setEditForm({ ...editForm, html_content: e.target.value })} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button onClick={() => setEditingId(null)} className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all" style={{ cursor: 'pointer' }}>Huỷ</button>
+                          <button onClick={handleSave} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>💾 Lưu</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
