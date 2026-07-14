@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CrmClient, CrmContact } from '@/types';
+import { CrmClient, CrmContact, AccountUser } from '@/types';
 import { supabase } from '@/services/supabaseClient';
+import { hasAnyRole } from '@/utils/roleUtils';
 import ActivityTimeline from './ActivityTimeline';
 
 interface BdUser {
@@ -55,14 +56,14 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
   const [editContactData, setEditContactData] = useState({ ...emptyContact });
   const [bdUsers, setBdUsers] = useState<BdUser[]>([]);
 
-  // Fetch BD users once on mount (same pattern as StudiosTab)
+  // Fetch BD users once on mount (same pattern as StudiosTab).
+  // Lọc client-side qua hasAnyRole vì role 'bd' có thể là secondary_roles (VD: admin kiêm bd).
   useEffect(() => {
     supabase
       .from('account_users')
-      .select('id, full_name, role')
-      .ilike('role', '%bd%')
+      .select('id, full_name, role, secondary_roles')
       .then(({ data }) => {
-        if (data) setBdUsers(data as BdUser[]);
+        if (data) setBdUsers((data as unknown as AccountUser[]).filter(u => hasAnyRole(u, ['bd'])) as unknown as BdUser[]);
       });
   }, []);
 

@@ -8,7 +8,7 @@ export interface CrmStudio {
   country: string | null;
   domain: string | null;
   careers_link: string | null;
-  source: 'hiring' | 'discovered' | 'both';
+  source: 'hiring' | 'discovered' | 'both' | 'manual';
   bd_status: 'uncontacted' | 'outreached' | 'responding' | 'proposal' | 'client';
   contacts_found: number;
   processed_at: string | null;
@@ -122,6 +122,59 @@ export async function fetchLeadsByStudio(studioId: number): Promise<StudioLead[]
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as StudioLead[];
+}
+
+// Tìm studio trùng theo tên (case-insensitive) hoặc domain, trong cùng sổ (entity).
+export async function findDuplicateStudio(studioName: string, domain?: string | null): Promise<CrmStudio | null> {
+  const name = studioName.trim();
+  if (!name) return null;
+
+  const byName = await supabase
+    .from('crm_studios')
+    .select('*')
+    .eq('entity', getWorkspace())
+    .ilike('studio_name', name)
+    .limit(1);
+  if (byName.data?.length) return byName.data[0] as CrmStudio;
+
+  const cleanDomain = domain?.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (cleanDomain) {
+    const byDomain = await supabase
+      .from('crm_studios')
+      .select('*')
+      .eq('entity', getWorkspace())
+      .ilike('domain', cleanDomain)
+      .limit(1);
+    if (byDomain.data?.length) return byDomain.data[0] as CrmStudio;
+  }
+  return null;
+}
+
+export async function createStudio(input: {
+  studio_name: string;
+  country?: string;
+  domain?: string;
+}): Promise<CrmStudio> {
+  const studio_name = input.studio_name.trim();
+  if (!studio_name) throw new Error('Tên studio không được để trống');
+  const domain = input.domain?.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '') || null;
+
+  const dup = await findDuplicateStudio(studio_name, domain);
+  if (dup) throw new Error(`Studio "${dup.studio_name}" đã tồn tại rồi (trùng ${dup.domain === domain && domain ? 'domain' : 'tên'})`);
+
+  const { data, error } = await supabase
+    .from('crm_studios')
+    .insert({
+      studio_name,
+      country: input.country?.trim() || null,
+      domain,
+      source: 'manual',
+      entity: getWorkspace(),
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as CrmStudio;
 }
 
 export async function assignStudioOwner(

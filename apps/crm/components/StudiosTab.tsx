@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import {
   CrmStudio, StudioLead, StudioStats, StudioFilters,
   fetchStudios, fetchStudioStats, fetchLeadsByStudio,
-  updateStudioBdStatus, assignStudioOwner, STUDIO_PAGE_SIZE,
+  updateStudioBdStatus, assignStudioOwner, createStudio, STUDIO_PAGE_SIZE,
 } from '../services/studioService';
 import { supabase } from '@/services/supabaseClient';
+import { AccountUser } from '@/types';
+import { hasAnyRole } from '@/utils/roleUtils';
 
 // ── BD User type ────────────────────────────────────────────────────────────
 interface BdUser {
@@ -33,11 +35,13 @@ const SOURCE_COLOR: Record<string, string> = {
   hiring:     '#FF375F',
   discovered: '#0A84FF',
   both:       '#FF9500',
+  manual:     '#8E8E93',
 };
 const SOURCE_LABEL: Record<string, string> = {
   hiring:     'Hiring',
   discovered: 'Apollo',
   both:       'Cả hai',
+  manual:     'Thêm tay',
 };
 const OUTREACH_STATUS_COLOR: Record<string, string> = {
   pending:          '#9D9C9D',
@@ -236,8 +240,87 @@ const StudioDrawer: React.FC<{
   );
 };
 
+// ── Add Studio Modal ────────────────────────────────────────────────────────
+const AddStudioModal: React.FC<{
+  onClose: () => void;
+  onCreated: (studio: CrmStudio) => void;
+}> = ({ onClose, onCreated }) => {
+  const [name, setName] = useState('');
+  const [country, setCountry] = useState('');
+  const [domain, setDomain] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const studio = await createStudio({ studio_name: name, country, domain });
+      onCreated(studio);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Không thêm được studio');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <form
+        onSubmit={handleSubmit}
+        className="relative z-10 rounded-[20px] border border-primary/10 bg-surface p-6 space-y-4"
+        style={{ width: '420px' }}
+      >
+        <h3 className="text-base font-black uppercase tracking-wider text-white">+ Thêm Studio</h3>
+        <div>
+          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên studio *</label>
+          <input
+            autoFocus
+            className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full mt-1"
+            style={{ background: '#1a1a1a' }}
+            value={name} onChange={e => setName(e.target.value)}
+            placeholder="Ví dụ: Kabam Games" required />
+        </div>
+        <div>
+          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Quốc gia</label>
+          <input
+            className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full mt-1"
+            style={{ background: '#1a1a1a' }}
+            value={country} onChange={e => setCountry(e.target.value)}
+            placeholder="Vietnam, USA..." />
+        </div>
+        <div>
+          <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Domain</label>
+          <input
+            className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full mt-1"
+            style={{ background: '#1a1a1a' }}
+            value={domain} onChange={e => setDomain(e.target.value)}
+            placeholder="studio.com" />
+        </div>
+        {error && <p className="text-xs text-red-400">{error}</p>}
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <button type="button" onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
+            Huỷ
+          </button>
+          <button type="submit" disabled={!name.trim() || saving}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+            style={{ background: '#FF9500' }}>
+            {saving ? 'Đang lưu...' : 'Thêm studio'}
+          </button>
+        </div>
+      </form>
+    </div>,
+    document.body
+  );
+};
+
 // ── Main StudiosTab ─────────────────────────────────────────────────────────
-const StudiosTab: React.FC = () => {
+const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => {
   const [studios, setStudios]           = useState<CrmStudio[]>([]);
   const [total, setTotal]               = useState(0);
   const [stats, setStats]               = useState<StudioStats | null>(null);
@@ -248,16 +331,20 @@ const StudiosTab: React.FC = () => {
   const [selected, setSelected]         = useState<CrmStudio | null>(null);
   const [bdUsers, setBdUsers]           = useState<BdUser[]>([]);
   const [editingOwnerIds, setEditingOwnerIds] = useState<Set<number>>(new Set());
+  const [showAddStudio, setShowAddStudio] = useState(false);
   const searchTimeout                   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch BD users once on mount
+  // BD được thêm studio (không xoá — nút xoá chưa có ở UI, RLS đã chặn DELETE cho bd)
+  const canAddStudio = hasAnyRole(currentUser, ['admin', 'ke_toan', 'bd']);
+
+  // Fetch BD users once on mount.
+  // Lọc client-side qua hasAnyRole vì role 'bd' có thể là secondary_roles (VD: admin kiêm bd).
   useEffect(() => {
     supabase
       .from('account_users')
-      .select('id, full_name, role')
-      .ilike('role', '%bd%')
+      .select('id, full_name, role, secondary_roles')
       .then(({ data }) => {
-        if (data) setBdUsers(data as BdUser[]);
+        if (data) setBdUsers((data as unknown as AccountUser[]).filter(u => hasAnyRole(u, ['bd'])) as unknown as BdUser[]);
       });
   }, []);
 
@@ -329,14 +416,36 @@ const StudiosTab: React.FC = () => {
   return (
     <div className="animate-fadeInUp space-y-6">
       {/* Heading */}
-      <div>
-        <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
-          Game Studios
-        </h2>
-        <p className="text-sm text-neutral-medium mt-1">
-          Danh sách {stats?.total ?? '…'} studios — BD pipeline tracking
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
+            Game Studios
+          </h2>
+          <p className="text-sm text-neutral-medium mt-1">
+            Danh sách {stats?.total ?? '…'} studios — BD pipeline tracking
+          </p>
+        </div>
+        {canAddStudio && (
+          <button
+            onClick={() => setShowAddStudio(true)}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all"
+            style={{ background: '#FF9500' }}
+          >
+            + Thêm Studio
+          </button>
+        )}
       </div>
+
+      {showAddStudio && (
+        <AddStudioModal
+          onClose={() => setShowAddStudio(false)}
+          onCreated={studio => {
+            setStudios(prev => [studio, ...prev]);
+            setTotal(t => t + 1);
+            fetchStudioStats().then(s => { if (s) setStats(s); });
+          }}
+        />
+      )}
 
       {/* Stats */}
       {stats && (
@@ -377,6 +486,7 @@ const StudiosTab: React.FC = () => {
           <option value="hiring">Hiring signal</option>
           <option value="discovered">Apollo</option>
           <option value="both">Cả hai</option>
+          <option value="manual">Thêm tay</option>
         </select>
         <select
           value={filters.bd_status ?? ''}
