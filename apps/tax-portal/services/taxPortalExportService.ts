@@ -1,6 +1,6 @@
 // apps/tax-portal/services/taxPortalExportService.ts
 import * as XLSX from 'xlsx';
-import type { TaxInvoice, TaxExpense, TaxBankSnapshot, TaxSaving, TaxLoan, TaxBhxhPayment, TaxFxRate, TaxPayrollRecord } from './taxPortalService';
+import type { TaxInvoice, TaxExpense, TaxBankSnapshot, TaxSaving, TaxLoan, TaxBhxhPayment, TaxFxRate, TaxPayrollRecord, TaxFixedAsset } from './taxPortalService';
 
 // Same pattern as apps/accounting/components/VatTab.tsx's exportCSV — kept
 // local (not shared) because each domain's column set is different and this
@@ -55,6 +55,12 @@ export function exportFxRatesCSV(rows: TaxFxRate[]) {
   const headers = ['Ngày', 'Từ', 'Đến', 'Tỷ giá', 'Nguồn'];
   const csvRows = rows.map(r => [r.rate_date, r.from_currency, r.to_currency, r.rate, r.source]);
   downloadCSV(headers, csvRows, `TaxPortal_TyGia_${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
+export function exportFixedAssetsCSV(rows: TaxFixedAsset[]) {
+  const headers = ['ID', 'Tên tài sản', 'Loại', 'Ngày mua', 'Nguyên giá', 'Thời gian SD (tháng)', 'Giá trị thu hồi', 'Trạng thái', 'Ngày thanh lý', 'Giá trị thanh lý'];
+  const csvRows = rows.map(r => [r.id, `"${r.name.replace(/"/g, '""')}"`, r.asset_type, r.purchase_date, r.cost, r.useful_life_months, r.residual_value, r.status, r.disposal_date || '', r.disposal_amount ?? '']);
+  downloadCSV(headers, csvRows, `TaxPortal_TaiSan_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
 // Excel (not CSV) — same xlsx library + pattern as apps/payroll/services/payrollExportService.ts.

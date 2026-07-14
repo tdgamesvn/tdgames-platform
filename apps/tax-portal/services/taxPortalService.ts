@@ -81,6 +81,19 @@ export interface TaxFxRate {
   source: string;
 }
 
+export interface TaxFixedAsset {
+  id: string;
+  name: string;
+  asset_type: string;
+  purchase_date: string;
+  cost: number;
+  useful_life_months: number;
+  residual_value: number;
+  status: string;
+  disposal_date: string | null;
+  disposal_amount: number | null;
+}
+
 export interface TaxPayrollSheet {
   id: string;
   title: string;
@@ -219,6 +232,16 @@ export async function fetchTaxFxRates(): Promise<TaxFxRate[]> {
     .order('rate_date', { ascending: false });
   if (error) throw error;
   return (data || []) as TaxFxRate[];
+}
+
+export async function fetchTaxFixedAssets(): Promise<TaxFixedAsset[]> {
+  const { data, error } = await supabase
+    .from('acc_fixed_assets')
+    .select('id, name, asset_type, purchase_date, cost, useful_life_months, residual_value, status, disposal_date, disposal_amount')
+    .eq('entity', 'TD GAMES') // tax portal = sổ thuế thực tế, không lộ sổ TD CONSULTING
+    .order('purchase_date', { ascending: false });
+  if (error) throw error;
+  return (data || []) as TaxFixedAsset[];
 }
 
 export async function fetchTaxPayrollSheets(): Promise<TaxPayrollSheet[]> {
