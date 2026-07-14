@@ -274,6 +274,7 @@ export interface CrmContact {
 
 export interface CrmClient {
   id: string;
+  studio_id?: number | null; // FK crm_studios.id — set khi convert từ 1 studio đã có trong pool prospect
   name: string;
   client_type: 'company' | 'individual';
   contact_person: string;

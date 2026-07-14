@@ -5,6 +5,7 @@ import {
   fetchStudios, fetchStudioStats, fetchLeadsByStudio,
   updateStudioBdStatus, assignStudioOwner, releaseStudioOwner, createStudio, STUDIO_PAGE_SIZE,
 } from '../services/studioService';
+import { createClient } from '../services/crmService';
 import { supabase } from '@/services/supabaseClient';
 import { AccountUser } from '@/types';
 import { hasAnyRole } from '@/utils/roleUtils';
@@ -404,6 +405,29 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
     fetchStudioStats().then(s => { if (s) setStats(s); });
   };
 
+  // Sếp phát hiện: thêm KH thủ công không link được studio nào — cho convert thẳng từ đây,
+  // pre-fill tên/quốc gia/website/BD phụ trách từ studio, khỏi gõ lại. Điền nốt phần còn lại
+  // (contact, ngành nghề...) ở tab Khách hàng.
+  const handleConvertToClient = async (studio: CrmStudio) => {
+    if (!window.confirm(`Tạo khách hàng mới từ studio "${studio.studio_name}"?\nSau khi tạo, vào tab Khách hàng để hoàn thiện thông tin (người liên hệ, ngành nghề...).`)) return;
+    try {
+      await createClient({
+        studio_id: studio.id,
+        name: studio.studio_name,
+        client_type: 'company',
+        contact_person: '', email: '', phone: '',
+        address: '', country: studio.country || '', tax_code: '',
+        website: studio.domain ? `https://${studio.domain}` : '',
+        industry: '', status: 'lead',
+        lead_source: '', lead_direction: '', lead_source_detail: '',
+        notes: '', tags: [],
+        assigned_bd_id: studio.owner_id || null,
+        assigned_bd_name: studio.owner_name || '',
+      } as any);
+      alert(`✅ Đã tạo khách hàng "${studio.studio_name}" — vào tab Khách hàng để hoàn thiện thông tin.`);
+    } catch (e: any) { alert('Lỗi: ' + e.message); }
+  };
+
   const handleSelfAssign = (studioId: number) => {
     const me = bdUsers.find(u => u.id === currentUser.id);
     handleAssignOwner(studioId, currentUser.id, me?.full_name || currentUser.username);
@@ -569,6 +593,7 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
                 <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">BD Status</th>
                 <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden xl:table-cell">BD phụ trách</th>
                 <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden sm:table-cell">Contacts</th>
+                <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Hành động</th>
               </tr>
             </thead>
             <tbody>
@@ -674,6 +699,17 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
                     {/* Contacts */}
                     <td className="px-5 py-3 text-right hidden sm:table-cell">
                       <span className="text-sm font-semibold text-white">{studio.contacts_found}</span>
+                    </td>
+                    {/* Convert to Client */}
+                    <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
+                      {canAddStudio && (
+                        <button
+                          type="button"
+                          onClick={() => handleConvertToClient(studio)}
+                          title="Tạo khách hàng từ studio này"
+                          className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                        >→ KH</button>
+                      )}
                     </td>
                   </tr>
                 );
