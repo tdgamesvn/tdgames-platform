@@ -336,6 +336,9 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
 
   // BD được thêm studio (không xoá — nút xoá chưa có ở UI, RLS đã chặn DELETE cho bd)
   const canAddStudio = hasAnyRole(currentUser, ['admin', 'ke_toan', 'bd']);
+  // Chỉ admin/ke_toan được gán BD phụ trách cho người khác + đổi chủ studio đã có người take care.
+  // BD thường chỉ được tự nhận studio chưa ai phụ trách (chặn thêm ở DB trigger guard_crm_studio_owner_change).
+  const isAdmin = hasAnyRole(currentUser, ['admin', 'ke_toan']);
 
   // Fetch BD users once on mount.
   // Lọc client-side qua hasAnyRole vì role 'bd' có thể là secondary_roles (VD: admin kiêm bd).
@@ -399,6 +402,11 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, bd_status: bd_status as CrmStudio['bd_status'] } : prev);
     // Refresh stats
     fetchStudioStats().then(s => { if (s) setStats(s); });
+  };
+
+  const handleSelfAssign = (studioId: number) => {
+    const me = bdUsers.find(u => u.id === currentUser.id);
+    handleAssignOwner(studioId, currentUser.id, me?.full_name || currentUser.username);
   };
 
   const handleAssignOwner = async (studioId: number, ownerId: string, ownerName: string) => {
@@ -603,13 +611,15 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
                           <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,149,0,0.12)', color: '#FF9500' }}>
                             {studio.owner_name}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setEditingOwnerIds(prev => { const next = new Set(prev); next.add(studio.id); return next; })}
-                            style={{ fontSize: '10px', color: '#666', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
-                          >Đổi</button>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingOwnerIds(prev => { const next = new Set(prev); next.add(studio.id); return next; })}
+                              style={{ fontSize: '10px', color: '#666', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
+                            >Đổi</button>
+                          )}
                         </div>
-                      ) : (
+                      ) : isAdmin ? (
                         <select
                           style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', color: '#E5E5E5', padding: '4px 8px', fontSize: '11px', outline: 'none' }}
                           value=""
@@ -621,6 +631,13 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
                           <option value="">-- Chọn BD --</option>
                           {bdUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                         </select>
+                      ) : (
+                        // BD thường: chỉ được tự nhận studio chưa ai phụ trách, không được chọn/đổi cho người khác
+                        <button
+                          type="button"
+                          onClick={() => handleSelfAssign(studio.id)}
+                          style={{ fontSize: '10px', fontWeight: 700, color: '#FF9500', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}
+                        >+ Nhận studio</button>
                       )}
                     </td>
                     {/* Contacts */}
