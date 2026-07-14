@@ -296,6 +296,19 @@ export async function updateDeal(id: string, updates: Partial<CrmDeal>): Promise
   if (error) throw error;
 }
 
+// Deal stage -> Client status: 2 field gần trùng ý nghĩa, tách rời từ trước gây lệch
+// (client có thể đứng "Lead" mãi dù deal đã Won). Chỉ map các stage có tương ứng
+// rõ ràng; proposal_sent gộp vào negotiating vì Client không có state riêng cho nó.
+const DEAL_STAGE_TO_CLIENT_STATUS: Record<CrmDealStage, CrmClient['status']> = {
+  lead: 'lead',
+  contacted: 'contacted',
+  negotiating: 'negotiating',
+  proposal_sent: 'negotiating',
+  contracting: 'contracting',
+  won: 'active',
+  lost: 'lost',
+};
+
 export async function updateDealStage(id: string, stage: CrmDealStage): Promise<void> {
   const updates: any = { stage, updated_at: new Date().toISOString() };
   if (stage === 'won' || stage === 'lost') {
@@ -303,6 +316,19 @@ export async function updateDealStage(id: string, stage: CrmDealStage): Promise<
   }
   const { error } = await supabase.from('crm_deals').update(updates).eq('id', id);
   if (error) throw error;
+
+  // Best-effort: lỗi ở các bước dưới không được làm hỏng việc chuyển stage đã thành công.
+  try {
+    const { data: deal } = await supabase.from('crm_deals').select('client_id, title, notes').eq('id', id).single();
+    if (deal) {
+      // Đồng bộ status Client theo stage Deal (client có thể đã Won mà vẫn "Lead" nếu không sync).
+      // (Project tự tạo khi Won đã xử lý bằng DB trigger `auto_create_project_on_deal_won`
+      // — không lặp lại ở đây để tránh tạo trùng project.)
+      await supabase.from('crm_clients').update({ status: DEAL_STAGE_TO_CLIENT_STATUS[stage] }).eq('id', deal.client_id);
+    }
+  } catch (e) {
+    console.error('[updateDealStage] post-stage sync failed:', e);
+  }
 }
 
 export async function deleteDeal(id: string): Promise<void> {

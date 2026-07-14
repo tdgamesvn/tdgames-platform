@@ -154,6 +154,7 @@ export async function fetchTaxExpenses(): Promise<TaxExpense[]> {
     .select('id, amount, currency, type, status, expense_date, vendor, category_id, description:title')
     .eq('type', 'expense')
     .eq('entity', 'TD GAMES') // tax portal = sổ thuế thực tế, không lộ sổ TD CONSULTING
+    .neq('account_type', 'personal') // loại chi phí đánh dấu "Cá nhân — miễn thuế" khỏi tax portal (chưa chắc có cam kết 02/CK-TNCN)
     .order('expense_date', { ascending: false });
   if (error) throw error;
   return (data || []) as unknown as TaxExpense[];

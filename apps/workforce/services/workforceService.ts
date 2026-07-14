@@ -222,22 +222,6 @@ export async function createSettlement(
   return settlement;
 }
 
-// ── Expense sync helpers ─────────────────────────────────────
-async function ensureFreelancerCategory(): Promise<string | null> {
-  const { data } = await supabase
-    .from('expense_categories')
-    .select('id')
-    .eq('name', 'Chi phí Freelancer')
-    .maybeSingle();
-  if (data) return data.id;
-  const { data: created } = await supabase
-    .from('expense_categories')
-    .insert({ name: 'Chi phí Freelancer', color: '#8B5CF6', icon: '🧑‍💻' })
-    .select('id')
-    .single();
-  return created?.id ?? null;
-}
-
 export async function updateSettlement(id: string, updates: Partial<Settlement>): Promise<void> {
   const { worker, tasks, ...clean } = updates as any;
   const { error } = await supabase.from('wf_settlements').update(clean).eq('id', id);
@@ -255,53 +239,27 @@ export async function updateSettlement(id: string, updates: Partial<Settlement>)
         .in('id', taskIds);
     }
 
-    // 2. Sync expense record: tạo mới nếu chưa có, hoặc cập nhật status='paid' nếu đã có
+    // 2. Backfill expense_id — DB trigger `sync_settlement_to_expense` đã tự tạo
+    // (idempotent, có check tồn tại) dòng expense_expenses ngay trong lệnh update
+    // status ở trên. KHÔNG insert lại ở đây nữa — trước đây code này tự insert
+    // thêm 1 dòng expense song song với trigger, gây trùng 2 dòng chi phí cho
+    // mỗi settlement (trigger không tự ghi lại expense_id nên guard cũ luôn thấy null).
     const { data: existing, error: fetchErr } = await supabase
       .from('wf_settlements')
-      .select('expense_id, net_amount, currency, period, account_type, worker:wf_workers(full_name)')
+      .select('expense_id')
       .eq('id', id)
       .single();
     if (fetchErr) throw fetchErr;
 
-    if (existing) {
-      if (!existing.expense_id) {
-        // Chưa có expense → tạo mới với status='paid'
-        const categoryId = await ensureFreelancerCategory();
-        const workerName = (existing.worker as any)?.full_name || 'Freelancer';
-        const { data: expenseRow, error: insertErr } = await supabase
-          .from('expense_expenses')
-          .insert({
-            title: `Freelancer: ${workerName} — ${existing.period}`,
-            amount: existing.net_amount,
-            currency: existing.currency,
-            expense_date: new Date().toISOString().split('T')[0],
-            category_id: categoryId,
-            type: 'expense',
-            source_type: 'settlement',
-            source_id: id,
-            status: 'paid',
-            vendor: workerName,
-            project: '',
-            client_name: '',
-            payment_method: 'CK',
-            account_type: existing.account_type || 'company',
-            notes: `Tự động từ Settlement ${id}`,
-            receipt_url: '',
-            created_by: 'system',
-          })
-          .select('id')
-          .single();
-        if (insertErr) throw insertErr;
-
-        if (expenseRow) {
-          await supabase.from('wf_settlements').update({ expense_id: expenseRow.id }).eq('id', id);
-        }
-      } else {
-        // Đã có expense_id → cập nhật status='paid' (fix: trước đây bỏ qua bước này)
-        await supabase
-          .from('expense_expenses')
-          .update({ status: 'paid' })
-          .eq('id', existing.expense_id);
+    if (existing && !existing.expense_id) {
+      const { data: exp } = await supabase
+        .from('expense_expenses')
+        .select('id')
+        .eq('source_type', 'settlement')
+        .eq('source_id', id)
+        .maybeSingle();
+      if (exp) {
+        await supabase.from('wf_settlements').update({ expense_id: exp.id }).eq('id', id);
       }
     }
   }
