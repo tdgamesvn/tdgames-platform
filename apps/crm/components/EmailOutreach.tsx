@@ -93,11 +93,11 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
           <p className="text-sm text-neutral-medium mt-1">Lead Discovery + Cold Email Pipeline — TD Games Outsourcing</p>
         </div>
 
-        {/* Sub-tabs — cùng pattern pill với Navbar chính (bg-primary khi active) thay vì nút inline-action nhỏ */}
-        <div className="flex flex-wrap gap-2 p-2 rounded-[20px] border border-primary/10 bg-surface">
+        {/* Sub-tabs — segmented control dàn đều bề rộng (flex-1 tự co giãn khi thêm/bớt tab), gạch chia cam giữa các ô */}
+        <div className="flex divide-x divide-primary/20 rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className={`px-5 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+              className={`flex-1 px-4 py-3 text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                 tab === t.key ? 'bg-primary text-black shadow-btn-glow' : 'text-neutral-medium hover:text-white hover:bg-white/5'
               }`}
             >{t.icon} {t.label}</button>
