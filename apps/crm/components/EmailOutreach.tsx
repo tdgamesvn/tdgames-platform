@@ -309,6 +309,32 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     const match = myStudios.find(s => s.studio_name.trim().toLowerCase() === value.trim().toLowerCase());
     setAddForm(prev => ({ ...prev, studio_name: value, studio_id: match ? match.id : null }));
   };
+  const selectStudio = (s: { id: number; studio_name: string }) => {
+    setAddForm(prev => ({ ...prev, studio_name: s.studio_name, studio_id: s.id }));
+    setShowStudioSug(false);
+  };
+  const [showStudioSug, setShowStudioSug] = useState(false);
+  const studioSuggestions = useMemo(() => {
+    const q = addForm.studio_name.trim().toLowerCase();
+    const pool = q ? myStudios.filter(s => s.studio_name.toLowerCase().includes(q)) : myStudios;
+    return pool.slice(0, 8);
+  }, [addForm.studio_name, myStudios]);
+  // Quick-add tier ngay trong form (không phải chỉ ở Settings) — dùng chung icon/màu xoay vòng với SettingsTab
+  const [showQuickAddTier, setShowQuickAddTier] = useState(false);
+  const [quickTierLabel, setQuickTierLabel] = useState('');
+  const [addingQuickTier, setAddingQuickTier] = useState(false);
+  const handleQuickAddTier = async () => {
+    if (!quickTierLabel.trim()) return;
+    setAddingQuickTier(true);
+    try {
+      const icon = TIER_ICON_CYCLE[tiers.length % TIER_ICON_CYCLE.length];
+      const color = TIER_COLOR_PALETTE[tiers.length % TIER_COLOR_PALETTE.length];
+      const newTier = await svc.createTier(quickTierLabel.trim(), icon, color);
+      onRefresh();
+      setAddForm(prev => ({ ...prev, tier: newTier.id }));
+      setQuickTierLabel(''); setShowQuickAddTier(false);
+    } catch (e: any) { alert('Lỗi: ' + e.message); } finally { setAddingQuickTier(false); }
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -715,18 +741,33 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       {showAddForm && (
         <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Studio *</label>
               <input
-                list="leads-studio-dl"
                 className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
                 style={{ background: '#1a1a1a' }}
                 placeholder={isBd ? 'Gõ tên studio đã nhận...' : 'Gõ tên studio...'}
-                value={addForm.studio_name} onChange={e => handleStudioNameChange(e.target.value)}
+                value={addForm.studio_name}
+                onChange={e => { handleStudioNameChange(e.target.value); setShowStudioSug(true); }}
+                onFocus={() => setShowStudioSug(true)}
+                onBlur={() => setTimeout(() => setShowStudioSug(false), 150)}
               />
-              <datalist id="leads-studio-dl">
-                {myStudios.map(s => <option key={s.id} value={s.studio_name} />)}
-              </datalist>
+              {showStudioSug && studioSuggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  background: '#1E1E1E', border: '1px solid #FF950060', borderRadius: '8px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.5)', marginTop: '4px', overflow: 'hidden',
+                  maxHeight: '220px', overflowY: 'auto',
+                }}>
+                  {studioSuggestions.map(s => (
+                    <div key={s.id} onMouseDown={() => selectStudio(s)}
+                      style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #2A2A2A', fontSize: '12px', color: '#F5F5F5', fontWeight: 600 }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#FF950015')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >{s.studio_name}</div>
+                  ))}
+                </div>
+              )}
               {isBd && addForm.studio_name.trim() && !addForm.studio_id && (
                 <p style={{ fontSize: '10px', color: '#FF9500', marginTop: '4px' }}>⚠️ Chưa khớp studio nào bạn đã nhận</p>
               )}
@@ -738,9 +779,29 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Job Title</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.job_title} onChange={e => setAddForm({ ...addForm, job_title: e.target.value })} /></div>
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">LinkedIn URL</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.linkedin_url} onChange={e => setAddForm({ ...addForm, linkedin_url: e.target.value })} /></div>
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tier</label>
-              <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.tier} onChange={e => setAddForm({ ...addForm, tier: +e.target.value })}>
-                {tiers.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}{t.description ? ` — ${t.description}` : ''}</option>)}
-              </select>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.tier} onChange={e => setAddForm({ ...addForm, tier: +e.target.value })}>
+                  {tiers.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}{t.description ? ` — ${t.description}` : ''}</option>)}
+                </select>
+                <button type="button" title="Thêm tier mới" onClick={() => setShowQuickAddTier(v => !v)}
+                  className="px-3 rounded-xl text-sm font-black text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                  style={{ background: '#1a1a1a', cursor: 'pointer', flexShrink: 0 }}>＋</button>
+              </div>
+              {showQuickAddTier && (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                  <input
+                    autoFocus
+                    className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                    style={{ background: '#1a1a1a' }}
+                    placeholder="Tên phân loại mới..."
+                    value={quickTierLabel} onChange={e => setQuickTierLabel(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickAddTier()}
+                  />
+                  <button type="button" onClick={handleQuickAddTier} disabled={addingQuickTier || !quickTierLabel.trim()}
+                    className="px-3 py-2 rounded-xl text-xs font-black uppercase text-white transition-all disabled:opacity-50"
+                    style={{ background: '#FF9500', border: 'none', cursor: 'pointer', flexShrink: 0 }}>{addingQuickTier ? '⏳' : 'Lưu'}</button>
+                </div>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -1230,7 +1291,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
         <h4 style={{ fontSize: '14px', fontWeight: 800, color: '#F5F5F5', marginBottom: '8px' }}>🔍 Lead Discovery Pipeline</h4>
         <p style={{ fontSize: '13px', color: '#888', lineHeight: 1.6, marginBottom: '16px' }}>
           Nhập tên công ty + domain → Hệ thống tự động tìm contacts qua Web Scraping, Google CSE, và SalesQL Enrichment.
-          Contacts được phân loại theo 3-tier: ⭐Tier 1 (Art Director), ★Tier 2 (Producer), ☆Tier 3 (CEO/BD).
+          Contacts được phân loại theo nhóm vai trò (Art Director, Producer, CEO/BD...) — xem/chỉnh ở Settings.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr auto', gap: '12px', alignItems: 'end' }}>
