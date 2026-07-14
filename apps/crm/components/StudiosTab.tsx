@@ -520,7 +520,18 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        {(filters.source || filters.bd_status || searchInput) && (
+        <select
+          value={filters.owner ?? ''}
+          onChange={e => handleFilterChange('owner', e.target.value)}
+          className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+          style={{ background: '#1a1a1a' }}
+        >
+          <option value="">Tất cả BD phụ trách</option>
+          <option value="unclaimed">Chưa nhận</option>
+          <option value="claimed">Đã nhận (mọi BD)</option>
+          <option value={currentUser.id}>Của tôi</option>
+        </select>
+        {(filters.source || filters.bd_status || filters.owner || searchInput) && (
           <button
             onClick={() => {
               setSearchInput('');

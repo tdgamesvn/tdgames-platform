@@ -35,6 +35,8 @@ export interface StudioFilters {
   country?: string;
   source?: string;
   bd_status?: string;
+  // 'unclaimed' | 'claimed' (bất kỳ ai) | uuid cụ thể (đúng owner_id — dùng cho "Của tôi")
+  owner?: string;
 }
 
 export interface StudioStats {
@@ -59,6 +61,8 @@ export async function fetchStudios(
     .from('crm_studios')
     .select('*', { count: 'exact' })
     .eq('entity', getWorkspace())
+    // Studio đã có người phụ trách nổi lên đầu danh sách (has_owner generated column), rồi mới A-Z.
+    .order('has_owner', { ascending: false })
     .order('studio_name', { ascending: true })
     .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
@@ -80,6 +84,13 @@ export async function fetchStudios(
   }
   if (filters.bd_status) {
     query = query.eq('bd_status', filters.bd_status);
+  }
+  if (filters.owner === 'unclaimed') {
+    query = query.is('owner_id', null);
+  } else if (filters.owner === 'claimed') {
+    query = query.not('owner_id', 'is', null);
+  } else if (filters.owner) {
+    query = query.eq('owner_id', filters.owner);
   }
 
   const { data, error, count } = await query;
