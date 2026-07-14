@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   CrmStudio, StudioLead, StudioStats, StudioFilters,
   fetchStudios, fetchStudioStats, fetchLeadsByStudio,
-  updateStudioBdStatus, assignStudioOwner, createStudio, STUDIO_PAGE_SIZE,
+  updateStudioBdStatus, assignStudioOwner, releaseStudioOwner, createStudio, STUDIO_PAGE_SIZE,
 } from '../services/studioService';
 import { supabase } from '@/services/supabaseClient';
 import { AccountUser } from '@/types';
@@ -421,6 +421,19 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
     }
   };
 
+  const handleReleaseOwner = async (studioId: number, ownerName?: string | null) => {
+    if (!window.confirm(`Bỏ nhận studio này${ownerName ? ` (đang do ${ownerName} phụ trách)` : ''}? BD khác sẽ có thể nhận lại.`)) return;
+    const prevOwner = studios.find(s => s.id === studioId);
+    // Optimistic update
+    setStudios(prev => prev.map(s => s.id === studioId ? { ...s, owner_id: null, owner_name: null } : s));
+    try {
+      await releaseStudioOwner(studioId);
+    } catch {
+      // Rollback on error
+      if (prevOwner) setStudios(prev => prev.map(s => s.id === studioId ? { ...s, owner_id: prevOwner.owner_id, owner_name: prevOwner.owner_name } : s));
+    }
+  };
+
   return (
     <div className="animate-fadeInUp space-y-6">
       {/* Heading */}
@@ -608,7 +621,7 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
                     <td className="px-4 py-3 hidden xl:table-cell" onClick={e => e.stopPropagation()}>
                       {studio.owner_name && !editingOwnerIds.has(studio.id) ? (
                         <div className="flex items-center gap-1">
-                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(255,149,0,0.12)', color: '#FF9500' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(10,132,255,0.14)', color: '#0A84FF' }}>
                             {studio.owner_name}
                           </span>
                           {isAdmin && (
@@ -617,6 +630,13 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
                               onClick={() => setEditingOwnerIds(prev => { const next = new Set(prev); next.add(studio.id); return next; })}
                               style={{ fontSize: '10px', color: '#666', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
                             >Đổi</button>
+                          )}
+                          {(isAdmin || studio.owner_id === currentUser.id) && (
+                            <button
+                              type="button"
+                              onClick={() => handleReleaseOwner(studio.id, studio.owner_name)}
+                              style={{ fontSize: '10px', color: '#FF453A', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
+                            >Bỏ nhận</button>
                           )}
                         </div>
                       ) : isAdmin ? (

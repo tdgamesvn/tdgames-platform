@@ -189,4 +189,12 @@ export async function assignStudioOwner(
   if (error) throw error;
 }
 
+export async function releaseStudioOwner(studioId: number): Promise<void> {
+  const { error } = await supabase
+    .from('crm_studios')
+    .update({ owner_id: null, owner_name: null })
+    .eq('id', studioId);
+  if (error) throw error;
+}
+
 export { PAGE_SIZE as STUDIO_PAGE_SIZE };
