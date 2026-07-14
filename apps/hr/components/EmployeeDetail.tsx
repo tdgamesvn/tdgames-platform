@@ -56,7 +56,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   const ROLE_OPTIONS = [
     { value: 'member', label: '👤 Nhân viên', color: '#888' },
     { value: 'ke_toan', label: '📊 Kế toán', color: '#F59E0B' },
-    { value: 'hr', label: '🧑‍💼 Nhân sự', color: '#06B6D4' },
+    { value: 'hr', label: '🧑‍💼 HR', color: '#06B6D4' },
     { value: 'admin', label: '👑 Admin', color: '#FF375F' },
     { value: 'freelancer', label: '🤝 Freelancer', color: '#5E5CE6' },
     { value: 'bd', label: '💼 Business Dev', color: '#34D399' },

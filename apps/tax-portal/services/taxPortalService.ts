@@ -125,6 +125,7 @@ export async function fetchTaxInvoices(): Promise<TaxInvoice[]> {
   const { data, error } = await supabase
     .from('invoice_invoices')
     .select('id, status, currency, amount_received, items, issue_date, paid_date, due_date, created_at, client_info, billing_entity, einvoice_invoice_number, einvoice_pdf_url')
+    .eq('billing_entity', 'TD GAMES') // tax portal = sổ thuế thực tế, không lộ sổ TD CONSULTING
     .order('issue_date', { ascending: false });
   if (error) throw error;
   return (data || []) as TaxInvoice[];
@@ -139,21 +140,36 @@ export async function fetchTaxExpenses(): Promise<TaxExpense[]> {
     .from('expense_expenses')
     .select('id, amount, currency, type, status, expense_date, vendor, category_id, description:title')
     .eq('type', 'expense')
+    .eq('entity', 'TD GAMES') // tax portal = sổ thuế thực tế, không lộ sổ TD CONSULTING
     .order('expense_date', { ascending: false });
   if (error) throw error;
   return (data || []) as unknown as TaxExpense[];
 }
 
 export async function fetchTaxBankAccounts(): Promise<TaxBankAccount[]> {
-  const { data, error } = await supabase.from('finance_bank_accounts').select('id, name, bank_name, currency');
+  const { data, error } = await supabase
+    .from('finance_bank_accounts')
+    .select('id, name, bank_name, currency')
+    .eq('entity', 'TD GAMES'); // tax portal = sổ thuế thực tế, không lộ sổ TD CONSULTING
   if (error) throw error;
   return (data || []) as TaxBankAccount[];
 }
 
 export async function fetchTaxBankSnapshots(): Promise<TaxBankSnapshot[]> {
+  // finance_bank_balance_snapshots không có cột entity — lọc theo account_id
+  // của tài khoản TD GAMES (đã lọc ở fetchTaxBankAccounts) để không lộ số dư TD CONSULTING.
+  const { data: accounts, error: accErr } = await supabase
+    .from('finance_bank_accounts')
+    .select('id')
+    .eq('entity', 'TD GAMES');
+  if (accErr) throw accErr;
+  const accountIds = (accounts || []).map(a => a.id);
+  if (!accountIds.length) return [];
+
   const { data, error } = await supabase
     .from('finance_bank_balance_snapshots')
     .select('id, account_id, balance, snapshot_date, source')
+    .in('account_id', accountIds)
     .order('snapshot_date', { ascending: false });
   if (error) throw error;
   return (data || []) as TaxBankSnapshot[];
@@ -209,6 +225,7 @@ export async function fetchTaxPayrollSheets(): Promise<TaxPayrollSheet[]> {
   const { data, error } = await supabase
     .from('pay_payroll_sheets')
     .select('id, title, status, month, year')
+    .eq('entity', 'TD GAMES') // tax portal = sổ thuế thực tế, không lộ sổ TD CONSULTING
     .order('year', { ascending: false })
     .order('month', { ascending: false });
   if (error) throw error;
