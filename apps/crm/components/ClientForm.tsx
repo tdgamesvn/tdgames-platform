@@ -140,10 +140,10 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="rounded-[20px] border border-primary/10 bg-surface p-5">
-        {/* Row 1: Name + Type */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
-          <div>
+      <form onSubmit={handleSubmit} className="rounded-[20px] border border-primary/10 bg-surface p-6 space-y-5">
+        {/* Tên + Loại */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tên khách hàng *</label>
             <input
               className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
@@ -154,7 +154,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Loại khách hàng</label>
             <select
-              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
               style={{ background: '#1a1a1a' }}
               value={form.client_type} onChange={e => setForm({ ...form, client_type: e.target.value as any })}>
               <option value="company">Công ty</option>
@@ -163,8 +163,8 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           </div>
         </div>
 
-        {/* Row 2: Address */}
-        <div style={{ marginBottom: '20px' }}>
+        {/* Địa chỉ */}
+        <div>
           <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Địa chỉ</label>
           <input
             className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
@@ -173,8 +173,8 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
             placeholder="Địa chỉ đầy đủ..." />
         </div>
 
-        {/* Row 3: Country + TaxCode + Industry */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        {/* Quốc gia + Mã số thuế + Ngành nghề */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Quốc gia</label>
             <input
@@ -194,7 +194,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ngành nghề</label>
             <select
-              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
               style={{ background: '#1a1a1a' }}
               value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })}>
               <option value="">-- Chọn ngành --</option>
@@ -203,8 +203,8 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           </div>
         </div>
 
-        {/* Row 4: Website + Status */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        {/* Website + Trạng thái + BD phụ trách */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Website</label>
             <input
@@ -216,7 +216,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Trạng thái</label>
             <select
-              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
               style={{ background: '#1a1a1a' }}
               value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })}>
               <optgroup label="Giai đoạn tiếp cận">
@@ -255,12 +255,12 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           </div>
         </div>
 
-        {/* Lead Source */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        {/* Nguồn khách hàng + Hướng tiếp cận + Chi tiết nguồn */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Nguồn khách hàng</label>
             <select
-              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
               style={{ background: '#1a1a1a' }}
               value={form.lead_source} onChange={e => setForm({ ...form, lead_source: e.target.value })}>
               <option value="">-- Chọn nguồn --</option>
@@ -278,7 +278,7 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           <div>
             <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Hướng tiếp cận</label>
             <select
-              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
               style={{ background: '#1a1a1a' }}
               value={form.lead_direction} onChange={e => setForm({ ...form, lead_direction: e.target.value })}>
               <option value="">-- Chọn --</option>
@@ -297,9 +297,9 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
         </div>
 
         {/* Tags */}
-        <div style={{ marginBottom: '20px' }}>
+        <div>
           <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tags</label>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="flex gap-2 items-center flex-wrap mt-1">
             {form.tags.map(tag => (
               <span key={tag} style={{
                 background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.3)', borderRadius: '6px',
@@ -318,8 +318,8 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
           </div>
         </div>
 
-        {/* Notes */}
-        <div style={{ marginBottom: '28px' }}>
+        {/* Ghi chú */}
+        <div>
           <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Ghi chú</label>
           <textarea
             className="w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors resize-none"
@@ -328,8 +328,8 @@ const ClientForm: React.FC<Props> = ({ editingClient, onSave, onUpdate, onCancel
             onChange={e => setForm({ ...form, notes: e.target.value })} placeholder="Ghi chú thêm..." />
         </div>
 
-        {/* Save/Cancel */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        {/* Lưu/Huỷ */}
+        <div className="grid grid-cols-2 gap-4 pt-1">
           <button type="button" onClick={onCancel}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all">
             Huỷ
