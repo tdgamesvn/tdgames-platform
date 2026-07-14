@@ -322,6 +322,7 @@ export interface CrmDocument {
 export interface CrmProject {
   id: string;
   client_id: string;
+  deal_id?: string | null; // FK crm_deals.id — set tự động khi deal chuyển Won (trigger DB)
   name: string;
   description: string;
   status: 'active' | 'completed' | 'paused' | 'cancelled';
