@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog, AccountUser } from '@/types';
+import { CrmClient, CrmOutreachLead, CrmEmailTemplate, CrmEmailLog, CrmLeadTier, AccountUser } from '@/types';
 import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import * as svc from '../services/outreachService';
 import type { PipelineStats } from '../services/outreachService';
 import { getOutreachApiBase, outreachRequest, supabaseEdgeFunctionPost } from '../services/outreachApi';
+import { fetchStudioOptions } from '../services/studioService';
 import { AutoTab } from './AutoTab';
+
+// Màu xoay vòng khi user tự thêm tier mới (không cần chọn tay)
+const TIER_COLOR_PALETTE = ['#FFD60A', '#FF9500', '#888888', '#0A84FF', '#BF5AF2', '#34C759', '#FF375F'];
+const TIER_ICON_CYCLE = ['🔹', '🔸', '🔺', '⬥', '◆', '▲', '●'];
+const tierFallback = (id: number): CrmLeadTier => ({ id, label: `Tier ${id}`, icon: '🔹', color: '#888', description: '', sort_order: id });
+// Lookup tiện dùng ở mọi nơi hiện icon/màu/label của 1 tier — fallback khi tier đã xoá hoặc chưa tải xong
+const tierOf = (tiers: CrmLeadTier[], id: number): CrmLeadTier => tiers.find(t => t.id === id) || tierFallback(id);
 
 // ══════════════════════════════════════════════════════════════
 // ── Constants ─────────────────────────────────────────────────
@@ -21,13 +29,6 @@ const STATUS_CFG: Record<string, { label: string; color: string; icon: string }>
   unsubscribed:   { label: 'Huỷ',         color: '#555',    icon: '🚫' },
 };
 
-const TIER_CFG: Record<number, { label: string; color: string; icon: string; desc: string }> = {
-  1: { label: 'Tier 1', color: '#FFD60A', icon: '⭐', desc: 'Art Director / Outsource Manager' },
-  2: { label: 'Tier 2', color: '#FF9500', icon: '★',  desc: 'Producer / Lead Artist' },
-  3: { label: 'Tier 3', color: '#888',    icon: '☆',  desc: 'CEO / BD Manager' },
-};
-
-
 type SubTab = 'dashboard' | 'leads' | 'discovery' | 'emails' | 'analytics' | 'auto' | 'settings';
 
 // ══════════════════════════════════════════════════════════════
@@ -42,6 +43,7 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
   const [leads, setLeads] = useState<CrmOutreachLead[]>([]);
   const [templates, setTemplates] = useState<CrmEmailTemplate[]>([]);
   const [stats, setStats] = useState<PipelineStats | null>(null);
+  const [tiers, setTiers] = useState<CrmLeadTier[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
 
@@ -54,12 +56,13 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
   const loadAll = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [l, t, s] = await Promise.all([
+      const [l, t, s, tr] = await Promise.all([
         svc.fetchLeads({ search: searchQ || undefined, status: filterStatus || undefined, tier: filterTier || undefined, trigger_source: filterTrigger || undefined }),
         svc.fetchTemplates(),
         svc.getPipelineStats(),
+        svc.fetchTiers(),
       ]);
-      setLeads(l); setTemplates(t); setStats(s);
+      setLeads(l); setTemplates(t); setStats(s); setTiers(tr);
     } catch (err: any) {
       console.error('[Outreach] loadAll failed:', err);
     } finally { setIsLoading(false); }
@@ -103,12 +106,12 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
         </div>
 
         {/* ── DASHBOARD ── */}
-        {tab === 'dashboard' && stats && <DashboardTab stats={stats} onSwitchTab={setTab} />}
+        {tab === 'dashboard' && stats && <DashboardTab stats={stats} tiers={tiers} onSwitchTab={setTab} />}
 
         {/* ── LEADS ── */}
         {tab === 'leads' && (
           <LeadsTab
-            leads={leads} clients={clients} isLoading={isLoading} templates={templates}
+            leads={leads} clients={clients} isLoading={isLoading} templates={templates} tiers={tiers}
             searchQ={searchQ} setSearchQ={setSearchQ}
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterTier={filterTier} setFilterTier={setFilterTier}
@@ -120,7 +123,7 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
         )}
 
         {/* ── DISCOVERY ── */}
-        {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} leads={leads} isBd={isBd} />}
+        {tab === 'discovery' && <DiscoveryTab onRefresh={loadAll} leads={leads} isBd={isBd} tiers={tiers} currentUser={currentUser} />}
 
         {/* ── EMAILS/TEMPLATES ── */}
         {tab === 'emails' && <TemplatesTab templates={templates} onRefresh={loadAll} onPreview={setPreviewHtml} currentUser={currentUser} />}
@@ -132,7 +135,7 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
         {tab === 'auto' && <AutoTab />}
 
         {/* ── SETTINGS ── */}
-        {tab === 'settings' && <SettingsTab />}
+        {tab === 'settings' && <SettingsTab tiers={tiers} onRefresh={loadAll} />}
       </div>
 
       {/* Preview Modal — rendered OUTSIDE animate-fadeInUp to avoid CSS transform breaking position:fixed */}
@@ -164,7 +167,7 @@ const EmailOutreach: React.FC<Props> = ({ clients, currentUser }) => {
 // ── DASHBOARD TAB ─────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-const DashboardTab: React.FC<{ stats: PipelineStats; onSwitchTab: (t: SubTab) => void }> = ({ stats, onSwitchTab }) => {
+const DashboardTab: React.FC<{ stats: PipelineStats; tiers: CrmLeadTier[]; onSwitchTab: (t: SubTab) => void }> = ({ stats, tiers, onSwitchTab }) => {
 
   const pipelineSteps = [
     { label: 'Pending', count: stats.pending, color: '#888', pct: stats.total > 0 ? (stats.pending / stats.total) * 100 : 0 },
@@ -176,13 +179,11 @@ const DashboardTab: React.FC<{ stats: PipelineStats; onSwitchTab: (t: SubTab) =>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Stats cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+      {/* Stats cards — 1 KPI/tier, tự mở rộng khi thêm tier mới (không còn cứng 3 mức) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
         {[
           { label: 'Tổng Leads', value: stats.total, color: '#FF9500' },
-          { label: '⭐ Tier 1', value: stats.tier1, color: '#FFD60A' },
-          { label: '★ Tier 2', value: stats.tier2, color: '#FF9500' },
-          { label: '☆ Tier 3', value: stats.tier3, color: '#888' },
+          ...tiers.map(t => ({ label: `${t.icon} ${t.label}`, value: stats.tierCounts[t.id] || 0, color: t.color })),
         ].map((s, i) => (
           <div key={i} className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-1">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{s.label}</p>
@@ -285,7 +286,7 @@ async function fetchQuota(): Promise<QuotaStatus> {
 
 interface LeadsProps {
   leads: CrmOutreachLead[]; clients: CrmClient[]; isLoading: boolean;
-  templates: CrmEmailTemplate[];
+  templates: CrmEmailTemplate[]; tiers: CrmLeadTier[];
   searchQ: string; setSearchQ: (v: string) => void;
   filterStatus: string; setFilterStatus: (v: string) => void;
   filterTier: number | ''; setFilterTier: (v: number | '') => void;
@@ -295,10 +296,19 @@ interface LeadsProps {
   currentUser?: AccountUser;
 }
 
-const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh, isBd, currentUser }) => {
+const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, tiers, searchQ, setSearchQ, filterStatus, setFilterStatus, filterTier, setFilterTier, filterTrigger, setFilterTrigger, onRefresh, isBd, currentUser }) => {
   const [showImport, setShowImport] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState({ studio_name: '', contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
+  const [addForm, setAddForm] = useState<{ studio_name: string; studio_id: number | null; contact_name: string; first_name: string; email: string; job_title: string; linkedin_url: string; tier: number }>({ studio_name: '', studio_id: null, contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
+  // Studio picker: BD chỉ thấy studio mình đã nhận, admin/ke_toan thấy toàn bộ — chặn tạo lead trôi nổi không gắn studio
+  const [myStudios, setMyStudios] = useState<{ id: number; studio_name: string }[]>([]);
+  useEffect(() => {
+    fetchStudioOptions(isBd ? currentUser?.id : undefined).then(setMyStudios).catch(() => {});
+  }, [isBd, currentUser?.id]);
+  const handleStudioNameChange = (value: string) => {
+    const match = myStudios.find(s => s.studio_name.trim().toLowerCase() === value.trim().toLowerCase());
+    setAddForm(prev => ({ ...prev, studio_name: value, studio_id: match ? match.id : null }));
+  };
   const fileRef = useRef<HTMLInputElement>(null);
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -539,6 +549,10 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
   // Add single lead
   const handleAdd = async () => {
     if (!addForm.email.trim()) return;
+    if (isBd && !addForm.studio_id) {
+      alert('Chọn studio bạn đã nhận trong danh sách gợi ý (chưa thấy studio? sang tab Studios bấm "+ Thêm Studio" trước).');
+      return;
+    }
     try {
       await svc.createLead({
         ...addForm, client_id: null, outreach_status: 'pending',
@@ -547,7 +561,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
         assigned_bd_id: currentUser?.id || null,
       });
       setShowAddForm(false);
-      setAddForm({ studio_name: '', contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
+      setAddForm({ studio_name: '', studio_id: null, contact_name: '', first_name: '', email: '', job_title: '', linkedin_url: '', tier: 1 });
       onRefresh();
     } catch (err: any) { alert('Error: ' + err.message); }
   };
@@ -631,7 +645,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
           style={{ background: '#1a1a1a', width: '120px' }}
           value={filterTier} onChange={e => setFilterTier(e.target.value ? +e.target.value : '')}>
           <option value="">Tất cả tier</option>
-          {[1, 2, 3].map(t => <option key={t} value={t}>{TIER_CFG[t].icon} Tier {t}</option>)}
+          {tiers.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
         </select>
         <select
           className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
@@ -701,7 +715,22 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       {showAddForm && (
         <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ padding: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Studio *</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.studio_name} onChange={e => setAddForm({ ...addForm, studio_name: e.target.value })} /></div>
+            <div>
+              <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Studio *</label>
+              <input
+                list="leads-studio-dl"
+                className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full"
+                style={{ background: '#1a1a1a' }}
+                placeholder={isBd ? 'Gõ tên studio đã nhận...' : 'Gõ tên studio...'}
+                value={addForm.studio_name} onChange={e => handleStudioNameChange(e.target.value)}
+              />
+              <datalist id="leads-studio-dl">
+                {myStudios.map(s => <option key={s.id} value={s.studio_name} />)}
+              </datalist>
+              {isBd && addForm.studio_name.trim() && !addForm.studio_id && (
+                <p style={{ fontSize: '10px', color: '#FF9500', marginTop: '4px' }}>⚠️ Chưa khớp studio nào bạn đã nhận</p>
+              )}
+            </div>
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Contact Name *</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.contact_name} onChange={e => setAddForm({ ...addForm, contact_name: e.target.value, first_name: e.target.value.split(' ')[0] })} /></div>
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Email *</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.email} onChange={e => setAddForm({ ...addForm, email: e.target.value })} /></div>
           </div>
@@ -709,8 +738,8 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Job Title</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.job_title} onChange={e => setAddForm({ ...addForm, job_title: e.target.value })} /></div>
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">LinkedIn URL</label><input className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.linkedin_url} onChange={e => setAddForm({ ...addForm, linkedin_url: e.target.value })} /></div>
             <div><label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">Tier</label>
-              <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={addForm.tier} onChange={e => setAddForm({ ...addForm, tier: +e.target.value })}>
-                {[1, 2, 3].map(t => <option key={t} value={t}>{TIER_CFG[t].icon} {TIER_CFG[t].label} — {TIER_CFG[t].desc}</option>)}
+              <select className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full" style={{ background: '#1a1a1a' }} value={addForm.tier} onChange={e => setAddForm({ ...addForm, tier: +e.target.value })}>
+                {tiers.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}{t.description ? ` — ${t.description}` : ''}</option>)}
               </select>
             </div>
           </div>
@@ -760,7 +789,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
             </thead>
             <tbody>
               {leads.map(lead => {
-                const tc = TIER_CFG[lead.tier] || TIER_CFG[3];
+                const tc = tierOf(tiers, lead.tier);
                 const sc = STATUS_CFG[lead.outreach_status] || STATUS_CFG.pending;
                 return (
                   <tr key={lead.id} style={{ borderBottom: '1px solid #1A1A1A', transition: 'background 0.15s' }}
@@ -878,7 +907,7 @@ function fuzzyMatch(query: string, target: string): boolean {
   return words.length > 0 && words.every(w => t.includes(w));
 }
 
-const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; isBd?: boolean }> = ({ onRefresh, leads, isBd }) => {
+const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; isBd?: boolean; tiers: CrmLeadTier[]; currentUser?: AccountUser }> = ({ onRefresh, leads, isBd, tiers, currentUser }) => {
   const [company, setCompany] = useState('');
   const [domain, setDomain] = useState('');
   const [discovering, setDiscovering] = useState(false);
@@ -972,6 +1001,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
         outreach_status: isInvalid ? 'invalid_email' : 'pending',
         initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
         source: 'discovery', tags: [], notes: contact.email_status ? `ZB: ${contact.email_status}` : '',
+        assigned_bd_id: currentUser?.id || null,
       });
       onRefresh();
       alert(isInvalid
@@ -1002,6 +1032,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
           outreach_status: 'pending',
           initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
           source: 'discovery', tags: [], notes: '',
+          assigned_bd_id: currentUser?.id || null,
         });
         added++;
       } catch { /* skip duplicate email */ }
@@ -1183,6 +1214,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
           outreach_status: c.email_valid === false ? 'invalid_email' : 'pending',
           initial_sent_at: null, followup1_sent_at: null, followup2_sent_at: null, replied_at: null,
           source: 'batch_discovery', tags: [], notes: c.email_status ? `ZB: ${c.email_status}` : '',
+          assigned_bd_id: currentUser?.id || null,
         });
         added++;
       } catch { /* skip duplicate */ }
@@ -1529,7 +1561,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                     <tbody>
                       {r.contacts.map((c: any, ci: number) => {
-                        const tc = TIER_CFG[c.tier_num] || TIER_CFG[3];
+                        const tc = tierOf(tiers, c.tier_num);
                         const isInvalid = c.email_valid === false;
                         return (
                           <tr key={ci} style={{ borderBottom: '1px solid #161616', opacity: isInvalid ? 0.55 : 1 }}>
@@ -1597,7 +1629,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
             </thead>
             <tbody>
               {results.map((c: any, i: number) => {
-                const tc = TIER_CFG[c.tier_num] || TIER_CFG[3];
+                const tc = tierOf(tiers, c.tier_num);
                 const emailOptions = parseWorkEmails(c);
                 const chosenEmail = selectedEmails[i] || emailOptions[0] || '';
                 const domainOk = isDomainMatch(chosenEmail, domain);
@@ -2098,7 +2130,7 @@ const AnalyticsTab: React.FC = () => {
 // ── SETTINGS TAB ──────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
-const SettingsTab: React.FC = () => {
+const SettingsTab: React.FC<{ tiers: CrmLeadTier[]; onRefresh: () => void }> = ({ tiers, onRefresh }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -2106,6 +2138,23 @@ const SettingsTab: React.FC = () => {
   const [s, setS] = useState<svc.OutreachSettings | null>(null);
   // Local draft (chỉ commit khi user bấm Save)
   const [draft, setDraft] = useState<svc.OutreachSettings | null>(null);
+
+  // Tier management — thêm tier mới không cần sửa code (xem crm_lead_tiers)
+  const [showAddTier, setShowAddTier] = useState(false);
+  const [newTierLabel, setNewTierLabel] = useState('');
+  const [addingTier, setAddingTier] = useState(false);
+
+  const handleAddTier = async () => {
+    if (!newTierLabel.trim()) return;
+    setAddingTier(true);
+    try {
+      const icon = TIER_ICON_CYCLE[tiers.length % TIER_ICON_CYCLE.length];
+      const color = TIER_COLOR_PALETTE[tiers.length % TIER_COLOR_PALETTE.length];
+      await svc.createTier(newTierLabel.trim(), icon, color);
+      setNewTierLabel(''); setShowAddTier(false);
+      onRefresh();
+    } catch (e: any) { alert('Lỗi: ' + e.message); } finally { setAddingTier(false); }
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -2226,6 +2275,41 @@ const SettingsTab: React.FC = () => {
         <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
           Warm-up: tuần 1 ≤10, tuần 2 ≤30, tăng dần. Resend free = 100/ngày tối đa.
         </p>
+      </div>
+
+      {/* Lead Tiers */}
+      <div>
+        <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">🏷️ Lead Tiers</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+          {tiers.map(t => (
+            <span key={t.id} style={{
+              fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px',
+              background: t.color + '15', color: t.color, border: `1px solid ${t.color}30`,
+            }}>{t.icon} {t.label}</span>
+          ))}
+        </div>
+        {showAddTier ? (
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+            <input
+              autoFocus
+              className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+              style={{ background: '#1a1a1a', flex: 1 }}
+              placeholder="Tên tier mới (vd: Studio Owner)"
+              value={newTierLabel} onChange={e => setNewTierLabel(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddTier()}
+            />
+            <button onClick={handleAddTier} disabled={addingTier || !newTierLabel.trim()}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50"
+              style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>{addingTier ? '⏳' : 'Lưu'}</button>
+            <button onClick={() => { setShowAddTier(false); setNewTierLabel(''); }}
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all"
+              style={{ cursor: 'pointer' }}>Huỷ</button>
+          </div>
+        ) : (
+          <button onClick={() => setShowAddTier(true)}
+            className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+            style={{ cursor: 'pointer', marginTop: '10px' }}>＋ Thêm Tier</button>
+        )}
       </div>
 
       {/* Pause toggle */}

@@ -197,4 +197,20 @@ export async function releaseStudioOwner(studioId: number): Promise<void> {
   if (error) throw error;
 }
 
+// Danh sách studio cho ô chọn khi thêm lead: ownerId truyền vào -> chỉ studio BD đó đã nhận;
+// bỏ trống (admin/ke_toan) -> toàn bộ studio trong sổ hiện tại.
+// ponytail: cap 500, nâng lên server-side search nếu 1 sổ vượt mốc này.
+export async function fetchStudioOptions(ownerId?: string): Promise<Pick<CrmStudio, 'id' | 'studio_name'>[]> {
+  let query = supabase
+    .from('crm_studios')
+    .select('id, studio_name')
+    .eq('entity', getWorkspace())
+    .order('studio_name')
+    .limit(500);
+  if (ownerId) query = query.eq('owner_id', ownerId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
 export { PAGE_SIZE as STUDIO_PAGE_SIZE };

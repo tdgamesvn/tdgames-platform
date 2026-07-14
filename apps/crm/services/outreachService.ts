@@ -1,6 +1,6 @@
 import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
-import { CrmOutreachLead, CrmEmailLog, CrmEmailTemplate } from '@/types';
+import { CrmOutreachLead, CrmEmailLog, CrmEmailTemplate, CrmLeadTier } from '@/types';
 import { outreachRequest } from './outreachApi';
 
 // ══════════════════════════════════════════════════════════════
@@ -93,6 +93,26 @@ export async function deleteLead(id: string): Promise<void> {
 }
 
 // ══════════════════════════════════════════════════════════════
+// ── LEAD TIERS (user tự thêm qua nút "+" trên UI) ──────────────
+// ══════════════════════════════════════════════════════════════
+
+export async function fetchTiers(): Promise<CrmLeadTier[]> {
+  const { data, error } = await supabase.from('crm_lead_tiers').select('*').order('sort_order').order('id');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function createTier(label: string, icon: string, color: string): Promise<CrmLeadTier> {
+  const { data, error } = await supabase
+    .from('crm_lead_tiers')
+    .insert({ label, icon, color, sort_order: 999 })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ══════════════════════════════════════════════════════════════
 // ── EMAIL TEMPLATES ───────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
@@ -159,9 +179,7 @@ export interface PipelineStats {
   followup2_sent: number;
   replied: number;
   bounced: number;
-  tier1: number;
-  tier2: number;
-  tier3: number;
+  tierCounts: Record<number, number>; // tier id -> số lead — thay tier1/2/3 cứng, tự mở rộng khi thêm tier mới
 }
 
 export async function getPipelineStats(): Promise<PipelineStats> {
@@ -171,6 +189,8 @@ export async function getPipelineStats(): Promise<PipelineStats> {
   if (error) throw error;
 
   const leads = data || [];
+  const tierCounts: Record<number, number> = {};
+  leads.forEach(l => { tierCounts[l.tier] = (tierCounts[l.tier] || 0) + 1; });
   return {
     total: leads.length,
     pending: leads.filter(l => l.outreach_status === 'pending').length,
@@ -179,9 +199,7 @@ export async function getPipelineStats(): Promise<PipelineStats> {
     followup2_sent: leads.filter(l => l.outreach_status === 'followup2_sent').length,
     replied: leads.filter(l => l.outreach_status === 'replied').length,
     bounced: leads.filter(l => l.outreach_status === 'bounced').length,
-    tier1: leads.filter(l => l.tier === 1).length,
-    tier2: leads.filter(l => l.tier === 2).length,
-    tier3: leads.filter(l => l.tier === 3).length,
+    tierCounts,
   };
 }
 

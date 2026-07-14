@@ -433,6 +433,7 @@ export interface CrmOutreachLead {
   id: string;
   client_id: string | null;
   assigned_bd_id?: string | null; // BD sở hữu lead này — RLS chặn BD khác đọc/sửa
+  studio_id?: number | null; // FK crm_studios.id — link lead vào đúng studio BD đã nhận
   studio_name: string;
   contact_name: string;
   first_name: string;
@@ -454,6 +455,15 @@ export interface CrmOutreachLead {
   notes: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CrmLeadTier {
+  id: number;
+  label: string;
+  icon: string;
+  color: string;
+  description: string;
+  sort_order: number;
 }
 
 export interface CrmEmailLog {
