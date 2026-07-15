@@ -111,20 +111,18 @@ Deno.serve(async (req: Request) => {
   const internal = Deno.env.get("OUTREACH_INTERNAL_SECRET");
   if (internal) forwardHeaders.set("x-outreach-internal", internal);
 
-  // Forward X-Admin-Token for FastAPI auth (read from DB or env)
-  const adminTokenEnv = Deno.env.get("OUTREACH_ADMIN_TOKEN");
-  if (adminTokenEnv) {
-    forwardHeaders.set("X-Admin-Token", adminTokenEnv);
-  } else {
-    // Fallback: read from DB (service role already set above)
-    const { data: tokenRow } = await (supabase as any)
-      .from("crm_outreach_config")
-      .select("value")
-      .eq("key", "admin_token")
-      .single();
-    const adminToken = tokenRow?.value as string | undefined;
-    if (adminToken) forwardHeaders.set("X-Admin-Token", adminToken);
-  }
+  // Forward X-Admin-Token for FastAPI auth.
+  // ponytail: DB (crm_outreach_config.admin_token) is the single source of truth.
+  // A stale Deno.env project secret used to be checked first and silently shadowed
+  // the correct DB value, breaking every cron run with 401 for days. Removed —
+  // if the VPS token ever rotates again, update it in this one place only.
+  const { data: tokenRow } = await (supabase as any)
+    .from("crm_outreach_config")
+    .select("value")
+    .eq("key", "admin_token")
+    .single();
+  const adminToken = tokenRow?.value as string | undefined;
+  if (adminToken) forwardHeaders.set("X-Admin-Token", adminToken);
 
   const bodyText = await req.text();
 
