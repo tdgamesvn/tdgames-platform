@@ -383,6 +383,7 @@ export interface CrmDeal {
   notes: string;
   created_at: string;
   updated_at: string;
+  stage_entered_at?: string;
 }
 
 // ── CRM Quotations ────────────────────────────────────────────

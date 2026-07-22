@@ -161,6 +161,10 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     (rangeStart === null || inRange(d.actual_close_date, rangeStart, rangeEnd))
   );
   const winRate = closedDeals.length > 0 ? Math.round((wonDeals.length / closedDeals.length) * 100) : 0;
+  const cycles = wonDeals
+    .filter(d => d.actual_close_date)
+    .map(d => (new Date(d.actual_close_date!).getTime() - new Date(d.created_at).getTime()) / 86_400_000);
+  const avgCycle = cycles.length ? Math.round(cycles.reduce((a, b) => a + b, 0) / cycles.length) : null;
   const activeClients = clients.filter(c => c.status === 'active').length;
 
   // ── BD Target: attainment / weighted forecast / coverage ───
@@ -324,6 +328,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           { label: 'Target quý', value: attainment !== null ? `${attainment}%` : 'Chưa đặt', sub: target > 0 ? `${fmtValue(wonQuarter, 'USD')} / ${fmtValue(target, 'USD')}` : 'Admin đặt target', color: attainment !== null && attainment >= 100 ? 'text-status-success' : 'text-white' },
           { label: 'Forecast (weighted)', value: fmtValue(Math.round(weightedForecast), 'USD'), sub: 'Σ value × probability', color: 'text-white' },
           { label: 'Pipeline coverage', value: coverage !== null ? `${coverage.toFixed(1)}x` : '—', sub: 'mục tiêu ≥ 3x phần còn thiếu', color: coverage === null ? 'text-white' : coverage < 3 ? 'text-status-error' : 'text-status-success' },
+          { label: 'Sales cycle TB', value: avgCycle !== null ? `${avgCycle} ngày` : '—', sub: 'từ tạo deal đến won', color: 'text-white' },
         ].map(c => (
           <div key={c.label} className="rounded-[20px] border border-primary/10 p-4 space-y-1 bg-surface">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
