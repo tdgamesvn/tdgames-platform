@@ -1,6 +1,6 @@
 import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
-import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation } from '@/types';
+import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation, MyDayData } from '@/types';
 
 // ══════════════════════════════════════════════════════════════
 // ── Clients ───────────────────────────────────────────────────
@@ -392,4 +392,42 @@ export async function fetchApprovedContracts(): Promise<Array<{
     .eq('approval_status', 'approved');
   if (error) throw error;
   return data ?? [];
+}
+
+// ── My Day ────────────────────────────────────────────────────
+const OPEN_STAGES: CrmDealStage[] = ['lead', 'contacted', 'negotiating', 'proposal_sent', 'contracting'];
+
+export async function fetchMyDay(userId: string, isManager: boolean): Promise<MyDayData> {
+  const today = new Date(); today.setHours(23, 59, 59, 999);
+  const [deals, clients] = await Promise.all([fetchDeals(), fetchClients()]);
+  const mine = (d: CrmDeal) => isManager || d.owner_id === userId;
+  const open = deals.filter(d => OPEN_STAGES.includes(d.stage) && mine(d));
+
+  const overdueFollowups = open.filter(d => d.next_follow_up && new Date(d.next_follow_up) <= today);
+  const noNextStep = open.filter(d => !d.next_follow_up);
+
+  const in7days = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const { data: quotes, error: qErr } = await supabase
+    .from('crm_quotations').select('*, client:crm_clients(name, entity)')
+    .eq('status', 'sent').lte('valid_until', in7days)
+    .order('valid_until');
+  if (qErr) throw qErr;
+  const expiringQuotes = (quotes || []).map((q: any) => ({
+    ...q, client_name: q.client?.name, client_entity: q.client?.entity,
+  })) as CrmQuotation[];
+
+  // ponytail: cold-client scan qua 500 activity gần nhất — đủ cho quy mô hiện tại,
+  // chuyển sang SQL group-by nếu activity vượt vài nghìn dòng
+  const acts = await fetchActivities(undefined, 500);
+  const lastAct: Record<string, number> = {};
+  for (const a of acts) {
+    const t = new Date(a.activity_date || a.created_at).getTime();
+    if (!lastAct[a.client_id] || t > lastAct[a.client_id]) lastAct[a.client_id] = t;
+  }
+  const cutoff = Date.now() - 90 * 86_400_000;
+  const coldClients = clients.filter(c =>
+    c.status === 'active' && (!lastAct[c.id] || lastAct[c.id] < cutoff)
+  );
+
+  return { overdueFollowups, noNextStep, expiringQuotes, coldClients };
 }

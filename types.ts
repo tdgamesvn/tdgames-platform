@@ -416,6 +416,14 @@ export interface CrmQuotation {
   updated_at: string;
 }
 
+// ── CRM My Day ────────────────────────────────────────────────
+export interface MyDayData {
+  overdueFollowups: CrmDeal[];   // next_follow_up <= hôm nay, deal đang mở
+  noNextStep: CrmDeal[];         // deal đang mở KHÔNG có next_follow_up — vi phạm kỷ luật sales
+  expiringQuotes: CrmQuotation[]; // status 'sent', valid_until trong 7 ngày tới hoặc đã quá
+  coldClients: CrmClient[];      // client active, không có activity nào 90 ngày
+}
+
 // ── CRM Payment Schedules ─────────────────────────────────────
 export interface CrmPaymentSchedule {
   id: string;
