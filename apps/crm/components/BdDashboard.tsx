@@ -5,6 +5,7 @@ import { getWorkspace, matchesWorkspace, useWorkspace } from '@/services/Workspa
 import { supabase } from '@/services/supabaseClient';
 import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './pipeline/constants';
+import BdLeaderboard from './BdLeaderboard';
 
 // ── Date preset filter ────────────────────────────────────────
 
@@ -694,6 +695,9 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           </div>
         </div>
       </div>
+
+      {/* ── BD Leaderboard (manager only) ── */}
+      {hasAnyRole(currentUser, ['admin', 'ke_toan']) && <BdLeaderboard />}
     </div>
   );
 };

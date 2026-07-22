@@ -449,3 +449,44 @@ export async function upsertBdTarget(t: { bd_id: string; period: string; target_
     .upsert({ ...t, updated_at: new Date().toISOString() }, { onConflict: 'bd_id,period,entity' });
   if (error) throw error;
 }
+
+// ── BD Funnel (manager only — RLS tự giới hạn data nếu BD thường gọi) ──
+export interface BdFunnelRow {
+  bdId: string; bdName: string;
+  sent: number; replied: number;
+  deals: number; won: number; wonValue: number;
+  targetUsd: number;
+}
+
+export async function fetchBdFunnel(): Promise<BdFunnelRow[]> {
+  const [{ data: leads, error }, deals, targets] = await Promise.all([
+    supabase.from('crm_outreach_leads').select('assigned_bd_id, outreach_status, replied_at'),
+    fetchDeals(),
+    fetchBdTargets(currentPeriod()),
+  ]);
+  if (error) throw error;
+
+  const rows: Record<string, BdFunnelRow> = {};
+  const row = (id: string, name: string) =>
+    rows[id] ||= { bdId: id, bdName: name, sent: 0, replied: 0, deals: 0, won: 0, wonValue: 0, targetUsd: 0 };
+
+  for (const l of leads || []) {
+    if (!l.assigned_bd_id) continue;
+    const r = row(l.assigned_bd_id, '');
+    if (l.outreach_status !== 'pending') r.sent++;
+    if (l.replied_at) r.replied++;
+  }
+  // ponytail: wonValue chỉ tính deal USD won trong quý hiện tại — khớp target_usd theo quý (cùng quy tắc BdDashboard)
+  const qStart = new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 1);
+  for (const d of deals) {
+    const r = row(d.owner_id, d.owner_name || '');
+    if (d.owner_name) r.bdName = d.owner_name;
+    r.deals++;
+    if (d.stage === 'won') {
+      r.won++;
+      if (d.currency === 'USD' && d.actual_close_date && new Date(d.actual_close_date) >= qStart) r.wonValue += d.value;
+    }
+  }
+  for (const t of targets) if (rows[t.bd_id]) rows[t.bd_id].targetUsd = t.target_usd;
+  return Object.values(rows).sort((a, b) => b.wonValue - a.wonValue);
+}
