@@ -108,6 +108,8 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
   const [preset, setPreset] = useState<DatePreset>('this_month');
   const [myStudiosCount, setMyStudiosCount] = useState(0);
   const [approvedContracts, setApprovedContracts] = useState<Array<{ id: number; created_by: string; contract_value: number | null; contract_currency: string | null }>>([]);
+  const [meetingClientIds, setMeetingClientIds] = useState<Set<string>>(new Set());
+  const [quotedClientIds, setQuotedClientIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     Promise.all([
@@ -115,7 +117,11 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
       fetchActivities(undefined, 8).catch(() => []),
       fetchApprovedContracts().catch(() => []),
       supabase.from('crm_studios').select('id', { count: 'exact', head: true }).eq('owner_id', currentUser.id),
-    ]).then(([d, a, contracts, studiosRes]) => {
+      // Conversion-theo-nguồn: cần biết client nào từng có meeting / từng được gửi báo giá
+      // (toàn thời gian, không phụ thuộc date preset) — chỉ lấy client_id, không cần full row.
+      supabase.from('crm_activities').select('client_id').eq('activity_type', 'meeting'),
+      supabase.from('crm_quotations').select('client_id, status'),
+    ]).then(([d, a, contracts, studiosRes, meetingsRes, quotationsRes]) => {
       // Ghi chú thương lượng (notes) là riêng tư — BD thuần (không kiêm admin/ke_toan) không đọc được
       // notes của deal người khác, dù vẫn thấy số liệu tổng hợp (title/value/stage) để so sánh hiệu suất.
       const isBdOnly = hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
@@ -124,6 +130,9 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
       setActivities(a);
       setApprovedContracts(contracts);
       setMyStudiosCount(studiosRes.count ?? 0);
+      setMeetingClientIds(new Set((meetingsRes.data || []).map((r: any) => r.client_id)));
+      // "Gửi báo giá" = có báo giá đã ra khỏi draft (sent/accepted/rejected/expired)
+      setQuotedClientIds(new Set((quotationsRes.data || []).filter((r: any) => r.status !== 'draft').map((r: any) => r.client_id)));
     }).finally(() => setLoading(false));
   }, [currentUser.id]);
 
@@ -217,6 +226,23 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     });
     return [...owners.values()].sort((a, b) => b.wonVal - a.wonVal);
   })();
+
+  // ── Conversion theo nguồn (toàn thời gian, không theo date preset) ──
+  type SourceStat = { source: string; total: number; meeting: number; deal: number; quoted: number; won: number };
+  const dealClientIds = new Set(deals.map(d => d.client_id));
+  const wonClientIds = new Set(deals.filter(d => d.stage === 'won').map(d => d.client_id));
+  const sourceFunnel: SourceStat[] = Object.values(
+    clients.reduce((acc: Record<string, SourceStat>, c) => {
+      const key = c.lead_source || 'Không rõ';
+      if (!acc[key]) acc[key] = { source: key, total: 0, meeting: 0, deal: 0, quoted: 0, won: 0 };
+      acc[key].total++;
+      if (meetingClientIds.has(c.id)) acc[key].meeting++;
+      if (dealClientIds.has(c.id)) acc[key].deal++;
+      if (quotedClientIds.has(c.id)) acc[key].quoted++;
+      if (wonClientIds.has(c.id)) acc[key].won++;
+      return acc;
+    }, {})
+  ).sort((a, b) => b.total - a.total);
 
   // Client map for activity feed
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
@@ -497,6 +523,32 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
 
               {/* Total row */}
               {bdPerf.length > 1 && <BdPerfTotalRow bdPerf={bdPerf} />}
+            </div>
+          )}
+
+          {/* Conversion theo nguồn */}
+          {sourceFunnel.length > 0 && (
+            <div className="rounded-[20px] border border-primary/10 p-5 bg-surface">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-4">
+                🔀 Conversion theo nguồn <span className="normal-case font-semibold text-neutral-700">(toàn thời gian)</span>
+              </p>
+              <div className="grid grid-cols-6 gap-2 pb-2 border-b border-white/5 mb-2">
+                {['Nguồn', 'Clients', '% Meeting', '% Deal', '% Báo giá', '% Won'].map(h => (
+                  <p key={h} className="text-[9px] font-black uppercase tracking-wider text-neutral-700">{h}</p>
+                ))}
+              </div>
+              <div className="space-y-1">
+                {sourceFunnel.map(s => (
+                  <div key={s.source} className="grid grid-cols-6 gap-2 py-2 rounded-lg hover:bg-white/5 transition-all">
+                    <p className="text-xs font-semibold text-white truncate">{s.source}</p>
+                    <span className="text-xs font-semibold text-neutral-300">{s.total}</span>
+                    <span className="text-xs font-semibold text-neutral-400">{Math.round((s.meeting / s.total) * 100)}%</span>
+                    <span className="text-xs font-semibold text-neutral-400">{Math.round((s.deal / s.total) * 100)}%</span>
+                    <span className="text-xs font-semibold text-neutral-400">{Math.round((s.quoted / s.total) * 100)}%</span>
+                    <span className="text-xs font-black text-status-success">{Math.round((s.won / s.total) * 100)}%</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
