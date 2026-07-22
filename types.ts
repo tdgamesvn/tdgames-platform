@@ -424,6 +424,17 @@ export interface MyDayData {
   coldClients: CrmClient[];      // client active, không có activity nào 90 ngày
 }
 
+// ── CRM BD Targets ────────────────────────────────────────────
+export interface CrmBdTarget {
+  id: string;
+  bd_id: string;
+  period: string;      // 'YYYY-Qn'
+  target_usd: number;
+  entity: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── CRM Payment Schedules ─────────────────────────────────────
 export interface CrmPaymentSchedule {
   id: string;

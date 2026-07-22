@@ -1,6 +1,6 @@
 import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
-import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation, MyDayData } from '@/types';
+import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation, MyDayData, CrmBdTarget } from '@/types';
 
 // ══════════════════════════════════════════════════════════════
 // ── Clients ───────────────────────────────────────────────────
@@ -430,4 +430,22 @@ export async function fetchMyDay(userId: string, isManager: boolean): Promise<My
   );
 
   return { overdueFollowups, noNextStep, expiringQuotes, coldClients };
+}
+
+// ── BD Targets ────────────────────────────────────────────────
+export function currentPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
+}
+
+export async function fetchBdTargets(period: string): Promise<CrmBdTarget[]> {
+  const { data, error } = await supabase.from('crm_bd_targets').select('*').eq('period', period);
+  if (error) throw error;
+  return (data || []) as CrmBdTarget[];
+}
+
+export async function upsertBdTarget(t: { bd_id: string; period: string; target_usd: number; entity: string }): Promise<void> {
+  const { error } = await supabase.from('crm_bd_targets')
+    .upsert({ ...t, updated_at: new Date().toISOString() }, { onConflict: 'bd_id,period,entity' });
+  if (error) throw error;
 }
