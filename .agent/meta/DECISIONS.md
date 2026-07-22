@@ -157,3 +157,8 @@ Impact:
 - no file should be downloaded or imported unless explicitly requested by the operator
 
 - [2026-07-02] RLS multi-role: dùng `jwt_has_any_role(text[])` / `jwt_roles()` (đọc primary + secondary_roles từ JWT) thay `get_jwt_role() = ANY(...)` cho mọi policy mới.
+
+## 2026-07-12 — Tách 2 sổ công ty toàn hệ thống (full-company-separation)
+- `entity` ('TD GAMES' | 'TD CONSULTING') trên 17 bảng gốc mọi module; bảng con kế thừa qua FK/membership — KHÔNG thêm cột entity vào bảng con.
+- TD CONSULTING = sổ phụ nội bộ. Tax portal + BHXH đóng cứng sổ gốc TD GAMES. 'Cá nhân' (expense) thuộc sổ TD GAMES.
+- Pattern chuẩn: filter client-side tại state hook (matchesWorkspace, reactive); tag insert tại service (getWorkspace đọc localStorage, không cần sửa form). "Hợp nhất" chỉ ở CEO Dashboard.

@@ -6,6 +6,40 @@ _Cập nhật: 2026-06-17_
 
 ## To Do
 
+- [ ] 2026-07-21 — **ƯU TIÊN CAO**: Bounce rate thật 15.3% (614 pending, health critical) — lộ ra sau khi fix RLS/service_role key. Cần: (1) bấm Verify Emails thật (giờ đã chạy được) dọn 614 pending, (2) Check Bounces xem chi tiết 61 bounce, (3) chỉ mở lại `sending_paused=false` khi bounce rate <5%, set `daily_limit` 5-10 warm-up (đang tạm pause an toàn từ 21/07).
+- [ ] 2026-07-21 — Fix bug hiển thị `undefined` ở nút "Verify Emails" (Email Outreach): `handleVerifyEmails` đọc thẳng response POST `/api/email/verify-pending` (chỉ có `{started:true}`) thay vì poll `GET /verify-pending-status` (nơi có số liệu thật). Đã hỏi sếp 2 lần chưa chốt hướng.
+- [ ] 2026-07-21 — Tiếp tục plan đơn giản hoá luồng BD (spec: `docs/superpowers/specs/2026-07-21-bd-outreach-flow-simplification-design.md`) — tạm hoãn vì ưu tiên bounce rate ở trên quan trọng hơn.
+
+- [x] 2026-07-22 — BD Dashboard: block "Conversion theo nguồn" (funnel client→meeting→deal→báo giá→won theo lead_source)
+  - Done: 2026-07-22
+  - Result: Verify UI thật qua Playwright (login admin, tab CRM Tổng quan) — render đúng data thật, không sinh lỗi console mới. GitNexus detect_changes risk LOW (chỉ `BdDashboard.tsx`, 0 affected process ngoài ý muốn). Commit `b63bc82`.
+
+- [x] 2026-07-14 — Cụm "luồng CRM chưa match nhau": Deal Won → auto Project + sync status Client ↔ stage Deal
+  - Done: 2026-07-14
+  - Result: `updateDealStage` (crmService.ts) giờ làm 2 việc mỗi lần đổi stage: (1) map stage Deal → status Client qua `DEAL_STAGE_TO_CLIENT_STATUS` (proposal_sent gộp vào negotiating vì Client không có state riêng), ghi đè `crm_clients.status`; (2) khi stage='won' tự tạo `CrmProject` nháp (status='active', mô tả lấy từ deal.notes). Cả 2 bước best-effort (try/catch riêng, không làm hỏng việc chuyển stage đã lưu thành công). Đã hỏi sếp hướng đồng bộ (auto-sync mapping đầy đủ / chỉ sync Won-Lost / bỏ field derive) — không có phản hồi, chọn mặc định khuyến nghị (mapping đầy đủ, ghi đè kể cả no_response/responding). Build ✅, chưa commit, chưa verify UI thật.
+  - Gap: nếu sếp muốn hướng khác (chỉ sync Won/Lost, hoặc bỏ field status) thì sửa lại `DEAL_STAGE_TO_CLIENT_STATUS`.
+  - Verify: sếp đã verify thủ công 2026-07-15 — OK.
+  - Trước đó đã làm bước 1/3: Studio → Client (`fe7fd2b`, xem LOG session 31).
+
+- [x] 2026-07-14 — Feedback vòng 2 Outreach/Studios (datalist xấu, tier còn sao, filter+sort Studios, sub-tab bar nhỏ)
+  - Done: 2026-07-14
+  - Result: Studio field Add Lead → dropdown custom (bỏ `<datalist>`); tier bỏ sao/"Tier N", thêm nút "+" tạo tier ngay trong form (`cd34f77`). StudiosTab filter "BD phụ trách" + studio đã nhận tự lên đầu qua `has_owner` generated column (`c73cdf6`). Sub-tab bar Email Outreach đổi sang pattern pill Navbar chính, to rõ hơn (`4308384`). Build ✅ cả 3, đã push main. Chưa verify Playwright (hết ngân sách phiên).
+
+- [x] 2026-07-14 — Studio ownership hardening + lead tier tự thêm + link lead↔studio
+  - Done: 2026-07-14
+  - Result: trigger DB chặn BD đổi/chiếm owner studio người khác (chỉ tự nhận studio trống / tự nhả của mình); bảng `crm_lead_tiers` thay `TIER_CFG` hardcode — tự thêm tier qua Settings; Add Lead form dùng `<datalist>` chọn studio đã nhận, set `studio_id` (cột có sẵn từ 20260624 nhưng bỏ trống suốt); fix bug BD thêm lead từ tab Discovery bị RLS chặn âm thầm (thiếu `assigned_bd_id`). Build ✅, 4 migration đã apply DB, chưa commit.
+  - Gap: Discovery-created leads chưa gắn `studio_id`; chưa ràng buộc DB rằng studio_id phải thuộc BD sở hữu (mới chặn UI).
+  - Verify: sếp đã verify thủ công 2026-07-15 — OK (bao gồm RLS ownership guard + BD data isolation).
+
+- [x] 2026-07-13 — Gửi thủ công + template riêng BD + ẩn notes deal giữa các BD (tiếp nối task BD data isolation)
+  - Done: 2026-07-13
+  - Result: `crm_email_log` +sent_by/+channel, nút "✍️ Thủ công" trên Leads tự ghi log+đổi trạng thái. `crm_email_templates` +created_by, RLS split (đọc: default+của mình, ghi: chỉ của mình), `TemplatesTab` thêm khối "Template riêng của tôi" (tạo/sửa/xoá), `createTemplate`/`deleteTemplate` mới trong outreachService.ts. `BdDashboard.tsx`: notes của deal người khác bị ẩn (rỗng) với BD thuần, số liệu tổng hợp vẫn thấy. Build ✅, chưa commit.
+  - Gap trên đã đóng cùng ngày: thêm `content_template_id` vào `/api/email/send` (VPS `/opt/td-mailer-api` — `get_template_by_id` mới trong `services/supabase_client.py`, `SendRequest`+logic override trong `routes/email.py`; step name vẫn giữ nguyên cho status/log, chỉ nội dung bị override). Frontend: dropdown "Mặc định / tên template riêng" cạnh nút gửi trên mỗi lead (chỉ hiện khi BD có ít nhất 1 template riêng). Chặn tạo template riêng trùng tên reserved (initial_outreach/followup_1/followup_2) — tránh backend `.single()` vỡ khi trùng tên. Restart VPS an toàn (port-wait+setsid), health check OK. Build ✅, chưa commit.
+
+- [ ] Batch-send outreach (`handleBulkSend`, admin/ke_toan) chưa cá nhân hoá From/Reply-To theo BD phụ trách từng lead — chỉ nút gửi lẻ mới có. Cần backend tự tra `assigned_bd_id` của mỗi lead trong batch rồi chọn email tương ứng.
+- [x] `crm_email_logs` chưa có cột lưu ai bấm gửi (chỉ có lead_id/template/status) — nếu cần audit "BD nào gửi lúc nào" chính xác thì thêm cột `sent_by` + sửa route `/send` trên VPS ghi lại.
+  - Done: 2026-07-13 (đã triển khai cùng lúc với task "Gửi thủ công + template riêng BD" cùng ngày, chỉ chưa cập nhật dòng To Do này)
+  - Verify: 2026-07-22 — confirm lại qua code, migration `20260713110000_outreach_manual_send_and_personal_templates.sql` có `ALTER TABLE crm_email_log ADD COLUMN sent_by UUID REFERENCES auth.users(id)`.
 - [ ] [SECURITY] `App.tsx` router không có role-guard theo từng route (`activeApp === 'invoice'` v.v.) — chỉ chặn bằng cách ẩn tile ở HomeScreen (`config/apps.ts` roles filter). Phát hiện lại khi test `ke_toan_thue` truy cập thẳng `#invoice` qua URL vẫn load được UI đầy đủ (RLS vẫn chặn ghi/đọc data không được phép ở tầng DB, nhưng UI/form vẫn lộ ra). Áp dụng cho MỌI role hạn chế (member, freelancer, ke_toan_thue...), không riêng tính năng nào. Cần thêm guard chung trong `App.tsx` kiểm tra `activeApp` có trong `roles` của user trước khi render, hoặc redirect về HomeScreen. Phát hiện: 2026-07-08, session Tax Portal.
 
 - [ ] Siết RLS nhóm bảng `wf_*` (workforce) — hiện qual=true cho authenticated; cần ownership predicate cho freelancer portal (match qua email/auth_user_id) trước khi siết. Deferred từ session 2026-07-02.
@@ -40,7 +74,30 @@ _Cập nhật: 2026-06-17_
 
 _(trống)_
 
+- [x] 2026-07-13 — BD data isolation: lead/contact/email riêng theo từng BD (không lẫn nhau, email gửi/nhận dùng mail công việc thật)
+  - Done: 2026-07-13
+  - Result:
+    - VPS `/opt/td-mailer-api` (routes/email.py, services/sender_dispatch.py, services/resend_sender.py): `SendRequest` nhận `from_email`+`reply_to`, override Resend From/Reply-To thay vì luôn dùng ENV chung (`tony.dang@`/`toan.dang@`). Restart an toàn (setsid+port-wait), health check OK.
+    - Migration `20260713100000_outreach_lead_ownership.sql`: `crm_outreach_leads` thêm `assigned_bd_id` (FK auth.users) + index; RLS mới — bd chỉ ALL trên lead của chính mình (`assigned_bd_id = auth.uid()`), admin/ke_toan full access. Xoá luôn policy `backend_manage_outreach_leads` (anon, qual=true) — lỗ hổng cho phép anon key public thao túng toàn bộ leads không cần login.
+    - `EmailOutreach.tsx`: 4 điểm tạo lead (thêm tay, CSV import, CRM import ×2) auto-gắn `assigned_bd_id = currentUser.id`; `handleSendEmail` gửi kèm `from_email`/`reply_to` = `currentUser.email`.
+    - `types.ts`/`authService.ts`: `AccountUser` thêm `email` (populate từ `auth.users.email` — chính là work email vì account tạo qua `create-employee-auth` dùng `employee.work_email`).
+    - Backfill: 1299 lead cũ (chưa ai sở hữu) gán hết cho BD duy nhất hiện có (Nguyễn Quỳnh Châu, `chau.nguyen@tdgamestudio.com`) — quyết định mặc định vì chỉ có 1 BD nên không rủi ro lẫn dữ liệu, sếp không trả lời AskUserQuestion nên áp phương án an toàn nhất, dễ đảo ngược (1 câu UPDATE).
+    - Studios/Discovery (`crm_studios` — database chung) giữ nguyên không đổi, đúng yêu cầu "chỉ xem chung database studio/contact".
+    - Build ✅. Chưa commit git (chờ sếp).
+  - Gaps: batch-send (admin) chưa cá nhân hoá theo BD; `crm_email_logs` chưa lưu `sent_by` — đã note vào To Do.
+
+- [x] 2026-07-13 — Home Workspace Switcher (pill variant trên HomeScreen + extract WorkspaceSwitcher.tsx dùng chung với Navbar)
+  - Done: 2026-07-13
+  - Result: `components/WorkspaceSwitcher.tsx` mới (variant `compact`/`pill`, đọc/ghi `useWorkspace()` nội bộ) — Navbar đổi `<select>` inline sang `variant="compact"` (behavior giữ nguyên 100%), HomeScreen thêm `variant="pill"` canh giữa header (`absolute left-1/2 -translate-x-1/2`, ẩn dưới `sm` để tránh đè logo/user info). Gate `hasAnyRole(['admin','ke_toan','hr'])` giữ ở cả 2 nơi gọi, không đổi. Build ✅. Spec `docs/superpowers/specs/2026-07-13-home-workspace-switcher-design.md`, plan `docs/superpowers/plans/2026-07-13-home-workspace-switcher.md`. Commit `1c7d95e`.
+  - Verify: Playwright login (test account tạm, đã xoá) trên localhost:3055 — pill switcher canh giữa header đúng, click đổi TD Games/TD Consulting hoạt động, đồng bộ state với Navbar compact switcher (không regression). PASS.
+
 ## Done (mới)
+
+- [x] 2026-07-10 — Up bản ký BB nghiệm thu: doc_type `acceptance` trong CRM Tài liệu + nút SignedScanButton ở Acceptance/Settlement detail (field `signed_file_url`, migration đã apply). Build ✅.
+
+- [x] Tax Portal follow-up — backfill BHXH + migration file
+  - Done: 2026-07-08
+  - Result: backfill BHXH 4/2026 + 6/2026 vào prod DB; DDL `hr_employees_tax_view` đưa về repo tại `supabase/migrations/20260708110000_tax_portal_hr_view.sql` (commit `563e762`).
 
 - [x] Tax Portal — kế toán thuế thuê ngoài (`ke_toan_thue` role)
   - Done: 2026-07-08
@@ -312,6 +369,10 @@ _(trống)_
   - Result: Chốt quy tắc "mỗi tháng lên chính thức +1 ngày phép, cộng dồn, hết năm không dùng hết thì reset". Migration `20260707160000` (fallback `official_date`→`probation_end+1`) + `20260707170000` (cron/trigger đồng bộ ghi `quarter=0`, dùng chung công thức `count_official_months_in_year`, trigger thêm `official_date`, `DO UPDATE` thay `DO NOTHING`, bỏ cron carry-over). Bonus fix: `fetchEmployeesLite()` thiếu cột probation_end/official_date (commit `0928883`). Commits `a3e5c86`, `0928883`, `255d28d`.
   - **Follow-up (session 20, cùng ngày)**: frontend (`leaveService.ts`/`LeaveTab.tsx`) vẫn tự tính công thức 0.5 ngày cũ + carry-over quarter=1 — lệch với DB. Đã đồng bộ: xoá `calculateYearlyAccrual`/`getCurrentQuarter`/`ensureBalancesForYear`/`upsertLeaveBalance`, thêm `fetchYearlyBalance()` chỉ đọc quarter=0; `getAvailableLeaveDays()` đổi signature. Thêm section "Quyền lợi nghỉ phép" tổng quan 4 loại phép trong Portal. Build ✅. Chưa commit.
 
+## Backlog (ghi nhận 2026-07-10)
+
+- [ ] Luồng quản lý hóa đơn đầu vào VAT riêng (số hóa đơn, MST NCC) — hiện mới attach receipt theo expense. Chờ sếp quyết scope.
+
 ## Backlog (ghi nhận 2026-07-08)
 - [ ] Dashboard `fetchCeoDashboard` select sai tên cột (400, âm thầm ra 0) — phát hiện lúc verify Dashboard Financial Truth Layer, KHÔNG liên quan diff đó (code cũ). 3 chỗ: `wf_workers` select `status` (bảng không có cột này), `pay_payroll_sheets` select `total_net_salary`/`total_company_cost` (không tồn tại), `crm_outreach_leads` select `status` (không tồn tại). Cần xem schema thật 3 bảng trước khi sửa đúng tên cột/logic.
 
@@ -321,3 +382,11 @@ _(trống)_
 - [x] Fix PIT tháng chuyển giao — double-apply probRatio lên KPI blend + bonus bị cấn nhầm vào thử việc
   - Done: 2026-07-03
   - Result: `calculatePayroll` (payrollService.ts) — tách `taxableProbation` theo từng khoản khi `0<probRatio<1` thay vì nhân `probRatio` lên `taxableIncome` gộp (đã double-apply lên KPI blend + cấn nhầm bonus vào thuế 10% thử việc). Verify khớp tuyệt đối với số kế toán tính tay cho cả 3 NV chuyển giao T6/2026. Đã update trực tiếp `pit`/`net_salary` của 3 record trong DB (Hiếu, Tú, Bảo Anh). Commit `df0e115`.
+
+- [x] Tách 2 sổ công ty toàn hệ thống (full-company-separation, 9 tasks)
+  - Done: 2026-07-12
+  - Result: entity trên 17 bảng gốc (migration 20260712090000); switcher 2 sổ mở cho admin/ke_toan/hr; HR/Att/Payroll/Accounting/CRM/Workforce/Expense/Invoice filter + auto-tag theo sổ; tax portal + BHXH cứng sổ gốc; Dashboard toggle Hợp nhất riêng. Verify headless PASS (scripts/verify-two-books.mjs). Merge main 1610d86 + docs 041bd31, auto-deploy prod.
+
+- [x] BD studio: thêm được, không xoá được + dropdown BD trống fix
+  - Done: 2026-07-14
+  - Result: view `account_users` (chưa từng tồn tại — nguyên nhân dropdown BD rỗng), fix filter role BD (server ilike → client hasAnyRole, bắt cả secondary_roles), tách RLS `crm_studios` (insert/update: admin/ke_toan/bd; delete: chỉ admin/ke_toan), thêm nút "+ Thêm Studio" + dedup check theo tên/domain. Build ✅. Migration đã apply DB. Chưa commit git.
