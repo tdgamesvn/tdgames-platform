@@ -1,6 +1,6 @@
 import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
-import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation } from '@/types';
+import { CrmClient, CrmContact, CrmDocument, CrmProject, CrmProjectFile, CrmActivity, CrmDeal, CrmDealStage, CrmQuotation, MyDayData, CrmBdTarget } from '@/types';
 
 // ══════════════════════════════════════════════════════════════
 // ── Clients ───────────────────────────────────────────────────
@@ -249,7 +249,8 @@ export async function fetchActivities(clientId?: string, limit = 50): Promise<Cr
 }
 
 export async function createActivity(activity: Omit<CrmActivity, 'id' | 'created_at'>): Promise<CrmActivity> {
-  const { data, error } = await supabase.from('crm_activities').insert(activity).select().single();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.from('crm_activities').insert({ ...activity, actor_id: activity.actor_id ?? user?.id ?? null }).select().single();
   if (error) throw error;
   return data;
 }
@@ -391,4 +392,101 @@ export async function fetchApprovedContracts(): Promise<Array<{
     .eq('approval_status', 'approved');
   if (error) throw error;
   return data ?? [];
+}
+
+// ── My Day ────────────────────────────────────────────────────
+const OPEN_STAGES: CrmDealStage[] = ['lead', 'contacted', 'negotiating', 'proposal_sent', 'contracting'];
+
+export async function fetchMyDay(userId: string, isManager: boolean): Promise<MyDayData> {
+  const today = new Date(); today.setHours(23, 59, 59, 999);
+  const [deals, clients] = await Promise.all([fetchDeals(), fetchClients()]);
+  const mine = (d: CrmDeal) => isManager || d.owner_id === userId;
+  const open = deals.filter(d => OPEN_STAGES.includes(d.stage) && mine(d));
+
+  const overdueFollowups = open.filter(d => d.next_follow_up && new Date(d.next_follow_up) <= today);
+  const noNextStep = open.filter(d => !d.next_follow_up);
+
+  const in7days = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const { data: quotes, error: qErr } = await supabase
+    .from('crm_quotations').select('*, client:crm_clients(name, entity)')
+    .eq('status', 'sent').lte('valid_until', in7days)
+    .order('valid_until');
+  if (qErr) throw qErr;
+  const expiringQuotes = (quotes || []).map((q: any) => ({
+    ...q, client_name: q.client?.name, client_entity: q.client?.entity,
+  })) as CrmQuotation[];
+
+  // ponytail: cold-client scan qua 500 activity gần nhất — đủ cho quy mô hiện tại,
+  // chuyển sang SQL group-by nếu activity vượt vài nghìn dòng
+  const acts = await fetchActivities(undefined, 500);
+  const lastAct: Record<string, number> = {};
+  for (const a of acts) {
+    const t = new Date(a.activity_date || a.created_at).getTime();
+    if (!lastAct[a.client_id] || t > lastAct[a.client_id]) lastAct[a.client_id] = t;
+  }
+  const cutoff = Date.now() - 90 * 86_400_000;
+  const coldClients = clients.filter(c =>
+    c.status === 'active' && (!lastAct[c.id] || lastAct[c.id] < cutoff)
+  );
+
+  return { overdueFollowups, noNextStep, expiringQuotes, coldClients };
+}
+
+// ── BD Targets ────────────────────────────────────────────────
+export function currentPeriod(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-Q${Math.floor(now.getMonth() / 3) + 1}`;
+}
+
+export async function fetchBdTargets(period: string): Promise<CrmBdTarget[]> {
+  const { data, error } = await supabase.from('crm_bd_targets').select('*').eq('period', period);
+  if (error) throw error;
+  return (data || []) as CrmBdTarget[];
+}
+
+export async function upsertBdTarget(t: { bd_id: string; period: string; target_usd: number; entity: string }): Promise<void> {
+  const { error } = await supabase.from('crm_bd_targets')
+    .upsert({ ...t, updated_at: new Date().toISOString() }, { onConflict: 'bd_id,period,entity' });
+  if (error) throw error;
+}
+
+// ── BD Funnel (manager only — RLS tự giới hạn data nếu BD thường gọi) ──
+export interface BdFunnelRow {
+  bdId: string; bdName: string;
+  sent: number; replied: number;
+  deals: number; won: number; wonValue: number;
+  targetUsd: number;
+}
+
+export async function fetchBdFunnel(): Promise<BdFunnelRow[]> {
+  const [{ data: leads, error }, deals, targets] = await Promise.all([
+    supabase.from('crm_outreach_leads').select('assigned_bd_id, outreach_status, replied_at'),
+    fetchDeals(),
+    fetchBdTargets(currentPeriod()),
+  ]);
+  if (error) throw error;
+
+  const rows: Record<string, BdFunnelRow> = {};
+  const row = (id: string, name: string) =>
+    rows[id] ||= { bdId: id, bdName: name, sent: 0, replied: 0, deals: 0, won: 0, wonValue: 0, targetUsd: 0 };
+
+  for (const l of leads || []) {
+    if (!l.assigned_bd_id) continue;
+    const r = row(l.assigned_bd_id, '');
+    if (l.outreach_status !== 'pending') r.sent++;
+    if (l.replied_at) r.replied++;
+  }
+  // ponytail: wonValue chỉ tính deal USD won trong quý hiện tại — khớp target_usd theo quý (cùng quy tắc BdDashboard)
+  const qStart = new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 1);
+  for (const d of deals) {
+    const r = row(d.owner_id, d.owner_name || '');
+    if (d.owner_name) r.bdName = d.owner_name;
+    r.deals++;
+    if (d.stage === 'won') {
+      r.won++;
+      if (d.currency === 'USD' && d.actual_close_date && new Date(d.actual_close_date) >= qStart) r.wonValue += d.value;
+    }
+  }
+  for (const t of targets) if (rows[t.bd_id]) rows[t.bd_id].targetUsd = t.target_usd;
+  return Object.values(rows).sort((a, b) => b.wonValue - a.wonValue);
 }

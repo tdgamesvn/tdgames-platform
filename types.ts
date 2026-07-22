@@ -357,6 +357,8 @@ export interface CrmActivity {
   outcome: 'positive' | 'neutral' | 'negative' | '';
   activity_date: string;
   actor: string;
+  actor_id?: string | null;   // auth.users.id — attribution thật, actor text chỉ để display
+  deal_id?: string | null;    // gắn activity vào deal (optional)
   created_at: string;
 }
 
@@ -381,6 +383,7 @@ export interface CrmDeal {
   notes: string;
   created_at: string;
   updated_at: string;
+  stage_entered_at?: string;
 }
 
 // ── CRM Quotations ────────────────────────────────────────────
@@ -410,6 +413,25 @@ export interface CrmQuotation {
   valid_until: string;
   notes: string;
   created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── CRM My Day ────────────────────────────────────────────────
+export interface MyDayData {
+  overdueFollowups: CrmDeal[];   // next_follow_up <= hôm nay, deal đang mở
+  noNextStep: CrmDeal[];         // deal đang mở KHÔNG có next_follow_up — vi phạm kỷ luật sales
+  expiringQuotes: CrmQuotation[]; // status 'sent', valid_until trong 7 ngày tới hoặc đã quá
+  coldClients: CrmClient[];      // client active, không có activity nào 90 ngày
+}
+
+// ── CRM BD Targets ────────────────────────────────────────────
+export interface CrmBdTarget {
+  id: string;
+  bd_id: string;
+  period: string;      // 'YYYY-Qn'
+  target_usd: number;
+  entity: string;
   created_at: string;
   updated_at: string;
 }

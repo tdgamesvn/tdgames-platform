@@ -63,6 +63,14 @@ const DealCard: React.FC<Props> = ({ deal, onClick, onDragStart, onDragEnd }) =>
               </span>
             );
           })()}
+          {deal.stage_entered_at && !['won', 'lost'].includes(deal.stage) && (() => {
+            const agingDays = Math.floor((Date.now() - new Date(deal.stage_entered_at).getTime()) / 86_400_000);
+            return agingDays >= 14 ? (
+              <span className="text-[10px] font-black uppercase text-status-error" title={`Nằm ở stage này ${agingDays} ngày`}>
+                🔥 {agingDays}d
+              </span>
+            ) : null;
+          })()}
         </div>
         <div className="flex items-center gap-1.5">
           {days > 0 && (

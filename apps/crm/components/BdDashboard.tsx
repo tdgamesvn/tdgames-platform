@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import type { AccountUser, CrmClient, CrmDeal, CrmActivity } from '@/types';
-import { fetchDeals, fetchActivities, fetchApprovedContracts } from '../services/crmService';
+import type { AccountUser, CrmClient, CrmDeal, CrmActivity, CrmBdTarget } from '@/types';
+import { fetchDeals, fetchActivities, fetchApprovedContracts, fetchBdTargets, upsertBdTarget, currentPeriod } from '../services/crmService';
+import { getWorkspace, matchesWorkspace, useWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
 import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './pipeline/constants';
+import BdLeaderboard from './BdLeaderboard';
 
 // ── Date preset filter ────────────────────────────────────────
 
@@ -110,6 +112,9 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
   const [approvedContracts, setApprovedContracts] = useState<Array<{ id: number; created_by: string; contract_value: number | null; contract_currency: string | null }>>([]);
   const [meetingClientIds, setMeetingClientIds] = useState<Set<string>>(new Set());
   const [quotedClientIds, setQuotedClientIds] = useState<Set<string>>(new Set());
+  const [targets, setTargets] = useState<CrmBdTarget[]>([]);
+  const [targetInput, setTargetInput] = useState('');
+  const { workspace } = useWorkspace();
 
   useEffect(() => {
     Promise.all([
@@ -121,7 +126,8 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
       // (toàn thời gian, không phụ thuộc date preset) — chỉ lấy client_id, không cần full row.
       supabase.from('crm_activities').select('client_id').eq('activity_type', 'meeting'),
       supabase.from('crm_quotations').select('client_id, status'),
-    ]).then(([d, a, contracts, studiosRes, meetingsRes, quotationsRes]) => {
+      fetchBdTargets(currentPeriod()).catch(() => []),
+    ]).then(([d, a, contracts, studiosRes, meetingsRes, quotationsRes, bdTargets]) => {
       // Ghi chú thương lượng (notes) là riêng tư — BD thuần (không kiêm admin/ke_toan) không đọc được
       // notes của deal người khác, dù vẫn thấy số liệu tổng hợp (title/value/stage) để so sánh hiệu suất.
       const isBdOnly = hasRole(currentUser, 'bd') && !hasAnyRole(currentUser, ['admin', 'ke_toan']);
@@ -133,6 +139,7 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
       setMeetingClientIds(new Set((meetingsRes.data || []).map((r: any) => r.client_id)));
       // "Gửi báo giá" = có báo giá đã ra khỏi draft (sent/accepted/rejected/expired)
       setQuotedClientIds(new Set((quotationsRes.data || []).filter((r: any) => r.status !== 'draft').map((r: any) => r.client_id)));
+      setTargets(bdTargets);
     }).finally(() => setLoading(false));
   }, [currentUser.id]);
 
@@ -155,7 +162,28 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
     (rangeStart === null || inRange(d.actual_close_date, rangeStart, rangeEnd))
   );
   const winRate = closedDeals.length > 0 ? Math.round((wonDeals.length / closedDeals.length) * 100) : 0;
+  const cycles = wonDeals
+    .filter(d => d.actual_close_date)
+    .map(d => (new Date(d.actual_close_date!).getTime() - new Date(d.created_at).getTime()) / 86_400_000);
+  const avgCycle = cycles.length ? Math.round(cycles.reduce((a, b) => a + b, 0) / cycles.length) : null;
   const activeClients = clients.filter(c => c.status === 'active').length;
+
+  // ── BD Target: attainment / weighted forecast / coverage ───
+  // Target là quý + cá nhân + USD → numerator cũng phải quý + cá nhân + USD (không theo date preset)
+  // ponytail: deal VND bỏ khỏi phép so target USD — thêm quy đổi tỷ giá khi có deal VND đáng kể
+  const myTarget = targets.find(t => t.bd_id === currentUser.id && matchesWorkspace(t.entity, workspace)) || null;
+  const qStart = new Date(new Date().getFullYear(), Math.floor(new Date().getMonth() / 3) * 3, 1);
+  const myUsdDeals = deals.filter(d => d.owner_id === currentUser.id && d.currency === 'USD');
+  const wonQuarter = myUsdDeals
+    .filter(d => d.stage === 'won' && d.actual_close_date && new Date(d.actual_close_date) >= qStart)
+    .reduce((s, d) => s + d.value, 0);
+  const myOpenDeals = myUsdDeals.filter(d => !['won', 'lost'].includes(d.stage));
+  const myPipeline = myOpenDeals.reduce((s, d) => s + d.value, 0);
+  const weightedForecast = myOpenDeals.reduce((s, d) => s + d.value * (d.probability || 0) / 100, 0);
+  const target = myTarget?.target_usd || 0;
+  const attainment = target > 0 ? Math.round((wonQuarter / target) * 100) : null;
+  const gap = Math.max(0, target - wonQuarter);
+  const coverage = gap > 0 ? (myPipeline / gap) : null; // chuẩn sales: >= 3x là khỏe
 
   // ── Contract aggregates ────────────────────────────────────
   const totalContractValue = approvedContracts.reduce((s, c) => s + (c.contract_value ?? 0), 0);
@@ -298,6 +326,10 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           { label: 'Khách hàng', value: `${activeClients}`, sub: `/ ${clients.length} tổng`, color: 'text-white' },
           { label: 'Studios của tôi', value: `${myStudiosCount}`, sub: 'studio đang phụ trách', color: 'text-white' },
           { label: 'Hợp đồng', value: totalContractValue > 0 ? fmtValue(totalContractValue, 'USD') : '—', sub: `${approvedContracts.length} hợp đồng`, color: 'text-white' },
+          { label: 'Target quý', value: attainment !== null ? `${attainment}%` : 'Chưa đặt', sub: target > 0 ? `${fmtValue(wonQuarter, 'USD')} / ${fmtValue(target, 'USD')}` : 'Admin đặt target', color: attainment !== null && attainment >= 100 ? 'text-status-success' : 'text-white' },
+          { label: 'Forecast (weighted)', value: fmtValue(Math.round(weightedForecast), 'USD'), sub: 'Σ value × probability', color: 'text-white' },
+          { label: 'Pipeline coverage', value: coverage !== null ? `${coverage.toFixed(1)}x` : '—', sub: 'mục tiêu ≥ 3x phần còn thiếu', color: coverage === null ? 'text-white' : coverage < 3 ? 'text-status-error' : 'text-status-success' },
+          { label: 'Sales cycle TB', value: avgCycle !== null ? `${avgCycle} ngày` : '—', sub: 'từ tạo deal đến won', color: 'text-white' },
         ].map(c => (
           <div key={c.label} className="rounded-[20px] border border-primary/10 p-4 space-y-1 bg-surface">
             <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{c.label}</p>
@@ -306,6 +338,33 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           </div>
         ))}
       </div>
+
+      {/* ── Admin: đặt target quý ── */}
+      {hasAnyRole(currentUser, ['admin']) && (
+        // ponytail: admin đặt target từng BD qua dropdown — thêm khi có >2 BD
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Target {currentPeriod()} (USD)</p>
+          <input
+            type="number"
+            value={targetInput}
+            onChange={e => setTargetInput(e.target.value)}
+            placeholder={myTarget ? `${myTarget.target_usd}` : '0'}
+            className="w-32 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-xs font-semibold text-white"
+          />
+          <button
+            onClick={async () => {
+              const value = Number(targetInput);
+              if (!targetInput || isNaN(value) || value < 0) return;
+              await upsertBdTarget({ bd_id: currentUser.id, period: currentPeriod(), target_usd: value, entity: getWorkspace() });
+              setTargets(await fetchBdTargets(currentPeriod()));
+              setTargetInput('');
+            }}
+            className="px-4 py-2 rounded-lg bg-primary text-black text-[10px] font-black uppercase tracking-wider hover:opacity-90 transition-all"
+          >
+            Lưu
+          </button>
+        </div>
+      )}
 
       {/* ── Main layout: 2 columns ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -636,6 +695,9 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
           </div>
         </div>
       </div>
+
+      {/* ── BD Leaderboard (manager only) ── */}
+      {hasAnyRole(currentUser, ['admin', 'ke_toan']) && <BdLeaderboard />}
     </div>
   );
 };
