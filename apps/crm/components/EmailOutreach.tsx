@@ -842,7 +842,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #333' }}>
-                {['Tier', 'Signal', 'Contact', 'Email', 'Studio', 'Chức vụ', 'Trạng thái', 'Actions'].map((h, i) => (
+                {['Tier', 'Signal', 'Contact', 'Email', 'Studio', 'Chức vụ', 'Trạng thái', 'Nguồn', 'Actions'].map((h, i) => (
                   <th key={i} style={{ padding: '10px 10px', textAlign: 'left', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#666' }}>{h}</th>
                 ))}
               </tr>
@@ -855,8 +855,8 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                   <tr key={lead.id} style={{ borderBottom: '1px solid #1A1A1A', transition: 'background 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = '#161616'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
-                    <td style={{ padding: '10px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: tc.color + '15', color: tc.color }}>{tc.icon} {tc.label}</span>
+                    <td style={{ padding: '10px', maxWidth: '110px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: tc.color + '15', color: tc.color, display: 'inline-block', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }} title={tc.label}>{tc.icon} {tc.label}</span>
                     </td>
                     <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                       {lead.trigger_source === 'hiring_signal' ? (
@@ -866,13 +866,13 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                         </div>
                       ) : <span style={{ fontSize: '10px', color: '#333' }}>—</span>}
                     </td>
-                    <td style={{ padding: '10px' }}>
-                      <div style={{ fontWeight: 600, color: '#F5F5F5' }}>{lead.contact_name || '—'}</div>
+                    <td style={{ padding: '10px', maxWidth: '110px' }}>
+                      <div style={{ fontWeight: 600, color: '#F5F5F5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.contact_name || ''}>{lead.contact_name || '—'}</div>
                       {lead.linkedin_url && <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: '#0A84FF' }}>LinkedIn ↗</a>}
                     </td>
-                    <td style={{ padding: '10px', color: '#0A84FF', fontSize: '12px' }}>{lead.email}</td>
-                    <td style={{ padding: '10px', color: '#ccc' }}>{lead.studio_name || '—'}</td>
-                    <td style={{ padding: '10px', color: '#888', fontSize: '12px' }}>{lead.job_title || '—'}</td>
+                    <td style={{ padding: '10px', color: '#0A84FF', fontSize: '12px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.email}>{lead.email}</td>
+                    <td style={{ padding: '10px', color: '#ccc', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.studio_name || ''}>{lead.studio_name || '—'}</td>
+                    <td style={{ padding: '10px', color: '#888', fontSize: '12px', maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.job_title || ''}>{lead.job_title || '—'}</td>
                     <td style={{ padding: '10px' }}>
                       <select value={lead.outreach_status} onChange={e => handleStatusChange(lead.id, e.target.value)} style={{
                         fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px',
@@ -881,7 +881,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                         {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k} style={{ background: '#1A1A1A', color: v.color }}>{v.label}</option>)}
                       </select>
                     </td>
-                    <td style={{ padding: '10px', fontSize: '10px', color: '#555' }}>{lead.source}</td>
+                    <td style={{ padding: '10px', fontSize: '10px', color: '#555', maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.source}>{lead.source}</td>
                     <td style={{ padding: '10px' }}>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                         {myTemplates.length > 0 && (
