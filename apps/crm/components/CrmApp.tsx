@@ -15,6 +15,7 @@ import ActivityTimeline from './ActivityTimeline';
 import { fetchActivities } from '../services/crmService';
 import DealPipeline from './DealPipeline';
 import BdDashboard from './BdDashboard';
+import MyDayTab from './MyDayTab';
 import StudiosTab from './StudiosTab';
 import HelpPanel from '@/components/HelpPanel';
 import { CRM_HELP } from '../helpContent';
@@ -26,6 +27,7 @@ interface CrmAppProps {
 }
 
 const TAB_MAP: Record<CrmTab, string> = {
+  myday:      'myday',
   dashboard:  'dashboard',
   deals:      'deals',
   clients:    'history',
@@ -38,6 +40,7 @@ const TAB_MAP: Record<CrmTab, string> = {
 };
 
 const TAB_LABELS: Record<string, string> = {
+  myday:    '☀️ Hôm nay',
   dashboard: 'Tổng quan',
   deals:    'Deal Pipeline',
   history:  'Khách hàng',
@@ -50,6 +53,7 @@ const TAB_LABELS: Record<string, string> = {
 };
 
 const REVERSE_TAB: Record<string, CrmTab> = {
+  myday:     'myday',
   dashboard: 'dashboard',
   deals:     'deals',
   history:   'clients',
@@ -180,8 +184,8 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
   // BD workflow order: Overview → Find targets → Contacts → Reach out → Track interactions → Deal → Project → Docs → Payment
   // ponytail: bỏ tab Tài liệu khỏi navbar — tài liệu xem trong panel chi tiết khách hàng; route #crm/settings vẫn hoạt động cho deep-link cũ
   const accessibleTabs = isBd
-    ? ['dashboard', 'history', 'tasks', 'deals', 'studios', 'outreach', 'board']
-    : ['dashboard', 'history', 'tasks', 'deals', 'studios', 'outreach', 'board', 'activity'];
+    ? ['myday', 'dashboard', 'history', 'tasks', 'deals', 'studios', 'outreach', 'board']
+    : ['myday', 'dashboard', 'history', 'tasks', 'deals', 'studios', 'outreach', 'board', 'activity'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -218,6 +222,13 @@ const CrmApp: React.FC<CrmAppProps> = ({ currentUser, onBack, initialTab }) => {
 
       {/* Main Content */}
       <main className={`flex-1 p-6 md:p-12 w-full${state.activeTab !== 'deals' ? ' max-w-[1400px] mx-auto' : ''}`}>
+        {/* ── My Day Tab ── */}
+        {state.activeTab === 'myday' && (
+          <MyDayTab currentUser={currentUser}
+            onOpenDeals={() => state.setActiveTab('deals')}
+            onOpenClients={() => state.setActiveTab('clients')} />
+        )}
+
         {/* ── Dashboard Tab ── */}
         {state.activeTab === 'dashboard' && (
           <BdDashboard

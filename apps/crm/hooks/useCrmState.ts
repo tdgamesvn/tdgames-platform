@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CrmClient, CrmContact } from '@/types';
 import * as svc from '../services/crmService';
 
-export type CrmTab = 'dashboard' | 'deals' | 'clients' | 'projects' | 'documents' | 'payments' | 'activities' | 'outreach' | 'studios';
+export type CrmTab = 'myday' | 'dashboard' | 'deals' | 'clients' | 'projects' | 'documents' | 'payments' | 'activities' | 'outreach' | 'studios';
 
 export function useCrmState(initialTab?: string | null) {
   const { workspace } = useWorkspace();
@@ -12,7 +12,7 @@ export function useCrmState(initialTab?: string | null) {
   const [activeTab, setActiveTab] = useState<CrmTab>(() => {
     if (initialTab === 'activities') return 'activities';
     if (initialTab === 'deals') return 'deals';
-    return 'dashboard';
+    return 'myday';
   });
   const [editingClient, setEditingClient] = useState<CrmClient | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
