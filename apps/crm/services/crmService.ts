@@ -249,7 +249,8 @@ export async function fetchActivities(clientId?: string, limit = 50): Promise<Cr
 }
 
 export async function createActivity(activity: Omit<CrmActivity, 'id' | 'created_at'>): Promise<CrmActivity> {
-  const { data, error } = await supabase.from('crm_activities').insert(activity).select().single();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase.from('crm_activities').insert({ ...activity, actor_id: activity.actor_id ?? user?.id ?? null }).select().single();
   if (error) throw error;
   return data;
 }

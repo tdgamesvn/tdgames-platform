@@ -357,6 +357,8 @@ export interface CrmActivity {
   outcome: 'positive' | 'neutral' | 'negative' | '';
   activity_date: string;
   actor: string;
+  actor_id?: string | null;   // auth.users.id — attribution thật, actor text chỉ để display
+  deal_id?: string | null;    // gắn activity vào deal (optional)
   created_at: string;
 }
 
