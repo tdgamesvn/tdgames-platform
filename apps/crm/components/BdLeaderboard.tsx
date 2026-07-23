@@ -9,7 +9,7 @@ const BdLeaderboard: React.FC = () => {
   if (rows.length === 0) return null;
 
   return (
-    <div className="bg-surface border border-white/8 rounded-xl p-4 space-y-3">
+    <div className="bg-surface border border-primary/10 rounded-[20px] p-4 space-y-3">
       <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">Leaderboard BD — funnel outreach → revenue</p>
       <table className="w-full text-xs">
         <thead>

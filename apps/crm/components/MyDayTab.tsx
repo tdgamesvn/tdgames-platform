@@ -8,7 +8,7 @@ const fmtValue = (v: number, cur: string) => `${cur === 'USD' ? '$' : ''}${v.toL
 
 const Section: React.FC<{ title: string; count: number; color: string; empty: string; children: React.ReactNode }> =
   ({ title, count, color, empty, children }) => (
-    <div className="bg-surface border border-white/8 rounded-xl p-4 space-y-3">
+    <div className="bg-surface border border-primary/10 rounded-[20px] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">{title}</p>
         <span className="text-2xl font-black" style={{ color }}>{count}</span>

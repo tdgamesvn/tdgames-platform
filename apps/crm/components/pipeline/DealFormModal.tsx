@@ -96,7 +96,7 @@ const DealFormModal: React.FC<Props> = ({ clients, currentUser, editDeal, onSave
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
       <div
-        className="rounded-2xl border border-white/10 p-6 w-full max-w-lg animate-scaleIn max-h-[90vh] overflow-y-auto"
+        className="rounded-[20px] border border-primary/10 p-6 w-full max-w-lg animate-scaleIn max-h-[90vh] overflow-y-auto"
         style={{ background: '#161616' }}
       >
         <h3 className="text-base font-black uppercase tracking-wider text-white mb-6">

@@ -29,7 +29,7 @@ const PipelineColumn: React.FC<Props> = ({
 
   return (
     <div
-      className="flex flex-col rounded-2xl border min-w-[260px] max-w-[300px] flex-1 transition-all"
+      className="flex flex-col rounded-[20px] border min-w-[260px] max-w-[300px] flex-1 transition-all"
       style={{
         background: isDragOver ? 'rgba(255,149,0,0.04)' : 'rgba(255,255,255,0.015)',
         borderColor: isDragOver ? 'rgba(255,149,0,0.25)' : 'rgba(255,255,255,0.06)',

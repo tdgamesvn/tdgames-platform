@@ -528,7 +528,7 @@ const InlineEditField: React.FC<{
       <div className="group cursor-pointer" onClick={() => setEditing(true)}>
         <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-1">{label}</p>
         {type === 'textarea' ? (
-          <div className="rounded-xl border border-white/8 p-3 min-h-[60px] hover:border-white/15 transition-all"
+          <div className="rounded-xl border border-primary/10 p-3 min-h-[60px] hover:border-primary/20 transition-all"
             style={{ background: 'rgba(255,255,255,0.02)' }}>
             <p className="text-xs text-neutral-300 whitespace-pre-wrap leading-relaxed">
               {value || <span className="text-neutral-600 italic">{placeholder || 'Nhấn để thêm...'}</span>}
