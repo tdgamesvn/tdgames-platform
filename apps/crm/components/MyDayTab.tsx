@@ -18,7 +18,7 @@ const Section: React.FC<{ title: string; count: number; color: string; empty: st
   );
 
 const DealRow: React.FC<{ deal: CrmDeal; onClick: () => void; note?: string }> = ({ deal, onClick, note }) => (
-  <button onClick={onClick} className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-all cursor-pointer">
+  <button onClick={onClick} className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 transition-all cursor-pointer">
     <div className="min-w-0">
       <p className="text-xs font-semibold text-white truncate">{deal.title}</p>
       <p className="text-[10px] text-neutral-500 truncate">{deal.client_name} · {fmtValue(deal.value, deal.currency)}</p>
@@ -53,7 +53,7 @@ const MyDayTab: React.FC<{ currentUser: AccountUser; onOpenDeals: () => void; on
       </Section>
       <Section title="Báo giá sắp hết hạn (7 ngày)" count={data.expiringQuotes.length} color="#0A84FF" empty="Không có báo giá nào cần chốt">
         {data.expiringQuotes.map(q => (
-          <button key={q.id} onClick={onOpenDeals} className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-all cursor-pointer">
+          <button key={q.id} onClick={onOpenDeals} className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 transition-all cursor-pointer">
             <div className="min-w-0">
               <p className="text-xs font-semibold text-white truncate">{q.quotation_number} · {q.title}</p>
               <p className="text-[10px] text-neutral-500">{q.client_name} · {fmtValue(q.total, q.currency)}</p>
@@ -64,7 +64,7 @@ const MyDayTab: React.FC<{ currentUser: AccountUser; onOpenDeals: () => void; on
       </Section>
       <Section title="Khách nguội (90 ngày im lặng)" count={data.coldClients.length} color="#AF52DE" empty="Mọi khách active đều có tương tác gần đây">
         {data.coldClients.map(c => (
-          <button key={c.id} onClick={onOpenClients} className="w-full text-left px-3 py-2 rounded-lg border border-white/10 hover:border-white/20 transition-all cursor-pointer">
+          <button key={c.id} onClick={onOpenClients} className="w-full text-left px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 transition-all cursor-pointer">
             <p className="text-xs font-semibold text-white truncate">{c.name}</p>
             <p className="text-[10px] text-neutral-500">{c.country} · {c.industry}</p>
           </button>
