@@ -6,6 +6,7 @@ import { supabase } from '@/services/supabaseClient';
 import { hasRole, hasAnyRole } from '@/utils/roleUtils';
 import { STAGES, STAGE_MAP, fmtValue, fmtDate } from './pipeline/constants';
 import BdLeaderboard from './BdLeaderboard';
+import { TYPE_META } from './ActivityTimeline';
 
 // ── Date preset filter ────────────────────────────────────────
 
@@ -52,13 +53,7 @@ const fmtRelative = (d: string): string => {
   return `${days} ngày nữa`;
 };
 
-const TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
-  call:          { icon: '📞', label: 'Gọi điện',    color: '#34C759' },
-  email:         { icon: '📧', label: 'Email',       color: '#0A84FF' },
-  meeting:       { icon: '🤝', label: 'Meeting',     color: '#FF9500' },
-  note:          { icon: '📝', label: 'Ghi chú',     color: '#AF52DE' },
-  status_change: { icon: '🔄', label: 'Đổi trạng thái', color: '#FF3B30' },
-};
+// TYPE_META import từ ActivityTimeline — một nguồn duy nhất cho icon/label kênh
 
 // ── Props ─────────────────────────────────────────────────────
 
@@ -271,6 +266,13 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
       return acc;
     }, {})
   ).sort((a, b) => b.total - a.total);
+
+  // ── Hiệu quả kênh liên hệ (trên activities đã fetch — 500 gần nhất) ──
+  const CONTACT_TYPES = ['call', 'email', 'meeting', 'linkedin', 'messaging', 'discord', 'event'];
+  const channelStats = CONTACT_TYPES.map(t => {
+    const acts = activities.filter(a => a.activity_type === t);
+    return { type: t, total: acts.length, pos: acts.filter(a => a.outcome === 'positive').length };
+  }).filter(c => c.total > 0).sort((a, b) => b.total - a.total);
 
   // Client map for activity feed
   const clientMap = Object.fromEntries(clients.map(c => [c.id, c.name]));
@@ -605,6 +607,30 @@ const BdDashboard: React.FC<Props> = ({ currentUser, clients, onSwitchTab }) => 
                     <span className="text-xs font-semibold text-neutral-400">{Math.round((s.deal / s.total) * 100)}%</span>
                     <span className="text-xs font-semibold text-neutral-400">{Math.round((s.quoted / s.total) * 100)}%</span>
                     <span className="text-xs font-black text-status-success">{Math.round((s.won / s.total) * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Hiệu quả kênh liên hệ */}
+          {channelStats.length > 0 && (
+            <div className="rounded-[20px] border border-primary/10 p-5 bg-surface">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-4">
+                📡 Hiệu quả kênh liên hệ <span className="normal-case font-semibold text-neutral-700">(hoạt động gần đây)</span>
+              </p>
+              <div className="grid grid-cols-4 gap-2 pb-2 border-b border-white/5 mb-2">
+                {['Kênh', 'Tương tác', 'Positive', '% Positive'].map(h => (
+                  <p key={h} className="text-[9px] font-black uppercase tracking-wider text-neutral-700">{h}</p>
+                ))}
+              </div>
+              <div className="space-y-1">
+                {channelStats.map(c => (
+                  <div key={c.type} className="grid grid-cols-4 gap-2 py-2 rounded-lg hover:bg-white/5 transition-all">
+                    <p className="text-xs font-semibold text-white truncate">{TYPE_META[c.type]?.icon} {TYPE_META[c.type]?.label || c.type}</p>
+                    <span className="text-xs font-semibold text-neutral-300">{c.total}</span>
+                    <span className="text-xs font-semibold text-neutral-400">{c.pos}</span>
+                    <span className="text-xs font-black text-status-success">{Math.round((c.pos / c.total) * 100)}%</span>
                   </div>
                 ))}
               </div>

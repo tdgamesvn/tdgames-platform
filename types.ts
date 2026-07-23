@@ -351,7 +351,7 @@ export interface CrmProjectFile {
 export interface CrmActivity {
   id: string;
   client_id: string;
-  activity_type: 'call' | 'email' | 'meeting' | 'note' | 'status_change';
+  activity_type: 'call' | 'email' | 'meeting' | 'linkedin' | 'messaging' | 'discord' | 'event' | 'note' | 'status_change';
   title: string;
   description: string;
   outcome: 'positive' | 'neutral' | 'negative' | '';

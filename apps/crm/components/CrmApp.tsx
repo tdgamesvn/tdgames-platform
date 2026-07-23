@@ -11,7 +11,7 @@ import ClientForm from './ClientForm';
 import ProjectList from './ProjectList';
 import DocumentList from './DocumentList';
 import PaymentTracker from './PaymentTracker';
-import ActivityTimeline from './ActivityTimeline';
+import ActivityTimeline, { TYPE_META as TYPE_ICON } from './ActivityTimeline';
 import { fetchActivities } from '../services/crmService';
 import DealPipeline from './DealPipeline';
 import BdDashboard from './BdDashboard';
@@ -63,14 +63,6 @@ const REVERSE_TAB: Record<string, CrmTab> = {
   board:     'activities',
   outreach:  'outreach',
   studios:   'studios',
-};
-
-const TYPE_ICON: Record<string, { icon: string; label: string; color: string }> = {
-  call:          { icon: '📞', label: 'Gọi điện',    color: '#34C759' },
-  email:         { icon: '📧', label: 'Email',       color: '#0A84FF' },
-  meeting:       { icon: '🤝', label: 'Meeting',     color: '#FF9500' },
-  note:          { icon: '📝', label: 'Ghi chú',     color: '#AF52DE' },
-  status_change: { icon: '🔄', label: 'Đổi trạng thái', color: '#FF3B30' },
 };
 
 const GlobalActivityFeed: React.FC<{ clients: any[]; actor: string }> = ({ clients, actor }) => {

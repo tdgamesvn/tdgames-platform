@@ -2,10 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { CrmActivity, CrmClient } from '@/types';
 import { fetchActivities, createActivity, deleteActivity } from '../services/crmService';
 
-const TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
+export const TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
   call:          { icon: '📞', label: 'Gọi điện',    color: '#34C759' },
   email:         { icon: '📧', label: 'Email',       color: '#0A84FF' },
   meeting:       { icon: '🤝', label: 'Meeting',     color: '#FF9500' },
+  linkedin:      { icon: '💼', label: 'LinkedIn',    color: '#0A66C2' },
+  messaging:     { icon: '💬', label: 'Telegram/WA', color: '#30D158' },
+  discord:       { icon: '🎮', label: 'Discord',     color: '#5865F2' },
+  event:         { icon: '🎪', label: 'Sự kiện',     color: '#FFD60A' },
   note:          { icon: '📝', label: 'Ghi chú',     color: '#AF52DE' },
   status_change: { icon: '🔄', label: 'Đổi trạng thái', color: '#FF3B30' },
 };
