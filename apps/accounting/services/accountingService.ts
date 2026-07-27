@@ -392,6 +392,7 @@ export async function fetchEmployeesForBhxh(): Promise<BhxhEmployee[]> {
       salaries:hr_employee_salary(amount, effective_to, component:hr_salary_components(name))
     `)
     .eq('status', 'active')
+    .neq('exclude_from_payroll', true)
     .order('full_name');
   if (error) throw error;
   return ((data || []) as any[]).map(r => {
