@@ -125,9 +125,9 @@ export function calculatePayroll(
   const taxableIncome = baseSalaryActual + transportActual + phoneActual + kpiActual + bonusAmount;
 
   // PIT phần thử việc: 10% flat trên phần thu nhập tương ứng số ngày probation.
-  // Ngưỡng khấu trừ theo điểm i khoản 1 Điều 25 TT 111/2013: chi trả cho cá nhân
-  // HĐ < 3 tháng (thử việc) DƯỚI 2.000.000đ/lần thì KHÔNG khấu trừ 10%.
-  const PROBATION_PIT_WITHHOLD_MIN = 2_000_000;
+  // Ngưỡng khấu trừ (theo quy định áp dụng công ty): chi trả cho cá nhân
+  // HĐ < 3 tháng (thử việc) DƯỚI 5.000.000đ/lần thì KHÔNG khấu trừ 10%.
+  const PROBATION_PIT_WITHHOLD_MIN = 5_000_000;
 
   // Tách taxableProbation theo TỪNG khoản thay vì nhân probRatio lên taxableIncome gộp
   // (chỉ áp dụng cho tháng CHUYỂN GIAO — 0<probRatio<1 — để không đổi hành vi của tháng

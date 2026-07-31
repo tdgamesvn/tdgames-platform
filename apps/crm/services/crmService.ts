@@ -416,15 +416,27 @@ export async function fetchMyDay(userId: string, isManager: boolean): Promise<My
     ...q, client_name: q.client?.name, client_entity: q.client?.entity,
   })) as CrmQuotation[];
 
+  // "Còn tương tác" = có activity log tay HOẶC báo giá/deal vừa cập nhật trong 90 ngày —
+  // tránh gắn nhãn "nguội" oan cho khách đang gửi báo giá/đàm phán nhưng chưa ai log activity thủ công.
+  const cutoff = Date.now() - 90 * 86_400_000;
+  const cutoffIso = new Date(cutoff).toISOString();
   // ponytail: cold-client scan qua 500 activity gần nhất — đủ cho quy mô hiện tại,
   // chuyển sang SQL group-by nếu activity vượt vài nghìn dòng
-  const acts = await fetchActivities(undefined, 500);
+  const [acts, { data: recentQuotes, error: rqErr }] = await Promise.all([
+    fetchActivities(undefined, 500),
+    supabase.from('crm_quotations').select('client_id, updated_at').gte('updated_at', cutoffIso),
+  ]);
+  if (rqErr) throw rqErr;
   const lastAct: Record<string, number> = {};
-  for (const a of acts) {
-    const t = new Date(a.activity_date || a.created_at).getTime();
-    if (!lastAct[a.client_id] || t > lastAct[a.client_id]) lastAct[a.client_id] = t;
+  const bump = (clientId: string | undefined, t: number) => {
+    if (clientId && (!lastAct[clientId] || t > lastAct[clientId])) lastAct[clientId] = t;
+  };
+  for (const a of acts) bump(a.client_id, new Date(a.activity_date || a.created_at).getTime());
+  for (const q of recentQuotes || []) bump(q.client_id, new Date(q.updated_at).getTime());
+  for (const d of deals) {
+    const t = new Date(d.updated_at).getTime();
+    if (t >= cutoff) bump(d.client_id, t);
   }
-  const cutoff = Date.now() - 90 * 86_400_000;
   const coldClients = clients.filter(c =>
     c.status === 'active' && (!lastAct[c.id] || lastAct[c.id] < cutoff)
   );

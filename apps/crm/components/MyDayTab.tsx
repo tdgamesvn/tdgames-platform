@@ -6,12 +6,15 @@ import { fetchMyDay } from '../services/crmService';
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 const fmtValue = (v: number, cur: string) => `${cur === 'USD' ? '$' : ''}${v.toLocaleString()}${cur === 'VND' ? '₫' : ''}`;
 
-const Section: React.FC<{ title: string; count: number; color: string; empty: string; children: React.ReactNode }> =
-  ({ title, count, color, empty, children }) => (
+const Section: React.FC<{ title: string; hint: string; count: number; color: string; empty: string; children: React.ReactNode }> =
+  ({ title, hint, count, color, empty, children }) => (
     <div className="bg-surface border border-primary/10 rounded-[20px] p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">{title}</p>
-        <span className="text-2xl font-black" style={{ color }}>{count}</span>
+        <div>
+          <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">{title}</p>
+          {count > 0 && <p className="text-[10px] text-neutral-500 mt-0.5">{hint}</p>}
+        </div>
+        <span className="text-2xl font-black shrink-0" style={{ color }}>{count}</span>
       </div>
       {count === 0 ? <p className="text-xs text-neutral-600">{empty}</p> : children}
     </div>
@@ -42,16 +45,16 @@ const MyDayTab: React.FC<{ currentUser: AccountUser; onOpenDeals: () => void; on
 
   return (
     <div className="animate-fadeInUp grid grid-cols-1 md:grid-cols-2 gap-4">
-      <Section title="Follow-up quá hạn" count={data.overdueFollowups.length} color="#FF3B30" empty="Sạch — không có follow-up trễ 💪">
+      <Section title="Follow-up quá hạn" hint="Bấm để mở deal & đặt lịch follow-up mới" count={data.overdueFollowups.length} color="#FF3B30" empty="Sạch — không có follow-up trễ 💪">
         {data.overdueFollowups.map(d => (
           <DealRow key={d.id} deal={d} onClick={onOpenDeals}
             note={daysOverdue(d.next_follow_up!) > 0 ? `trễ ${daysOverdue(d.next_follow_up!)} ngày` : 'hôm nay'} />
         ))}
       </Section>
-      <Section title="Deal chưa có bước tiếp theo" count={data.noNextStep.length} color="#FF9500" empty="Mọi deal đều có next step ✅">
+      <Section title="Deal chưa có bước tiếp theo" hint="Bấm để mở deal & thêm next step" count={data.noNextStep.length} color="#FF9500" empty="Mọi deal đều có next step ✅">
         {data.noNextStep.map(d => <DealRow key={d.id} deal={d} onClick={onOpenDeals} note="đặt follow-up" />)}
       </Section>
-      <Section title="Báo giá sắp hết hạn (7 ngày)" count={data.expiringQuotes.length} color="#0A84FF" empty="Không có báo giá nào cần chốt">
+      <Section title="Báo giá sắp hết hạn (7 ngày)" hint="Bấm để mở deal & gia hạn hoặc chốt báo giá" count={data.expiringQuotes.length} color="#0A84FF" empty="Không có báo giá nào cần chốt">
         {data.expiringQuotes.map(q => (
           <button key={q.id} onClick={onOpenDeals} className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 transition-all cursor-pointer">
             <div className="min-w-0">
@@ -62,11 +65,14 @@ const MyDayTab: React.FC<{ currentUser: AccountUser; onOpenDeals: () => void; on
           </button>
         ))}
       </Section>
-      <Section title="Khách nguội (90 ngày im lặng)" count={data.coldClients.length} color="#AF52DE" empty="Mọi khách active đều có tương tác gần đây">
+      <Section title="Khách nguội (90 ngày im lặng)" hint="Không có activity/báo giá/deal cập nhật 90 ngày — bấm để liên hệ lại" count={data.coldClients.length} color="#AF52DE" empty="Mọi khách active đều có tương tác gần đây">
         {data.coldClients.map(c => (
-          <button key={c.id} onClick={onOpenClients} className="w-full text-left px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 transition-all cursor-pointer">
-            <p className="text-xs font-semibold text-white truncate">{c.name}</p>
-            <p className="text-[10px] text-neutral-500">{c.country} · {c.industry}</p>
+          <button key={c.id} onClick={onOpenClients} className="w-full text-left flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-primary/10 hover:border-primary/20 transition-all cursor-pointer">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-white truncate">{c.name}</p>
+              <p className="text-[10px] text-neutral-500 truncate">{c.country} · {c.industry}</p>
+            </div>
+            <span className="text-[10px] font-black text-status-info whitespace-nowrap">liên hệ lại</span>
           </button>
         ))}
       </Section>
