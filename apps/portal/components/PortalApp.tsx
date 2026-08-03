@@ -310,6 +310,15 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                             }}>
                               {sheet.status === 'confirmed' ? '✅ Đã duyệt' : '📝 Nháp'}
                             </span>
+                            {/* Nhân viên phải thấy "cần xác nhận" ngay khi chưa mở rộng */}
+                            {(ps.employee_status ?? 'pending') === 'pending' && (
+                              <span style={{
+                                fontSize: '10px', fontWeight: 900, padding: '4px 10px', borderRadius: '8px',
+                                background: 'rgba(255,149,0,0.15)', color: '#FF9500', whiteSpace: 'nowrap',
+                              }}>
+                                ⏳ Chờ bạn xác nhận
+                              </span>
+                            )}
                           </div>
                         </button>
 
@@ -323,6 +332,31 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                                 setActiveTab('attendance');
                               } : undefined}
                             />
+
+                            {/* Nút xác nhận dự phòng — trước đây đường DUY NHẤT để xác nhận là
+                                modal tự bật lúc mở app. Lỡ một lần là kẹt vĩnh viễn, không có
+                                nút nào khác. Nút này mở lại chính modal đó, chủ động. */}
+                            {(ps.employee_status ?? 'pending') === 'pending' ? (
+                              <button
+                                onClick={() => setPendingPayslip(ps)}
+                                className="w-full mt-4 rounded-xl py-3 text-[13px] sm:text-[14px] font-black transition-colors"
+                                style={{
+                                  background: 'rgba(52,199,89,0.12)', color: '#34C759',
+                                  border: '1px solid rgba(52,199,89,0.3)',
+                                }}
+                              >
+                                ✅ Xác nhận / Báo sai sót phiếu lương này
+                              </button>
+                            ) : (
+                              <p className="mt-4 text-center text-[12px] font-bold"
+                                style={{ color: ps.employee_status === 'disputed' ? '#FF9500' : '#34C759' }}>
+                                {ps.employee_status === 'disputed'
+                                  ? '⚠️ Bạn đã báo sai sót — HR đang xử lý'
+                                  : ps.employee_status === 'resolved'
+                                    ? '✅ Khiếu nại đã được giải quyết'
+                                    : '✅ Bạn đã xác nhận phiếu lương này'}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
