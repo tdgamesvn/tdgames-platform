@@ -3,7 +3,6 @@ import AppBackground from '@/components/AppBackground';
 import { useInvoiceState } from '../hooks/useInvoiceState';
 import { avgRate } from '../services/exchangeRateService';
 import { AccountUser } from '@/types';
-import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
 import HelpPanel from '@/components/HelpPanel';
 import { INVOICE_HELP } from '../helpContent';
 
@@ -32,7 +31,6 @@ interface InvoiceAppProps {
 
 const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab }) => {
   const state = useInvoiceState(initialTab);
-  const [bankAccounts, setBankAccounts] = React.useState<BankAccount[]>([]);
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   // Sync the currentUser from parent
@@ -41,11 +39,6 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
       state.setCurrentUser(currentUser);
     }
   }, [currentUser]);
-
-  // Fetch bank accounts once on mount
-  React.useEffect(() => {
-    fetchBankAccounts().then(setBankAccounts).catch(console.error);
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: APP_UI_IS_DARK ? '#0F0F0F' : '#F5F5F5' }}>
@@ -109,36 +102,31 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
             theme={APP_UI_IS_DARK ? 'dark' : 'light'}
             clients={state.clients}
             studios={state.studios}
-            banks={state.banks}
+            bankAccounts={state.bankAccounts}
             formatCurrencySimple={state.formatCurrencySimple}
           />
         ) : (
           <InvoiceEditor
             invoice={state.invoice} activeTab={state.activeTab}
-            studios={state.studios} banks={state.banks} clients={state.clients} crmProjects={state.crmProjects}
+            studios={state.studios} clients={state.clients} crmProjects={state.crmProjects}
             isLoading={state.isLoading} isExporting={state.isExporting}
-            showBankManager={state.showBankManager} showStudioManager={state.showStudioManager}
-            editingBankId={state.editingBankId} editingBankData={state.editingBankData}
+            showStudioManager={state.showStudioManager}
             editingStudioId={state.editingStudioId} editingStudioData={state.editingStudioData}
-            newStudio={state.newStudio} newBank={state.newBank}
+            newStudio={state.newStudio}
             clientSuggestions={state.clientSuggestions} showSuggestions={state.showSuggestions}
             eInvoiceProgress={state.eInvoiceProgress}
             updateInvoice={state.updateInvoice} updateItem={state.updateItem} formatCurrencySimple={state.formatCurrencySimple}
             onExport={state.handleExport} onSaveToCloud={state.handleSaveToCloud}
-            onCreateEInvoice={() => state.handleCreateEInvoice()} onBankSelect={state.handleBankSelect}
+            onCreateEInvoice={() => state.handleCreateEInvoice()}
             onSaveClient={state.handleSaveClient} onSelectClient={state.handleSelectClient}
             setShowSuggestions={state.setShowSuggestions} setClientSuggestions={state.setClientSuggestions}
-            setShowBankManager={state.setShowBankManager} setNewBank={state.setNewBank}
-            onAddBank={state.handleAddBank} onDeleteBank={state.handleDeleteBank}
-            onSetDefaultBank={state.handleSetDefaultBank} onEditBank={state.handleEditBank}
-            onCancelEditBank={state.handleCancelEdit} onUpdateBank={state.handleUpdateBank}
-            setEditingBankData={state.setEditingBankData}
+            onSelectReceivingAccount={state.selectReceivingAccount} onSelectBillingEntity={state.selectBillingEntity}
             setShowStudioManager={state.setShowStudioManager} setNewStudio={state.setNewStudio}
             onAddStudio={state.handleAddStudio} onDeleteStudio={state.handleDeleteStudio}
             onSetDefaultStudio={state.handleSetDefaultStudio} onEditStudio={state.handleEditStudio}
             onUpdateStudio={state.handleUpdateStudio}
             setEditingStudioId={state.setEditingStudioId} setEditingStudioData={state.setEditingStudioData}
-            bankAccounts={bankAccounts}
+            bankAccounts={state.bankAccounts}
           />
         )}
       </main>

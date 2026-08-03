@@ -7,20 +7,21 @@ import {
   deleteRecurringTemplate,
   toggleRecurringActive,
 } from '../services/supabaseService';
-import { InvoiceData, ClientRecord, StudioRecord, BankingInfo } from '@/types';
+import { InvoiceData, ClientRecord, StudioRecord } from '@/types';
+import { BankAccount, toBankingInfo } from '@/apps/expense/services/bankAccountService';
 
 interface RecurringTabProps {
   theme: string;
   clients: ClientRecord[];
   studios: StudioRecord[];
-  banks: (BankingInfo & { id: string; isDefault: boolean })[];
+  bankAccounts: BankAccount[];
   formatCurrencySimple: (val: number, curr: string) => string;
 }
 
 const FREQ_LABELS: Record<string, string> = { monthly: 'Hàng tháng', quarterly: 'Hàng quý', yearly: 'Hàng năm' };
 
 export const RecurringTab: React.FC<RecurringTabProps> = ({
-  theme, clients, studios, banks, formatCurrencySimple,
+  theme, clients, studios, bankAccounts, formatCurrencySimple,
 }) => {
   const [templates, setTemplates] = useState<RecurringTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +50,7 @@ export const RecurringTab: React.FC<RecurringTabProps> = ({
     if (!formName || !formNextRun) return alert('Vui lòng nhập tên và ngày chạy tiếp theo.');
     const client = clients.find(c => c.id === formClientId);
     const studio = studios.find(s => s.id === formStudioId);
-    const bank = banks.find(b => b.id === formBankId);
+    const bank = bankAccounts.find(b => b.id === formBankId);
 
     const template = {
       name: formName,
@@ -57,7 +58,7 @@ export const RecurringTab: React.FC<RecurringTabProps> = ({
       next_run: formNextRun,
       client_info: client ? { name: client.name, address: client.address, contactPerson: client.contactPerson, email: client.email, taxCode: client.taxCode, clientType: client.clientType } : {},
       studio_info: studio ? { name: studio.name, address: studio.address, email: studio.email, taxCode: studio.taxCode } : {},
-      banking_info: bank ? { alias: bank.alias, accountName: bank.accountName, accountNumber: bank.accountNumber, bankName: bank.bankName, branchName: bank.branchName, bankAddress: bank.bankAddress, citadCode: bank.citadCode, swiftCode: bank.swiftCode } : {},
+      banking_info: bank ? toBankingInfo(bank) : {},
       items: formItems.filter(i => i.description),
       currency: formCurrency,
       tax_rate: 0,
@@ -151,7 +152,7 @@ export const RecurringTab: React.FC<RecurringTabProps> = ({
               <label className={labelCls}>Ngân hàng</label>
               <select className={inputCls} value={formBankId} onChange={e => setFormBankId(e.target.value)}>
                 <option value="">-- Chọn --</option>
-                {banks.map(b => <option key={b.id} value={b.id}>{b.alias || b.accountName}</option>)}
+                {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.name} ({b.currency})</option>)}
               </select>
             </div>
             <div>

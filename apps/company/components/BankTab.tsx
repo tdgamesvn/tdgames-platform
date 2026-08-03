@@ -7,6 +7,8 @@ interface BankAccount {
   name: string;
   bank_name: string;
   account_number: string;
+  account_name?: string;
+  branch_name?: string;
   swift_code?: string;
   citad_code?: string;
   bank_address?: string;
@@ -25,7 +27,7 @@ interface Props {
 const currencyColor: Record<string, string> = { VND: '#34C759', USD: '#0A84FF' };
 
 const emptyForm: Omit<BankAccount, 'id' | 'is_active' | 'sort_order'> = {
-  name: '', bank_name: '', account_number: '', swift_code: '', citad_code: '',
+  name: '', bank_name: '', account_number: '', account_name: '', branch_name: '', swift_code: '', citad_code: '',
   bank_address: '', currency: 'VND', account_type: 'company', entity: '',
 };
 
@@ -73,6 +75,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
     setEditingId(acc.id);
     setForm({
       name: acc.name, bank_name: acc.bank_name, account_number: acc.account_number,
+      account_name: acc.account_name || '', branch_name: acc.branch_name || '',
       swift_code: acc.swift_code || '', citad_code: acc.citad_code || '',
       bank_address: acc.bank_address || '', currency: acc.currency,
       account_type: acc.account_type, entity: acc.entity,
@@ -91,6 +94,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
         const { error } = await supabase.from('finance_bank_accounts')
           .update({
             name: form.name, bank_name: form.bank_name, account_number: form.account_number,
+            account_name: form.account_name || null, branch_name: form.branch_name || null,
             swift_code: form.swift_code || null, citad_code: form.citad_code || null,
             bank_address: form.bank_address || null, currency: form.currency,
             account_type: form.account_type,
@@ -103,6 +107,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
         const { error } = await supabase.from('finance_bank_accounts')
           .insert({
             ...form,
+            account_name: form.account_name || null, branch_name: form.branch_name || null,
             swift_code: form.swift_code || null, citad_code: form.citad_code || null,
             bank_address: form.bank_address || null,
             is_active: true, sort_order: nextOrder,
@@ -182,7 +187,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
         <div className="rounded-2xl border border-primary/10 p-6 space-y-4" style={{ background: 'rgba(255,149,0,0.03)' }}>
           <p className="text-sm font-black text-white">{editingId ? 'Chỉnh sửa tài khoản' : 'Thêm tài khoản mới'}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {field('Tên tài khoản (Account Name) *', 'name', { placeholder: 'CONG TY TNHH TD GAMES' })}
+            {field('Tên gợi nhớ (hiển thị trong app) *', 'name', { placeholder: 'TCB USD – Công ty' })}
             {field('Tên ngân hàng (Bank Name) *', 'bank_name', { placeholder: 'Techcombank' })}
             {field('Số tài khoản (Account No.)', 'account_number', { placeholder: '19xxxxxxxxxx' })}
             <div className="flex flex-col gap-1">
@@ -193,6 +198,8 @@ export default function BankTab({ company, canEdit = true }: Props) {
                 <option value="USD">USD</option>
               </select>
             </div>
+            {field('Chủ tài khoản — in trên hoá đơn', 'account_name', { placeholder: 'CONG TY TNHH TD GAMES' })}
+            {field('Chi nhánh — in trên hoá đơn', 'branch_name', { placeholder: 'TCB Ruby, Vinhomes Ocean Park, Ha Noi' })}
             {field('SWIFT Code', 'swift_code', { placeholder: 'VTCBVNVX' })}
             {field('CITAD Code', 'citad_code', { placeholder: '1234567' })}
           </div>
@@ -246,7 +253,7 @@ export default function BankTab({ company, canEdit = true }: Props) {
                     </span>
                   </div>
                   <p className="text-neutral-300 font-mono text-sm mt-0.5 tracking-wider">{acc.account_number}</p>
-                  <p className="text-neutral-500 text-xs mt-0.5">{acc.name}</p>
+                  <p className="text-neutral-500 text-xs mt-0.5">{acc.account_name || acc.name}</p>
                   {(acc.swift_code || acc.citad_code) && (
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
                       {acc.swift_code && <span className="text-[10px] text-neutral-600">SWIFT: <span className="text-neutral-400 font-mono">{acc.swift_code}</span></span>}

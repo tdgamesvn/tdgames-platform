@@ -21,8 +21,10 @@ import {
   updateClientInCloud,
 } from '../services/supabaseService';
 import { setHashTab } from '@/App';
-import { useBankManager } from './useBankManager';
+import { fetchBankAccounts, toBankingInfo, BankAccount } from '@/apps/expense/services/bankAccountService';
 import { useStudioManager } from './useStudioManager';
+
+const EMPTY_STUDIO: StudioInfo = { name: '', address: '', email: '', taxCode: '' };
 
 type InvoiceTab = 'edit' | 'preview' | 'history' | 'dashboard' | 'activity' | 'recurring' | 'aging';
 const VALID_TABS: InvoiceTab[] = ['edit', 'preview', 'history', 'dashboard', 'activity', 'recurring', 'aging'];
@@ -65,16 +67,48 @@ export function useInvoiceState(initialTab?: string | null) {
     setLastMessage({ text, type });
   }, []);
 
-  // ── Bank/Studio sub-managers ──
-  const applyBankToInvoice = useCallback((info: BankingInfo) => {
-    setInvoice(prev => ({ ...prev, bankingInfo: info }));
-  }, []);
+  // ── Studio sub-manager ──
   const applyStudioToInvoice = useCallback((info: StudioInfo) => {
     setInvoice(prev => ({ ...prev, studioInfo: info }));
   }, []);
 
-  const bankMgr = useBankManager(notify, applyBankToInvoice);
   const studioMgr = useStudioManager(notify, applyStudioToInvoice);
+
+  // ── Tài khoản ngân hàng (finance_bank_accounts — nguồn duy nhất) ──
+  // Chọn 1 TK set cả 2 thứ: bankingInfo (in lên hoá đơn) + receiving_account_id (kế toán),
+  // nên không còn cửa cho hai bên lệch nhau như hồi invoice_banks tách riêng.
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  useEffect(() => { fetchBankAccounts().then(setBankAccounts).catch(console.error); }, []);
+
+  const selectReceivingAccount = useCallback((accountId: string | null) => {
+    const acc = accountId ? bankAccounts.find(a => a.id === accountId) : null;
+    setInvoice(prev => ({
+      ...prev,
+      receiving_account_id: acc ? acc.id : null,
+      bankingInfo: acc ? toBankingInfo(acc) : prev.bankingInfo,
+    }));
+  }, [bankAccounts]);
+
+  // Đổi pháp nhân phát hành → đổi luôn thông tin công ty in trên hoá đơn.
+  // Trước đây chọn "Cá nhân" mà hoá đơn vẫn in "TD GAMES COMPANY LIMITED".
+  const selectBillingEntity = useCallback((entity: string) => {
+    const studio = entity === 'Cá nhân'
+      ? null
+      : (studioMgr.studios.find(s => s.isDefault) || studioMgr.studios[0]);
+    setInvoice(prev => {
+      const keepAccount = !!prev.receiving_account_id && bankAccounts.some(a =>
+        a.id === prev.receiving_account_id
+        && (entity === 'Cá nhân' ? a.account_type === 'personal' : a.entity === entity));
+      return {
+        ...prev,
+        billing_entity: entity as InvoiceData['billing_entity'],
+        studioInfo: studio
+          ? { name: studio.name, address: studio.address, email: studio.email, taxCode: studio.taxCode }
+          : EMPTY_STUDIO,
+        receiving_account_id: keepAccount ? prev.receiving_account_id : null,
+      };
+    });
+  }, [bankAccounts, studioMgr.studios]);
 
   // ── Client Suggestions ──
   const [clientSuggestions, setClientSuggestions] = useState<ClientRecord[]>([]);
@@ -117,9 +151,6 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Effects ──
   useEffect(() => {
-    const shouldAutoApplyBank = activeTab === 'edit' && !skipBankAutoApplyRef.current;
-    skipBankAutoApplyRef.current = false;
-    bankMgr.loadBanks(shouldAutoApplyBank);
     loadClients();
     studioMgr.loadStudios().then(data => {
       if (activeTab === 'edit') {
@@ -141,6 +172,18 @@ export function useInvoiceState(initialTab?: string | null) {
     // Đổi sổ → hoá đơn đang soạn theo pháp nhân sổ mới
     setInvoice(prev => (prev.id ? prev : { ...prev, billing_entity: workspace }));
   }, [activeTab, workspace]);
+
+  // Hoá đơn mới chưa chọn TK → tự lấy TK đầu tiên (sort_order nhỏ nhất) của pháp nhân đang phát
+  // hành, ưu tiên đúng loại tiền của hoá đơn. Hoá đơn đã lưu (invoice.id) không bị đụng vào.
+  useEffect(() => {
+    if (activeTab !== 'edit' || invoice.id || invoice.receiving_account_id || !bankAccounts.length) return;
+    if (skipBankAutoApplyRef.current) { skipBankAutoApplyRef.current = false; return; }
+    const entity = invoice.billing_entity || workspace;
+    const pool = bankAccounts.filter(a =>
+      entity === 'Cá nhân' ? a.account_type === 'personal' : a.entity === entity);
+    const acc = pool.find(a => a.currency === invoice.currency) || pool[0];
+    if (acc) selectReceivingAccount(acc.id);
+  }, [activeTab, bankAccounts, invoice.id, invoice.receiving_account_id, invoice.billing_entity, invoice.currency, workspace, selectReceivingAccount]);
 
   // ── Realtime Subscription (P3-1) ──
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -678,19 +721,8 @@ export function useInvoiceState(initialTab?: string | null) {
     // Data
     history, clients, crmProjects, isLoading, isExporting, lastMessage, setLastMessage,
     filteredHistory, formatCurrencySimple,
-    // Bank manager (sub-hook)
-    banks: bankMgr.banks,
-    showBankManager: bankMgr.showBankManager, setShowBankManager: bankMgr.setShowBankManager,
-    editingBankId: bankMgr.editingBankId,
-    editingBankData: bankMgr.editingBankData, setEditingBankData: bankMgr.setEditingBankData,
-    newBank: bankMgr.newBank, setNewBank: bankMgr.setNewBank,
-    handleAddBank: bankMgr.handleAddBank,
-    handleDeleteBank: bankMgr.handleDeleteBank,
-    handleSetDefaultBank: bankMgr.handleSetDefaultBank,
-    handleEditBank: bankMgr.handleEditBank,
-    handleCancelEdit: bankMgr.handleCancelEdit,
-    handleUpdateBank: bankMgr.handleUpdateBank,
-    handleBankSelect: bankMgr.handleBankSelect,
+    // Tài khoản ngân hàng (finance_bank_accounts)
+    bankAccounts, selectReceivingAccount, selectBillingEntity,
     // Studio manager (sub-hook)
     studios: studioMgr.studios,
     showStudioManager: studioMgr.showStudioManager, setShowStudioManager: studioMgr.setShowStudioManager,
