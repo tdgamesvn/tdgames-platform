@@ -43,7 +43,9 @@ export function useAttendanceState(initialTab?: string | null) {
         svc.fetchRequests(),
         svc.fetchEmployeeShifts(),
       ]);
-      if (results[0].status === 'fulfilled') setEmployees(results[0].value.filter((e: HrEmployee) => e.type === 'fulltime' || e.type === 'parttime'));
+      // Chỉ nhân viên đang làm việc + không bị loại khỏi bảng lương mới hiện trong chấm công
+      if (results[0].status === 'fulfilled') setEmployees(results[0].value.filter((e: HrEmployee) =>
+        (e.type === 'fulltime' || e.type === 'parttime') && e.status === 'active' && !e.exclude_from_payroll));
       if (results[1].status === 'fulfilled') setShifts(results[1].value);
       if (results[2].status === 'fulfilled') setRecords(results[2].value);
       if (results[3].status === 'fulfilled') setRequests(results[3].value);

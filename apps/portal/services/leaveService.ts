@@ -5,9 +5,10 @@ import { LeaveBalance, AttRequest } from '@/types';
 // ── Leave Balance (read-only) ─────────────────────────────
 // ══════════════════════════════════════════════════════════
 // accrued_days is owned by the DB (trigger auto_create_leave_balance +
-// monthly cron refresh_leave_balances): +1 day per completed month since
-// official_date (fallback probation_end+1), quarter=0, reset every year
-// — NO carry-over to next year. See migration 20260707170000. Frontend
+// daily cron refresh_leave_balances): +1 day per calendar month where the
+// employee has been official for >= 50% of that month's days (counted from
+// official_date, fallback probation_end+1), quarter=0, reset every year
+// — NO carry-over to next year. See migration 20260803100000. Frontend
 // only reads; it must not calculate or write accrual anymore.
 
 export async function fetchYearlyBalance(employeeId: string, year: number): Promise<LeaveBalance | null> {
