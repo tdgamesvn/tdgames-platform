@@ -24,6 +24,7 @@ import HandbookApp from './apps/handbook/components/HandbookApp';
 import { supabase } from './services/supabaseClient';
 import { ExchangeRateProvider } from './services/ExchangeRateContext';
 import { hasRole, hasAnyRole } from './utils/roleUtils';
+import { APPS } from './config/apps';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { checkOnboardingNeeded } from './apps/handbook/services/handbookService';
 
@@ -217,6 +218,19 @@ const App: React.FC = () => {
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
+
+  // Guard phân quyền cho hash router. Trước đây parseHash chỉ check tên app có
+  // trong VALID_APPS — gõ tay #payroll là member vào thẳng app Tính lương của
+  // admin. RLS vẫn chặn dữ liệu, nhưng UI hiện nhầm app => nhân viên tưởng
+  // mình đang ở Portal và không bao giờ thấy modal xác nhận phiếu lương.
+  // ponytail: dùng lại APPS.roles trong config/apps.ts, không định nghĩa bảng quyền thứ 2.
+  useEffect(() => {
+    if (!currentUser || !activeApp) return;
+    const cfg = APPS.find(a => a.id === activeApp);
+    if (cfg?.roles && !hasAnyRole(currentUser, cfg.roles)) {
+      setActiveApp(null); // đá về HomeScreen — chỉ thấy app mình có quyền
+    }
+  }, [activeApp, currentUser, setActiveApp]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
