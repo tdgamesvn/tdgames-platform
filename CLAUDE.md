@@ -169,6 +169,18 @@ Tóm tắt nhanh:
 
 ---
 
+## ⚠️ Role chỉ có hiệu lực sau khi đăng nhập lại
+
+`currentUser` build từ `session.user.user_metadata` (JWT cache ở localStorage), **không query DB**.
+Đổi/gỡ role trong DB → session đang mở của user đó vẫn giữ role cũ tới khi token refresh (~1h)
+hoặc họ đăng xuất. **Đổi role xong phải báo user đăng xuất/đăng nhập lại.**
+
+Guard hash router trong `App.tsx` đọc cùng nguồn đó → chặn được người *chưa từng có quyền*,
+KHÔNG chặn được người *vừa bị gỡ quyền mà chưa đăng xuất*. Bảo mật thật nằm ở **RLS**, không
+phải ở guard client. Chi tiết: `.agent/meta/DECISIONS.md` (2026-08-03).
+
+---
+
 ## 📋 Multi-role Support
 
 Users có thể có `primary role` + `secondary_roles[]`.
