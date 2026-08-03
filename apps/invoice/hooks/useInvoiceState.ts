@@ -138,7 +138,9 @@ export function useInvoiceState(initialTab?: string | null) {
     } else if (activeTab === 'dashboard' || activeTab === 'aging') {
       loadHistory();
     }
-  }, [activeTab]);
+    // Đổi sổ → hoá đơn đang soạn theo pháp nhân sổ mới
+    setInvoice(prev => (prev.id ? prev : { ...prev, billing_entity: workspace }));
+  }, [activeTab, workspace]);
 
   // ── Realtime Subscription (P3-1) ──
   const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);

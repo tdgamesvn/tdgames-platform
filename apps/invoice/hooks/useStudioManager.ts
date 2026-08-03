@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { StudioInfo, StudioRecord } from '@/types';
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   fetchStudiosFromCloud,
   saveStudioToCloud,
@@ -13,7 +14,10 @@ type Notify = (msg: string, type?: 'success' | 'warning' | 'error') => void;
 const EMPTY_STUDIO: StudioInfo = { name: '', address: '', email: '', taxCode: '' };
 
 export function useStudioManager(notify: Notify, applyStudioToInvoice: (info: StudioInfo) => void) {
-  const [studios, setStudios] = useState<StudioRecord[]>([]);
+  const [allStudios, setStudios] = useState<StudioRecord[]>([]);
+  const { workspace } = useWorkspace();
+  // ponytail: filter theo sổ tại 1 điểm chung — dropdown + manager + default đều ăn theo
+  const studios = allStudios.filter(s => matchesWorkspace(s.entity, workspace));
   const [showStudioManager, setShowStudioManager] = useState(false);
   const [editingStudioId, setEditingStudioId] = useState<string | null>(null);
   const [editingStudioData, setEditingStudioData] = useState<StudioInfo | null>(null);
@@ -23,8 +27,8 @@ export function useStudioManager(notify: Notify, applyStudioToInvoice: (info: St
   const loadStudios = useCallback(async () => {
     const data = await fetchStudiosFromCloud();
     setStudios(data);
-    return data;
-  }, []);
+    return data.filter(s => matchesWorkspace(s.entity, workspace));
+  }, [workspace]);
 
   const handleAddStudio = async () => {
     if (!newStudio.name) {
@@ -50,7 +54,7 @@ export function useStudioManager(notify: Notify, applyStudioToInvoice: (info: St
       const updated = await loadStudios();
       const def = updated.find(s => s.id === id);
       if (def) {
-        const { id: _i, isDefault: _d, ...info } = def;
+        const { id: _i, isDefault: _d, entity: _e, ...info } = def;
         applyStudioToInvoice(info);
       }
       notify('Default studio set!', 'success');
@@ -75,7 +79,7 @@ export function useStudioManager(notify: Notify, applyStudioToInvoice: (info: St
 
   const handleEditStudio = (s: StudioRecord) => {
     setEditingStudioId(s.id);
-    const { id, isDefault, ...info } = s;
+    const { id, isDefault, entity, ...info } = s;
     setEditingStudioData(info);
   };
 

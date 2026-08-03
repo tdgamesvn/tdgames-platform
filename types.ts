@@ -44,6 +44,7 @@ export interface StudioInfo {
 export interface StudioRecord extends StudioInfo {
   id: string;
   isDefault: boolean;
+  entity?: string;
 }
 
 export interface InvoiceData {

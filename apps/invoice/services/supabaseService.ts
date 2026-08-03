@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabaseClient';
 import { InvoiceData, BankingInfo, ClientInfo, ClientRecord, StudioInfo, StudioRecord, AccountUser } from '@/types';
+import { getWorkspace } from '@/services/WorkspaceContext';
 
 export interface SaveResponse {
     success: boolean;
@@ -277,6 +278,7 @@ export const saveBankToCloud = async (bank: BankingInfo): Promise<SaveResponse> 
             citad_code: bank.citadCode,
             swift_code: bank.swiftCode,
             is_default: false,
+            entity: getWorkspace(),
         })
         .select()
         .single();
@@ -284,7 +286,7 @@ export const saveBankToCloud = async (bank: BankingInfo): Promise<SaveResponse> 
     return { success: true, id: data.id };
 };
 
-export const fetchBanksFromCloud = async (): Promise<(BankingInfo & { id: string; isDefault: boolean })[]> => {
+export const fetchBanksFromCloud = async (): Promise<(BankingInfo & { id: string; isDefault: boolean; entity: string })[]> => {
     const { data, error } = await supabase
         .from('invoice_banks')
         .select('*')
@@ -301,6 +303,7 @@ export const fetchBanksFromCloud = async (): Promise<(BankingInfo & { id: string
         citadCode: b.citad_code || '',
         swiftCode: b.swift_code || '',
         isDefault: b.is_default === true,
+        entity: b.entity || 'TD GAMES',
     }));
 };
 
@@ -323,7 +326,7 @@ export const updateBankInCloud = async (id: string, bank: BankingInfo): Promise<
 
 export const setDefaultBankInCloud = async (
     targetId: string,
-    allBanks: (BankingInfo & { id: string; isDefault: boolean })[]
+    allBanks: (BankingInfo & { id: string; isDefault: boolean; entity: string })[]
 ): Promise<void> => {
     // Clear all defaults first
     const clearOps = allBanks
@@ -364,6 +367,7 @@ export const fetchStudiosFromCloud = async (): Promise<StudioRecord[]> => {
         email: s.email || '',
         taxCode: s.tax_code || '',
         isDefault: s.is_default === true,
+        entity: s.entity || 'TD GAMES',
     }));
 };
 
@@ -376,11 +380,12 @@ export const saveStudioToCloud = async (studio: StudioInfo): Promise<StudioRecor
             email: studio.email,
             tax_code: studio.taxCode,
             is_default: false,
+            entity: getWorkspace(),
         })
         .select()
         .single();
     if (error) throw new Error(`Save studio failed: ${error.message}`);
-    return { ...studio, id: data.id, isDefault: false };
+    return { ...studio, id: data.id, isDefault: false, entity: getWorkspace() };
 };
 
 export const updateStudioInCloud = async (id: string, studio: StudioInfo): Promise<void> => {
@@ -401,9 +406,11 @@ export const setDefaultStudioInCloud = async (
     _allStudios?: StudioRecord[]
 ): Promise<void> => {
     // Fetch fresh data
+    // ponytail: chỉ clear default trong cùng sổ — mỗi sổ giữ default riêng
     const { data: freshStudios } = await supabase
         .from('invoice_studios')
-        .select('id, is_default');
+        .select('id, is_default')
+        .eq('entity', getWorkspace());
     const clearOps = (freshStudios || [])
         .filter((s: any) => s.is_default && s.id !== targetId)
         .map((s: any) => supabase.from('invoice_studios').update({ is_default: false }).eq('id', s.id));

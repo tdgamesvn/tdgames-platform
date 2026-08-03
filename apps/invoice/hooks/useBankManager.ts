@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { BankingInfo } from '@/types';
+import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   saveBankToCloud,
   fetchBanksFromCloud,
@@ -8,7 +9,7 @@ import {
   setDefaultBankInCloud,
 } from '../services/supabaseService';
 
-type BankRecord = BankingInfo & { id: string; isDefault: boolean };
+type BankRecord = BankingInfo & { id: string; isDefault: boolean; entity: string };
 type Notify = (msg: string, type?: 'success' | 'warning' | 'error') => void;
 
 const EMPTY_BANK: BankingInfo = {
@@ -17,7 +18,10 @@ const EMPTY_BANK: BankingInfo = {
 };
 
 export function useBankManager(notify: Notify, applyBankToInvoice: (info: BankingInfo) => void) {
-  const [banks, setBanks] = useState<BankRecord[]>([]);
+  const [allBanks, setBanks] = useState<BankRecord[]>([]);
+  const { workspace } = useWorkspace();
+  // ponytail: filter theo sổ tại 1 điểm chung — dropdown + manager + default đều ăn theo
+  const banks = allBanks.filter(b => matchesWorkspace(b.entity, workspace));
   const [showBankManager, setShowBankManager] = useState(false);
   const [editingBankId, setEditingBankId] = useState<string | null>(null);
   const [editingBankData, setEditingBankData] = useState<BankingInfo | null>(null);
@@ -27,15 +31,16 @@ export function useBankManager(notify: Notify, applyBankToInvoice: (info: Bankin
   const loadBanks = useCallback(async (autoApplyDefault = false) => {
     const data = await fetchBanksFromCloud();
     setBanks(data);
+    const inBook = data.filter(b => matchesWorkspace(b.entity, workspace));
     if (autoApplyDefault) {
-      const def = data.find(b => b.isDefault);
+      const def = inBook.find(b => b.isDefault);
       if (def) {
-        const { id, isDefault, ...info } = def;
+        const { id, isDefault, entity, ...info } = def;
         applyBankToInvoice(info);
       }
     }
-    return data;
-  }, [applyBankToInvoice]);
+    return inBook;
+  }, [applyBankToInvoice, workspace]);
 
   const handleAddBank = async () => {
     if (!newBank.accountName || !newBank.accountNumber || !newBank.alias) {
@@ -73,7 +78,7 @@ export function useBankManager(notify: Notify, applyBankToInvoice: (info: Bankin
       setBanks(updated);
       const def = updated.find(b => b.id === id);
       if (def) {
-        const { id: _i, isDefault: _d, ...info } = def;
+        const { id: _i, isDefault: _d, entity: _e, ...info } = def;
         applyBankToInvoice(info);
       }
       notify('Default account set!', 'success');
@@ -84,7 +89,7 @@ export function useBankManager(notify: Notify, applyBankToInvoice: (info: Bankin
 
   const handleEditBank = (bank: BankRecord) => {
     setEditingBankId(bank.id);
-    const { id, isDefault, ...info } = bank;
+    const { id, isDefault, entity, ...info } = bank;
     setEditingBankData(info);
   };
 
@@ -114,7 +119,7 @@ export function useBankManager(notify: Notify, applyBankToInvoice: (info: Bankin
     if (!bankId) return;
     const selected = banks.find(b => b.id === bankId);
     if (selected) {
-      const { id, isDefault, ...info } = selected;
+      const { id, isDefault, entity, ...info } = selected;
       applyBankToInvoice(info);
     }
   };
