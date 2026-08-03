@@ -84,6 +84,10 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
   const [expandedPayslipId, setExpandedPayslipId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<AttendanceWithSheet[]>([]);
   const [dailyRecords, setDailyRecords] = useState<AttRecord[]>([]);
+  const [attMonth, setAttMonth] = useState(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   /** undefined = đang tải hồ sơ; null = không có employee_id hoặc lỗi */
@@ -151,9 +155,12 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
   useEffect(() => {
     if (activeTab === 'attendance' && currentUser.employee_id) {
       setIsLoading(true);
-      const now = new Date();
-      const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const to = now.toISOString().split('T')[0];
+      // Trước đây hard-code tháng hiện tại => xem phiếu lương tháng cũ thì không có
+      // đường nào tra lại ngày công của đúng tháng đó.
+      const [y, m] = attMonth.split('-').map(Number);
+      const from = `${attMonth}-01`;
+      // Không dùng toISOString() — GMT+7 sẽ lùi về ngày hôm trước, mất ngày cuối tháng.
+      const to = `${attMonth}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
       Promise.all([
         fetchMyAttendance(currentUser.employee_id),
         fetchMyRecordsByRange(currentUser.employee_id, from, to),
@@ -165,7 +172,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
         .catch(() => { setAttendance([]); setDailyRecords([]); })
         .finally(() => setIsLoading(false));
     }
-  }, [activeTab, currentUser.employee_id]);
+  }, [activeTab, currentUser.employee_id, attMonth]);
 
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -308,8 +315,14 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
 
                         {isExpanded && (
                           <div style={{ padding: '16px 24px' }}>
-                            <p style={{ fontSize: '11px', color: '#666', marginBottom: '12px' }}>Ngày công: {ps.work_days || 0}/{STANDARD_DAYS} (tỷ lệ: {(ratio * 100).toFixed(1)}%)</p>
-                            <PayslipDetailSection ps={ps} standardDays={STANDARD_DAYS} />
+                            <PayslipDetailSection
+                              ps={ps}
+                              standardDays={STANDARD_DAYS}
+                              onViewAttendance={sheet.month && sheet.year ? () => {
+                                setAttMonth(`${sheet.year}-${String(sheet.month).padStart(2, '0')}`);
+                                setActiveTab('attendance');
+                              } : undefined}
+                            />
                           </div>
                         )}
                       </div>
@@ -348,14 +361,27 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
 
                   {/* Daily History — this month */}
                   <div style={{ marginBottom: '24px' }}>
-                    <p style={{ fontSize: '12px', fontWeight: 900, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-                      📅 Lịch sử tháng này
-                    </p>
+                    <div className="flex items-center justify-between gap-3 flex-wrap" style={{ marginBottom: '12px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 900, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                        📅 Lịch sử chấm công
+                      </p>
+                      {/* ponytail: input type=month native — không thêm date-picker lib */}
+                      <input
+                        type="month"
+                        value={attMonth}
+                        onChange={e => e.target.value && setAttMonth(e.target.value)}
+                        style={{
+                          background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '8px', padding: '6px 10px', color: '#F5F5F5',
+                          fontSize: '12px', fontWeight: 700, colorScheme: 'dark',
+                        }}
+                      />
+                    </div>
                     {isLoading ? (
                       <p className="animate-pulse" style={{ color: '#666', fontSize: '13px', textAlign: 'center', padding: '24px' }}>Đang tải...</p>
                     ) : dailyRecords.length === 0 ? (
                       <div style={{ textAlign: 'center', padding: '32px', background: '#161616', borderRadius: '12px', border: '1px solid #222' }}>
-                        <p style={{ color: '#666', fontSize: '13px' }}>Chưa có dữ liệu chấm công tháng này</p>
+                        <p style={{ color: '#666', fontSize: '13px' }}>Chưa có dữ liệu chấm công tháng {attMonth.split('-')[1]}/{attMonth.split('-')[0]}</p>
                       </div>
                     ) : (
                       <div style={{ background: '#161616', border: '1px solid #222', borderRadius: '12px', overflow: 'hidden' }}>

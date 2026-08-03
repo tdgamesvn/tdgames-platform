@@ -7,6 +7,8 @@ interface Props {
   ps: PayslipWithSheet;
   /** Ngày công tiêu chuẩn — ưu tiên sheet.standard_work_days, fallback 22 */
   standardDays?: number;
+  /** Có truyền → hiện nút mở tab Chấm công đúng tháng của phiếu. Modal xác nhận không truyền. */
+  onViewAttendance?: () => void;
 }
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
@@ -25,7 +27,7 @@ const actValCls = 'w-[64px] sm:w-[96px] text-right text-[12px] sm:text-[14px] fo
  * Dùng chung cho tab "Bảng lương của tôi" và modal xác nhận bắt buộc —
  * nhân viên PHẢI thấy đủ chi tiết để đối chiếu đúng/sai trước khi xác nhận.
  */
-const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays }) => {
+const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays, onViewAttendance }) => {
   const STANDARD_DAYS = standardDays ?? ps.sheet?.standard_work_days ?? 22;
   const ratio = (ps.work_days || 0) / STANDARD_DAYS;
 
@@ -38,6 +40,37 @@ const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 md:gap-x-10 gap-y-5 md:gap-y-6">
+      {/* ── Ngày công — nhân viên phải thấy CÁI NÀY TRƯỚC, vì mọi con số bên dưới
+             đều là "khoản cố định × tỷ lệ này". Trước đây nó là dòng 11px màu #666
+             nằm ngoài component => nhân viên không thấy, không tự đối chiếu được. ── */}
+      <div className="md:col-span-2 rounded-xl px-4 py-3 sm:px-5 sm:py-4"
+        style={{ background: 'rgba(6,182,212,0.07)', border: '1px solid rgba(6,182,212,0.25)' }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <p className="m-0 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#06B6D4]">
+              📅 Ngày công tháng này
+            </p>
+            <p className="m-0 mt-1 text-[18px] sm:text-[22px] font-black text-[#F5F5F5]">
+              {ps.work_days || 0} <span className="text-[#666] font-bold">/ {STANDARD_DAYS} ngày chuẩn</span>
+              <span className="ml-2 text-[#06B6D4]">= {(ratio * 100).toFixed(1)}%</span>
+            </p>
+          </div>
+          {onViewAttendance && (
+            <button onClick={onViewAttendance}
+              className="text-[11px] sm:text-[12px] font-bold text-[#06B6D4] hover:text-white transition-colors rounded-lg px-3 py-2"
+              style={{ background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.25)' }}>
+              Xem chi tiết chấm công →
+            </button>
+          )}
+        </div>
+        <p className="m-0 mt-2 text-[11px] sm:text-[13px] leading-relaxed text-white/50">
+          Lương cơ bản và các phụ cấp cố định đều được nhân với tỷ lệ này.
+          Ví dụ: <span className="text-white/75 font-semibold">
+            {fmt(effectiveBase)} × {ps.work_days || 0}/{STANDARD_DAYS} = {fmt(Math.round(effectiveBase * ratio))} ₫
+          </span>
+        </p>
+      </div>
+
       {/* ── Cột trái: Lương thực tế ── */}
       <div>
         <p className="text-[11px] sm:text-[13px] font-black text-[#06B6D4] tracking-widest uppercase mb-2">
@@ -48,7 +81,9 @@ const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays }) => {
           <span className="text-[9px] sm:text-[10px] font-extrabold text-[#666] uppercase tracking-wider">Khoản mục</span>
           <div className={valWrapCls}>
             <span className={`hidden sm:inline-block w-[64px] sm:w-[96px] text-right text-[9px] sm:text-[10px] font-extrabold text-[#666] uppercase tracking-wider`}>Tham chiếu</span>
-            <span className="w-[64px] sm:w-[96px] text-right text-[9px] sm:text-[10px] font-extrabold text-[#666] uppercase tracking-wider">Thực tế</span>
+            <span className="w-[64px] sm:w-[96px] text-right text-[9px] sm:text-[10px] font-extrabold text-[#06B6D4] uppercase tracking-wider">
+              Thực tế<br /><span className="text-[8px] sm:text-[9px] text-[#666] normal-case">×{ps.work_days || 0}/{STANDARD_DAYS}</span>
+            </span>
           </div>
         </div>
 
