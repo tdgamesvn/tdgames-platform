@@ -13,17 +13,14 @@ type DepartmentLite = Pick<HrDepartment, 'id' | 'name'>;
 type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
 type AttendanceWithSheet = AttMonthlyRecord & { sheet?: AttMonthlySheet };
 
-// Fetch all employees for directory (public info only)
+// Fetch all employees for directory (public info only).
+// Đọc từ view `hr_employee_directory` — không có cột lương, và view đã lọc sẵn
+// active/fulltime-parttime/không ẩn. Bảng gốc `hr_employees` giờ chỉ cho đọc
+// dòng của chính mình (migration 20260807110000).
 export async function fetchEmployeeDirectory(): Promise<DirectoryEmployee[]> {
   const { data, error } = await supabase
-    .from('hr_employees')
-    .select(`
-      id, full_name, email, work_email, phone, position, avatar_url, status, type,
-      department_id, date_of_birth, address
-    `)
-    .eq('status', 'active')
-    .in('type', ['fulltime', 'parttime'])
-    .neq('is_hidden', true)
+    .from('hr_employee_directory')
+    .select('*')
     .order('full_name');
   if (error) throw error;
   return (data as DirectoryEmployee[]) || [];
