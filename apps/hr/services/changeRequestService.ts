@@ -200,34 +200,24 @@ export async function directSalaryAdjust(
 // ── Auto-apply (private) ─────────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-/** Close old salary record and insert new one for a component */
+/**
+ * Đóng dòng lương cũ + mở dòng mới cho 1 component.
+ * ponytail: qua RPC SECURITY DEFINER chứ không đọc/ghi bảng trực tiếp — role `hr`
+ * duyệt được đơn nhưng KHÔNG có quyền trên hr_employee_salary
+ * (migration 20260807100000). Đây cũng là 1 round-trip thay vì 3.
+ */
 async function rotateSalary(
   empId: string, componentId: string, newAmount: number,
   effectiveFrom: string, note: string,
 ): Promise<void> {
-  // Close the currently-active record (effective_to = null) for this component
-  const { data: existing } = await supabase
-    .from('hr_employee_salary')
-    .select('id')
-    .eq('employee_id', empId)
-    .eq('component_id', componentId)
-    .is('effective_to', null);
-  if (existing?.length) {
-    for (const old of existing) {
-      await supabase
-        .from('hr_employee_salary')
-        .update({ effective_to: effectiveFrom })
-        .eq('id', old.id);
-    }
-  }
-  // Insert new active record
-  if (newAmount > 0) {
-    await hrSvc.saveEmployeeSalary({
-      employee_id: empId, component_id: componentId,
-      amount: newAmount, note,
-      effective_from: effectiveFrom, effective_to: null,
-    });
-  }
+  const { error } = await supabase.rpc('hr_rotate_salary', {
+    p_employee_id: empId,
+    p_component_id: componentId,
+    p_amount: newAmount,
+    p_effective_from: effectiveFrom,
+    p_note: note,
+  });
+  if (error) throw error;
 }
 
 async function applyChanges(req: HrChangeRequest): Promise<void> {

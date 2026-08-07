@@ -558,7 +558,8 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
             </div>
             <div className="flex flex-col items-end gap-2">
               <div className="flex gap-2">
-                {(employee.type === 'fulltime' || employee.type === 'freelancer') && (
+                {/* ponytail: hợp đồng in cả bảng lương/rate → hr thuần không được mở. */}
+                {!isHrOnly && (employee.type === 'fulltime' || employee.type === 'freelancer') && (
                   <button onClick={() => setShowContractGen(true)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80" style={{ background: employee.type === 'freelancer' ? 'linear-gradient(135deg, #0A84FF 0%, #5E5CE6 100%)' : 'linear-gradient(135deg, #34C759 0%, #30D158 100%)' }}>📝 Xuất hợp đồng</button>
                 )}
                 <button onClick={() => onEdit(employee)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80" style={{ background: 'linear-gradient(135deg, #FF375F 0%, #FF6B81 100%)' }}>✏️ Sửa</button>
@@ -1287,7 +1288,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       )}
 
       {/* Contract Generator Modal - New contract */}
-      {showContractGen && (
+      {showContractGen && !isHrOnly && (
         <ContractGenerator
           employee={employee}
           department={departments.find(d => d.id === employee.department_id)}
@@ -1297,7 +1298,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       )}
 
       {/* Contract Generator Modal - View/Export existing contract */}
-      {viewingContract && (
+      {viewingContract && !isHrOnly && (
         <ContractGenerator
           employee={employee}
           department={departments.find(d => d.id === employee.department_id)}

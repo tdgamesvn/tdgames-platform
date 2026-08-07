@@ -119,6 +119,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
         {state.activeTab === 'employeeForm' && (
           <EmployeeForm
             editingEmployee={state.editingEmployee}
+            currentUser={currentUser}
             departments={state.departments}
             contracts={state.contracts}
             loadContracts={state.loadContracts}

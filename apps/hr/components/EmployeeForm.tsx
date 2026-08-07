@@ -4,9 +4,12 @@ import { uploadFileToR2, toPublicUrl } from '../services/hrService';
 import * as svc from '../services/hrService';
 import { supabase } from '@/services/supabaseClient';
 import ChangeRequestForm from './ChangeRequestForm';
+import { hasRole } from '@/utils/roleUtils';
+import { AccountUser } from '@/types';
 
 interface Props {
   editingEmployee: HrEmployee | null;
+  currentUser: AccountUser;
   departments: HrDepartment[];
   contracts: HrContract[];
   loadContracts: (employeeId: string) => void;
@@ -67,10 +70,12 @@ const emptyContract: Omit<HrContract, 'id' | 'created_at'> = {
 };
 
 const EmployeeForm: React.FC<Props> = ({
-  editingEmployee, departments, contracts, loadContracts,
+  editingEmployee, currentUser, departments, contracts, loadContracts,
   onSave, onUpdate, onCancel,
   onSaveContract, onUpdateContract, onDeleteContract,
 }) => {
+  // Cùng quy ước với EmployeeDetail: hr thuần (không kiêm admin) không được xem lương.
+  const isHrOnly = hasRole(currentUser, 'hr') && !hasRole(currentUser, 'admin');
   const [form, setForm] = useState<typeof emptyEmployee>(emptyEmployee);
   const [tagInput, setTagInput] = useState('');
   const [contractForm, setContractForm] = useState(emptyContract);
@@ -276,13 +281,15 @@ const EmployeeForm: React.FC<Props> = ({
 
     setSaving(true);
     try {
-      // Calculate total gross from salary components
+      // Calculate total gross from salary components.
+      // ponytail: hr thuần không đọc được hr_employee_salary (RLS) → salaryAmounts
+      // luôn rỗng → totalGross = 0. Đè số đó lên employee.salary là xoá lương thật.
       const totalGross = (Object.values(salaryAmounts) as number[]).reduce((s, v) => s + (v || 0), 0);
-      const formWithSalary = { ...form, salary: totalGross };
+      const formWithSalary = isHrOnly ? { ...form } : { ...form, salary: totalGross };
 
       if (isEdit) {
         // Upsert salary records first
-        for (const comp of salaryComponents) {
+        for (const comp of isHrOnly ? [] : salaryComponents) {
           const amt = salaryAmounts[comp.id] || 0;
           const existingId = existingSalaryIds[comp.id];
           try {
@@ -301,7 +308,7 @@ const EmployeeForm: React.FC<Props> = ({
         onUpdate(editingEmployee!.id, formWithSalary);
       } else {
         // For new employee, pass salary amounts so parent can save after employee is created
-        (formWithSalary as any)._salaryAmounts = salaryAmounts;
+        if (!isHrOnly) (formWithSalary as any)._salaryAmounts = salaryAmounts;
         onSave(formWithSalary);
       }
     } finally {
@@ -694,7 +701,7 @@ const EmployeeForm: React.FC<Props> = ({
         )}
 
         {/* ── Section: Salary Structure (Fulltime/Parttime only) ── */}
-        {(form.type === 'fulltime' || form.type === 'parttime') && (
+        {!isHrOnly && (form.type === 'fulltime' || form.type === 'parttime') && (
           <div className={sectionCls}>
             <h3 className="text-lg font-black text-white uppercase tracking-tight">💰 Cấu trúc lương</h3>
             {loadingSalary ? (
@@ -954,7 +961,7 @@ const EmployeeForm: React.FC<Props> = ({
                   <option value="per_task">Per Task</option>
                 </select>
               </div>
-              <div>
+              <div className={isHrOnly ? 'hidden' : ''}>
                 <label className={labelCls}>Mức giá</label>
                 <div className="flex gap-2">
                   <input type="number" className={inputCls + " flex-1"} value={form.rate_amount} onChange={e => setForm(f => ({ ...f, rate_amount: +e.target.value }))} />

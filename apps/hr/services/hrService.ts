@@ -489,16 +489,14 @@ export async function fetchPositionHistory(employeeId: string): Promise<HrPositi
   return data || [];
 }
 
+// ponytail: không .select() lại sau insert — RLS cho hr GHI dòng change_type='salary'
+// nhưng không cho ĐỌC, nên select-after-insert sẽ trả 0 dòng và ném lỗi. Mọi caller
+// đều bỏ qua giá trị trả về.
 export async function addPositionChange(
   change: Omit<HrPositionHistory, 'id' | 'created_at'>
-): Promise<HrPositionHistory> {
-  const { data, error } = await supabase
-    .from('hr_position_history')
-    .insert(change)
-    .select()
-    .single();
+): Promise<void> {
+  const { error } = await supabase.from('hr_position_history').insert(change);
   if (error) throw error;
-  return data;
 }
 
 // ══════════════════════════════════════════════════════════════
