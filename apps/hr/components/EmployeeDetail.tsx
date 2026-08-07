@@ -673,7 +673,8 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
       <div className="flex gap-2">
         <button className={tabCls('info')} onClick={() => setActiveTab('info')}>📋 Thông tin</button>
         <button className={tabCls('tasks')} onClick={() => setActiveTab('tasks')}>🎯 Lịch sử Task ({wfTasks.length})</button>
-        <button className={tabCls('contracts')} onClick={() => setActiveTab('contracts')}>📄 Hợp đồng ({contracts.length})</button>
+        {/* HR không quản lý hợp đồng — RLS đã cắt quyền đọc, tab sẽ luôn rỗng */}
+        {!isHrOnly && <button className={tabCls('contracts')} onClick={() => setActiveTab('contracts')}>📄 Hợp đồng ({contracts.length})</button>}
         {isOfficeStaffType && (
           <>
             <button className={tabCls('equipment')} onClick={() => setActiveTab('equipment')}>🧰 Bàn giao dụng cụ ({equipmentCount})</button>
@@ -959,7 +960,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
 
 
       {/* Contracts Tab */}
-      {!loading && activeTab === 'contracts' && (
+      {!loading && !isHrOnly && activeTab === 'contracts' && (
         <div className="space-y-4">
           <input
             ref={signedPdfInputRef}
