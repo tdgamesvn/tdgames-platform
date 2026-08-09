@@ -122,7 +122,13 @@ function flattenRate<T>(row: any): T {
 
 /** Ghi rate vào bảng con. Lỗi RLS (ke_toan không có quyền ghi) chỉ warn, không chặn save chính. */
 async function upsertRate(employeeId: string, f: any): Promise<void> {
-  if (!(Number(f.rate_amount) > 0)) return; // rate 0 = chưa set, khỏi tạo dòng rỗng
+  if (f.rate_amount === undefined) return; // payload không đụng tới rate → để nguyên
+  if (!(Number(f.rate_amount) > 0)) {
+    // 0 = admin xoá rate. Xoá hẳn dòng thay vì giữ giá trị cũ (và khỏi tạo dòng rỗng cho NV mới).
+    const { error } = await supabase.from('hr_employee_rate').delete().eq('employee_id', employeeId);
+    if (error) console.warn('[hr] delete rate failed:', error.message);
+    return;
+  }
   const { error } = await supabase.from('hr_employee_rate').upsert({
     employee_id: employeeId,
     rate_amount: Number(f.rate_amount),
