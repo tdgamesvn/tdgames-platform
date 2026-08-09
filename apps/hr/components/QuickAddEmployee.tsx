@@ -116,7 +116,6 @@ const QuickAddEmployee: React.FC<Props> = ({ departments, onSave, onCancel }) =>
 
       setSaving(true);
       try {
-        const totalGross = (Object.values(salaryAmounts) as number[]).reduce((s, v) => s + (v || 0), 0);
         const empData: any = {
           type: 'fulltime',
           status: 'active',
@@ -127,8 +126,6 @@ const QuickAddEmployee: React.FC<Props> = ({ departments, onSave, onCancel }) =>
           level: empForm.level,
           start_date: empForm.start_date,
           probation_end: empForm.probation_end,
-          salary: totalGross,
-          salary_currency: 'VND',
           email: '', phone: '', gender: '', nationality: 'Vietnam',
           address: '', temp_address: '',
           id_number: '', id_issue_date: null, id_issue_place: '',
@@ -182,7 +179,6 @@ const QuickAddEmployee: React.FC<Props> = ({ departments, onSave, onCancel }) =>
           payment_method: '', payment_details: {},
           bank_name: '', bank_account: '', bank_branch: '',
           notes: '', tags: [],
-          salary: 0, salary_currency: 'VND',
         };
         await onSave(flData);
       } catch {} finally { setSaving(false); }

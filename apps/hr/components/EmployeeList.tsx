@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { HrEmployee, HrDepartment } from '@/types';
+import { HrEmployee, HrDepartment, AccountUser } from '@/types';
+import { hasRole } from '@/utils/roleUtils';
 import { toPublicUrl, resendInvite, resetEmployeePassword } from '../services/hrService';
 
 interface Props {
+  currentUser: AccountUser;
   employees: HrEmployee[];
   departments: HrDepartment[];
   isLoading: boolean;
@@ -40,11 +42,12 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 const EmployeeList: React.FC<Props> = ({
-  employees, departments, isLoading, searchQuery, setSearchQuery,
+  currentUser, employees, departments, isLoading, searchQuery, setSearchQuery,
   filterType, setFilterType, filterStatus, setFilterStatus,
   filterDepartment, setFilterDepartment, totalCount,
   onView, onEdit, onDelete, onAdd, onQuickAdd, onSyncWorkforce, onRefresh, onToast, pendingReminders,
 }) => {
+  const isHrOnly = hasRole(currentUser, 'hr') && !hasRole(currentUser, 'admin');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // 'invite_ID' or 'reset_ID'
 
@@ -213,7 +216,7 @@ const EmployeeList: React.FC<Props> = ({
                     {emp.type === 'freelancer' && emp.specializations && emp.specializations.length > 0 && (
                       <p>🎨 {emp.specializations.join(', ')}</p>
                     )}
-                    {emp.type === 'freelancer' && emp.rate_amount && emp.rate_amount > 0 && (
+                    {!isHrOnly && emp.type === 'freelancer' && emp.rate_amount && emp.rate_amount > 0 && (
                       <p>💵 {emp.rate_amount.toLocaleString()} {emp.rate_currency}/{emp.rate_type}</p>
                     )}
                   </div>

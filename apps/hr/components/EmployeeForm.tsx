@@ -37,7 +37,6 @@ const emptyEmployee = {
   id_card_front_url: '', id_card_back_url: '',
   tax_code: '', insurance_number: '',
   department_id: null as string | null, position: '', level: '',
-  salary: 0, salary_currency: 'VND',
   start_date: null as string | null, probation_end: null as string | null, official_date: null as string | null,
   // FL
   portfolio_url: '', specializations: [] as string[], timezone: 'UTC+7',
@@ -226,8 +225,6 @@ const EmployeeForm: React.FC<Props> = ({
         department_id: editingEmployee.department_id,
         position: editingEmployee.position || '',
         level: editingEmployee.level || '',
-        salary: editingEmployee.salary || 0,
-        salary_currency: editingEmployee.salary_currency || 'VND',
         start_date: editingEmployee.start_date,
         probation_end: editingEmployee.probation_end,
         official_date: editingEmployee.official_date,
@@ -281,11 +278,9 @@ const EmployeeForm: React.FC<Props> = ({
 
     setSaving(true);
     try {
-      // Calculate total gross from salary components.
-      // ponytail: hr thuần không đọc được hr_employee_salary (RLS) → salaryAmounts
-      // luôn rỗng → totalGross = 0. Đè số đó lên employee.salary là xoá lương thật.
-      const totalGross = (Object.values(salaryAmounts) as number[]).reduce((s, v) => s + (v || 0), 0);
-      const formWithSalary = isHrOnly ? { ...form } : { ...form, salary: totalGross };
+      // ponytail: lương thật chỉ nằm ở hr_employee_salary (bảng đã khoá khỏi role hr).
+      // hr_employees không còn cột salary để cache.
+      const formWithSalary = { ...form };
 
       if (isEdit) {
         // Upsert salary records first

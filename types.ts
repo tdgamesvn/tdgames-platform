@@ -557,8 +557,6 @@ export interface HrEmployee {
   department?: HrDepartment;
   position: string;
   level: string;
-  salary: number;
-  salary_currency: string;
   start_date: string | null;
   probation_end: string | null;
   official_date: string | null;

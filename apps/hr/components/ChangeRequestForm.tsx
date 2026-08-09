@@ -141,7 +141,6 @@ const ChangeRequestForm: React.FC<Props> = ({
       level: emp.level,
       department_id: emp.department_id,
       department_name: emp.department?.name || departments.find(d => d.id === emp.department_id)?.name || '',
-      salary: emp.salary,
       official_date: emp.official_date,
       status: emp.status,
     };

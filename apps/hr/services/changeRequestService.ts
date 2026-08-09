@@ -90,11 +90,9 @@ export async function editApprovedSalary(
     await rotateSalary(empId, sc.component_id, sc.new_amount, effDate, 'Điều chỉnh lương (sửa đề xuất đã duyệt)');
   }
 
-  // 4. Update employee.salary with new total
   const newTotal = newSalaryComponents.reduce((s, x) => s + x.new_amount, 0);
-  await hrSvc.updateEmployee(empId, { salary: newTotal } as any);
 
-  // 5. Add position history for the adjustment
+  // 4. Add position history for the adjustment
   const prevTotal = (req.changes.salary_components || []).reduce((s: number, x: any) => s + (x.new_amount || 0), 0);
   await hrSvc.addPositionChange({
     employee_id: empId,
@@ -191,9 +189,6 @@ export async function directSalaryAdjust(
     effective_date: effectiveDate,
     reason: reason || 'Điều chỉnh lương trực tiếp',
   });
-
-  // 3. Update quick-access salary field on employee
-  await hrSvc.updateEmployee(empId, { salary: newTotal } as any);
 }
 
 // ══════════════════════════════════════════════════════════

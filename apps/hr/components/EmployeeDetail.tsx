@@ -834,7 +834,6 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
                 {infoPair('Phòng ban', dept?.name)}
                 {infoPair('Chức danh', employee.position)}
                 {infoPair('Cấp bậc', employee.level)}
-                {!isHrOnly && infoPair('Lương', employee.salary ? `${employee.salary.toLocaleString()} ${employee.salary_currency}` : '—')}
                 {infoPair('Ngày bắt đầu', employee.start_date)}
                 {infoPair('Hết thử việc', employee.probation_end)}
                 {infoPair('Ngày chính thức', employee.official_date)}

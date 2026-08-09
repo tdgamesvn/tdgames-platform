@@ -285,7 +285,7 @@ export function generateHDLD(
   contractNumber: string,
 ): string {
   const d = fmtDateParts(signingDate);
-  const baseSalary = getSalaryAmount(salaryComponents, 'base_salary') || employee.salary;
+  const baseSalary = getSalaryAmount(salaryComponents, 'base_salary');
   const lunch = getSalaryAmount(salaryComponents, 'lunch');
   const transport = getSalaryAmount(salaryComponents, 'transport');
   const phone = getSalaryAmount(salaryComponents, 'phone');
@@ -419,7 +419,7 @@ export function generateHDTV(
   contractNumber: string,
 ): string {
   const d = fmtDateParts(signingDate);
-  const baseSalary = getSalaryAmount(salaryComponents, 'base_salary') || employee.salary;
+  const baseSalary = getSalaryAmount(salaryComponents, 'base_salary');
   const lunch = getSalaryAmount(salaryComponents, 'lunch');
   const transport = getSalaryAmount(salaryComponents, 'transport');
   const phone = getSalaryAmount(salaryComponents, 'phone');

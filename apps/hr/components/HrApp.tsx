@@ -92,6 +92,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
         {state.activeTab === 'employees' && (
           <EmployeeList
+            currentUser={currentUser}
             employees={state.filteredEmployees}
             departments={state.departments}
             isLoading={state.isLoading}
