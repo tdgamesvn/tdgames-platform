@@ -103,13 +103,43 @@ async function enableAuthUser(email: string): Promise<void> {
 // ── Employees ─────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════
 
+// ── Rate freelancer: nguồn thật là hr_employee_rate (RLS admin/ke_toan), KHÔNG phải cột
+// trên hr_employees — RLS lọc dòng chứ không lọc cột nên để đó là HR đọc được qua API.
+// UI vẫn thấy emp.rate_* như cũ: đọc thì flatten từ embed, ghi thì tách ra upsert bảng con.
+// Role hr → embed trả null → rate_amount = 0 → UI đã gate !isHrOnly nên không hiện gì.
+const RATE_EMBED = 'hr_employee_rate(rate_amount, rate_currency, rate_type)';
+
+function flattenRate<T>(row: any): T {
+  const { hr_employee_rate, ...rest } = row || {};
+  const r = Array.isArray(hr_employee_rate) ? hr_employee_rate[0] : hr_employee_rate;
+  return {
+    ...rest,
+    rate_amount: r?.rate_amount ?? 0,
+    rate_currency: r?.rate_currency ?? 'USD',
+    rate_type: r?.rate_type ?? '',
+  } as T;
+}
+
+/** Ghi rate vào bảng con. Lỗi RLS (ke_toan không có quyền ghi) chỉ warn, không chặn save chính. */
+async function upsertRate(employeeId: string, f: any): Promise<void> {
+  if (!(Number(f.rate_amount) > 0)) return; // rate 0 = chưa set, khỏi tạo dòng rỗng
+  const { error } = await supabase.from('hr_employee_rate').upsert({
+    employee_id: employeeId,
+    rate_amount: Number(f.rate_amount),
+    rate_currency: f.rate_currency || 'USD',
+    rate_type: f.rate_type || '',
+    updated_at: new Date().toISOString(),
+  });
+  if (error) console.warn('[hr] upsert rate failed:', error.message);
+}
+
 export async function fetchEmployees(): Promise<HrEmployee[]> {
   const { data, error } = await supabase
     .from('hr_employees')
-    .select('*, department:hr_departments!hr_employees_department_id_fkey(*)')
+    .select(`*, department:hr_departments!hr_employees_department_id_fkey(*), ${RATE_EMBED}`)
     .order('full_name');
   if (error) throw error;
-  return data || [];
+  return (data || []).map(r => flattenRate<HrEmployee>(r));
 }
 
 // Lite version — chỉ load các field cần cho list/filter/search, giảm ~80% payload
@@ -117,9 +147,10 @@ const EMPLOYEE_LITE_SELECT = [
   'id', 'employee_code', 'full_name', 'type', 'status', 'position', 'level',
   'department_id', 'avatar_url', 'email', 'phone', 'work_email',
   'start_date', 'worker_id', 'exclude_from_payroll', 'is_hidden', 'entity',
-  'specializations', 'tags', 'rate_amount', 'rate_currency', 'rate_type',
+  'specializations', 'tags',
   'probation_end', 'official_date',
   'department:hr_departments!hr_employees_department_id_fkey(id, name)',
+  RATE_EMBED,
 ].join(', ');
 
 export async function fetchEmployeesLite(): Promise<HrEmployee[]> {
@@ -128,25 +159,25 @@ export async function fetchEmployeesLite(): Promise<HrEmployee[]> {
     .select(EMPLOYEE_LITE_SELECT)
     .order('full_name');
   if (error) throw error;
-  return (data || []) as HrEmployee[];
+  return (data || []).map(r => flattenRate<HrEmployee>(r));
 }
 
 // Full detail — chỉ gọi khi user click vào 1 nhân viên cụ thể
 export async function fetchEmployeeDetail(id: string): Promise<HrEmployee> {
   const { data, error } = await supabase
     .from('hr_employees')
-    .select('*, department:hr_departments!hr_employees_department_id_fkey(*)')
+    .select(`*, department:hr_departments!hr_employees_department_id_fkey(*), ${RATE_EMBED}`)
     .eq('id', id)
     .single();
   if (error) throw error;
-  return data as HrEmployee;
+  return flattenRate<HrEmployee>(data);
 }
 
 export async function saveEmployee(
   emp: Omit<HrEmployee, 'id' | 'employee_code' | 'created_at' | 'updated_at' | 'department'>
 ): Promise<HrEmployee> {
-  // Extract _role and _salaryAmounts before DB insert (these are not DB columns)
-  const { _role, _salaryAmounts, ...dbFields } = emp as any;
+  // Extract _role, _salaryAmounts + rate_* before DB insert (these are not columns of hr_employees)
+  const { _role, _salaryAmounts, rate_amount, rate_currency, rate_type, ...dbFields } = emp as any;
 
   const { data, error } = await supabase
     .from('hr_employees')
@@ -154,6 +185,8 @@ export async function saveEmployee(
     .select('*, department:hr_departments!hr_employees_department_id_fkey(*)')
     .single();
   if (error) throw error;
+
+  await upsertRate(data.id, { rate_amount, rate_currency, rate_type });
 
   // Auto-create Supabase Auth account for fulltime/parttime employees using work_email
   if (data.work_email && (data.type === 'fulltime' || data.type === 'parttime')) {
@@ -237,12 +270,14 @@ export async function saveEmployee(
 }
 
 export async function updateEmployee(id: string, updates: Partial<HrEmployee>): Promise<void> {
-  const { department, ...clean } = updates as any;
+  const { department, rate_amount, rate_currency, rate_type, ...clean } = updates as any;
   const { error } = await supabase
     .from('hr_employees')
     .update({ ...clean, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
+
+  await upsertRate(id, { rate_amount, rate_currency, rate_type });
 
   // Auto-sync to Workforce module (non-blocking)
   supabase.from('hr_employees').select('*').eq('id', id).single().then(({ data }) => {
