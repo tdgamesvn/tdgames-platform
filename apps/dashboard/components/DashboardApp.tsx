@@ -36,11 +36,13 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
   // Hợp nhất chỉ tồn tại ở Dashboard — toggle local, không đụng switcher navbar
   const [consolidated, setConsolidated] = useState(false);
 
+  const [err, setErr] = useState<string | null>(null);
+
   const load = () => {
     setLoading(true);
     fetchCeoDashboard(selMonth, selYear, consolidated ? 'all' : workspace)
-      .then(setData)
-      .catch(console.error)
+      .then(d => { setData(d); setErr(null); })
+      .catch(e => { console.error(e); setErr(e.message || 'Lỗi tải dashboard'); })
       .finally(() => setLoading(false));
   };
 
@@ -96,6 +98,13 @@ const DashboardApp: React.FC<Props> = ({ currentUser, onBack }) => {
             <button onClick={load} className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition text-sm">🔄</button>
           </div>
         </div>
+
+        {err && (
+          <div className="mb-4 bg-surface border border-red-500/30 rounded-xl px-4 py-3">
+            <div className="text-[10px] font-black text-red-400 uppercase tracking-wider">Số liệu không đáng tin</div>
+            <div className="text-sm text-neutral-300 mt-1">{err}</div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-20">

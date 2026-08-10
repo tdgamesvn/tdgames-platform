@@ -209,6 +209,18 @@ export async function fetchCeoDashboard(
     supabase.from('crm_email_log').select('id, status, sent_at'),
   ]);
 
+  // Sai tên cột / RLS chặn -> data=null -> mọi số ra 0 mà không ai biết.
+  // Thà vỡ mặt còn hơn CEO đọc số 0 giả. (bug cũ 2026-07-08: 3 select sai cột im lặng)
+  const failed = [
+    ['invoice_invoices', invoiceRes], ['expense_expenses', expenseRes], ['wf_tasks', taskRes],
+    ['crm_clients', clientRes], ['crm_projects', projectRes], ['hr_employees', employeeRes],
+    ['hr_departments', deptRes], ['pay_payroll_sheets', payrollSheetRes], ['hr_contracts', contractRes],
+    ['att_requests', leaveRes], ['crm_outreach_leads', outreachRes], ['crm_email_log', emailRes],
+  ].filter(([, r]: any) => r.error) as [string, any][];
+  if (failed.length) {
+    throw new Error(`Dashboard query lỗi: ${failed.map(([t, r]) => `${t} (${r.error.message})`).join('; ')}`);
+  }
+
   // Filter workspace TRƯỚC mọi aggregation — mọi số phía dưới theo sổ đang chọn
   const inBook = (e: string | null | undefined) => workspace === 'all' || matchesWorkspace(e, workspace);
   const invoices = (invoiceRes.data || []).filter((r: any) => inBook(r.billing_entity));

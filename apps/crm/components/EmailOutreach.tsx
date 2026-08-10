@@ -346,6 +346,9 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<{ verified: number; valid: number; invalid: number; high_risk?: number } | null>(null);
+  const [verifyProgress, setVerifyProgress] = useState<{ current: number; total: number } | null>(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
   const [checkingBounces, setCheckingBounces] = useState(false);
   const [bounceResult, setBounceResult] = useState<{ bounces_found: number; leads_updated: number; bounces?: any[] } | null>(null);
 
@@ -469,6 +472,12 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     }
   };
 
+  const readVerifyStatus = async () => {
+    const r = await outreachRequest('/api/email/verify-pending-status');
+    if (!r.ok) throw new Error(`verify-pending-status ${r.status}`);
+    return r.json();
+  };
+
   // Verify pending emails before sending
   const handleVerifyEmails = async () => {
     if (!getOutreachApiBase()) {
@@ -480,17 +489,37 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     if (!confirm(`Verify ${Math.min(pendingCount, 100)} email addresses?\n\nKiểm tra: MX records, SMTP, catch-all, domain match, disposable, role-based.\nEmail không hợp lệ sẽ được đánh dấu "invalid_email".`)) return;
     setVerifying(true);
     setVerifyResult(null);
+    setVerifyProgress(null);
     try {
+      // POST chỉ trả {started:true} (backend chạy nền để khỏi 504) — số liệu thật nằm ở GET status.
+      const prev = await readVerifyStatus().catch(() => null); // mốc phân biệt run cũ vs run mới
       const res = await outreachRequest('/api/email/verify-pending', {
         method: 'POST',
         body: JSON.stringify({ limit: 100 }),
       });
       if (!res.ok) { alert(`Lỗi: ${res.status}`); return; }
-      const data = await res.json();
-      setVerifyResult({ verified: data.verified, valid: data.valid, invalid: data.invalid, high_risk: data.high_risk || 0 });
-      alert(`✅ Verify hoàn thành!\n\nĐã kiểm tra: ${data.verified}\nHợp lệ: ${data.valid}\n⚠️ High Risk: ${data.high_risk || 0}\n❌ Invalid: ${data.invalid} (đã đánh dấu)`);
+
+      // ponytail: poll 3s, trần 60 phút (run 415 email hôm 22/07 mất 24 phút).
+      // Đóng tab giữa chừng thì mất progress bar chứ không mất kết quả — backend vẫn ghi DB.
+      const deadline = Date.now() + 60 * 60 * 1000;
+      let s: any = null;
+      while (mountedRef.current && Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 3000));
+        s = await readVerifyStatus();
+        const isNewRun = s.started_at !== prev?.started_at;
+        if (!isNewRun) continue;             // status còn là của run trước, chưa kịp khởi động
+        setVerifyProgress({ current: s.current || 0, total: s.total || 0 });
+        if (!s.running) break;
+      }
+      if (!s || s.running || s.started_at === prev?.started_at) {
+        alert('⏳ Verify vẫn đang chạy — kết quả vẫn được ghi vào DB, mở lại tab sau để xem.');
+        return;
+      }
+      if (s.last_error) { alert(`⚠️ Verify dừng vì lỗi: ${s.last_error}`); return; }
+      setVerifyResult({ verified: s.verified, valid: s.valid, invalid: s.invalid, high_risk: s.high_risk || 0 });
+      alert(`✅ Verify hoàn thành!\n\nĐã kiểm tra: ${s.verified}\nHợp lệ: ${s.valid}\n⚠️ High Risk: ${s.high_risk || 0}\n❌ Invalid: ${s.invalid} (đã đánh dấu)`);
       onRefresh();
-    } catch (err: any) { alert(`Lỗi: ${err.message}`); } finally { setVerifying(false); }
+    } catch (err: any) { alert(`Lỗi: ${err.message}`); } finally { setVerifying(false); setVerifyProgress(null); }
   };
 
   // Check bounces from Gmail inbox
@@ -682,7 +711,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
         </select>
         <button onClick={() => setShowImport(!showImport)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#0A84FF', border: 'none', cursor: 'pointer' }}>📥 Import</button>
         <button onClick={() => setShowAddForm(!showAddForm)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>＋ Thêm Lead</button>
-        <button type="button" onClick={handleVerifyEmails} disabled={verifying} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: verifying ? '#555' : '#34C759', border: 'none', cursor: verifying ? 'not-allowed' : 'pointer' }}>{verifying ? '⏳ Đang verify...' : '✅ Verify Emails'}</button>
+        <button type="button" onClick={handleVerifyEmails} disabled={verifying} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: verifying ? '#555' : '#34C759', border: 'none', cursor: verifying ? 'not-allowed' : 'pointer' }}>{verifying ? (verifyProgress?.total ? `⏳ ${verifyProgress.current}/${verifyProgress.total}` : '⏳ Đang verify...') : '✅ Verify Emails'}</button>
         <button type="button" onClick={handleCheckBounces} disabled={checkingBounces} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: checkingBounces ? '#555' : '#FF453A', border: 'none', cursor: checkingBounces ? 'not-allowed' : 'pointer' }}>{checkingBounces ? '⏳ Scanning...' : '📬 Check Bounces'}</button>
       </div>
       {verifyResult && (
