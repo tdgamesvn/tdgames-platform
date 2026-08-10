@@ -80,9 +80,15 @@ export async function createLeadsBatch(
 }
 
 export async function updateLead(id: string, updates: Partial<CrmOutreachLead>): Promise<void> {
+  // BdLeaderboard đếm reply theo `replied_at`, còn UI chỉ đổi `outreach_status` => reply rate mãi 0.
+  // Stamp ở đây (chỗ mọi caller đi qua) thay vì ở từng nút bấm.
+  const patch: Partial<CrmOutreachLead> = { ...updates };
+  if (patch.outreach_status === 'replied' && !patch.replied_at) {
+    patch.replied_at = new Date().toISOString();
+  }
   const { error } = await supabase
     .from('crm_outreach_leads')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
 }
