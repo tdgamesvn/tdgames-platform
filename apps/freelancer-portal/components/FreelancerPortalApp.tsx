@@ -8,6 +8,7 @@ import {
   fetchMySettlements,
   fetchSettlementTasks,
   fetchMyContracts,
+  fetchMyWorkerId,
   fetchDashboardStats,
   FreelancerDashboardStats,
 } from '../services/freelancerPortalService';
@@ -73,7 +74,16 @@ const FreelancerPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
   const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null);
   const [detailTasks, setDetailTasks] = useState<WorkforceTask[]>([]);
 
-  const workerId = currentUser.worker_id;
+  const [workerId, setWorkerId] = useState<string | null>(currentUser.worker_id || null);
+  const [resolvingWorker, setResolvingWorker] = useState(!currentUser.worker_id);
+
+  useEffect(() => {
+    if (!resolvingWorker) return;
+    fetchMyWorkerId()
+      .then(setWorkerId)
+      .catch(() => setWorkerId(null))
+      .finally(() => setResolvingWorker(false));
+  }, []);
 
   // ── Data Loading ──
   useEffect(() => {
@@ -110,6 +120,13 @@ const FreelancerPortalApp: React.FC<Props> = ({ currentUser, onBack }) => {
   };
 
   // ── No worker_id ──
+  if (resolvingWorker) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0F0F0F' }}>
+        <p className="text-white/40 font-bold text-sm">Đang tải…</p>
+      </div>
+    );
+  }
   if (!workerId) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#0F0F0F' }}>

@@ -1,6 +1,16 @@
 import { supabase } from '@/services/supabaseClient';
 import { Worker, WorkerContract, WorkforceTask, Settlement } from '@/types';
 
+// ── Resolve worker ───────────────────────────────────────────
+// ponytail: dùng RPC my_worker_id() (khớp wf_workers.email với claim email của JWT) thay vì
+// user_metadata.worker_id — 0/23 user có field đó nên portal luôn rỗng. RPC dùng chung logic
+// với RLS wf_* (migration 20260809180000) nên không lệch quyền.
+export async function fetchMyWorkerId(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('my_worker_id');
+  if (error) throw error;
+  return (data as string) || null;
+}
+
 // ── My Tasks ─────────────────────────────────────────────────
 export async function fetchMyTasks(workerId: string): Promise<WorkforceTask[]> {
   const { data, error } = await supabase
