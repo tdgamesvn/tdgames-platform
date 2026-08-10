@@ -104,6 +104,17 @@ async function sendAuthEmail(opts: {
 }
 
 // Helper: find auth user by email using RPC (reliable, no pagination issues)
+/** RLS đọc role qua jwt_roles() => CHỈ nhìn app_metadata; user_metadata chỉ để hiển thị.
+ *  Derive app_metadata từ user_metadata cuối cùng ở một chỗ — trước đây 3 call site tự ghi
+ *  `app_metadata: { role }` nên mỗi lần đổi primary role là xoá sạch secondary_roles, còn
+ *  update_secondary_roles thì không ghi app_metadata bao giờ => BD không bao giờ có role `bd` trong RLS. */
+function roleMeta(meta: Record<string, any> = {}) {
+  return {
+    role: meta.role || "member",
+    secondary_roles: Array.isArray(meta.secondary_roles) ? meta.secondary_roles : [],
+  };
+}
+
 async function findAuthUserByEmail(supabaseAdmin: any, email: string) {
   const { data, error } = await supabaseAdmin.rpc('find_auth_user_by_email', {
     lookup_email: email,
@@ -264,7 +275,7 @@ Deno.serve(async (req: Request) => {
         user.id,
         {
           user_metadata: { ...user.user_metadata, role },
-          app_metadata: { role }, // app_metadata is admin-only, used in RLS policies
+          app_metadata: roleMeta({ ...user.user_metadata, role }), // admin-only, dùng trong RLS
         }
       );
       if (updateErr) throw updateErr;
@@ -299,7 +310,10 @@ Deno.serve(async (req: Request) => {
 
       const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
         user.id,
-        { user_metadata: { ...user.user_metadata, secondary_roles } }
+        {
+          user_metadata: { ...user.user_metadata, secondary_roles },
+          app_metadata: roleMeta({ ...user.user_metadata, secondary_roles }),
+        }
       );
       if (updateErr) throw updateErr;
 
@@ -342,7 +356,7 @@ Deno.serve(async (req: Request) => {
         existingUser.id,
         {
           user_metadata: mergedMetadata,
-          app_metadata: { role: mergedMetadata.role }, // keep app_metadata in sync
+          app_metadata: roleMeta(mergedMetadata), // keep app_metadata in sync
         }
       );
       if (updateErr) throw updateErr;
@@ -379,7 +393,7 @@ Deno.serve(async (req: Request) => {
 
     // Set app_metadata (admin-only, used in RLS) — generateLink only sets user_metadata
     await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
-      app_metadata: { role: role || "member" },
+      app_metadata: roleMeta({ role }),
     });
 
     await sendAuthEmail({

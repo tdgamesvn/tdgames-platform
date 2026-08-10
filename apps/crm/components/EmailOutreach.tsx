@@ -391,6 +391,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     if (sendingId === leadId) return;
     setSendingId(leadId);
     try {
+      await ensureOwned(leadId);
       const res = await outreachRequest('/api/email/send', {
         method: 'POST',
         // from_email/reply_to: email công việc của BD đang bấm gửi — backend override thay cho cấu hình chung
@@ -620,9 +621,34 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
     } catch (err: any) { alert('Error: ' + err.message); }
   };
 
+  // ── Pool chung: lead assigned_bd_id = null là hàng đợi, BD tự nhận ──────────
+  const [filterOwner, setFilterOwner] = useState<'' | 'mine' | 'pool'>('');
+  const displayLeads = useMemo(() => {
+    if (!isBd || !filterOwner) return leads;
+    return leads.filter(l => filterOwner === 'pool' ? !l.assigned_bd_id : l.assigned_bd_id === currentUser?.id);
+  }, [leads, isBd, filterOwner, currentUser?.id]);
+  const poolLeads = useMemo(() => displayLeads.filter(l => !l.assigned_bd_id), [displayLeads]);
+  const [claiming, setClaiming] = useState(false);
+  const handleClaim = async (ids: string[]) => {
+    if (!currentUser?.id || !ids.length) return;
+    setClaiming(true);
+    try {
+      const n = await svc.claimLeads(ids, currentUser.id);
+      if (n < ids.length) alert(`Đã nhận ${n}/${ids.length} lead — số còn lại vừa có BD khác nhận trước.`);
+      onRefresh();
+    } catch (e: any) { alert('Lỗi: ' + e.message); } finally { setClaiming(false); }
+  };
+  /** Gửi/đổi trạng thái lead pool = nhận nó luôn. RLS chặn BD sửa lead còn NULL,
+   *  nên không tự nhận trước thì mọi thao tác sẽ im lặng thất bại. */
+  const ensureOwned = async (leadId: string) => {
+    if (!isBd || !currentUser?.id) return;
+    const lead = leads.find(l => l.id === leadId);
+    if (lead && !lead.assigned_bd_id) await svc.claimLeads([leadId], currentUser.id);
+  };
+
   // Status update
   const handleStatusChange = async (id: string, status: string) => {
-    try { await svc.updateLead(id, { outreach_status: status } as any); onRefresh(); } catch { }
+    try { await ensureOwned(id); await svc.updateLead(id, { outreach_status: status } as any); onRefresh(); } catch { }
   };
 
   // Delete
@@ -709,6 +735,23 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
           <option value="hiring_signal">🔎 Hiring Signal</option>
           <option value="generic">Generic</option>
         </select>
+        {isBd && (
+          <select
+            className="px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors"
+            style={{ background: '#1a1a1a', width: '150px' }}
+            value={filterOwner} onChange={e => setFilterOwner(e.target.value as '' | 'mine' | 'pool')}>
+            <option value="">Tất cả lead</option>
+            <option value="mine">👤 Của tôi</option>
+            <option value="pool">🆓 Chưa ai nhận</option>
+          </select>
+        )}
+        {isBd && poolLeads.length > 0 && (
+          <button type="button" onClick={() => { if (confirm(`Nhận ${poolLeads.length} lead đang hiển thị về mình?`)) handleClaim(poolLeads.map(l => l.id)); }} disabled={claiming}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50"
+            style={{ background: 'rgba(255,149,0,0.15)', color: '#FF9500', border: '1px solid rgba(255,149,0,0.3)', cursor: claiming ? 'wait' : 'pointer' }}>
+            {claiming ? '⏳ Đang nhận...' : `🙋 Nhận ${poolLeads.length} lead`}
+          </button>
+        )}
         <button onClick={() => setShowImport(!showImport)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#0A84FF', border: 'none', cursor: 'pointer' }}>📥 Import</button>
         <button onClick={() => setShowAddForm(!showAddForm)} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: '#FF9500', border: 'none', cursor: 'pointer' }}>＋ Thêm Lead</button>
         <button type="button" onClick={handleVerifyEmails} disabled={verifying} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50" style={{ background: verifying ? '#555' : '#34C759', border: 'none', cursor: verifying ? 'not-allowed' : 'pointer' }}>{verifying ? (verifyProgress?.total ? `⏳ ${verifyProgress.current}/${verifyProgress.total}` : '⏳ Đang verify...') : '✅ Verify Emails'}</button>
@@ -860,7 +903,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
       {/* Leads Table */}
       {isLoading ? (
         <p style={{ color: '#666', textAlign: 'center', padding: '40px' }}>Đang tải...</p>
-      ) : leads.length === 0 ? (
+      ) : displayLeads.length === 0 ? (
         <div className="rounded-[20px] border border-primary/10 bg-surface text-center py-16 text-neutral-700 text-sm">
           <p className="text-3xl mb-3">👥</p>
           <p className="text-neutral-600 text-sm">Chưa có dữ liệu</p>
@@ -877,7 +920,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
               </tr>
             </thead>
             <tbody>
-              {leads.map(lead => {
+              {displayLeads.map(lead => {
                 const tc = tierOf(tiers, lead.tier);
                 const sc = STATUS_CFG[lead.outreach_status] || STATUS_CFG.pending;
                 return (
@@ -898,6 +941,15 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
                     <td style={{ padding: '10px', maxWidth: '110px' }}>
                       <div style={{ fontWeight: 600, color: '#F5F5F5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.contact_name || ''}>{lead.contact_name || '—'}</div>
                       {lead.linkedin_url && <a href={lead.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '10px', color: '#0A84FF' }}>LinkedIn ↗</a>}
+                      {!lead.assigned_bd_id && (
+                        isBd ? (
+                          <button type="button" title="Lead chưa ai nhận — bấm để nhận về mình" disabled={claiming}
+                            onClick={() => handleClaim([lead.id])}
+                            style={{ display: 'block', marginTop: '3px', padding: '1px 6px', border: '1px solid rgba(255,149,0,0.3)', borderRadius: '4px', background: 'rgba(255,149,0,0.12)', color: '#FF9500', fontSize: '9px', fontWeight: 800, cursor: claiming ? 'wait' : 'pointer' }}>
+                            🙋 Nhận
+                          </button>
+                        ) : <span style={{ display: 'block', marginTop: '3px', fontSize: '9px', fontWeight: 800, color: '#666' }} title="Chưa BD nào nhận">🆓 Pool</span>
+                      )}
                     </td>
                     <td style={{ padding: '10px', color: '#0A84FF', fontSize: '12px', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.email}>{lead.email}</td>
                     <td style={{ padding: '10px', color: '#ccc', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={lead.studio_name || ''}>{lead.studio_name || '—'}</td>

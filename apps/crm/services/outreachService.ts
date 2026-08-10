@@ -93,6 +93,20 @@ export async function updateLead(id: string, updates: Partial<CrmOutreachLead>):
   if (error) throw error;
 }
 
+/** Nhận lead từ pool chung về mình. `.is(null)` để 2 BD bấm cùng lúc thì người sau nhận 0 lead
+ *  (RLS cũng chặn, nhưng lọc ở đây để không ném lỗi vào mặt người dùng). */
+export async function claimLeads(ids: string[], bdId: string): Promise<number> {
+  if (!ids.length) return 0;
+  const { data, error } = await supabase
+    .from('crm_outreach_leads')
+    .update({ assigned_bd_id: bdId, updated_at: new Date().toISOString() })
+    .in('id', ids)
+    .is('assigned_bd_id', null)
+    .select('id');
+  if (error) throw error;
+  return data?.length || 0;
+}
+
 export async function deleteLead(id: string): Promise<void> {
   const { error } = await supabase.from('crm_outreach_leads').delete().eq('id', id);
   if (error) throw error;
