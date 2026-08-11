@@ -74,7 +74,7 @@ const EmployeeForm: React.FC<Props> = ({
   onSaveContract, onUpdateContract, onDeleteContract,
 }) => {
   // Cùng quy ước với EmployeeDetail: hr thuần (không kiêm admin) không được xem lương.
-  const isHrOnly = hasRole(currentUser, 'hr') && !hasRole(currentUser, 'admin');
+  const isHrOnly = hasRole(currentUser, 'hr') && !hasRole(currentUser, 'admin') && !hasRole(currentUser, 'ke_toan');
   const [form, setForm] = useState<typeof emptyEmployee>(emptyEmployee);
   const [tagInput, setTagInput] = useState('');
   const [contractForm, setContractForm] = useState(emptyContract);

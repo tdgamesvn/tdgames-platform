@@ -80,7 +80,8 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
   const [downloadingAvatar, setDownloadingAvatar] = useState(false);
 
   const isAdmin = hasRole(currentUser, 'admin');
-  const isHrOnly = hasRole(currentUser, 'hr') && !isAdmin;
+  // ponytail: "hr thuần" = có hr mà KHÔNG có admin/ke_toan. Kế toán kiêm hr vẫn xem lương + hợp đồng.
+  const isHrOnly = hasRole(currentUser, 'hr') && !isAdmin && !hasRole(currentUser, 'ke_toan');
 
   const handleDownloadAvatar = async () => {
     if (!avatarUrl) return;

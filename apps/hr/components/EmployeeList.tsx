@@ -47,7 +47,7 @@ const EmployeeList: React.FC<Props> = ({
   filterDepartment, setFilterDepartment, totalCount,
   onView, onEdit, onDelete, onAdd, onQuickAdd, onSyncWorkforce, onRefresh, onToast, pendingReminders,
 }) => {
-  const isHrOnly = hasRole(currentUser, 'hr') && !hasRole(currentUser, 'admin');
+  const isHrOnly = hasRole(currentUser, 'hr') && !hasRole(currentUser, 'admin') && !hasRole(currentUser, 'ke_toan');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // 'invite_ID' or 'reset_ID'
 
