@@ -350,6 +350,16 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="en">Following the public release, Party B may showcase the completed work in its portfolio only with the prior written approval of Party A.</p>
     <p class="vi">Sau khi phát hành công khai, Bên B được quyền sử dụng sản phẩm để giới thiệu nếu được sự đồng ý của Bên A bằng văn bản.</p>
   </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">5.4 Warranty of Title &amp; Use of Personnel / Cam kết về quyền và việc sử dụng nhân sự</p>
+  <div class="bilingual">
+    <p class="en">Party B warrants that the deliverables are original works created for Party A and do not infringe the intellectual property rights of any third party, and that Party B holds full rights to transfer them under Article 5.3. Should a third party raise a claim in respect of the deliverables, Party B shall handle the claim at its own cost and compensate Party A for direct damage actually incurred, subject to Article 6.9.</p>
+    <p class="vi">Bên B cam kết sản phẩm bàn giao là tác phẩm nguyên gốc được tạo ra cho Bên A, không xâm phạm quyền sở hữu trí tuệ của bất kỳ bên thứ ba nào, và Bên B có đầy đủ quyền để chuyển giao theo Điều 5.3. Nếu có bên thứ ba khiếu nại liên quan đến sản phẩm bàn giao, Bên B tự chịu chi phí xử lý và bồi thường thiệt hại trực tiếp thực tế cho Bên A, theo giới hạn tại Điều 6.9.</p>
+  </div>
+  <div class="bilingual">
+    <p class="en">Party B may engage employees, collaborators or subcontractors to perform the work. Party B remains fully responsible for their performance and confidentiality, and warrants that it has secured from each of them all rights necessary to effect the transfer under Article 5.3.</p>
+    <p class="vi">Bên B có quyền sử dụng nhân viên, cộng tác viên hoặc đơn vị thầu phụ để thực hiện công việc. Bên B chịu trách nhiệm hoàn toàn về chất lượng công việc và nghĩa vụ bảo mật của những người này, đồng thời cam kết đã nhận được từ họ đầy đủ các quyền cần thiết để thực hiện việc chuyển giao theo Điều 5.3.</p>
+  </div>
 </div>
 
 <!-- ARTICLE VI — GENERAL PROVISIONS (BOILERPLATE) -->
@@ -370,8 +380,8 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:6px 0 2px">6.3 Confidentiality / Bảo mật thông tin</p>
   <div class="bilingual">
-    <p class="en">Both Parties agree to keep all project-related information strictly confidential. This obligation shall survive termination of this Agreement.</p>
-    <p class="vi">Các Bên cam kết giữ bí mật tuyệt đối toàn bộ thông tin liên quan đến dự án. Nghĩa vụ này tiếp tục có hiệu lực sau khi Hợp đồng chấm dứt.</p>
+    <p class="en">"Confidential Information" means all non-public information disclosed by either Party in connection with this Agreement, including source files, briefs, game designs, pricing and business information. Both Parties agree to keep such information strictly confidential and not to disclose it to any third party without prior written consent. This obligation survives termination and remains in force for three (03) years thereafter. It does not apply to information that is already public through no fault of the receiving Party, or whose disclosure is required by law or by a competent State authority.</p>
+    <p class="vi">"Thông tin bảo mật" là mọi thông tin không công khai được một Bên cung cấp liên quan đến Hợp đồng này, bao gồm file gốc, brief, thiết kế game, thông tin giá và thông tin kinh doanh. Các Bên cam kết giữ bí mật và không tiết lộ cho bên thứ ba khi chưa có chấp thuận bằng văn bản. Nghĩa vụ này tiếp tục có hiệu lực sau khi Hợp đồng chấm dứt và kéo dài thêm 03 năm. Nghĩa vụ này không áp dụng với thông tin đã công khai không do lỗi của Bên nhận, hoặc thông tin phải cung cấp theo yêu cầu của pháp luật hoặc cơ quan Nhà nước có thẩm quyền.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">6.4 Governing Law / Luật điều chỉnh</p>
@@ -403,6 +413,24 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="en">This Agreement is executed in both English and Vietnamese. In the event of any discrepancy or conflict of interpretation between the two versions, the Vietnamese version shall prevail.</p>
     <p class="vi">Hợp đồng này được lập bằng cả tiếng Anh và tiếng Việt. Trường hợp có sự khác biệt hoặc mâu thuẫn trong cách hiểu giữa hai bản, bản tiếng Việt được ưu tiên áp dụng.</p>
   </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.9 Limitation of Liability / Giới hạn trách nhiệm</p>
+  <div class="bilingual">
+    <p class="en">Save for breach of confidentiality, infringement of third-party intellectual property rights, and wilful misconduct, the total aggregate liability of either Party under this Agreement shall not exceed the total contract value stated in Article 4.1. Neither Party shall be liable for indirect or consequential loss, loss of profit, loss of revenue, or loss of data.</p>
+    <p class="vi">Trừ trường hợp vi phạm nghĩa vụ bảo mật, xâm phạm quyền sở hữu trí tuệ của bên thứ ba và hành vi cố ý, tổng trách nhiệm của mỗi Bên theo Hợp đồng này không vượt quá tổng giá trị hợp đồng nêu tại Điều 4.1. Không Bên nào chịu trách nhiệm về thiệt hại gián tiếp, thiệt hại phái sinh, lợi nhuận mất, doanh thu mất hoặc mất mát dữ liệu.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.10 Assignment / Chuyển nhượng hợp đồng</p>
+  <div class="bilingual">
+    <p class="en">Neither Party may assign this Agreement or any of its rights and obligations hereunder to a third party without the prior written consent of the other Party.</p>
+    <p class="vi">Không Bên nào được chuyển nhượng Hợp đồng này hoặc bất kỳ quyền và nghĩa vụ nào theo Hợp đồng cho bên thứ ba khi chưa có chấp thuận bằng văn bản của Bên kia.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.11 Working Days / Ngày làm việc</p>
+  <div class="bilingual">
+    <p class="en">"Working day" means a day from Monday to Friday, excluding public holidays of the Socialist Republic of Vietnam (including the Lunar New Year holiday). Party B shall notify Party A of its holiday schedule at least seven (07) calendar days in advance.</p>
+    <p class="vi">"Ngày làm việc" là ngày từ Thứ Hai đến Thứ Sáu, không bao gồm các ngày nghỉ lễ, Tết theo quy định của nước Cộng hòa xã hội chủ nghĩa Việt Nam (bao gồm kỳ nghỉ Tết Nguyên đán). Bên B thông báo lịch nghỉ cho Bên A trước ít nhất 07 ngày.</p>
+  </div>
 </div>
 
 <!-- ARTICLE VII — FINAL PROVISIONS (BOILERPLATE) -->
@@ -411,7 +439,7 @@ export function generateClientContract(data: ClientContractData): string {
   <ul>
     <li>This Agreement takes effect from the date of signing. / Hợp đồng có hiệu lực kể từ ngày ký.</li>
     <li>This Agreement terminates upon full performance of all obligations. / Hợp đồng chấm dứt khi hoàn thành toàn bộ nghĩa vụ.</li>
-    <li>This Agreement is made in two (02) original copies of equal legal validity. / Hợp đồng lập thành 2 bản gốc có giá trị pháp lý ngang nhau.</li>
+    <li>This Agreement is made in two (02) original copies of equal legal validity, each Party retaining one (01) copy; where signed electronically, each Party retains one signed electronic counterpart. / Hợp đồng lập thành 2 bản gốc có giá trị pháp lý ngang nhau, mỗi Bên giữ 01 bản; trường hợp ký điện tử, mỗi Bên giữ 01 bản điện tử đã ký.</li>
     <li>Any amendment shall be made in writing and signed by both Parties. / Mọi sửa đổi phải được lập bằng văn bản và ký bởi cả hai Bên.</li>
     <li>The Parties agree that a signed copy transmitted by email or other electronic means, and electronic signatures made in accordance with the Law on Electronic Transactions, shall have the same legal validity as an original wet-ink signature. / Các Bên thống nhất rằng bản hợp đồng đã ký được gửi qua email hoặc phương tiện điện tử khác, và chữ ký điện tử được thực hiện theo Luật Giao dịch điện tử, có giá trị pháp lý như bản ký trực tiếp.</li>
   </ul>
