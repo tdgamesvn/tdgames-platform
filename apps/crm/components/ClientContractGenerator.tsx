@@ -111,7 +111,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setAiError('');
     setAiBusy(true);
     try {
-      const html = await formatScopeWithAI(scopeContent);
+      const html = await formatScopeWithAI(scopeContent, lang);
       setScopeBackup(scopeContent);
       setScopeContent(html);
     } catch (e) {

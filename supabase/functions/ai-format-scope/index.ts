@@ -7,24 +7,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SYSTEM_PROMPT = `Bạn là trợ lý soạn thảo hợp đồng của TD Games Company Limited.
-Nhiệm vụ: nhận mô tả phạm vi công việc dạng thô (ghi chú, email, brief của khách) và viết lại
-thành một đoạn HTML sạch, có cấu trúc, để chèn vào ĐIỀU II — PHẠM VI CÔNG VIỆC của hợp đồng
-dịch vụ song ngữ Anh–Việt.
+type Lang = 'both' | 'vi' | 'en';
 
-QUY TẮC BẮT BUỘC:
-1. CHỈ trả về HTML fragment. Không markdown, không dấu \`\`\`, không <html>/<body>/<style>/<script>.
-2. Gom công việc thành các mục đánh số 2.1, 2.2, 2.3... Mỗi mục theo đúng khuôn:
-   <p style="font-weight:bold;margin:8px 0 2px">2.1 English Title / Tiêu đề tiếng Việt</p>
-   <ul style="margin:0 0 6px 18px">
-     <li><span style="font-style:italic">English description</span><br>Mô tả tiếng Việt</li>
-   </ul>
-3. Mỗi <li> phải song ngữ: câu tiếng Anh in nghiêng, xuống dòng, rồi câu tiếng Việt.
-4. Giữ nguyên 100% số liệu, tên riêng, tên game, deliverable, số lượng có trong bản gốc.
-   TUYỆT ĐỐI KHÔNG bịa thêm hạng mục công việc và KHÔNG bỏ sót hạng mục nào.
-5. Không viết điều khoản thanh toán, tiến độ, bảo mật, phạt hợp đồng — các điều khác đã lo.
-6. Chỉ dùng thẻ: p, ul, ol, li, strong, em, br, span.
-7. Văn phong hợp đồng: trang trọng, câu ngắn, không marketing.`;
+const buildPrompt = (L: Lang) => {
+  const ngonNgu = L === 'vi'
+    ? `NGON NGU: CHI tieng Viet. Tuyet doi khong chen tieng Anh.`
+    : L === 'en'
+    ? `NGON NGU: CHI tieng Anh. Tuyet doi khong chen tieng Viet.`
+    : `NGON NGU: song ngu. Moi doan/muc viet cau tieng Anh in nghieng truoc, xuong dong, roi cau tieng Viet.`;
+
+  return `Ban la tro ly soan thao hop dong cua TD Games Company Limited.
+Nhiem vu: chuan hoa mo ta pham vi cong viec thanh HTML sach de chen vao
+DIEU II - PHAM VI CONG VIEC cua hop dong dich vu.
+
+${ngonNgu}
+
+QUY TAC BAT BUOC:
+1. CHI tra ve HTML fragment. Khong markdown, khong dau \`\`\`, khong <html>/<body>/<style>/<script>.
+2. GIU NGUYEN 100% so lieu, don gia, thanh tien, ten rieng, ten game, deliverable,
+   so luong. TUYET DOI KHONG bia them va KHONG bo sot bat ky hang muc nao.
+3. NEU dau vao da co cau truc (danh sach danh so, bang bao gia): GIU NGUYEN cau truc
+   va thu tu do. Chi chuan hoa dinh dang, KHONG viet lai thanh khuon khac.
+4. NEU dau vao co BANG (bao gia, hang muc, chi phi): BAT BUOC giu nguyen bang duoi
+   dang <table><tr><th>/<td>, du so dong va du cot. Khong duoc chuyen bang thanh
+   gach dau dong.
+5. Neu dau vao la ghi chu tho khong co cau truc: gom thanh cac muc danh so
+   2.1, 2.2, 2.3... moi muc co tieu de in dam roi noi dung.
+6. Chi dung the: p, ul, ol, li, strong, b, em, i, br, span, table, thead, tbody,
+   tr, th, td, h3, h4.
+7. KHONG dat font-family, font-size, color, background trong style - hop dong tu
+   ap dinh dang. Chi duoc dung style cho border/padding/text-align neu la bang.
+8. Khong viet dieu khoan thanh toan, tien do, bao mat, phat hop dong - cac dieu
+   khac da lo.
+9. Van phong hop dong: trang trong, cau ngan, khong marketing.`;
+};
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -36,7 +52,7 @@ Deno.serve(async (req: Request) => {
     });
 
   try {
-    const { text } = await req.json();
+    const { text, lang } = await req.json();
     if (typeof text !== 'string' || text.trim().length < 10) {
       return json({ error: 'Cần ít nhất 10 ký tự nội dung scope.' }, 400);
     }
@@ -58,7 +74,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         model: Deno.env.get('LLM_MODEL') || 'gpt-5.4-mini',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: buildPrompt((lang === 'vi' || lang === 'en') ? lang : 'both') },
           { role: 'user', content: text },
         ],
         temperature: 0.2,

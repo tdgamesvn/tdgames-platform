@@ -589,9 +589,9 @@ export function generateClientContract(data: ClientContractData): string {
 // ══════════════════════════════════════════════════════════════
 
 /** Paste text thô → HTML song ngữ chuẩn cho ĐIỀU II. Throw kèm message tiếng Việt nếu lỗi. */
-export async function formatScopeWithAI(text: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke('ai-format-scope', { body: { text } });
+export async function formatScopeWithAI(text: string, lang: 'both' | 'vi' | 'en' = 'both'): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('ai-format-scope', { body: { text, lang } });
   if (error) throw new Error(data?.error || error.message || 'Không gọi được AI.');
   if (!data?.html) throw new Error(data?.error || 'AI không trả về nội dung.');
-  return cleanScopeHtml(data.html);
+  return normalizeScopeHtml(data.html);
 }
