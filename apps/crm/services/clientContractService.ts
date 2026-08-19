@@ -201,8 +201,8 @@ export function generateClientContract(data: ClientContractData): string {
 </div>
 
 <div class="bilingual">
-  <p class="en">Pursuant to the Civil Code of Vietnam 2015 and the Law on Commercial Transactions;</p>
-  <p class="vi">Căn cứ Bộ luật Dân sự Việt Nam năm 2015 và Luật Thương mại;</p>
+  <p class="en">Pursuant to the Civil Code of Vietnam 2015 and the Law on Commerce of Vietnam 2005;</p>
+  <p class="vi">Căn cứ Bộ luật Dân sự Việt Nam năm 2015 và Luật Thương mại Việt Nam năm 2005;</p>
 </div>
 <div class="bilingual">
   <p class="en">Pursuant to the agreement and actual requirements of the parties;</p>
@@ -311,7 +311,7 @@ export function generateClientContract(data: ClientContractData): string {
     <li>Deliver all products on time and in compliance with the required quality standards. / Bàn giao tất cả sản phẩm đúng hạn và đáp ứng tiêu chuẩn chất lượng.</li>
     <li>Maintain strict confidentiality of all project-related information. / Bảo mật nghiêm ngặt toàn bộ thông tin liên quan đến dự án.</li>
     <li>Provide technical support within thirty (30) days following delivery. / Hỗ trợ kỹ thuật trong vòng 30 ngày sau khi bàn giao.</li>
-    <li>Delete all of Party A's source files within thirty (30) days after final delivery. / Xóa toàn bộ file gốc của Bên A trong vòng 30 ngày sau bàn giao cuối.</li>
+    <li>Delete all of Party A's source files within thirty (30) days after the expiry of the technical support period, save for one archival copy retained solely to perform warranty obligations and to comply with accounting and statutory record-keeping requirements. / Xóa toàn bộ file gốc của Bên A trong vòng 30 ngày kể từ khi kết thúc thời hạn hỗ trợ kỹ thuật, trừ một bản lưu trữ duy nhất chỉ nhằm thực hiện nghĩa vụ bảo hành và tuân thủ yêu cầu lưu trữ chứng từ kế toán theo quy định pháp luật.</li>
   </ul>
 
   <p style="font-weight:bold;margin:6px 0 2px">5.2 Obligations of Party A (Client) / Nghĩa vụ của Bên A</p>
@@ -324,8 +324,12 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:6px 0 2px">5.3 Intellectual Property Rights / Quyền sở hữu trí tuệ</p>
   <div class="bilingual">
-    <p class="en">All intellectual property rights to the final deliverables shall be transferred to Party A upon completion of all payment obligations.</p>
-    <p class="vi">Toàn bộ quyền sở hữu trí tuệ đối với sản phẩm bàn giao cuối cùng sẽ được chuyển giao cho Bên A sau khi hoàn tất toàn bộ nghĩa vụ thanh toán.</p>
+    <p class="en">All economic rights and the right to publish the final deliverables shall be transferred to Party A upon completion of all payment obligations. Until such payment is completed in full, all rights remain vested in Party B.</p>
+    <p class="vi">Toàn bộ quyền tài sản và quyền công bố đối với sản phẩm bàn giao cuối cùng sẽ được chuyển giao cho Bên A sau khi hoàn tất toàn bộ nghĩa vụ thanh toán. Cho đến khi thanh toán đầy đủ, mọi quyền vẫn thuộc về Bên B.</p>
+  </div>
+  <div class="bilingual">
+    <p class="en">The moral rights of the author (including the right to be named as author and the right to protect the integrity of the work) are inalienable under the Intellectual Property Law of Vietnam and shall remain with the author, save for the right to publish which is transferred under this Article.</p>
+    <p class="vi">Quyền nhân thân của tác giả (bao gồm quyền đứng tên tác giả và quyền bảo vệ sự toàn vẹn của tác phẩm) không thể chuyển nhượng theo Luật Sở hữu trí tuệ Việt Nam và vẫn thuộc về tác giả, trừ quyền công bố tác phẩm đã được chuyển giao theo Điều này.</p>
   </div>
   <div class="bilingual">
     <p class="en">Following the public release, Party B may showcase the completed work in its portfolio only with the prior written approval of Party A.</p>
@@ -339,8 +343,8 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:4px 0 2px">6.1 Acceptance & Revision Policy / Tiêu chí nghiệm thu</p>
   <div class="bilingual">
-    <p class="en">Deliverables shall be deemed accepted when conforming to agreed specifications. Party A shall notify rejection within five (05) working days. Each deliverable is subject to a maximum of two (02) rounds of revision free of charge.</p>
-    <p class="vi">Sản phẩm bàn giao được coi là đã nghiệm thu khi phù hợp với thông số đã thỏa thuận. Bên A phải thông báo từ chối trong vòng 5 ngày làm việc. Mỗi sản phẩm được chỉnh sửa tối đa 2 lần miễn phí.</p>
+    <p class="en">Deliverables shall be deemed accepted when conforming to agreed specifications. Party A shall notify rejection, with specific written reasons, within five (05) working days from delivery. If Party A gives no such notice within that period, the deliverable shall be deemed accepted in full. Each deliverable is subject to a maximum of two (02) rounds of revision free of charge.</p>
+    <p class="vi">Sản phẩm bàn giao được coi là đã nghiệm thu khi phù hợp với thông số đã thỏa thuận. Bên A phải thông báo từ chối kèm lý do cụ thể bằng văn bản trong vòng 5 ngày làm việc kể từ ngày bàn giao. Quá thời hạn trên mà Bên A không có thông báo, sản phẩm được coi là đã nghiệm thu toàn bộ. Mỗi sản phẩm được chỉnh sửa tối đa 2 lần miễn phí.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">6.2 Additional Requests / Yêu cầu phát sinh</p>
@@ -363,8 +367,26 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:6px 0 2px">6.5 Contract Termination / Chấm dứt hợp đồng</p>
   <div class="bilingual">
-    <p class="en">Either Party may request termination with twenty (20) calendar days written notice. Party A shall pay for all completed work on a pro-rata basis. All payments already received are non-refundable.</p>
-    <p class="vi">Mỗi Bên có thể yêu cầu chấm dứt với 20 ngày thông báo bằng văn bản. Bên A thanh toán cho công việc đã hoàn thành theo tỷ lệ. Các khoản đã nhận không được hoàn lại.</p>
+    <p class="en">Either Party may request termination with twenty (20) calendar days written notice. In all cases Party A shall pay for work completed up to the effective date of termination on a pro-rata basis, and amounts already received corresponding to such completed work are non-refundable. Where termination results from a breach by Party B, Party B shall refund any amount received in excess of the value of the work actually completed. Termination does not affect either Party's liability for damages arising from its breach.</p>
+    <p class="vi">Mỗi Bên có thể yêu cầu chấm dứt với 20 ngày thông báo bằng văn bản. Trong mọi trường hợp, Bên A thanh toán cho khối lượng công việc đã hoàn thành đến ngày chấm dứt theo tỷ lệ, và khoản đã nhận tương ứng với phần công việc đó không được hoàn lại. Trường hợp chấm dứt do lỗi vi phạm của Bên B, Bên B phải hoàn trả phần đã nhận vượt quá giá trị công việc thực tế đã hoàn thành. Việc chấm dứt không làm ảnh hưởng đến trách nhiệm bồi thường thiệt hại của Bên vi phạm.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.6 Late Payment &amp; Penalty for Breach / Chậm thanh toán và phạt vi phạm</p>
+  <div class="bilingual">
+    <p class="en">Any overdue payment shall bear interest at the average overdue-debt interest rate on the market at the time of payment, in accordance with Article 306 of the Law on Commerce 2005. In addition, the Parties agree a penalty for breach of contractual obligations equal to eight percent (08%) of the value of the breached obligation, being the maximum permitted under Article 301 of the Law on Commerce 2005. Party B may suspend work if any payment is overdue by more than fifteen (15) calendar days.</p>
+    <p class="vi">Khoản thanh toán chậm phải chịu lãi theo lãi suất nợ quá hạn trung bình trên thị trường tại thời điểm thanh toán, theo Điều 306 Luật Thương mại 2005. Ngoài ra, các Bên thỏa thuận mức phạt vi phạm nghĩa vụ hợp đồng bằng 8% giá trị phần nghĩa vụ bị vi phạm, là mức tối đa theo Điều 301 Luật Thương mại 2005. Bên B có quyền tạm dừng công việc nếu khoản thanh toán quá hạn trên 15 ngày.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.7 Force Majeure / Sự kiện bất khả kháng</p>
+  <div class="bilingual">
+    <p class="en">Neither Party shall be liable for failure to perform caused by an event of force majeure as defined in Article 156 of the Civil Code 2015 (including natural disaster, epidemic, war, or acts of competent State authorities). The affected Party shall notify the other within seven (07) calendar days. Performance shall be extended by the duration of the event; if it continues beyond sixty (60) calendar days, either Party may terminate and settle the completed work under Article 6.5.</p>
+    <p class="vi">Không Bên nào chịu trách nhiệm về việc không thực hiện được nghĩa vụ do sự kiện bất khả kháng theo Điều 156 Bộ luật Dân sự 2015 (bao gồm thiên tai, dịch bệnh, chiến tranh hoặc quyết định của cơ quan Nhà nước có thẩm quyền). Bên bị ảnh hưởng phải thông báo cho Bên kia trong vòng 7 ngày. Thời hạn thực hiện được gia hạn tương ứng thời gian xảy ra sự kiện; nếu kéo dài quá 60 ngày, mỗi Bên có quyền chấm dứt và quyết toán phần công việc đã hoàn thành theo Điều 6.5.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.8 Governing Language / Ngôn ngữ của Hợp đồng</p>
+  <div class="bilingual">
+    <p class="en">This Agreement is executed in both English and Vietnamese. In the event of any discrepancy or conflict of interpretation between the two versions, the Vietnamese version shall prevail.</p>
+    <p class="vi">Hợp đồng này được lập bằng cả tiếng Anh và tiếng Việt. Trường hợp có sự khác biệt hoặc mâu thuẫn trong cách hiểu giữa hai bản, bản tiếng Việt được ưu tiên áp dụng.</p>
   </div>
 </div>
 
@@ -376,6 +398,7 @@ export function generateClientContract(data: ClientContractData): string {
     <li>This Agreement terminates upon full performance of all obligations. / Hợp đồng chấm dứt khi hoàn thành toàn bộ nghĩa vụ.</li>
     <li>This Agreement is made in two (02) original copies of equal legal validity. / Hợp đồng lập thành 2 bản gốc có giá trị pháp lý ngang nhau.</li>
     <li>Any amendment shall be made in writing and signed by both Parties. / Mọi sửa đổi phải được lập bằng văn bản và ký bởi cả hai Bên.</li>
+    <li>The Parties agree that a signed copy transmitted by email or other electronic means, and electronic signatures made in accordance with the Law on Electronic Transactions, shall have the same legal validity as an original wet-ink signature. / Các Bên thống nhất rằng bản hợp đồng đã ký được gửi qua email hoặc phương tiện điện tử khác, và chữ ký điện tử được thực hiện theo Luật Giao dịch điện tử, có giá trị pháp lý như bản ký trực tiếp.</li>
   </ul>
 </div>
 
