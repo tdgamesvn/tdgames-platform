@@ -11,6 +11,7 @@ import TaskList from './TaskList';
 import SettlementManager from './SettlementManager';
 import ProjectAcceptanceManager from './ProjectAcceptanceManager';
 import ClickUpConfig from './ClickUpConfig';
+import PriceRulesPanel from './PriceRulesPanel';
 import { FinancialDashboard } from './FinancialDashboard';
 import HelpPanel from '@/components/HelpPanel';
 import { WORKFORCE_HELP } from '../helpContent';
@@ -167,7 +168,10 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
         )}
 
         {state.activeTab === 'config' && (
-          <ClickUpConfig onToast={showToast} />
+          <div className="space-y-6">
+            <ClickUpConfig onToast={showToast} />
+            <PriceRulesPanel onToast={showToast} />
+          </div>
         )}
       </main>
 
