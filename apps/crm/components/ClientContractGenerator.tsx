@@ -31,6 +31,20 @@ const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white border border-w
 const inputStyle = { background: '#111', colorScheme: 'dark' as const };
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-1';
 
+// ponytail: nhan dot thanh toan la DATA (user sua tay duoc), khong nam trong template
+// nen phai sinh mac dinh theo ngon ngu tai day. Doi ngon ngu -> dung lai nhan mac dinh.
+const phaseLabel = (i: number, isLast: boolean, L: 'both' | 'vi' | 'en') => {
+  const tt = (en: string, vi: string) => (L === 'en' ? en : L === 'vi' ? vi : `${en} / ${vi}`);
+  if (i === 0) return tt('Phase 1 – Deposit', 'Đợt 1 – Tạm ứng');
+  return isLast ? tt(`Phase ${i + 1} – Final`, `Đợt ${i + 1} – Thanh toán cuối`)
+                : tt(`Phase ${i + 1}`, `Đợt ${i + 1}`);
+};
+const phaseDesc = (i: number, isLast: boolean, L: 'both' | 'vi' | 'en') => {
+  const tt = (en: string, vi: string) => (L === 'en' ? en : L === 'vi' ? vi : `${en} / ${vi}`);
+  if (i === 0) return tt('Upon contract signing', 'Khi ký hợp đồng');
+  return isLast ? tt('Prior to source file handover', 'Trước khi bàn giao file gốc') : '';
+};
+
 const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, client, contacts, projects, onClose, onSaved, currentUserId }) => {
   // ── Bank accounts ──
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -109,8 +123,8 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   // ponytail: khach noi dia bat buoc VND (TT 32/2013) - ep ngay khi doi loai hop dong
   useEffect(() => { if (contractType === 'domestic') setCurrency('VND'); }, [contractType]);
   const [phases, setPhases] = useState<PaymentPhase[]>([
-    { label: 'Phase 1 – Deposit / Tạm ứng', percentage: 50, amount: 0, description: 'Upon contract signing / Khi ký hợp đồng' },
-    { label: 'Phase 2 – Final / Thanh toán cuối', percentage: 50, amount: 0, description: 'Prior to source file handover / Trước khi bàn giao file gốc' },
+    { label: phaseLabel(0, false, 'both'), percentage: 50, amount: 0, description: phaseDesc(0, false, 'both') },
+    { label: phaseLabel(1, true, 'both'), percentage: 50, amount: 0, description: phaseDesc(1, true, 'both') },
   ]);
 
   // ── Nap lai hop dong da luu (mo de sua) ──
@@ -135,6 +149,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setTotalValue(initialData.totalValue || 0);
     setCurrency(initialData.currency || 'USD');
     if (initialData.phases?.length) {
+      skipPhaseRebuild.current = true;
       setPhaseCount(initialData.phases.length);
       setPhases(initialData.phases);
     }
@@ -145,6 +160,8 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // ponytail: prefill set phaseCount -> effect rebuild se ghi de phases da luu. Chan 1 lan.
+  const skipPhaseRebuild = useRef(false);
 
   // ── Auto-fill project ──
   useEffect(() => {
@@ -166,19 +183,20 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
 
   // ── Rebuild phase array when count changes ──
   useEffect(() => {
+    if (skipPhaseRebuild.current) { skipPhaseRebuild.current = false; return; }
     const pct = Math.floor(100 / phaseCount);
     const newPhases: PaymentPhase[] = Array.from({ length: phaseCount }, (_, i) => {
       const isLast = i === phaseCount - 1;
       const percentage = isLast ? 100 - pct * (phaseCount - 1) : pct;
       return {
-        label: i === 0 ? 'Phase 1 – Deposit / Tạm ứng' : `Phase ${i + 1}${isLast ? ' – Final / Thanh toán cuối' : ''}`,
+        label: phaseLabel(i, isLast, lang),
         percentage,
         amount: Math.round(totalValue * percentage / 100),
-        description: i === 0 ? 'Upon contract signing / Khi ký hợp đồng' : (isLast ? 'Prior to source file handover / Trước khi bàn giao file gốc' : ''),
+        description: phaseDesc(i, isLast, lang),
       };
     });
     setPhases(newPhases);
-  }, [phaseCount]);
+  }, [phaseCount, lang]);
 
   // ── Selected bank account ──
   const selectedBank = bankAccounts.find(a => a.id === selectedBankId);

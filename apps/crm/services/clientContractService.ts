@@ -287,7 +287,7 @@ export function generateClientContract(data: ClientContractData): string {
   <p style="font-weight:bold;margin:6px 0 2px">${t('4.2 Payment Schedule', 'Lịch thanh toán')}</p>
   <table class="payment-table">
     <thead>
-      <tr><th>#</th><th>Description</th><th>%</th><th>Amount</th></tr>
+      <tr><th>#</th><th>${t('Description', 'Nội dung')}</th><th>%</th><th>${t('Amount', 'Số tiền')}</th></tr>
     </thead>
     <tbody>${paymentScheduleRows}</tbody>
   </table>
