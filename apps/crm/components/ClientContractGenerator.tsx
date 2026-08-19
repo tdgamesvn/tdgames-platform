@@ -140,6 +140,10 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setLang(initialData.lang || 'both');
     setContractNumber(initialData.contractNumber || '');
     setSigningDate(initialData.signingDate || todayStr());
+    if (initialData.bankAccountId) {
+      skipBankAutoSwitch.current = true;
+      setSelectedBankId(initialData.bankAccountId);
+    }
     setCompanyKey(initialData.companyKey || 'tdgames');
     setClientName(initialData.clientName || '');
     setClientAddress(initialData.clientAddress || '');
@@ -167,6 +171,8 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // ponytail: prefill set phaseCount -> effect rebuild se ghi de phases da luu. Chan 1 lan.
   const skipPhaseRebuild = useRef(false);
+  // ponytail: prefill set companyKey -> effect auto-switch bank se de mat tai khoan da luu
+  const skipBankAutoSwitch = useRef(false);
 
   // ── Auto-fill project ──
   useEffect(() => {
@@ -211,10 +217,13 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
 
   // ── Auto-switch bank when company changes ──
   useEffect(() => {
+    if (skipBankAutoSwitch.current) { skipBankAutoSwitch.current = false; return; }
     const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES', tdconsulting: 'TD CONSULTING' };
-    const match = bankAccounts.find(a => a.entity === entityMap[companyKey]);
+    const sameEntity = bankAccounts.filter(a => a.entity === entityMap[companyKey]);
+    // ponytail: uu tien tai khoan dung loai tien - HD VND ma tra ve TK USD la sai chung tu
+    const match = sameEntity.find(a => a.currency === currency) || sameEntity[0];
     if (match) setSelectedBankId(match.id);
-  }, [companyKey, bankAccounts]);
+  }, [companyKey, bankAccounts, currency]);
 
   // ── Dung payload dung chung cho preview va luu ──
   const buildData = (): ClientContractData => ({
@@ -226,6 +235,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     contractType, lang, totalValue, currency, phases,
     // ponytail: account_name = chu tai khoan in tren hoa don/HD.
     // `name` chi la ten goi nho noi bo ("TCB VND - Cong ty") - khong duoc in ra HD.
+    bankAccountId: selectedBankId || undefined,
     bankAccountName: selectedBank?.account_name?.trim() || undefined,
     bankName: selectedBank?.bank_name || undefined,
     bankAccountNumber: selectedBank?.account_number || undefined,
@@ -244,6 +254,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
       contractType, lang, totalValue, currency, phases,
+      bankAccountId: selectedBankId || undefined,
       bankAccountName: selectedBank?.account_name?.trim() || undefined,
       bankName: selectedBank?.bank_name || undefined,
       bankAccountNumber: selectedBank?.account_number || undefined,

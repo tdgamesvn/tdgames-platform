@@ -46,6 +46,8 @@ export interface ClientContractData {
   currency: string;
   phases: PaymentPhase[];
   // Bank
+  /** ID tai khoan da chon - de mo lai HD khoi bi auto-switch chon lai tai khoan khac */
+  bankAccountId?: string;
   bankAccountName?: string;
   bankName?: string;
   bankAccountNumber?: string;
