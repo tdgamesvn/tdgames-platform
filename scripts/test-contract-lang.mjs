@@ -48,5 +48,22 @@ for (const [n, t] of [['both', both], ['vi', vi], ['en', en]]) {
   check(`ban ${n} co han thanh toan`, /15 ngày|fifteen \(15\)/.test(t));
 }
 
+// Dieu 6.8 phai dung voi so ngon ngu thuc te cua ban in
+check('thuan Viet khong noi "ca tieng Anh va tieng Viet"',
+  !vi.includes('cả tiếng Anh và tiếng Việt'));
+check('thuan Anh khong noi "both English and Vietnamese"',
+  !en.includes('both English and Vietnamese'));
+check('song ngu van co dieu khoan uu tien tieng Viet',
+  both.includes('bản tiếng Việt được ưu tiên áp dụng'));
+check('thuan Viet co dieu khoan ngon ngu chinh thuc',
+  vi.includes('Tiếng Việt là ngôn ngữ chính thức'));
+check('thuan Anh co dieu khoan ngon ngu chinh thuc',
+  en.includes('English is the official language'));
+// Quoc hieu
+check('thuan Viet khong co quoc hieu tieng Anh',
+  !vi.includes('SOCIALIST REPUBLIC'));
+check('thuan Anh khong co quoc hieu tieng Viet',
+  !en.includes('CỘNG HÒA XÃ HỘI'));
+
 if (fail) { console.error(`\n${fail} kiem tra that bai`); process.exit(1); }
 console.log('contract-lang OK (both / vi / en)');

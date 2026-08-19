@@ -194,10 +194,10 @@ export function generateClientContract(data: ClientContractData): string {
 
 <!-- Header -->
 <div class="header-national">
-  <div class="en">SOCIALIST REPUBLIC OF VIETNAM</div>
-  <div class="vi">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-  <div class="motto-en">Independence – Freedom – Happiness</div>
-  <div class="motto-vi">Độc lập – Tự do – Hạnh phúc</div>
+  ${L === 'vi' ? '' : `<div class="en">SOCIALIST REPUBLIC OF VIETNAM</div>`}
+  ${L === 'en' ? '' : `<div class="vi">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>`}
+  ${L === 'vi' ? '' : `<div class="motto-en">Independence – Freedom – Happiness</div>`}
+  ${L === 'en' ? '' : `<div class="motto-vi">Độc lập – Tự do – Hạnh phúc</div>`}
   <div class="stars">***</div>
 </div>
 
@@ -425,8 +425,12 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:6px 0 2px">${t('6.8 Governing Language', 'Ngôn ngữ của Hợp đồng')}</p>
   <div class="bilingual">
-    <p class="en">This Agreement is executed in both English and Vietnamese. In the event of any discrepancy or conflict of interpretation between the two versions, the Vietnamese version shall prevail.</p>
-    <p class="vi">Hợp đồng này được lập bằng cả tiếng Anh và tiếng Việt. Trường hợp có sự khác biệt hoặc mâu thuẫn trong cách hiểu giữa hai bản, bản tiếng Việt được ưu tiên áp dụng.</p>
+    ${L === 'both'
+      ? `<p class="en">This Agreement is executed in both English and Vietnamese. In the event of any discrepancy or conflict of interpretation between the two versions, the Vietnamese version shall prevail.</p>
+    <p class="vi">Hợp đồng này được lập bằng cả tiếng Anh và tiếng Việt. Trường hợp có sự khác biệt hoặc mâu thuẫn trong cách hiểu giữa hai bản, bản tiếng Việt được ưu tiên áp dụng.</p>`
+      : L === 'vi'
+      ? `<p class="vi">Hợp đồng này được lập bằng tiếng Việt. Tiếng Việt là ngôn ngữ chính thức của Hợp đồng; mọi bản dịch sang ngôn ngữ khác (nếu có) chỉ mang tính tham khảo.</p>`
+      : `<p class="en">This Agreement is executed in English. English is the official language of this Agreement; any translation into another language (if any) is for reference only.</p>`}
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">${t('6.9 Limitation of Liability', 'Giới hạn trách nhiệm')}</p>
