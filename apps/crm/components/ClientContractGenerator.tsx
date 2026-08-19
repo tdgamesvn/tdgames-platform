@@ -49,6 +49,12 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
   }, []);
 
   // ── Contract info ──
+  // ponytail: đoán theo quốc gia/MST, vẫn cho sửa tay — khách "Viet Nam" hay có MST VN thì mặc định nội địa
+  const isVnClient = /viet\s*nam|việt\s*nam/i.test(`${(client as any).country || ''}`)
+    || /^\d{10}(-\d{3})?$/.test((client.tax_code || '').trim());
+  const [contractType, setContractType] = useState<'domestic' | 'international'>(
+    isVnClient ? 'domestic' : 'international',
+  );
   const [contractNumber, setContractNumber] = useState(generateContractNumber());
   const [signingDate, setSigningDate] = useState(todayStr());
   const [companyKey, setCompanyKey] = useState<CompanyKey>('tdgames');
@@ -96,6 +102,8 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
   const [totalValue, setTotalValue] = useState(0);
   const [currency, setCurrency] = useState('USD');
   const [phaseCount, setPhaseCount] = useState(2);
+  // ponytail: khach noi dia bat buoc VND (TT 32/2013) - ep ngay khi doi loai hop dong
+  useEffect(() => { if (contractType === 'domestic') setCurrency('VND'); }, [contractType]);
   const [phases, setPhases] = useState<PaymentPhase[]>([
     { label: 'Phase 1 – Deposit / Tạm ứng', percentage: 50, amount: 0, description: 'Upon contract signing / Khi ký hợp đồng' },
     { label: 'Phase 2 – Final / Thanh toán cuối', percentage: 50, amount: 0, description: 'Prior to source file handover / Trước khi bàn giao file gốc' },
@@ -159,7 +167,7 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
       clientRepresentative: clientRep, clientRepresentativeTitle: clientRepTitle,
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
-      totalValue, currency, phases,
+      contractType, totalValue, currency, phases,
       bankAccountName: selectedBank?.name || undefined,
       bankName: selectedBank?.bank_name || undefined,
       bankAccountNumber: selectedBank?.account_number || undefined,
@@ -168,7 +176,7 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
       bankAddress: selectedBank?.bank_address || undefined,
     };
     setPreviewHtml(generateClientContract(data));
-  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, totalValue, currency, phases, selectedBankId, bankAccounts]);
+  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, contractType, totalValue, currency, phases, selectedBankId, bankAccounts]);
 
   // ── Write preview to iframe ──
   useEffect(() => {
@@ -385,6 +393,19 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
 
           {/* Payment */}
           <p style={{ fontSize: 11, fontWeight: 900, color: '#10b981', textTransform: 'uppercase', letterSpacing: 2 }}>Thanh toán</p>
+          <div style={{ marginBottom: 8 }}>
+            <p className={labelCls}>Loại hợp đồng</p>
+            <select value={contractType} onChange={e => setContractType(e.target.value as 'domestic' | 'international')}
+              className={inputCls} style={inputStyle}>
+              <option value="international">Khách nước ngoài — ngoại tệ, phí CK quốc tế</option>
+              <option value="domestic">Khách Việt Nam — bắt buộc VND</option>
+            </select>
+            {contractType === 'domestic' && (
+              <p style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
+                Khách trong nước: hợp đồng phải ghi giá bằng VND (Thông tư 32/2013/TT-NHNN).
+              </p>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
               <p className={labelCls}>Tổng giá trị</p>
@@ -392,9 +413,11 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
             </div>
             <div style={{ width: 80 }}>
               <p className={labelCls}>Tiền tệ</p>
-              <select value={currency} onChange={e => setCurrency(e.target.value)} className={inputCls} style={inputStyle}>
-                <option value="USD">USD</option>
-                <option value="VND">VND</option>
+              <select value={currency} onChange={e => setCurrency(e.target.value)} disabled={contractType === 'domestic'}
+                className={inputCls} style={{ ...inputStyle, opacity: contractType === 'domestic' ? 0.6 : 1 }}>
+                {contractType === 'domestic'
+                  ? <option value="VND">VND</option>
+                  : <><option value="USD">USD</option><option value="VND">VND</option></>}
               </select>
             </div>
           </div>

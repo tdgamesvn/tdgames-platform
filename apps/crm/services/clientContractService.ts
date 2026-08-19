@@ -37,6 +37,8 @@ export interface ClientContractData {
   startDate: string;
   estimatedDuration: string;
   estimatedCompletion: string;
+  /** 'domestic' = khách Việt Nam (bắt buộc VND, toà án VN); 'international' = khách nước ngoài */
+  contractType: 'domestic' | 'international';
   // Payment
   totalValue: number;
   currency: string;
@@ -164,6 +166,8 @@ body {
 
 export function generateClientContract(data: ClientContractData): string {
   const company = COMPANY_OPTIONS[data.companyKey];
+  // ponytail: 1 template + 1 cờ, không nhân đôi 400 dòng — khác biệt chỉ nằm ở 3 chỗ.
+  const dom = data.contractType === 'domestic';
 
   const paymentScheduleRows = data.phases.map((p, i) => `
     <tr>
@@ -291,13 +295,16 @@ export function generateClientContract(data: ClientContractData): string {
     <tr><td class="label">Account Name:</td><td class="value">${data.bankAccountName || company.name}</td></tr>
     <tr><td class="label">Bank Name:</td><td class="value">${data.bankName || '..........'}</td></tr>
     <tr><td class="label">Bank Account No.:</td><td class="value">${data.bankAccountNumber || '..........'}</td></tr>
-    ${data.bankSwiftCode ? `<tr><td class="label">Bank Swift Code:</td><td class="value">${data.bankSwiftCode}</td></tr>` : ''}
+    ${!dom && data.bankSwiftCode ? `<tr><td class="label">Bank Swift Code:</td><td class="value">${data.bankSwiftCode}</td></tr>` : ''}
     ${data.bankCitadCode ? `<tr><td class="label">Bank CITAD Code:</td><td class="value">${data.bankCitadCode}</td></tr>` : ''}
-    ${data.bankAddress ? `<tr><td class="label">Bank Address:</td><td class="value">${data.bankAddress}</td></tr>` : ''}
+    ${!dom && data.bankAddress ? `<tr><td class="label">Bank Address:</td><td class="value">${data.bankAddress}</td></tr>` : ''}
   </table>
   <div class="bilingual" style="margin-top:4px">
-    <p class="en">All bank transfer fees incurred outside of Vietnam shall be borne by Party A. Fees within Vietnam shall be borne by Party B.</p>
-    <p class="vi">Tất cả phí chuyển khoản phát sinh ngoài lãnh thổ Việt Nam do Bên A chịu. Phí trong nước do Bên B chịu.</p>
+    ${dom
+      ? `<p class="en">Each Party shall bear the bank charges levied by its own bank. Payment shall be made in Vietnamese Dong (VND) by bank transfer; cash payment shall not be accepted.</p>
+    <p class="vi">Mỗi Bên chịu phí ngân hàng do ngân hàng của mình thu. Việc thanh toán được thực hiện bằng Đồng Việt Nam (VND) qua chuyển khoản; không chấp nhận thanh toán bằng tiền mặt.</p>`
+      : `<p class="en">All bank transfer fees incurred outside of Vietnam shall be borne by Party A. Fees within Vietnam shall be borne by Party B. Payment shall be made by bank transfer; cash payment shall not be accepted.</p>
+    <p class="vi">Tất cả phí chuyển khoản phát sinh ngoài lãnh thổ Việt Nam do Bên A chịu. Phí trong nước do Bên B chịu. Việc thanh toán được thực hiện qua chuyển khoản; không chấp nhận thanh toán bằng tiền mặt.</p>`}
   </div>
 </div>
 
@@ -361,8 +368,8 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:6px 0 2px">6.4 Governing Law / Luật điều chỉnh</p>
   <div class="bilingual">
-    <p class="en">This Agreement shall be governed by the laws of Vietnam. Disputes shall be resolved through negotiation within thirty (30) days, failing which either Party may submit to the competent People's Court of Ha Noi.</p>
-    <p class="vi">Hợp đồng này được điều chỉnh theo pháp luật Việt Nam. Tranh chấp ưu tiên giải quyết thương lượng trong 30 ngày, nếu không giải quyết được có thể đưa ra Tòa án tại Hà Nội.</p>
+    <p class="en">This Agreement shall be governed by the laws of Vietnam. Disputes shall be resolved through negotiation within thirty (30) days, failing which either Party may submit the dispute to the competent People's Court in Ha Noi.</p>
+    <p class="vi">Hợp đồng này được điều chỉnh theo pháp luật Việt Nam. Tranh chấp ưu tiên giải quyết bằng thương lượng trong 30 ngày, nếu không giải quyết được thì mỗi Bên có quyền khởi kiện tại Tòa án nhân dân có thẩm quyền tại Hà Nội.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">6.5 Contract Termination / Chấm dứt hợp đồng</p>
