@@ -372,12 +372,12 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="vi">Thanh toán được thực hiện bằng hình thức chuyển khoản ngân hàng đến tài khoản sau:</p>
   </div>
   <table class="info-table" style="margin-top:4px">
-    <tr><td class="label">Account Name:</td><td class="value">${data.bankAccountName || company.name}</td></tr>
-    <tr><td class="label">Bank Name:</td><td class="value">${data.bankName || '..........'}</td></tr>
-    <tr><td class="label">Bank Account No.:</td><td class="value">${data.bankAccountNumber || '..........'}</td></tr>
-    ${!dom && data.bankSwiftCode ? `<tr><td class="label">Bank Swift Code:</td><td class="value">${data.bankSwiftCode}</td></tr>` : ''}
-    ${data.bankCitadCode ? `<tr><td class="label">Bank CITAD Code:</td><td class="value">${data.bankCitadCode}</td></tr>` : ''}
-    ${!dom && data.bankAddress ? `<tr><td class="label">Bank Address:</td><td class="value">${data.bankAddress}</td></tr>` : ''}
+    <tr><td class="label">${t('Account Name', 'Tên tài khoản')}:</td><td class="value">${data.bankAccountName || company.name}</td></tr>
+    <tr><td class="label">${t('Bank Name', 'Ngân hàng')}:</td><td class="value">${data.bankName || '..........'}</td></tr>
+    <tr><td class="label">${t('Bank Account No.', 'Số tài khoản')}:</td><td class="value">${data.bankAccountNumber || '..........'}</td></tr>
+    ${!dom && data.bankSwiftCode ? `<tr><td class="label">${t('Bank Swift Code', 'Mã Swift')}:</td><td class="value">${data.bankSwiftCode}</td></tr>` : ''}
+    ${data.bankCitadCode ? `<tr><td class="label">${t('Bank CITAD Code', 'Mã CITAD')}:</td><td class="value">${data.bankCitadCode}</td></tr>` : ''}
+    ${data.bankAddress ? `<tr><td class="label">${t('Branch / Bank Address', 'Chi nhánh / Địa chỉ ngân hàng')}:</td><td class="value">${data.bankAddress}</td></tr>` : ''}
   </table>
   <div class="bilingual" style="margin-top:4px">
     ${dom

@@ -27,6 +27,26 @@ const gen = new Function('return ' + fn)();
   }
 }
 
+// Lop 3: nhan CHI co tieng Anh (khong co " / " nen 2 lop tren khong bat).
+// Vd cu: <td class="label">Account Name:</td> -> ban thuan Viet van in tieng Anh.
+{
+  const tplSrc = src.slice(src.indexOf('const html = `<!DOCTYPE'), src.indexOf('</body>'));
+  const VN_CHARS = /[\u00C0-\u1EF9]/;
+  const OK = ['#', '%', 'Email:'];
+  const bad = [];
+  const re = /(class="label">|class="tl-label">|<th>)([^<${]*[A-Za-z][^<${]*)</g;
+  let m;
+  while ((m = re.exec(tplSrc))) {
+    const txt = m[2].trim();
+    if (txt && !OK.includes(txt) && !VN_CHARS.test(txt)) bad.push(txt);
+  }
+  if (bad.length) {
+    console.error('FAIL: nhan chi co tieng Anh, chua qua t():');
+    bad.forEach(x => console.error('   ', x));
+    process.exitCode = 1;
+  }
+}
+
 const CO = { tdgames: { name: 'TD GAMES', address: 'HN', taxCode: '0111386856',
                         representative: 'R', representativeTitle: 'GD' } };
 const f = n => n.toLocaleString('vi-VN');
