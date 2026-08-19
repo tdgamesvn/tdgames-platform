@@ -1,7 +1,7 @@
 import { CrmClient, CrmContact } from '@/types';
 import { COMPANY_OPTIONS, CompanyKey } from '@/apps/hr/services/contractService';
 import { supabase } from '@/services/supabaseClient';
-import { cleanScopeHtml } from './scopeHtml';
+import { cleanScopeHtml, normalizeScopeHtml } from './scopeHtml';
 
 // Re-export for convenience
 export { COMPANY_OPTIONS, printContract } from '@/apps/hr/services/contractService';
@@ -218,6 +218,14 @@ body {
 .article-title { font-weight: bold; font-size: 13px; margin-bottom: 4px; text-transform: uppercase; break-after: avoid; page-break-after: avoid; }
 .article p, .article li { text-align: justify; margin-bottom: 3px; orphans: 2; widows: 2; }
 .article ul, .article ol { padding-left: 20px; }
+/* Scope dan tu ngoai: ep ve font/size cua hop dong (inline font da bi go o
+   normalizeScopeHtml, phan con lai CSS lo). */
+.scope, .scope * { font-family: 'Times New Roman', 'Tinos', serif !important; }
+.scope p, .scope li, .scope td, .scope th, .scope div { font-size: 13px; line-height: 1.6; }
+.scope h1, .scope h2, .scope h3, .scope h4 { font-size: 13px; font-weight: bold; margin: 8px 0 3px; }
+.scope table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.scope th, .scope td { border: 1px solid #666; padding: 4px 8px; font-size: 12px; vertical-align: top; }
+.scope th { background: #f5f5f5; font-weight: bold; text-align: center; }
 .payment-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
 .payment-table th, .payment-table td { border: 1px solid #666; padding: 4px 8px; font-size: 12px; vertical-align: top; }
 .payment-table th { background: #f5f5f5; font-weight: bold; text-align: center; }
@@ -337,7 +345,7 @@ export function generateClientContract(data: ClientContractData): string {
 <div class="article">
   <div class="article-title">${t('ARTICLE II. SCOPE OF WORK', 'ĐIỀU II. PHẠM VI CÔNG VIỆC')}</div>
   <p style="font-weight:bold;margin-bottom:4px">${t('Project Name', 'Tên dự án')}: ${blank(data.projectName)}</p>
-  <div style="margin-top:6px">${data.scopeContent || `<p style="color:#999">[${t('Scope of work will be defined here', 'Phạm vi công việc sẽ được xác định tại đây')}]</p>`}</div>
+  <div class="scope" style="margin-top:6px">${normalizeScopeHtml(data.scopeContent) || `<p style="color:#999">[${t('Scope of work will be defined here', 'Phạm vi công việc sẽ được xác định tại đây')}]</p>`}</div>
   <div class="bilingual" style="margin-top:8px">
     <p class="en"><strong>Out of Scope:</strong> Any assets, features, or requirements not explicitly listed in this Article shall be considered additional work outside the scope of this Agreement and may be quoted separately in accordance with Article 6.2.</p>
     <p class="vi"><strong>Ngoài phạm vi:</strong> Bất kỳ tài sản, tính năng hoặc yêu cầu nào không được liệt kê rõ ràng trong Điều này đều được coi là công việc phát sinh ngoài phạm vi Hợp đồng và có thể được báo giá riêng theo Điều 6.2.</p>
