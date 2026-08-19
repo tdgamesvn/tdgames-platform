@@ -58,6 +58,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   const [contractType, setContractType] = useState<'domestic' | 'international'>(
     isVnClient ? 'domestic' : 'international',
   );
+  const [lang, setLang] = useState<'both' | 'vi' | 'en'>('both');
   const [contractNumber, setContractNumber] = useState(generateContractNumber());
   const [signingDate, setSigningDate] = useState(todayStr());
   const [companyKey, setCompanyKey] = useState<CompanyKey>('tdgames');
@@ -117,6 +118,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   useEffect(() => {
     if (!initialData) return;
     setContractType(initialData.contractType || 'international');
+    setLang(initialData.lang || 'both');
     setContractNumber(initialData.contractNumber || '');
     setSigningDate(initialData.signingDate || todayStr());
     setCompanyKey(initialData.companyKey || 'tdgames');
@@ -195,7 +197,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     clientRepresentative: clientRep, clientRepresentativeTitle: clientRepTitle,
     projectName, scopeContent,
     startDate, estimatedDuration, estimatedCompletion,
-    contractType, totalValue, currency, phases,
+    contractType, lang, totalValue, currency, phases,
     bankAccountName: selectedBank?.name || undefined,
     bankName: selectedBank?.bank_name || undefined,
     bankAccountNumber: selectedBank?.account_number || undefined,
@@ -212,7 +214,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
       clientRepresentative: clientRep, clientRepresentativeTitle: clientRepTitle,
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
-      contractType, totalValue, currency, phases,
+      contractType, lang, totalValue, currency, phases,
       bankAccountName: selectedBank?.name || undefined,
       bankName: selectedBank?.bank_name || undefined,
       bankAccountNumber: selectedBank?.account_number || undefined,
@@ -221,7 +223,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
       bankAddress: selectedBank?.bank_address || undefined,
     };
     setPreviewHtml(generateClientContract(data));
-  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, contractType, totalValue, currency, phases, selectedBankId, bankAccounts]);
+  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, contractType, lang, totalValue, currency, phases, selectedBankId, bankAccounts]);
 
   // ── Write preview to iframe ──
   useEffect(() => {
@@ -455,6 +457,13 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
               className={inputCls} style={inputStyle}>
               <option value="international">Khách nước ngoài — ngoại tệ, phí CK quốc tế</option>
               <option value="domestic">Khách Việt Nam — bắt buộc VND</option>
+            </select>
+            <p className={labelCls} style={{ marginTop: 8 }}>Ngôn ngữ bản in</p>
+            <select value={lang} onChange={e => setLang(e.target.value as 'both' | 'vi' | 'en')}
+              className={inputCls} style={inputStyle}>
+              <option value="both">Song ngữ Anh – Việt</option>
+              <option value="vi">Thuần Việt</option>
+              <option value="en">Thuần Anh</option>
             </select>
             {contractType === 'domestic' && (
               <p style={{ fontSize: 10, color: '#666', marginTop: 4 }}>
