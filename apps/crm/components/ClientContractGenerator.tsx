@@ -224,12 +224,15 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     projectName, scopeContent,
     startDate, estimatedDuration, estimatedCompletion,
     contractType, lang, totalValue, currency, phases,
-    bankAccountName: selectedBank?.name || undefined,
+    // ponytail: account_name = chu tai khoan in tren hoa don/HD.
+    // `name` chi la ten goi nho noi bo ("TCB VND - Cong ty") - khong duoc in ra HD.
+    bankAccountName: selectedBank?.account_name?.trim() || undefined,
     bankName: selectedBank?.bank_name || undefined,
     bankAccountNumber: selectedBank?.account_number || undefined,
     bankSwiftCode: selectedBank?.swift_code || undefined,
     bankCitadCode: selectedBank?.citad_code || undefined,
-    bankAddress: selectedBank?.bank_address || undefined,
+    bankAddress: [selectedBank?.branch_name, selectedBank?.bank_address]
+      .map(x => x?.trim()).filter(Boolean).join(' — ') || undefined,
   });
 
   // ── Generate preview ──
@@ -241,12 +244,13 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
       contractType, lang, totalValue, currency, phases,
-      bankAccountName: selectedBank?.name || undefined,
+      bankAccountName: selectedBank?.account_name?.trim() || undefined,
       bankName: selectedBank?.bank_name || undefined,
       bankAccountNumber: selectedBank?.account_number || undefined,
       bankSwiftCode: selectedBank?.swift_code || undefined,
       bankCitadCode: selectedBank?.citad_code || undefined,
-      bankAddress: selectedBank?.bank_address || undefined,
+      bankAddress: [selectedBank?.branch_name, selectedBank?.bank_address]
+        .map(x => x?.trim()).filter(Boolean).join(' — ') || undefined,
     };
     setPreviewHtml(generateClientContract(data));
   }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, contractType, lang, totalValue, currency, phases, selectedBankId, bankAccounts]);
