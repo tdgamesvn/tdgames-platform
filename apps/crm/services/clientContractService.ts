@@ -268,13 +268,15 @@ export function generateClientContract(data: ClientContractData): string {
   // ponytail: t() lo cac cho gop "English / Tieng Viet" trong 1 the; con cac doan
   // <p class="en">/<p class="vi"> thi loc 1 lan o cuoi, khoi sua 29 cho.
   const t = (en: string, vi: string) => (L === 'en' ? en : L === 'vi' ? vi : `${en} / ${vi}`);
+  // ponytail: ban thuan Viet viet VNĐ; ban co tieng Anh giu ma ISO "VND".
+  const cur = L === 'vi' && data.currency === 'VND' ? 'VNĐ' : data.currency;
 
   const paymentScheduleRows = data.phases.map((p, i) => `
     <tr>
       <td style="text-align:center">${i + 1}</td>
       <td>${p.label}<br><span style="font-style:italic;color:#444">${p.description}</span></td>
       <td style="text-align:center">${p.percentage}%</td>
-      <td style="text-align:right">${fmt(p.amount)} ${data.currency}</td>
+      <td style="text-align:right">${fmt(p.amount)} ${cur}</td>
     </tr>
   `).join('');
 
@@ -361,7 +363,7 @@ export function generateClientContract(data: ClientContractData): string {
   <div class="article-title">${t('ARTICLE III. TIMELINE', 'ĐIỀU III. TIẾN ĐỘ THỰC HIỆN')}</div>
   <table class="timeline-table">
     <tr><td class="tl-label">${t('Start Date', 'Ngày bắt đầu')}</td><td>${data.startDate ? fmtDate(data.startDate) : t('Within 3 business days after receipt of the prepayment.', 'Trong vòng 3 ngày làm việc sau khi nhận tạm ứng.')}</td></tr>
-    <tr><td class="tl-label">${t('Estimated Duration', 'Thời gian dự kiến')}</td><td>${blank(data.estimatedDuration)}</td></tr>
+    ${(data.startDate && data.estimatedCompletion) ? '' : `<tr><td class="tl-label">${t('Estimated Duration', 'Thời gian dự kiến')}</td><td>${blank(data.estimatedDuration)}</td></tr>`}
     <tr><td class="tl-label">${t('Estimated Completion', 'Ngày hoàn thành dự kiến')}</td><td>${data.estimatedCompletion ? fmtDate(data.estimatedCompletion) : blank('')}</td></tr>
   </table>
   <div class="bilingual" style="margin-top:6px">
@@ -376,7 +378,7 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:4px 0 2px">4.1 ${t('Total Contract Value', 'Tổng giá trị hợp đồng')}</p>
   <table class="info-table">
-    <tr><td class="label">${t('Amount (Figures)', 'Bằng số:')}</td><td class="value"><strong>${fmt(data.totalValue)} ${data.currency}</strong></td></tr>
+    <tr><td class="label">${t('Amount (Figures)', 'Bằng số:')}</td><td class="value"><strong>${fmt(data.totalValue)} ${cur}</strong></td></tr>
     <tr><td class="label">${t('Amount (Words)', 'Bằng chữ:')}</td><td class="value">${numberToWords(data.totalValue, data.currency, L)}</td></tr>
   </table>
 
