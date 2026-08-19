@@ -366,15 +366,21 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
   const { data: openTasks } = await supabase
     .from('wf_tasks')
-    .select('id, client_price, price, currency, clickup_status, payment_status');
+    .select('id, client_price, price, currency, clickup_status, payment_status, clickup_space_name');
+  // Space nội bộ (marketing/BD/R&D): có task nhưng không bán cho khách ⇒ không đòi giá.
+  const { data: spaceRows } = await supabase
+    .from('wf_space_settings').select('space_name').eq('is_internal', true);
+  const internalSpaces = new Set((spaceRows || []).map((r: any) => r.space_name));
 
   let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0;
   (openTasks || []).forEach((t: any) => {
     if (inAcceptance.has(t.id)) return;
     if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
-    projTaskCount++;
+    const isInternal = internalSpaces.has(t.clickup_space_name);
+    if (!isInternal) projTaskCount++;
     const cp = Number(t.client_price || 0);
-    if (cp > 0) projRevenueUSD += cp; else tasksWithoutPrice++;
+    if (cp > 0) projRevenueUSD += cp;
+    else if (!isInternal) tasksWithoutPrice++;
     if (t.payment_status !== 'paid') {
       const p = Number(t.price || 0);
       projFreelancer += t.currency === 'USD' ? p * exchangeRate : p;

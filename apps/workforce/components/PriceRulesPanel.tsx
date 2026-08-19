@@ -33,19 +33,35 @@ interface Props {
 const PriceRulesPanel: React.FC<Props> = ({ onToast }) => {
   const [rules, setRules] = useState<PriceRule[]>([]);
   const [spaces, setSpaces] = useState<string[]>([]);
+  const [internal, setInternal] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<PriceRule | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: rows }, { data: sp }] = await Promise.all([
+    const [{ data: rows }, { data: sp }, { data: settings }] = await Promise.all([
       supabase.from('wf_price_rules').select('*').order('priority', { ascending: false }),
       supabase.from('wf_tasks').select('clickup_space_name').not('clickup_space_name', 'is', null),
+      supabase.from('wf_space_settings').select('space_name, is_internal'),
     ]);
     setRules((rows || []) as PriceRule[]);
     setSpaces([...new Set((sp || []).map((r: any) => r.clickup_space_name))].sort());
+    setInternal(new Set((settings || []).filter((s: any) => s.is_internal).map((s: any) => s.space_name)));
     setLoading(false);
+  };
+
+  const toggleInternal = async (space: string) => {
+    const next = !internal.has(space);
+    const { error } = await supabase.from('wf_space_settings')
+      .upsert({ space_name: space, is_internal: next, updated_at: new Date().toISOString() });
+    if (error) return onToast(`Lỗi: ${error.message}`, 'error');
+    setInternal(prev => {
+      const s = new Set(prev);
+      next ? s.add(space) : s.delete(space);
+      return s;
+    });
+    onToast(next ? `“${space}” → việc nội bộ` : `“${space}” → có doanh thu`, 'success');
   };
   useEffect(() => { load(); }, []);
 
@@ -113,6 +129,28 @@ const PriceRulesPanel: React.FC<Props> = ({ onToast }) => {
           </button>
         </div>
       </div>
+
+      {/* Space nội bộ: việc marketing/BD/R&D không bán cho khách ⇒ khỏi đòi giá */}
+      {spaces.length > 0 && (
+        <div className="border-t border-white/5 pt-3">
+          <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider mb-2">
+            Space nội bộ (không kỳ vọng doanh thu — bấm để bật/tắt)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {spaces.map(sp => (
+              <button key={sp} onClick={() => toggleInternal(sp)}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${
+                  internal.has(sp)
+                    ? 'bg-neutral-700/40 text-neutral-400 border-white/10'
+                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25'
+                }`}
+                title={internal.has(sp) ? 'Việc nội bộ — không tính doanh thu' : 'Space khách — có doanh thu'}>
+                {internal.has(sp) ? '🏠' : '💰'} {sp}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p className="text-neutral-medium text-sm py-4 text-center">Đang tải…</p>
