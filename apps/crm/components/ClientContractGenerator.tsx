@@ -47,6 +47,11 @@ const phaseDesc = (i: number, isLast: boolean, L: 'both' | 'vi' | 'en') => {
 
 const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, client, contacts, projects, onClose, onSaved, currentUserId }) => {
   // ── Bank accounts ──
+  const [companyProfile, setCompanyProfile] = useState<any | null>(null);
+  useEffect(() => {
+    supabase.from('company_profiles').select('*').eq('is_primary', true).maybeSingle()
+      .then(({ data }) => setCompanyProfile(data || null));
+  }, []);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [selectedBankId, setSelectedBankId] = useState('');
 
@@ -235,6 +240,10 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     contractType, lang, totalValue, currency, phases,
     // ponytail: account_name = chu tai khoan in tren hoa don/HD.
     // `name` chi la ten goi nho noi bo ("TCB VND - Cong ty") - khong duoc in ra HD.
+    companyProfile: companyProfile ? {
+      name: companyProfile.entity_name_vn, address: companyProfile.address_tax || companyProfile.address,
+      taxCode: companyProfile.tax_id, representative: companyProfile.legal_rep, email: companyProfile.email,
+    } : undefined,
     bankAccountId: selectedBankId || undefined,
     bankAccountName: selectedBank?.account_name?.trim() || undefined,
     bankName: selectedBank?.bank_name || undefined,
@@ -254,6 +263,10 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
       contractType, lang, totalValue, currency, phases,
+    companyProfile: companyProfile ? {
+        name: companyProfile.entity_name_vn, address: companyProfile.address_tax || companyProfile.address,
+        taxCode: companyProfile.tax_id, representative: companyProfile.legal_rep, email: companyProfile.email,
+      } : undefined,
       bankAccountId: selectedBankId || undefined,
       bankAccountName: selectedBank?.account_name?.trim() || undefined,
       bankName: selectedBank?.bank_name || undefined,
@@ -264,7 +277,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
         .map(x => x?.trim()).filter(Boolean).join(' — ') || undefined,
     };
     setPreviewHtml(generateClientContract(data));
-  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, contractType, lang, totalValue, currency, phases, selectedBankId, bankAccounts]);
+  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, companyProfile, contractType, lang, totalValue, currency, phases, selectedBankId, bankAccounts]);
 
   // ── Write preview to iframe ──
   useEffect(() => {

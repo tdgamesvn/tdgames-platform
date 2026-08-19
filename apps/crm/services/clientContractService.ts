@@ -45,6 +45,11 @@ export interface ClientContractData {
   totalValue: number;
   currency: string;
   phases: PaymentPhase[];
+  /** Thong tin Ben B lay tu bang company_profiles (App Cong ty). Thieu thi fallback COMPANY_OPTIONS. */
+  companyProfile?: {
+    name?: string; address?: string; taxCode?: string;
+    representative?: string; email?: string;
+  };
   // Bank
   /** ID tai khoan da chon - de mo lai HD khoi bi auto-switch chon lai tai khoan khac */
   bankAccountId?: string;
@@ -234,7 +239,18 @@ body {
 // ══════════════════════════════════════════════════════════════
 
 export function generateClientContract(data: ClientContractData): string {
-  const company = COMPANY_OPTIONS[data.companyKey];
+  const base = COMPANY_OPTIONS[data.companyKey];
+  // ponytail: uu tien company_profiles (sua duoc trong App Cong ty), fallback hardcode.
+  // Truoc day HD doc COMPANY_OPTIONS + email ghi cung -> sua trong app khong co tac dung.
+  const p = data.companyProfile || {};
+  const company = {
+    ...base,
+    name: p.name?.trim() || base.name,
+    address: p.address?.trim() || base.address,
+    taxCode: p.taxCode?.trim() || base.taxCode,
+    representative: p.representative?.trim() || base.representative,
+    email: p.email?.trim() || 'tdgames.vn@gmail.com',
+  };
   // ponytail: 1 template + 1 cờ, không nhân đôi 400 dòng — khác biệt chỉ nằm ở 3 chỗ.
   const dom = data.contractType === 'domestic';
   const L = data.lang || 'both';
@@ -308,7 +324,7 @@ export function generateClientContract(data: ClientContractData): string {
   <table class="info-table">
     <tr><td class="label">${t('Company Name', 'Tên công ty:')}</td><td class="value">${company.name}</td></tr>
     <tr><td class="label">${t('Address', 'Địa chỉ:')}</td><td class="value">${company.address}</td></tr>
-    <tr><td class="label">Email:</td><td class="value">tdgames.vn@gmail.com</td></tr>
+    <tr><td class="label">Email:</td><td class="value">${company.email}</td></tr>
     <tr><td class="label">${t('Tax ID', 'Mã số thuế:')}</td><td class="value">${company.taxCode}</td></tr>
     <tr><td class="label">${t('Representative', 'Người đại diện:')}</td><td class="value">${company.representative}</td></tr>
     <tr><td class="label">${t('Position', 'Chức vụ:')}</td><td class="value">${company.representativeTitle}</td></tr>
