@@ -22,11 +22,6 @@ interface Props {
   currentUserId?: string;
 }
 
-const todayStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors';
 const inputStyle = { background: '#111', colorScheme: 'dark' as const };
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-1';
