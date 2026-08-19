@@ -204,6 +204,27 @@ Users có thể có `primary role` + `secondary_roles[]`.
 
 ---
 
+## 📄 Hợp đồng khách hàng (CRM) — sửa template phải theo quy tắc
+
+`apps/crm/services/clientContractService.ts` sinh **1 template** ra 6 biến thể:
+2 loại (`contractType`: domestic/international) × 3 ngôn ngữ (`lang`: both/vi/en).
+**Không nhân bản file** — sửa 1 chỗ là cả 6 biến thể đổi theo.
+
+Khi thêm/sửa điều khoản, bắt buộc:
+
+| Loại nội dung | Cách viết |
+|---|---|
+| Đoạn văn song ngữ | `<p class="en">English</p><p class="vi">Tiếng Việt</p>` — bộ lọc cuối hàm tự bỏ đoạn thừa |
+| Tiêu đề, nhãn bảng, `<li>` | `${t('English', 'Tiếng Việt')}` — **không** viết thẳng `English / Tiếng Việt` |
+| Khác nhau giữa nội địa / quốc tế | `${dom ? '...' : '...'}` |
+
+⚠️ Viết thẳng chuỗi `"English / Tiếng Việt"` mà quên `t()` → bản Thuần Việt lòi tiếng Anh.
+Không cắt chuỗi theo dấu `/` bằng regex runtime — văn bản pháp lý còn nhiều dấu `/` khác
+(`và/hoặc`, số hiệu, ngày tháng `..../..../....`).
+
+**Sau khi sửa template phải chạy:** `node scripts/test-contract-lang.mjs`
+(render cả 3 ngôn ngữ, fail nếu lẫn ngôn ngữ hoặc mất điều khoản thuế/hạn thanh toán).
+
 ## ✅ Quy trình trước khi commit
 
 1. GitNexus `detect_changes({scope: "compare", base_ref: "main"})` — xác nhận đúng phạm vi thay đổi
