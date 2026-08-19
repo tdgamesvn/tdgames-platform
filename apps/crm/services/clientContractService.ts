@@ -314,6 +314,15 @@ export function generateClientContract(data: ClientContractData): string {
       : `<p class="en">All bank transfer fees incurred outside of Vietnam shall be borne by Party A. Fees within Vietnam shall be borne by Party B. Payment shall be made by bank transfer; cash payment shall not be accepted.</p>
     <p class="vi">Tất cả phí chuyển khoản phát sinh ngoài lãnh thổ Việt Nam do Bên A chịu. Phí trong nước do Bên B chịu. Việc thanh toán được thực hiện qua chuyển khoản; không chấp nhận thanh toán bằng tiền mặt.</p>`}
   </div>
+
+  <p style="font-weight:bold;margin:8px 0 2px">4.4 Value Added Tax / Thuế giá trị gia tăng</p>
+  <div class="bilingual">
+    ${dom
+      ? `<p class="en">The services under this Agreement are software services falling within the category not subject to value added tax under Clause 21, Article 5 of the Law on Value Added Tax 2024. The contract value stated in Article 4.1 is accordingly the final amount payable and no value added tax shall be added. Should a competent tax authority determine a different treatment, the Parties shall sign an appendix to adjust accordingly.</p>
+    <p class="vi">Dịch vụ theo Hợp đồng này là dịch vụ phần mềm thuộc đối tượng không chịu thuế giá trị gia tăng theo khoản 21 Điều 5 Luật Thuế giá trị gia tăng 2024. Do đó, giá trị hợp đồng nêu tại Điều 4.1 là số tiền thanh toán cuối cùng và không cộng thêm thuế giá trị gia tăng. Trường hợp cơ quan thuế có thẩm quyền xác định khác, các Bên ký phụ lục điều chỉnh tương ứng.</p>`
+      : `<p class="en">The services under this Agreement are exported services subject to the zero percent (0%) value added tax rate. The contract value stated in Article 4.1 is exclusive of any tax payable outside Vietnam. Payment shall be made by non-cash bank transfer, and the Parties shall retain this Agreement together with the bank payment documents as the dossier evidencing eligibility for the 0% rate.</p>
+    <p class="vi">Dịch vụ theo Hợp đồng này là dịch vụ xuất khẩu, áp dụng thuế suất thuế giá trị gia tăng 0%. Giá trị hợp đồng nêu tại Điều 4.1 chưa bao gồm các khoản thuế phải nộp ngoài lãnh thổ Việt Nam. Việc thanh toán được thực hiện bằng chuyển khoản không dùng tiền mặt; các Bên lưu giữ Hợp đồng này cùng chứng từ thanh toán qua ngân hàng làm hồ sơ chứng minh điều kiện áp dụng thuế suất 0%.</p>`}
+  </div>
 </div>
 
 <!-- ARTICLE V — RIGHTS & OBLIGATIONS (BOILERPLATE) -->
