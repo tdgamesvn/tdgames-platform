@@ -11,6 +11,9 @@ import { supabase } from '@/services/supabaseClient';
 import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
 
 interface Props {
+  /** Hop dong da luu -> mo lai de sua. Bo trong = tao moi. */
+  initialData?: ClientContractData | null;
+  editingDocId?: string | null;
   client: CrmClient;
   contacts: CrmContact[];
   projects: CrmProject[];
@@ -28,7 +31,7 @@ const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white border border-w
 const inputStyle = { background: '#111', colorScheme: 'dark' as const };
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-1';
 
-const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, onClose, onSaved, currentUserId }) => {
+const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, client, contacts, projects, onClose, onSaved, currentUserId }) => {
   // ── Bank accounts ──
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [selectedBankId, setSelectedBankId] = useState('');
@@ -109,6 +112,32 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
     { label: 'Phase 2 – Final / Thanh toán cuối', percentage: 50, amount: 0, description: 'Prior to source file handover / Trước khi bàn giao file gốc' },
   ]);
 
+  // ── Nap lai hop dong da luu (mo de sua) ──
+  // ponytail: chay 1 lan, sau do form tu do nhu binh thuong
+  useEffect(() => {
+    if (!initialData) return;
+    setContractType(initialData.contractType || 'international');
+    setContractNumber(initialData.contractNumber || '');
+    setSigningDate(initialData.signingDate || todayStr());
+    setCompanyKey(initialData.companyKey || 'tdgames');
+    setClientName(initialData.clientName || '');
+    setClientAddress(initialData.clientAddress || '');
+    setClientTaxCode(initialData.clientTaxCode || '');
+    setClientRep(initialData.clientRepresentative || '');
+    setClientRepTitle(initialData.clientRepresentativeTitle || '');
+    setProjectName(initialData.projectName || '');
+    setScopeContent(initialData.scopeContent || '');
+    setStartDate(initialData.startDate || '');
+    setEstimatedDuration(initialData.estimatedDuration || '');
+    setEstimatedCompletion(initialData.estimatedCompletion || '');
+    setTotalValue(initialData.totalValue || 0);
+    setCurrency(initialData.currency || 'USD');
+    if (initialData.phases?.length) {
+      setPhaseCount(initialData.phases.length);
+      setPhases(initialData.phases);
+    }
+  }, [initialData]);
+
   // ── UI state ──
   const [previewHtml, setPreviewHtml] = useState('');
   const [saving, setSaving] = useState(false);
@@ -159,6 +188,22 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
     if (match) setSelectedBankId(match.id);
   }, [companyKey, bankAccounts]);
 
+  // ── Dung payload dung chung cho preview va luu ──
+  const buildData = (): ClientContractData => ({
+    contractNumber, signingDate, companyKey,
+    clientName, clientAddress, clientTaxCode,
+    clientRepresentative: clientRep, clientRepresentativeTitle: clientRepTitle,
+    projectName, scopeContent,
+    startDate, estimatedDuration, estimatedCompletion,
+    contractType, totalValue, currency, phases,
+    bankAccountName: selectedBank?.name || undefined,
+    bankName: selectedBank?.bank_name || undefined,
+    bankAccountNumber: selectedBank?.account_number || undefined,
+    bankSwiftCode: selectedBank?.swift_code || undefined,
+    bankCitadCode: selectedBank?.citad_code || undefined,
+    bankAddress: selectedBank?.bank_address || undefined,
+  });
+
   // ── Generate preview ──
   useEffect(() => {
     const data: ClientContractData = {
@@ -194,18 +239,29 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await supabase.from('crm_documents').insert({
+      const payload = {
         client_id: client.id,
         project_id: selectedProjectId || null,
         doc_type: 'contract',
         title: `${contractNumber} — ${projectName || client.name}`,
-        file_url: '',
         file_name: `${contractNumber}.pdf`,
-        file_size: 0,
-        notes: JSON.stringify({ companyKey, totalValue, currency, phases: phases.length }),
-        approval_status: 'pending_approval',
-        created_by: currentUserId || null,
-      });
+        // ponytail: luu nguyen payload -> mo lai sua duoc. Truoc day chi luu
+        // metadata nen hop dong da luu khong xem lai va khong sua lai duoc.
+        contract_data: buildData(),
+        contract_value: totalValue || null,
+        contract_currency: currency,
+      };
+      if (editingDocId) {
+        await supabase.from('crm_documents').update(payload).eq('id', editingDocId);
+      } else {
+        await supabase.from('crm_documents').insert({
+          ...payload,
+          file_url: '',
+          file_size: 0,
+          approval_status: 'pending_approval',
+          created_by: currentUserId || null,
+        });
+      }
       setSaveSuccess(true);
       onSaved?.();
       setTimeout(() => setSaveSuccess(false), 3000);

@@ -75,6 +75,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser, fixedClient }) =>
 
   // Contract generator state
   const [contractGenClient, setContractGenClient] = useState<CrmClient | null>(null);
+  const [contractGenDoc, setContractGenDoc] = useState<any | null>(null);
   const [contractGenContacts, setContractGenContacts] = useState<CrmContact[]>([]);
   const [showContractPicker, setShowContractPicker] = useState(false);
   const [pickerClientId, setPickerClientId] = useState('');
@@ -84,6 +85,7 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser, fixedClient }) =>
     const client = clients.find(c => c.id === pickerClientId);
     if (!client) return;
     setContractGenContacts(client.contacts || []);
+    setContractGenDoc(null);
     setContractGenClient(client);
     setShowContractPicker(false);
   };
@@ -230,6 +232,18 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser, fixedClient }) =>
   };
 
   const handleEdit = (doc: CrmDocument) => {
+    // ponytail: hop dong sinh tu generator thi mo lai chinh generator de sua
+    // noi dung; tai lieu upload tay van dung form metadata nhu cu.
+    const cd = (doc as any).contract_data;
+    if (doc.doc_type === 'contract' && cd) {
+      const c = clients.find(x => x.id === doc.client_id);
+      if (c) {
+        setContractGenContacts(c.contacts || []);
+        setContractGenDoc({ id: doc.id, data: cd });
+        setContractGenClient(c);
+        return;
+      }
+    }
     setEditingDoc(doc);
     setForm({
       client_id: doc.client_id,
@@ -793,10 +807,12 @@ const DocumentList: React.FC<Props> = ({ clients, currentUser, fixedClient }) =>
       {/* Contract Generator Modal */}
       {contractGenClient && (
         <ClientContractGenerator
+          initialData={contractGenDoc?.data || null}
+          editingDocId={contractGenDoc?.id || null}
           client={contractGenClient}
           contacts={contractGenContacts}
           projects={allProjects.filter(p => p.client_id === contractGenClient.id)}
-          onClose={() => setContractGenClient(null)}
+          onClose={() => { setContractGenClient(null); setContractGenDoc(null); }}
           onSaved={() => { load(); }}
           currentUserId={currentUser.id}
         />
