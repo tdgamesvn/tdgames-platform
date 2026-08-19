@@ -1,5 +1,7 @@
 import { CrmClient, CrmContact } from '@/types';
 import { COMPANY_OPTIONS, CompanyKey } from '@/apps/hr/services/contractService';
+import { supabase } from '@/services/supabaseClient';
+import { cleanScopeHtml } from './scopeHtml';
 
 // Re-export for convenience
 export { COMPANY_OPTIONS, printContract } from '@/apps/hr/services/contractService';
@@ -397,4 +399,16 @@ export function generateClientContract(data: ClientContractData): string {
 
 </body>
 </html>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ── AI format scope ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+
+/** Paste text thô → HTML song ngữ chuẩn cho ĐIỀU II. Throw kèm message tiếng Việt nếu lỗi. */
+export async function formatScopeWithAI(text: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('ai-format-scope', { body: { text } });
+  if (error) throw new Error(data?.error || error.message || 'Không gọi được AI.');
+  if (!data?.html) throw new Error(data?.error || 'AI không trả về nội dung.');
+  return cleanScopeHtml(data.html);
 }

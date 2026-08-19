@@ -5,6 +5,7 @@ import {
   generateClientContract, generateContractNumber, printContract,
   COMPANY_OPTIONS, CompanyKey, ClientContractData, PaymentPhase,
   getScopeTemplates, saveScopeTemplate, deleteScopeTemplate, ScopeTemplate,
+  formatScopeWithAI,
 } from '../services/clientContractService';
 import { supabase } from '@/services/supabaseClient';
 import { fetchBankAccounts, BankAccount } from '@/apps/expense/services/bankAccountService';
@@ -68,6 +69,23 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
   const [scopeTemplates, setScopeTemplates] = useState<ScopeTemplate[]>(getScopeTemplates());
   const [templateName, setTemplateName] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [scopeBackup, setScopeBackup] = useState<string | null>(null);
+
+  const handleAiFormat = async () => {
+    setAiError('');
+    setAiBusy(true);
+    try {
+      const html = await formatScopeWithAI(scopeContent);
+      setScopeBackup(scopeContent);
+      setScopeContent(html);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'Lỗi không xác định.');
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   // ── Timeline ──
   const [startDate, setStartDate] = useState('');
@@ -315,8 +333,26 @@ const ClientContractGenerator: React.FC<Props> = ({ client, contacts, projects, 
           )}
           <div>
             <p className={labelCls}>Nội dung scope (HTML)</p>
-            <textarea value={scopeContent} onChange={e => setScopeContent(e.target.value)} rows={8} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Nhập phạm vi công việc..." />
+            <textarea value={scopeContent} onChange={e => setScopeContent(e.target.value)} rows={8} className={inputCls + ' resize-none'} style={inputStyle} placeholder="Paste text thô ở đây rồi bấm AI FORMAT..." />
           </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              onClick={handleAiFormat}
+              disabled={aiBusy || scopeContent.trim().length < 10}
+              style={{ fontSize: 10, color: '#fff', background: aiBusy || scopeContent.trim().length < 10 ? '#4b3a1a' : '#FF9500', border: 'none', padding: '5px 12px', borderRadius: 8, cursor: aiBusy || scopeContent.trim().length < 10 ? 'not-allowed' : 'pointer', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}
+            >
+              {aiBusy ? 'Đang format…' : '✨ AI Format'}
+            </button>
+            {scopeBackup !== null && !aiBusy && (
+              <button
+                onClick={() => { setScopeContent(scopeBackup); setScopeBackup(null); }}
+                style={{ fontSize: 10, color: '#a3a3a3', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', padding: '5px 10px', borderRadius: 8, cursor: 'pointer', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}
+              >
+                Hoàn tác
+              </button>
+            )}
+          </div>
+          {aiError && <p style={{ fontSize: 10, color: '#ef4444', fontWeight: 700 }}>{aiError}</p>}
           {!showSaveTemplate ? (
             <button onClick={() => setShowSaveTemplate(true)} style={{ fontSize: 10, color: '#a855f7', background: 'transparent', border: '1px solid rgba(168,85,247,0.3)', padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}>
               Lưu làm template
