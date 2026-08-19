@@ -13,6 +13,20 @@ const fn = body
   .replace(/: string/g, '');
 const gen = new Function('return ' + fn)();
 
+// Quet SOURCE: bat chuoi gop "English / Tieng Viet" con sot, ke ca trong ${...}
+// (bai hoc: regex chuyen doi ban dau loai tru moi chuoi co noi suy nen bo sot
+// tieu de hop dong, so hop dong, ten du an, ngay bat dau mac dinh).
+{
+  const tplSrc = src.slice(src.indexOf('const html = `<!DOCTYPE'), src.indexOf('</body>'));
+  const sot = tplSrc.split('\n')
+    .filter(ln => ln.includes(' / ') && !ln.includes("t('") && !ln.trim().startsWith('//'));
+  if (sot.length) {
+    console.error('FAIL: con chuoi song ngu chua qua t():');
+    sot.forEach(ln => console.error('   ', ln.trim().slice(0, 110)));
+    process.exitCode = 1;
+  }
+}
+
 const CO = { tdgames: { name: 'TD GAMES', address: 'HN', taxCode: '0111386856',
                         representative: 'R', representativeTitle: 'GD' } };
 const f = n => n.toLocaleString('vi-VN');
@@ -27,8 +41,12 @@ const render = lang => gen({ ...base, lang }, CO, f, () => '01/01/2026',
   (v, p = '..') => v || p, (n, c) => f(n) + ' ' + c, '').replace(/<[^>]+>/g, ' ');
 
 // Tu khoa dac trung tung ngon ngu - xuat hien o tieu de dieu/muc, la cho hay quen t()
-const EN = ['ARTICLE', 'PAYMENT TERMS', 'Limitation of Liability', 'Working Days'];
-const VI = ['ĐIỀU', 'ĐIỀU KHOẢN THANH TOÁN', 'Giới hạn trách nhiệm', 'Ngày làm việc'];
+const EN = ['ARTICLE', 'PAYMENT TERMS', 'Limitation of Liability', 'Working Days',
+  'OUTSOURCING SERVICE AGREEMENT', 'Contract No', 'Date of Signing', 'Project Name',
+  'business days after receipt', 'Description', 'Amount'];
+const VI = ['ĐIỀU', 'ĐIỀU KHOẢN THANH TOÁN', 'Giới hạn trách nhiệm', 'Ngày làm việc',
+  'HỢP ĐỒNG DỊCH VỤ THUÊ NGOÀI', 'Số hợp đồng', 'Ngày ký', 'Tên dự án',
+  'ngày làm việc sau khi nhận tạm ứng', 'Nội dung', 'Số tiền'];
 const has = (txt, list) => list.filter(k => txt.includes(k));
 
 let fail = 0;

@@ -202,12 +202,13 @@ export function generateClientContract(data: ClientContractData): string {
 </div>
 
 <div class="contract-title">
-  OUTSOURCING SERVICE AGREEMENT<br>
-  <span style="font-size:14px">HỢP ĐỒNG DỊCH VỤ THUÊ NGOÀI</span>
+  ${L === 'vi' ? 'HỢP ĐỒNG DỊCH VỤ THUÊ NGOÀI'
+    : L === 'en' ? 'OUTSOURCING SERVICE AGREEMENT'
+    : `OUTSOURCING SERVICE AGREEMENT<br><span style="font-size:14px">HỢP ĐỒNG DỊCH VỤ THUÊ NGOÀI</span>`}
 </div>
 <div class="contract-number">
-  Contract No / Số hợp đồng: ${blank(data.contractNumber)}<br>
-  Date of Signing / Ngày ký: ${fmtDate(data.signingDate)}
+  ${t('Contract No', 'Số hợp đồng')}: ${blank(data.contractNumber)}<br>
+  ${t('Date of Signing', 'Ngày ký')}: ${fmtDate(data.signingDate)}
 </div>
 
 <div class="bilingual">
@@ -252,8 +253,8 @@ export function generateClientContract(data: ClientContractData): string {
 <!-- ARTICLE II — SCOPE -->
 <div class="article">
   <div class="article-title">${t('ARTICLE II. SCOPE OF WORK', 'ĐIỀU II. PHẠM VI CÔNG VIỆC')}</div>
-  <p style="font-weight:bold;margin-bottom:4px">Project Name / Tên dự án: ${blank(data.projectName)}</p>
-  <div style="margin-top:6px">${data.scopeContent || '<p style="color:#999">[Scope of work will be defined here]</p>'}</div>
+  <p style="font-weight:bold;margin-bottom:4px">${t('Project Name', 'Tên dự án')}: ${blank(data.projectName)}</p>
+  <div style="margin-top:6px">${data.scopeContent || `<p style="color:#999">[${t('Scope of work will be defined here', 'Phạm vi công việc sẽ được xác định tại đây')}]</p>`}</div>
   <div class="bilingual" style="margin-top:8px">
     <p class="en"><strong>Out of Scope:</strong> Any assets, features, or requirements not explicitly listed in this Article shall be considered additional work outside the scope of this Agreement and may be quoted separately in accordance with Article 6.2.</p>
     <p class="vi"><strong>Ngoài phạm vi:</strong> Bất kỳ tài sản, tính năng hoặc yêu cầu nào không được liệt kê rõ ràng trong Điều này đều được coi là công việc phát sinh ngoài phạm vi Hợp đồng và có thể được báo giá riêng theo Điều 6.2.</p>
@@ -264,7 +265,7 @@ export function generateClientContract(data: ClientContractData): string {
 <div class="article">
   <div class="article-title">${t('ARTICLE III. TIMELINE', 'ĐIỀU III. TIẾN ĐỘ THỰC HIỆN')}</div>
   <table class="timeline-table">
-    <tr><td class="tl-label">${t('Start Date', 'Ngày bắt đầu')}</td><td>${data.startDate ? fmtDate(data.startDate) : 'Within 3 business days after receipt of the prepayment. / Trong vòng 3 ngày làm việc sau khi nhận tạm ứng.'}</td></tr>
+    <tr><td class="tl-label">${t('Start Date', 'Ngày bắt đầu')}</td><td>${data.startDate ? fmtDate(data.startDate) : t('Within 3 business days after receipt of the prepayment.', 'Trong vòng 3 ngày làm việc sau khi nhận tạm ứng.')}</td></tr>
     <tr><td class="tl-label">${t('Estimated Duration', 'Thời gian dự kiến')}</td><td>${blank(data.estimatedDuration)}</td></tr>
     <tr><td class="tl-label">${t('Estimated Completion', 'Ngày hoàn thành dự kiến')}</td><td>${data.estimatedCompletion ? fmtDate(data.estimatedCompletion) : blank('')}</td></tr>
   </table>
