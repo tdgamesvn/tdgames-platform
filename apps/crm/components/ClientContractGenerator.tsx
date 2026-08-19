@@ -22,6 +22,11 @@ interface Props {
   currentUserId?: string;
 }
 
+const todayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
 const inputCls = 'w-full px-3 py-2 rounded-lg text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors';
 const inputStyle = { background: '#111', colorScheme: 'dark' as const };
 const labelCls = 'text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-1';
@@ -74,10 +79,9 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   );
   const [lang, setLang] = useState<'both' | 'vi' | 'en'>('both');
   const [contractNumber, setContractNumber] = useState('');
-  // ponytail: de trong -> template in ....../....../.......... cho hai ben dien tay.
-  // Dien san ngay export la sai khi khach ky ngay khac; moi moc tinh tu "ngay ky"
-  // (han thanh toan 15 ngay, tien do, phat 8%) se lech theo.
-  const [signingDate, setSigningDate] = useState('');
+  // ponytail: ky online nen ngay export thuong dung la ngay ky -> tu dien hom nay.
+  // Xoa trong o nay thi template in ....../....../.......... (ky giay, dien tay).
+  const [signingDate, setSigningDate] = useState(todayStr());
   const [companyKey, setCompanyKey] = useState<CompanyKey>('tdgames');
   // ponytail: so HD phai dem DB nen bat buoc async; chi sinh khi tao moi
   useEffect(() => {
