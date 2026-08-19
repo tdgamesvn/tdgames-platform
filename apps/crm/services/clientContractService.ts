@@ -357,8 +357,8 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="vi">Bên B cam kết sản phẩm bàn giao là tác phẩm nguyên gốc được tạo ra cho Bên A, không xâm phạm quyền sở hữu trí tuệ của bất kỳ bên thứ ba nào, và Bên B có đầy đủ quyền để chuyển giao theo Điều 5.3. Nếu có bên thứ ba khiếu nại liên quan đến sản phẩm bàn giao, Bên B tự chịu chi phí xử lý và bồi thường thiệt hại trực tiếp thực tế cho Bên A, theo giới hạn tại Điều 6.9.</p>
   </div>
   <div class="bilingual">
-    <p class="en">Party B may engage employees, collaborators or subcontractors to perform the work. Party B remains fully responsible for their performance and confidentiality, and warrants that it has secured from each of them all rights necessary to effect the transfer under Article 5.3.</p>
-    <p class="vi">Bên B có quyền sử dụng nhân viên, cộng tác viên hoặc đơn vị thầu phụ để thực hiện công việc. Bên B chịu trách nhiệm hoàn toàn về chất lượng công việc và nghĩa vụ bảo mật của những người này, đồng thời cam kết đã nhận được từ họ đầy đủ các quyền cần thiết để thực hiện việc chuyển giao theo Điều 5.3.</p>
+    <p class="en">Party B is responsible for the performance and confidentiality obligations of all personnel it assigns to the work.</p>
+    <p class="vi">Bên B chịu trách nhiệm về chất lượng công việc và nghĩa vụ bảo mật của toàn bộ nhân sự do Bên B bố trí thực hiện công việc.</p>
   </div>
 </div>
 
