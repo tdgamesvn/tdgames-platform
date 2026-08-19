@@ -69,7 +69,31 @@ export interface MonthlyFinancialSummary {
   fulltimeBreakdown: FulltimeKPI[];
   freelancerBreakdown: FreelancerPaymentSummary[];
   kpiSettings: KpiSettings;        // global config hiện hành
+  projected: ProjectedSummary;     // số DỰ KIẾN của tháng đang chạy
 }
+
+/**
+ * Dự kiến = số sẽ về nếu tháng chạy trọn: task đã làm xong (chưa nghiệm thu) + lương
+ * đủ công. Khác "thực tế" ở chỗ không chờ chốt phiếu nghiệm thu / bảng lương / quyết toán.
+ */
+export interface ProjectedSummary {
+  revenueVND: number;
+  fulltimeCost: number;
+  freelancerCost: number;
+  totalCost: number;
+  grossProfit: number;
+  taskCount: number;          // số task tính vào doanh thu dự kiến
+  tasksWithoutPrice: number;  // task đủ điều kiện nhưng CHƯA nhập giá khách → doanh thu bị thiếu
+  payrollSource: 'sheet-thang-nay' | 'sheet-thang-truoc' | 'khong-co';
+}
+
+// Trạng thái ClickUp coi là CHƯA làm xong ⇒ không tính doanh thu dự kiến.
+// Sếp chốt: mới / đang làm / pending / cancelled thì bỏ, còn lại (review, fix,
+// complete, approved, Closed...) đều tính.
+const NOT_YET_DONE = new Set([
+  'new', 'new request', 'to do', 'todo', 'open', 'backlog', 'planning', 'lead_check',
+  'in progress', 'in_progress', 'pending', 'cancelled', 'canceled',
+]);
 
 /** Lưu config KPI: employeeId=null → global, ngược lại → override per nhân viên */
 export async function saveKpiSettings(employeeId: string | null, multiplier: number, bonusPercent: number): Promise<void> {
@@ -336,8 +360,66 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // Sort fulltime breakdown by ROI descending
   fulltimeBreakdown.sort((a, b) => b.roiPercent - a.roiPercent);
 
+  // ── 6. DỰ KIẾN ────────────────────────────────────────────────
+  // Doanh thu dự kiến: task đã làm xong nhưng CHƯA nằm trong phiếu nghiệm thu nào.
+  const { data: acceptedTaskIds } = await supabase.from('wf_project_acceptance_tasks').select('task_id');
+  const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
+  const { data: openTasks } = await supabase
+    .from('wf_tasks')
+    .select('id, client_price, price, currency, clickup_status, payment_status');
+
+  let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0;
+  (openTasks || []).forEach((t: any) => {
+    if (inAcceptance.has(t.id)) return;
+    if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
+    projTaskCount++;
+    const cp = Number(t.client_price || 0);
+    if (cp > 0) projRevenueUSD += cp; else tasksWithoutPrice++;
+    if (t.payment_status !== 'paid') {
+      const p = Number(t.price || 0);
+      projFreelancer += t.currency === 'USD' ? p * exchangeRate : p;
+    }
+  });
+
+  // Chi phí lương dự kiến: sheet tháng này (kể cả draft) → không có thì lấy sheet gần nhất
+  // đã chốt, coi như tháng này mọi người làm đủ công y như tháng trước.
+  // ponytail: xấp xỉ bằng tháng trước thay vì dựng lại calculatePayroll từ hr_employee_salary.
+  // Người mới vào / nghỉ giữa tháng sẽ lệch — nâng cấp khi con số này bị soi kỹ.
+  let projFulltime = 0;
+  let payrollSource: ProjectedSummary['payrollSource'] = 'khong-co';
+  const sumSheetCost = async (ids: string[]) => {
+    const { data } = await supabase.from('pay_payroll_records').select('total_company_cost').in('sheet_id', ids);
+    return (data || []).reduce((s: number, r: any) => s + Number(r.total_company_cost || 0), 0);
+  };
+  if (sheets && sheets.length > 0) {
+    projFulltime = await sumSheetCost(sheets.map(s => s.id));
+    payrollSource = 'sheet-thang-nay';
+  } else {
+    const { data: prev } = await supabase
+      .from('pay_payroll_sheets').select('id')
+      .in('status', ['confirmed', 'paid'])
+      .order('year', { ascending: false }).order('month', { ascending: false }).limit(1);
+    if (prev && prev.length > 0) {
+      projFulltime = await sumSheetCost([prev[0].id]);
+      payrollSource = 'sheet-thang-truoc';
+    }
+  }
+
+  const projTotalCost = projFulltime + projFreelancer + operationalExpenses;
+  const projected: ProjectedSummary = {
+    revenueVND: projRevenueUSD * exchangeRate,
+    fulltimeCost: projFulltime,
+    freelancerCost: projFreelancer,
+    totalCost: projTotalCost,
+    grossProfit: projRevenueUSD * exchangeRate - projTotalCost,
+    taskCount: projTaskCount,
+    tasksWithoutPrice,
+    payrollSource,
+  };
+
   return {
     period: { month, year },
+    projected,
     totalRevenue: totalRevenueUSD,
     revenueCurrency: 'USD',
     revenueVND,

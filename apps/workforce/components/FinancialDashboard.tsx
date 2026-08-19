@@ -136,12 +136,23 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
               <p className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-1">Doanh Thu</p>
               <p className="text-3xl font-black text-emerald-400">{formatVND(data.revenueVND)}</p>
               <p className="text-xs text-neutral-medium mt-1">≈ {formatUSD(data.totalRevenue)}</p>
+              <p className="text-[11px] text-emerald-400/60 mt-2 border-t border-white/5 pt-2">
+                Dự kiến: <span className="font-black">{formatVND(data.projected.revenueVND)}</span>
+                <span className="text-neutral-medium"> · {data.projected.taskCount} task xong chưa nghiệm thu</span>
+              </p>
+              {data.projected.tasksWithoutPrice > 0 && (
+                <p className="text-[11px] text-amber-400/80 mt-1">⚠️ {data.projected.tasksWithoutPrice} task chưa nhập giá khách</p>
+              )}
             </div>
             
             <div className="p-5 rounded-2xl border border-primary/10 bg-surface relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <p className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-1">Chi Phí</p>
               <p className="text-3xl font-black text-red-400">{formatVND(data.totalCost)}</p>
+              <p className="text-[11px] text-red-400/60 mt-2 border-t border-white/5 pt-2">
+                Dự kiến: <span className="font-black">{formatVND(data.projected.totalCost)}</span>
+                <span className="text-neutral-medium"> · lương {data.projected.payrollSource === 'sheet-thang-nay' ? 'tháng này' : data.projected.payrollSource === 'sheet-thang-truoc' ? 'ước theo tháng trước' : 'chưa có dữ liệu'}</span>
+              </p>
             </div>
             
             <div className="p-5 rounded-2xl border border-primary/10 bg-surface relative overflow-hidden group">
@@ -149,6 +160,9 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
               <p className="text-xs font-black uppercase tracking-widest text-neutral-medium mb-1">Lợi Nhuận</p>
               <p className={`text-3xl font-black ${data.grossProfit >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
                 {formatVND(data.grossProfit)}
+              </p>
+              <p className={`text-[11px] mt-2 border-t border-white/5 pt-2 ${data.projected.grossProfit >= 0 ? 'text-blue-400/60' : 'text-red-400/60'}`}>
+                Dự kiến: <span className="font-black">{formatVND(data.projected.grossProfit)}</span>
               </p>
             </div>
             
