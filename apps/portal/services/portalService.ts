@@ -241,9 +241,10 @@ export async function fetchMyTasks(employeeId: string): Promise<WorkforceTask[]>
     .select(`
       id, title, project, client_name,
       clickup_status, clickup_space_name, clickup_folder_name, clickup_list_name,
-      status, start_date, closed_date, created_at, updated_at
+      status, start_date, closed_date, created_at, updated_at,
+      assignees:wf_task_assignees!inner(worker_id)
     `)
-    .eq('worker_id', worker.id)
+    .eq('assignees.worker_id', worker.id)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []) as unknown as WorkforceTask[];

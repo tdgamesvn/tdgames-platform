@@ -321,7 +321,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
   // Tách sổ: workers theo entity; tasks/settlements kế thừa qua worker membership
   const wsWorkers = workers.filter(w => matchesWorkspace((w as any).entity, workspace));
   const wIds = new Set(wsWorkers.map(w => w.id));
-  const wsTasks = tasks.filter(t => wIds.has(t.worker_id));
+  const wsTasks = tasks.filter(t => (t.assignees || []).some(a => wIds.has(a.worker_id)));
   const wsSettlements = settlements.filter(s => wIds.has((s as any).worker_id));
 
   const filteredWorkers = wsWorkers.filter(w => {
@@ -331,7 +331,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
 
   const filteredTasks = wsTasks.filter(t => {
     if (filterTaskStatus && t.status !== filterTaskStatus) return false;
-    if (filterTaskWorker && t.worker_id !== filterTaskWorker) return false;
+    if (filterTaskWorker && !svc.taskHasWorker(t, filterTaskWorker)) return false;
     return true;
   });
 

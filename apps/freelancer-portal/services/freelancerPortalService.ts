@@ -15,11 +15,15 @@ export async function fetchMyWorkerId(): Promise<string | null> {
 export async function fetchMyTasks(workerId: string): Promise<WorkforceTask[]> {
   const { data, error } = await supabase
     .from('wf_tasks')
-    .select('*, worker:wf_workers(*)')
-    .eq('worker_id', workerId)
+    // !inner: chỉ task có mình; assignees trả về đúng dòng của mình ⇒ quy được phần chia
+    .select('*, assignees:wf_task_assignees!inner(*, worker:wf_workers(*))')
+    .eq('assignees.worker_id', workerId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []).map((t: any) => {
+    const r = Number(t.assignees?.[0]?.share_pct || 100) / 100;
+    return { ...t, price: (t.price || 0) * r, bonus: (t.bonus || 0) * r };
+  });
 }
 
 // ── My Settlements ───────────────────────────────────────────
@@ -66,10 +70,13 @@ export interface FreelancerDashboardStats {
 
 export async function fetchDashboardStats(workerId: string): Promise<FreelancerDashboardStats> {
   // Fetch all tasks
-  const { data: tasks } = await supabase
+  const { data: taskRows } = await supabase
     .from('wf_tasks')
-    .select('status, price, closed_date')
-    .eq('worker_id', workerId);
+    .select('status, price, closed_date, assignees:wf_task_assignees!inner(share_pct)')
+    .eq('assignees.worker_id', workerId);
+  const tasks = (taskRows || []).map((t: any) => ({
+    ...t, price: (t.price || 0) * Number(t.assignees?.[0]?.share_pct || 100) / 100,
+  }));
 
   // Fetch all settlements
   const { data: settlements } = await supabase

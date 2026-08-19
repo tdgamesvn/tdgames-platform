@@ -169,10 +169,18 @@ export interface WorkerContract {
   created_at?: string;
 }
 
+export interface TaskAssignee {
+  id?: string;
+  task_id?: string;
+  worker_id: string;
+  share_pct: number;
+  payment_status: 'unpaid' | 'paid';
+  worker?: Worker;
+}
+
 export interface WorkforceTask {
   id?: string;
-  worker_id: string | null;
-  worker?: Worker;
+  assignees?: TaskAssignee[];
   project: string;
   client_name: string;
   title: string;

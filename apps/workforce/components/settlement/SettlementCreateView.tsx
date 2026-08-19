@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Worker, WorkforceTask } from '@/types';
-import { computeSettlementTotals } from '../../services/workforceService';
+import { computeSettlementTotals, tasksForWorker } from '../../services/workforceService';
 import { BackButton } from '../shared/BackButton';
 
 const inputCls = "w-full bg-transparent border border-primary/10 rounded-xl px-4 py-3 text-white placeholder-neutral-medium/40 focus:outline-none focus:border-primary/40 transition-all text-sm";
@@ -51,11 +51,8 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const periodEnd = selPeriod ? new Date(selPeriod + '-01') : null;
   if (periodEnd) { periodEnd.setMonth(periodEnd.getMonth() + 1); periodEnd.setDate(0); }
 
-  const workerTasks = tasks.filter(t => {
-    if (t.worker_id !== selWorkerId) return false;
-    if (t.payment_status === 'paid') return false;
-    return true;
-  });
+  // price/bonus đã là phần chia của riêng người này (task nhiều người)
+  const workerTasks = tasksForWorker(tasks, selWorkerId);
 
   // Unique project names among worker's unpaid tasks, with task counts
   const projectCounts: Record<string, number> = {};

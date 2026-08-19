@@ -53,7 +53,10 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
 
   useEffect(() => {
     setLoadingTasks(true);
-    svc.fetchSettlementTasks(s.id!).then(setDetailTasks).catch(() => setDetailTasks([])).finally(() => setLoadingTasks(false));
+    svc.fetchSettlementTasks(s.id!)
+      // quy price/bonus về phần chia của người trong settlement này (keepIds=[] không lọc vì đã trả)
+      .then(ts => setDetailTasks(svc.tasksForWorker(ts, s.worker_id, ts.map(t => t.id!))))
+      .catch(() => setDetailTasks([])).finally(() => setLoadingTasks(false));
   }, [s.id]);
 
   // Init edit task IDs when tasks load
@@ -64,12 +67,8 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
   }, [detailTasks]);
 
   // Available tasks for this worker (unpaid + currently in this settlement)
-  const availableTasks = allTasks.filter(t => {
-    if (t.worker_id !== s.worker_id) return false;
-    if (editTaskIds.includes(t.id!)) return true;
-    if (t.payment_status === 'paid') return false;
-    return true;
-  });
+  // price/bonus đã quy về phần chia của người này; giữ task đang nằm trong settlement
+  const availableTasks = svc.tasksForWorker(allTasks, s.worker_id, editTaskIds);
 
   const editSelectedTasks = availableTasks.filter(t => editTaskIds.includes(t.id!));
   const editTotal = editSelectedTasks.reduce((sum, t) => sum + (t.price || 0) + (t.bonus || 0), 0);

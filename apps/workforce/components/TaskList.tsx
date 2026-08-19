@@ -13,7 +13,7 @@ interface TaskListProps {
   setFilterStatus: (v: string) => void;
   filterWorker: string;
   setFilterWorker: (v: string) => void;
-  onUpdate: (id: string, updates: Partial<WorkforceTask>) => void;
+  onUpdate: (id: string, updates: Partial<WorkforceTask>) => void | Promise<void>;
   onRefresh: () => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
   vcbSellRate: number;
@@ -55,6 +55,7 @@ const TaskList: React.FC<TaskListProps> = ({
   const [editNotes, setEditNotes] = useState('');
   const [editClientPrice, setEditClientPrice] = useState('');
   const [editClientCurrency, setEditClientCurrency] = useState('USD');
+  const [editShares, setEditShares] = useState<{ worker_id: string; share_pct: number }[]>([]);
 
   useEffect(() => {
     clickup.loadConfig().then(c => setConfig(c)).catch(() => {});
@@ -92,6 +93,123 @@ const TaskList: React.FC<TaskListProps> = ({
     if (lower.includes('client')) return 'in_progress';
     if (['review', 'qa', 'testing'].some(s => lower.includes(s))) return 'completed';
     return 'in_progress';
+  };
+
+  const nameOf = (workerId: string) => workers.find(w => w.id === workerId)?.full_name || '—';
+  const assigneeNames = (t: WorkforceTask) =>
+    (t.assignees || []).map(a => a.worker?.full_name || nameOf(a.worker_id)).join(', ');
+
+  /** Đồng bộ danh sách người làm từ ClickUp, GIỮ NGUYÊN % sếp đã chỉnh tay. */
+  const syncAssignees = async (taskId: string, matched: Worker[]) => {
+    const { data: cur } = await supabase
+      .from('wf_task_assignees').select('worker_id, share_pct').eq('task_id', taskId);
+    const curMap = new Map((cur || []).map((a: any) => [a.worker_id as string, Number(a.share_pct)]));
+    const ids = matched.map(w => w.id!);
+    if (ids.length === curMap.size && ids.every(id => curMap.has(id))) return; // không đổi
+
+    const kept = ids.filter(id => curMap.has(id));
+    const added = ids.filter(id => !curMap.has(id));
+    // ponytail: người mới chỉ được chia phần % còn trống (kept giữ nguyên). Nếu kept đã
+    // ăn đủ 100 thì người mới nhận 0 — sếp tự chỉnh trong modal sửa giá, không cướp ngầm.
+    const rest = Math.max(0, 100 - kept.reduce((s, id) => s + curMap.get(id)!, 0));
+    const addShares = added.length ? wfSvc.splitShares(added.length).map(p => Math.round(p * rest / 100)) : [];
+    await wfSvc.setTaskAssignees(taskId, [
+      ...kept.map(id => ({ worker_id: id, share_pct: curMap.get(id)! })),
+      ...added.map((id, i) => ({ worker_id: id, share_pct: addShares[i] })),
+    ]);
+  };
+
+  // Toggle thanh toán: đổi cho TẤT CẢ người của task (đúng hành vi cũ khi task 1 người).
+  const togglePayment = async (t: WorkforceTask) => {
+    const next = t.payment_status === 'paid' ? 'unpaid' : 'paid';
+    try {
+      if (next === 'paid' && t.currency === 'USD' && vcbSellRate > 0) {
+        await onUpdate(t.id!, { exchange_rate: vcbSellRate });
+      }
+      await wfSvc.setTaskPayment(t.id!, next);
+      onToast(next === 'paid' ? '💰 Đã đánh dấu thanh toán' : '⏳ Đã chuyển về chưa thanh toán', 'success');
+      onRefresh();
+    } catch (e: any) {
+      onToast(`Lỗi: ${e.message}`, 'error');
+    }
+  };
+
+  // ── Modal sửa giá (dùng chung cho board + list) ──
+  const openEditor = (t: WorkforceTask) => {
+    setEditingPriceId(t.id!);
+    setEditPrice(t.price > 0 ? String(t.price) : '');
+    setEditCurrency(t.currency || 'VND');
+    setEditRate(
+      t.payment_status === 'paid' && t.exchange_rate > 0
+        ? String(t.exchange_rate)
+        : (t.currency === 'USD' && vcbSellRate > 0 ? String(vcbSellRate) : '')
+    );
+    setEditBonus(t.bonus > 0 ? String(t.bonus) : '');
+    setEditBonusNote(t.bonus_note || '');
+    setEditNotes(t.notes || '');
+    setEditClientPrice(t.client_price > 0 ? String(t.client_price) : '');
+    setEditClientCurrency(t.client_currency || 'USD');
+    setEditShares((t.assignees || []).map(a => ({ worker_id: a.worker_id, share_pct: Number(a.share_pct) })));
+  };
+
+  const shareTotal = editShares.reduce((s, a) => s + (Number(a.share_pct) || 0), 0);
+  const shareInvalid = editShares.length > 1 && shareTotal !== 100;
+
+  const saveEditor = async (taskId: string) => {
+    if (shareInvalid) return;
+    await onUpdate(taskId, {
+      price: parseFloat(editPrice) || 0,
+      currency: editCurrency,
+      exchange_rate: parseFloat(editRate) || 0,
+      bonus: parseFloat(editBonus) || 0,
+      bonus_note: editBonusNote,
+      notes: editNotes,
+      client_price: parseFloat(editClientPrice) || 0,
+      client_currency: editClientCurrency,
+    });
+    if (editShares.length > 1) {
+      try {
+        await wfSvc.setTaskAssignees(taskId, editShares);
+        onRefresh();
+      } catch (e: any) {
+        onToast(`Lỗi lưu tỉ lệ chia: ${e.message}`, 'error');
+      }
+    }
+    setEditingPriceId(null);
+  };
+
+  const renderShareEditor = () => {
+    if (editShares.length < 2) return null; // task 1 người: giữ y hệt hôm nay
+    const price = parseFloat(editPrice) || 0;
+    return (
+      <div className="border-t border-primary/10 pt-2 mt-1 space-y-1.5">
+        <p className="text-[9px] font-black uppercase tracking-widest text-primary/70">👥 Chia cho {editShares.length} người</p>
+        {editShares.map((a, i) => (
+          <div key={a.worker_id} className="flex items-center gap-2">
+            <span className="flex-1 text-xs text-neutral-light truncate">{nameOf(a.worker_id)}</span>
+            <input
+              type="number"
+              value={a.share_pct}
+              onChange={e => setEditShares(prev => prev.map((x, j) => j === i ? { ...x, share_pct: parseFloat(e.target.value) || 0 } : x))}
+              className="w-16 bg-surface border border-primary/20 text-white rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:border-primary/50"
+            />
+            <span className="text-[10px] text-neutral-medium">%</span>
+            <span className="text-[11px] font-bold text-emerald-400 w-28 text-right">
+              {Math.round(price * (Number(a.share_pct) || 0) / 100).toLocaleString()} {editCurrency}
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-0.5">
+          <button
+            onClick={() => setEditShares(prev => wfSvc.splitShares(prev.length).map((p, i) => ({ ...prev[i], share_pct: p })))}
+            className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80"
+          >⚖️ Chia đều</button>
+          <span className={`text-[11px] font-black ${shareTotal === 100 ? 'text-emerald-400' : 'text-red-400'}`}>
+            Tổng: {shareTotal}%
+          </span>
+        </div>
+      </div>
+    );
   };
 
   // ── Sync from ClickUp ──
@@ -149,25 +267,28 @@ const TaskList: React.FC<TaskListProps> = ({
       let skipped = 0;
 
       for (const ct of clickupTasks) {
-        // Find matching worker by email
-        let matchedWorker: Worker | undefined;
-        for (const email of ct.assignee_emails) {
-          matchedWorker = emailToWorker.get(email);
-          if (matchedWorker) break;
-        }
+        // TẤT CẢ người được assign trên ClickUp (trước đây `break` ở người đầu tiên
+        // ⇒ task nhiều người bị tách thành nhiều dòng wf_tasks ⇒ doanh thu đếm 2 lần).
+        const matchedWorkers = ct.assignee_emails
+          .map(e => emailToWorker.get(e))
+          .filter((w): w is Worker => !!w);
 
-        if (!matchedWorker) {
+        if (matchedWorkers.length === 0) {
           skipped++;
           continue;
         }
 
-        // Check if task already exists in DB (not in-memory) by clickup_task_id + worker_id
+        // 1 clickup_task_id = 1 dòng wf_tasks (không còn tra kèm worker_id)
         const { data: existingRows } = await supabase
           .from('wf_tasks')
           .select('id')
-          .eq('clickup_task_id', ct.clickup_task_id)
-          .eq('worker_id', matchedWorker.id!)
-          .limit(1);
+          .eq('clickup_task_id', ct.clickup_task_id);
+        // ponytail: dữ liệu prod đã dọn hết dòng trùng (2026-08-19). Guard này chỉ để sync
+        // không tự chọn bừa nếu lại có 2 dòng cùng clickup_task_id — dọn tay rồi sync lại.
+        if (existingRows && existingRows.length > 1) {
+          skipped++;
+          continue;
+        }
         const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
 
         const ourStatus = mapStatus(ct.clickup_status);
@@ -193,12 +314,11 @@ const TaskList: React.FC<TaskListProps> = ({
             clickup_folder_name: ct.folder_name || null,
             clickup_list_name: ct.list_name || null,
             synced_at: new Date().toISOString(),
-            worker_id: matchedWorker.id!,
           });
+          await syncAssignees(existing.id, matchedWorkers);
         } else {
           // Insert new
           await wfSvc.saveTask({
-            worker_id: matchedWorker.id!,
             project: ct.folder_name || ct.list_name || '',
             client_name: ct.space_name || '',
             title: ct.title,
@@ -223,7 +343,10 @@ const TaskList: React.FC<TaskListProps> = ({
             synced_at: new Date().toISOString(),
             client_price: 0,
             client_currency: 'USD',
-          });
+          }, matchedWorkers.map((w, i) => ({
+            worker_id: w.id!,
+            share_pct: wfSvc.splitShares(matchedWorkers.length)[i],
+          })));
         }
         synced++;
       }
@@ -432,7 +555,7 @@ const TaskList: React.FC<TaskListProps> = ({
       {!isLoading && tasks.length > 0 && viewMode === 'board' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredDisplayTasks.map(t => {
-            const workerName = t.worker?.full_name || workers.find(w => w.id === t.worker_id)?.full_name || 'Chưa assign';
+            const workerName = assigneeNames(t) || 'Chưa assign';
             const isFromClickUp = !!t.clickup_task_id;
             return (
               <div key={t.id} className="group relative rounded-[20px] border border-primary/10 bg-surface overflow-hidden hover:border-primary/30 transition-all duration-300 hover:shadow-card-glow">
@@ -488,14 +611,7 @@ const TaskList: React.FC<TaskListProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         e.preventDefault();
-                        const next = t.payment_status === 'paid' ? 'unpaid' : 'paid';
-                        const updates: Partial<WorkforceTask> = { payment_status: next };
-                        // Lock in avg rate when marking as paid for USD tasks
-                        if (next === 'paid' && t.currency === 'USD' && vcbSellRate > 0) {
-                          updates.exchange_rate = vcbSellRate;
-                        }
-                        onUpdate(t.id!, updates);
-                        onToast(next === 'paid' ? '💰 Đã đánh dấu thanh toán' : '⏳ Đã chuyển về chưa thanh toán', 'success');
+                        togglePayment(t);
                       }}
                       className={`text-[9px] font-bold px-2.5 py-1 rounded-md cursor-pointer hover:scale-105 active:scale-95 transition-all ${
                         t.payment_status === 'paid'
@@ -601,18 +717,13 @@ const TaskList: React.FC<TaskListProps> = ({
                           >{editClientCurrency}</button>
                         </div>
                       </div>
+                      {renderShareEditor()}
                       {/* Actions */}
                       <div className="flex gap-2">
                         <button
-                          onClick={() => {
-                            const p = parseFloat(editPrice) || 0;
-                            const r = parseFloat(editRate) || 0;
-                            const b = parseFloat(editBonus) || 0;
-                            const cp = parseFloat(editClientPrice) || 0;
-                            onUpdate(t.id!, { price: p, currency: editCurrency, exchange_rate: r, bonus: b, bonus_note: editBonusNote, notes: editNotes, client_price: cp, client_currency: editClientCurrency });
-                            setEditingPriceId(null);
-                          }}
-                          className="flex-1 py-1.5 rounded-lg bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:bg-primary/90 transition-all"
+                          onClick={() => saveEditor(t.id!)}
+                          disabled={shareInvalid}
+                          className="flex-1 py-1.5 rounded-lg bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >Lưu</button>
                         <button
                           onClick={() => setEditingPriceId(null)}
@@ -623,21 +734,7 @@ const TaskList: React.FC<TaskListProps> = ({
                   ) : (
                     <div
                       className="mt-3 cursor-pointer group/price hover:bg-white/5 rounded-lg px-2 py-1.5 -mx-2 transition-all"
-                      onClick={() => {
-                        setEditingPriceId(t.id!);
-                        setEditPrice(t.price > 0 ? String(t.price) : '');
-                        setEditCurrency(t.currency || 'VND');
-                        setEditRate(
-                          t.payment_status === 'paid' && t.exchange_rate > 0
-                            ? String(t.exchange_rate)
-                            : (t.currency === 'USD' && vcbSellRate > 0 ? String(vcbSellRate) : '')
-                        );
-                        setEditBonus(t.bonus > 0 ? String(t.bonus) : '');
-                        setEditBonusNote(t.bonus_note || '');
-                        setEditNotes(t.notes || '');
-                        setEditClientPrice(t.client_price > 0 ? String(t.client_price) : '');
-                        setEditClientCurrency(t.client_currency || 'USD');
-                      }}
+                      onClick={() => openEditor(t)}
                     >
                       {/* Worker cost — orange */}
                       <div className="flex items-center gap-1.5">
@@ -709,7 +806,7 @@ const TaskList: React.FC<TaskListProps> = ({
               </thead>
               <tbody>
                 {filteredDisplayTasks.map((t, idx) => {
-                  const workerName = t.worker?.full_name || workers.find(w => w.id === t.worker_id)?.full_name || '—';
+                  const workerName = assigneeNames(t) || '—';
                   return (
                     <tr
                       key={t.id}
@@ -718,19 +815,7 @@ const TaskList: React.FC<TaskListProps> = ({
                       }`}
                       onClick={() => {
                         if (editingPriceId === t.id) return;
-                        setEditingPriceId(t.id!);
-                        setEditPrice(t.price > 0 ? String(t.price) : '');
-                        setEditCurrency(t.currency || 'VND');
-                        setEditRate(
-                          t.payment_status === 'paid' && t.exchange_rate > 0
-                            ? String(t.exchange_rate)
-                            : (t.currency === 'USD' && vcbSellRate > 0 ? String(vcbSellRate) : '')
-                        );
-                        setEditBonus(t.bonus > 0 ? String(t.bonus) : '');
-                        setEditBonusNote(t.bonus_note || '');
-                        setEditNotes(t.notes || '');
-                        setEditClientPrice(t.client_price > 0 ? String(t.client_price) : '');
-                        setEditClientCurrency(t.client_currency || 'USD');
+                        openEditor(t);
                       }}
                     >
                       <td className="px-5 py-3 text-neutral-medium/50 text-xs">{idx + 1}</td>
@@ -756,13 +841,7 @@ const TaskList: React.FC<TaskListProps> = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            const next = t.payment_status === 'paid' ? 'unpaid' : 'paid';
-                            const updates: Partial<WorkforceTask> = { payment_status: next };
-                            if (next === 'paid' && t.currency === 'USD' && vcbSellRate > 0) {
-                              updates.exchange_rate = vcbSellRate;
-                            }
-                            onUpdate(t.id!, updates);
-                            onToast(next === 'paid' ? '💰 Đã đánh dấu thanh toán' : '⏳ Đã chuyển về chưa thanh toán', 'success');
+                            togglePayment(t);
                           }}
                           className={`text-[9px] font-bold px-2.5 py-1 rounded-md cursor-pointer hover:scale-105 active:scale-95 transition-all ${
                             t.payment_status === 'paid'
@@ -843,9 +922,10 @@ const TaskList: React.FC<TaskListProps> = ({
                       className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest border transition-all ${editClientCurrency === 'USD' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' : 'bg-blue-500/20 text-blue-400 border-blue-500/30'}`}>{editClientCurrency}</button>
                   </div>
                 </div>
+                {renderShareEditor()}
                 <div className="flex gap-2">
-                  <button onClick={() => { const p = parseFloat(editPrice) || 0; const r = parseFloat(editRate) || 0; const b = parseFloat(editBonus) || 0; const cp = parseFloat(editClientPrice) || 0; onUpdate(editingPriceId!, { price: p, currency: editCurrency, exchange_rate: r, bonus: b, bonus_note: editBonusNote, notes: editNotes, client_price: cp, client_currency: editClientCurrency }); setEditingPriceId(null); }}
-                    className="py-1.5 px-6 rounded-lg bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:bg-primary/90 transition-all">Lưu</button>
+                  <button onClick={() => saveEditor(editingPriceId!)} disabled={shareInvalid}
+                    className="py-1.5 px-6 rounded-lg bg-primary text-black font-black text-[10px] uppercase tracking-widest hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">Lưu</button>
                   <button onClick={() => setEditingPriceId(null)}
                     className="py-1.5 px-6 rounded-lg border border-primary/20 text-neutral-medium font-black text-[10px] uppercase tracking-widest hover:text-white transition-all">Hủy</button>
                 </div>

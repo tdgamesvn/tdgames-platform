@@ -245,24 +245,29 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       if (accTasks && accTasks.length > 0) {
         const taskIds = accTasks.map(at => at.task_id);
         
-        // Get the workers for these tasks
+        // Task info + người làm (1 task có thể nhiều người ⇒ doanh thu chia theo share_pct)
         const { data: tasksInfo } = await supabase
           .from('wf_tasks')
-          .select('id, worker_id, title, project, client_name, clickup_space_name, clickup_folder_name')
-          .in('id', taskIds)
+          .select('id, title, project, client_name, clickup_space_name, clickup_folder_name')
+          .in('id', taskIds);
+        const { data: assg } = await supabase
+          .from('wf_task_assignees')
+          .select('task_id, worker_id, share_pct')
+          .in('task_id', taskIds)
           .in('worker_id', fulltimeWorkerIds);
 
-        if (tasksInfo) {
-          // Map task_id -> task info (worker + tên/dự án/khách hàng)
+        if (tasksInfo && assg) {
           const taskInfoMap = new Map<string, any>();
           tasksInfo.forEach(t => taskInfoMap.set(t.id, t));
+          const byTask = new Map<string, any[]>();
+          assg.forEach(a => byTask.set(a.task_id, [...(byTask.get(a.task_id) || []), a]));
 
-          // Aggregate revenue + chi tiết task theo worker
           accTasks.forEach(at => {
             const info = taskInfoMap.get(at.task_id);
-            if (info) {
-              const current = taskRevenues.get(info.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
-              const price = Number(at.client_price || 0);
+            if (!info) return;
+            for (const a of byTask.get(at.task_id) || []) {
+              const current = taskRevenues.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
+              const price = Number(at.client_price || 0) * Number(a.share_pct || 0) / 100;
               current.count += 1;
               current.revenue += price;
               current.tasks.push({
@@ -271,7 +276,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
                 client: info.client_name || info.clickup_space_name || '',
                 priceUSD: price,
               });
-              taskRevenues.set(info.worker_id, current);
+              taskRevenues.set(a.worker_id, current);
             }
           });
         }
