@@ -285,6 +285,14 @@ export function generateClientContract(data: ClientContractData): string {
     </thead>
     <tbody>${paymentScheduleRows}</tbody>
   </table>
+  <div class="bilingual" style="margin-top:6px">
+    <p class="en">Party B shall issue an invoice for each payment phase upon the phase becoming due. Party A shall pay each invoice in full within fifteen (15) calendar days from the date of receipt of the invoice. A payment is deemed overdue from the day following the expiry of that period, and Article 6.6 shall apply.</p>
+    <p class="vi">Bên B phát hành hóa đơn cho từng đợt thanh toán khi đợt đó đến hạn. Bên A thanh toán đầy đủ trong vòng 15 ngày kể từ ngày nhận được hóa đơn. Khoản thanh toán được coi là quá hạn kể từ ngày kế tiếp sau khi hết thời hạn nêu trên, và Điều 6.6 sẽ được áp dụng.</p>
+  </div>
+  ${dom ? `<div class="bilingual" style="margin-top:4px">
+    <p class="en">Party B shall issue a lawful electronic VAT invoice in accordance with the tax laws of Vietnam. Party A shall provide accurate invoicing details (company name, address, tax code) and is responsible for any adjustment arising from incorrect details it supplies.</p>
+    <p class="vi">Bên B xuất hóa đơn giá trị gia tăng điện tử hợp pháp theo quy định pháp luật thuế Việt Nam. Bên A có trách nhiệm cung cấp chính xác thông tin xuất hóa đơn (tên công ty, địa chỉ, mã số thuế) và chịu trách nhiệm về việc điều chỉnh hóa đơn phát sinh do thông tin cung cấp sai.</p>
+  </div>` : ''}
 
   <p style="font-weight:bold;margin:8px 0 2px">4.3 Payment Method / Phương thức thanh toán</p>
   <div class="bilingual">
