@@ -124,17 +124,17 @@ const numberToWords = (n: number, currency: string, L: 'both' | 'vi' | 'en'): st
 };
 
 /**
- * So hop dong: {TDG|TDC}-{yymm}-{NN}
- * - TDG / TDC: dung theo phap nhan ky (truoc day luon la TDG du chon TD Consulting).
+ * So hop dong: TDG-{yymm}-{NN}
  * - NN: so thu tu trong thang, dem tu crm_documents. Truoc day khong co so thu tu
  *   nen moi hop dong trong cung thang deu TRUNG so.
+ * - Chi con TDG: cong ty chot sau nay chi ky hop dong khach bang phap nhan TD Games.
  * Loi khong chan duoc viec tao hop dong: fallback ve -01.
  */
-export async function generateContractNumber(companyKey: CompanyKey = 'tdgames'): Promise<string> {
+export async function generateContractNumber(): Promise<string> {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const prefix = `${companyKey === 'tdconsulting' ? 'TDC' : 'TDG'}-${yy}${mm}`;
+  const prefix = `TDG-${yy}${mm}`;
   try {
     const { data } = await supabase
       .from('crm_documents')

@@ -79,8 +79,8 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   // ponytail: so HD phai dem DB nen bat buoc async; chi sinh khi tao moi
   useEffect(() => {
     if (initialData) return;
-    generateContractNumber(companyKey).then(setContractNumber).catch(() => {});
-  }, [companyKey, initialData]);
+    generateContractNumber().then(setContractNumber).catch(() => {});
+  }, [initialData]);
 
   // ── Party A (client) ──
   const [clientName, setClientName] = useState(client.name || '');
@@ -345,7 +345,8 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
           <div>
             <p className={labelCls}>Pháp nhân (Bên B)</p>
             <select value={companyKey} onChange={e => setCompanyKey(e.target.value as CompanyKey)} className={inputCls} style={inputStyle}>
-              {(Object.keys(COMPANY_OPTIONS) as CompanyKey[]).map(k => (
+              {/* ponytail: chi con TD Games - cong ty chot khong ky HD khach bang TD Consulting nua */}
+              {(Object.keys(COMPANY_OPTIONS) as CompanyKey[]).filter(k => k === 'tdgames').map(k => (
                 <option key={k} value={k}>{COMPANY_OPTIONS[k].nameShort}</option>
               ))}
             </select>
