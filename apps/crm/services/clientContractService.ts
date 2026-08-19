@@ -132,17 +132,21 @@ const numberToWords = (n: number, currency: string, L: 'both' | 'vi' | 'en'): st
 };
 
 /**
- * So hop dong: TDG-{yymm}-{NN}
+ * So hop dong: TDG-{VN|INT}-{yymm}-{NN}
  * - NN: so thu tu trong thang, dem tu crm_documents. Truoc day khong co so thu tu
  *   nen moi hop dong trong cung thang deu TRUNG so.
  * - Chi con TDG: cong ty chot sau nay chi ky hop dong khach bang phap nhan TD Games.
  * Loi khong chan duoc viec tao hop dong: fallback ve -01.
  */
-export async function generateContractNumber(): Promise<string> {
+export async function generateContractNumber(
+  contractType: 'domestic' | 'international' = 'international',
+): Promise<string> {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const prefix = `TDG-${yy}${mm}`;
+  // VN / INT: hai loai thuoc 2 che do thue khac nhau (0% vs khong chiu thue) nen
+  // ke toan can nhin so la biet nhom, phuc vu phan bo thue dau vao.
+  const prefix = `TDG-${contractType === 'domestic' ? 'VN' : 'INT'}-${yy}${mm}`;
   try {
     const { data } = await supabase
       .from('crm_documents')

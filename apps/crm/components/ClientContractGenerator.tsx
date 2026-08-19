@@ -79,13 +79,16 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   );
   const [lang, setLang] = useState<'both' | 'vi' | 'en'>('both');
   const [contractNumber, setContractNumber] = useState('');
-  const [signingDate, setSigningDate] = useState(todayStr());
+  // ponytail: de trong -> template in ....../....../.......... cho hai ben dien tay.
+  // Dien san ngay export la sai khi khach ky ngay khac; moi moc tinh tu "ngay ky"
+  // (han thanh toan 15 ngay, tien do, phat 8%) se lech theo.
+  const [signingDate, setSigningDate] = useState('');
   const [companyKey, setCompanyKey] = useState<CompanyKey>('tdgames');
   // ponytail: so HD phai dem DB nen bat buoc async; chi sinh khi tao moi
   useEffect(() => {
     if (initialData) return;
-    generateContractNumber().then(setContractNumber).catch(() => {});
-  }, [initialData]);
+    generateContractNumber(contractType).then(setContractNumber).catch(() => {});
+  }, [initialData, contractType]);
 
   // ── Party A (client) ──
   const [clientName, setClientName] = useState(client.name || '');
@@ -145,7 +148,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setContractType(initialData.contractType || 'international');
     setLang(initialData.lang || 'both');
     setContractNumber(initialData.contractNumber || '');
-    setSigningDate(initialData.signingDate || todayStr());
+    setSigningDate(initialData.signingDate || '');
     if (initialData.bankAccountId) {
       skipBankAutoSwitch.current = true;
       setSelectedBankId(initialData.bankAccountId);
