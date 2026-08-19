@@ -175,11 +175,14 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     if (proj) {
       setProjectName(proj.name);
       if (proj.budget) setTotalValue(proj.budget);
-      if (proj.currency) setCurrency(proj.currency);
+      // ponytail: KHONG cho du an ghi de tien te khi la khach noi dia - TT 32/2013
+      // cam ghi gia hop dong bang ngoai te voi nguoi cu tru. Du an co the luu USD
+      // (vd H2BIZ GAME) nhung hop dong khach VN van phai la VND.
+      if (proj.currency && contractType !== 'domestic') setCurrency(proj.currency);
       if (proj.start_date) setStartDate(proj.start_date);
       if (proj.end_date) setEstimatedCompletion(proj.end_date);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, contractType]);
 
   // ── Update phase amounts when total changes ──
   useEffect(() => {
