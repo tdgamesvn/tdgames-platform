@@ -73,9 +73,14 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     isVnClient ? 'domestic' : 'international',
   );
   const [lang, setLang] = useState<'both' | 'vi' | 'en'>('both');
-  const [contractNumber, setContractNumber] = useState(generateContractNumber());
+  const [contractNumber, setContractNumber] = useState('');
   const [signingDate, setSigningDate] = useState(todayStr());
   const [companyKey, setCompanyKey] = useState<CompanyKey>('tdgames');
+  // ponytail: so HD phai dem DB nen bat buoc async; chi sinh khi tao moi
+  useEffect(() => {
+    if (initialData) return;
+    generateContractNumber(companyKey).then(setContractNumber).catch(() => {});
+  }, [companyKey, initialData]);
 
   // ── Party A (client) ──
   const [clientName, setClientName] = useState(client.name || '');

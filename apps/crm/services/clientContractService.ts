@@ -74,16 +74,81 @@ const fmtDate = (d: string | null | undefined): string => {
 
 const blank = (v: string | null | undefined, placeholder = '..........') => v || placeholder;
 
-const numberToWords = (n: number, currency: string): string => {
-  if (currency === 'USD') return `${fmt(n)} US Dollars`;
-  return `${fmt(n)} VNĐ`;
+// Doc so thanh chu tieng Viet. "Bang chu" la dong co gia tri phap ly cao nhat
+// trong hop dong (so va chu venh nhau thi chu thang) nen phai doc that, khong
+// duoc in lai con so.
+const DIGITS_VI = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+const readBlockVi = (n: number, full: boolean): string => {
+  const tram = Math.floor(n / 100), chuc = Math.floor((n % 100) / 10), donvi = n % 10;
+  const out: string[] = [];
+  if (tram > 0 || full) out.push(`${DIGITS_VI[tram]} trăm`);
+  if (chuc > 1) {
+    out.push(`${DIGITS_VI[chuc]} mươi`);
+    if (donvi === 1) out.push('mốt');
+    else if (donvi === 5) out.push('lăm');
+    else if (donvi > 0) out.push(DIGITS_VI[donvi]);
+  } else if (chuc === 1) {
+    out.push('mười');
+    if (donvi === 5) out.push('lăm');
+    else if (donvi > 0) out.push(DIGITS_VI[donvi]);
+  } else if (donvi > 0) {
+    if (tram > 0 || full) out.push('lẻ');
+    out.push(DIGITS_VI[donvi]);
+  }
+  return out.join(' ');
 };
 
-export function generateContractNumber(): string {
+const readNumberVi = (n: number): string => {
+  if (!n || n < 0) return 'Không';
+  const units = ['', ' nghìn', ' triệu', ' tỷ'];
+  const blocks: number[] = [];
+  let x = Math.floor(n);
+  while (x > 0) { blocks.push(x % 1000); x = Math.floor(x / 1000); }
+  const parts: string[] = [];
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    if (blocks[i] === 0) continue;
+    parts.push(readBlockVi(blocks[i], i < blocks.length - 1) + units[i]);
+  }
+  const s = parts.join(' ').replace(/\s+/g, ' ').trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+const numberToWords = (n: number, currency: string, L: 'both' | 'vi' | 'en'): string => {
+  const cur = currency === 'USD'
+    ? (L === 'vi' ? 'đô la Mỹ' : L === 'en' ? 'US Dollars' : 'đô la Mỹ / US Dollars')
+    : (L === 'en' ? 'Vietnamese Dong' : 'đồng');
+  // Ban thuan Anh giu nguyen dinh dang so + don vi (doc so tieng Anh chua lam).
+  if (L === 'en') return `${fmt(n)} ${cur}`;
+  return `${readNumberVi(n)} ${cur}`;
+};
+
+/**
+ * So hop dong: {TDG|TDC}-{yymm}-{NN}
+ * - TDG / TDC: dung theo phap nhan ky (truoc day luon la TDG du chon TD Consulting).
+ * - NN: so thu tu trong thang, dem tu crm_documents. Truoc day khong co so thu tu
+ *   nen moi hop dong trong cung thang deu TRUNG so.
+ * Loi khong chan duoc viec tao hop dong: fallback ve -01.
+ */
+export async function generateContractNumber(companyKey: CompanyKey = 'tdgames'): Promise<string> {
   const now = new Date();
   const yy = String(now.getFullYear()).slice(2);
   const mm = String(now.getMonth() + 1).padStart(2, '0');
-  return `UASA/TDG-${yy}${mm}`;
+  const prefix = `${companyKey === 'tdconsulting' ? 'TDC' : 'TDG'}-${yy}${mm}`;
+  try {
+    const { data } = await supabase
+      .from('crm_documents')
+      .select('title')
+      .eq('doc_type', 'contract')
+      .like('title', `${prefix}%`);
+    const used = (data || [])
+      .map(d => Number(String(d.title).match(new RegExp(`^${prefix}-(\\d+)`))?.[1]))
+      .filter(n => Number.isFinite(n)) as number[];
+    const next = used.length ? Math.max(...used) + 1 : 1;
+    return `${prefix}-${String(next).padStart(2, '0')}`;
+  } catch {
+    return `${prefix}-01`;
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -282,7 +347,7 @@ export function generateClientContract(data: ClientContractData): string {
   <p style="font-weight:bold;margin:4px 0 2px">${t('4.1 Total Contract Value', 'Tổng giá trị hợp đồng')}</p>
   <table class="info-table">
     <tr><td class="label">${t('Amount (Figures)', 'Bằng số:')}</td><td class="value"><strong>${fmt(data.totalValue)} ${data.currency}</strong></td></tr>
-    <tr><td class="label">${t('Amount (Words)', 'Bằng chữ:')}</td><td class="value">${numberToWords(data.totalValue, data.currency)}</td></tr>
+    <tr><td class="label">${t('Amount (Words)', 'Bằng chữ:')}</td><td class="value">${numberToWords(data.totalValue, data.currency, L)}</td></tr>
   </table>
 
   <p style="font-weight:bold;margin:6px 0 2px">${t('4.2 Payment Schedule', 'Lịch thanh toán')}</p>
