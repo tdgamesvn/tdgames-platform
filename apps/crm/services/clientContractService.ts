@@ -360,6 +360,10 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="en"><strong>Out of Scope:</strong> Any assets, features, or requirements not explicitly listed in this Article shall be considered additional work outside the scope of this Agreement and may be quoted separately in accordance with Article 6.2.</p>
     <p class="vi"><strong>Ngoài phạm vi:</strong> Bất kỳ tài sản, tính năng hoặc yêu cầu nào không được liệt kê rõ ràng trong Điều này đều được coi là công việc phát sinh ngoài phạm vi Hợp đồng và có thể được báo giá riêng theo Điều 6.2.</p>
   </div>
+  <div class="bilingual" style="margin-top:6px">
+    <p class="en"><strong>Technical specifications:</strong> The delivery formats (e.g. PSD, AE project, Spine/DragonBones, sprite sheet), quantity of files, resolution, frame rate and naming convention are those stated in this Article or in the Technical Appendix attached to this Agreement. Any signed appendix forms an integral part of this Agreement. Where a specification is not stated, industry-standard formats commonly used for the relevant deliverable shall apply.</p>
+    <p class="vi"><strong>Thông số kỹ thuật:</strong> Định dạng file bàn giao (ví dụ PSD, AE project, Spine/DragonBones, sprite sheet), số lượng file, độ phân giải, tốc độ khung hình và quy tắc đặt tên được xác định tại Điều này hoặc tại Phụ lục kỹ thuật đính kèm Hợp đồng. Phụ lục đã ký là bộ phận không tách rời của Hợp đồng. Trường hợp một thông số không được nêu, áp dụng định dạng tiêu chuẩn thông dụng của ngành đối với sản phẩm tương ứng.</p>
+  </div>
 </div>
 
 <!-- ARTICLE III — TIMELINE -->
@@ -371,8 +375,8 @@ export function generateClientContract(data: ClientContractData): string {
     <tr><td class="tl-label">${t('Estimated Completion', 'Ngày hoàn thành dự kiến')}</td><td>${data.estimatedCompletion ? fmtDate(data.estimatedCompletion) : blank('')}</td></tr>
   </table>
   <div class="bilingual" style="margin-top:6px">
-    <p class="en">Any delay caused by late feedback, missing references, or change requests from Party A shall automatically extend the production schedule accordingly.</p>
-    <p class="vi">Trong trường hợp tiến độ bị ảnh hưởng do Bên A chậm phản hồi, thời hạn thực hiện sẽ được tự động gia hạn tương ứng.</p>
+    <p class="en">Any delay caused by late feedback, missing references, or change requests from Party A shall extend the production schedule accordingly. Party B shall notify Party A in writing of the specific number of days of extension and the resulting completion date within three (03) working days from the date the delay arises; absent such notice, the original schedule continues to apply.</p>
+    <p class="vi">Trong trường hợp tiến độ bị ảnh hưởng do Bên A chậm phản hồi, thiếu tài liệu tham chiếu hoặc yêu cầu thay đổi, thời hạn thực hiện được gia hạn tương ứng. Bên B phải thông báo cho Bên A bằng văn bản số ngày gia hạn cụ thể và ngày hoàn thành mới trong vòng 3 ngày làm việc kể từ ngày phát sinh chậm trễ; nếu không có thông báo, tiến độ ban đầu tiếp tục được áp dụng.</p>
   </div>
 </div>
 
@@ -485,8 +489,12 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:4px 0 2px">6.1 ${t('Acceptance & Revision Policy', 'Tiêu chí nghiệm thu')}</p>
   <div class="bilingual">
-    <p class="en">Deliverables shall be deemed accepted when conforming to agreed specifications. Party A shall notify rejection, with specific written reasons, within five (05) working days from delivery. If Party A gives no such notice within that period, the deliverable shall be deemed accepted in full. Each deliverable is subject to a maximum of two (02) rounds of revision free of charge.</p>
-    <p class="vi">Sản phẩm bàn giao được coi là đã nghiệm thu khi phù hợp với thông số đã thỏa thuận. Bên A phải thông báo từ chối kèm lý do cụ thể bằng văn bản trong vòng 5 ngày làm việc kể từ ngày bàn giao. Quá thời hạn trên mà Bên A không có thông báo, sản phẩm được coi là đã nghiệm thu toàn bộ. Mỗi sản phẩm được chỉnh sửa tối đa 2 lần miễn phí.</p>
+    <p class="en">Delivery and acceptance follow this order: (i) Party B delivers a review version (preview/watermarked or non-editable export) sufficient for Party A to assess quality; (ii) Party A notifies acceptance or rejection, with specific written reasons, within five (05) working days — if no notice is given within that period the deliverable is deemed accepted in full; (iii) Party A pays the final instalment; (iv) Party B hands over the source files. Party A is therefore not required to pay the final instalment before having a reasonable opportunity to inspect the work.</p>
+    <p class="vi">Trình tự bàn giao và nghiệm thu như sau: (i) Bên B bàn giao bản duyệt (bản preview có watermark hoặc bản xuất không chỉnh sửa được) đủ để Bên A đánh giá chất lượng; (ii) Bên A thông báo nghiệm thu hoặc từ chối kèm lý do cụ thể bằng văn bản trong vòng 5 ngày làm việc — quá thời hạn này mà không có thông báo thì sản phẩm được coi là đã nghiệm thu toàn bộ; (iii) Bên A thanh toán đợt cuối; (iv) Bên B bàn giao file gốc. Bên A không phải thanh toán đợt cuối trước khi có cơ hội hợp lý để kiểm tra sản phẩm.</p>
+  </div>
+  <div class="bilingual">
+    <p class="en">Each deliverable is subject to a maximum of two (02) rounds of revision free of charge. From the third round onwards, or where the request changes the agreed specifications, the request shall be treated as an additional request under Article 6.2 and quoted separately.</p>
+    <p class="vi">Mỗi sản phẩm được chỉnh sửa tối đa 2 lần miễn phí. Từ lần chỉnh sửa thứ 3 trở đi, hoặc khi yêu cầu làm thay đổi thông số đã thỏa thuận, yêu cầu đó được coi là yêu cầu phát sinh theo Điều 6.2 và được báo giá riêng.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">6.2 ${t('Additional Requests', 'Yêu cầu phát sinh')}</p>

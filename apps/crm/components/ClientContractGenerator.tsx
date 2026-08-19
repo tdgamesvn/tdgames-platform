@@ -42,7 +42,7 @@ const phaseLabel = (i: number, isLast: boolean, L: 'both' | 'vi' | 'en') => {
 const phaseDesc = (i: number, isLast: boolean, L: 'both' | 'vi' | 'en') => {
   const tt = (en: string, vi: string) => (L === 'en' ? en : L === 'vi' ? vi : `${en} / ${vi}`);
   if (i === 0) return tt('Upon contract signing', 'Khi ký hợp đồng');
-  return isLast ? tt('Prior to source file handover', 'Trước khi bàn giao file gốc') : '';
+  return isLast ? tt('Upon acceptance, prior to source file handover', 'Sau khi nghiệm thu, trước khi bàn giao file gốc') : '';
 };
 
 const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, client, contacts, projects, onClose, onSaved, currentUserId }) => {
