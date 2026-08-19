@@ -27,6 +27,7 @@ export interface ClientContractData {
   clientName: string;
   clientAddress: string;
   clientTaxCode: string;
+  clientEmail?: string;
   clientRepresentative: string;
   clientRepresentativeTitle: string;
   // Project
@@ -240,6 +241,8 @@ body {
 @media screen {
   body { max-width: 210mm; margin: 0 auto; padding: 18mm 22mm; background: white; }
 }
+/* Danh so trang khi in - HD nhieu trang can chong trao/thieu trang */
+@page { @bottom-center { content: counter(page) " / " counter(pages); font-size: 10px; color: #555; } }
 `;
 
 // ══════════════════════════════════════════════════════════════
@@ -323,6 +326,7 @@ export function generateClientContract(data: ClientContractData): string {
   <table class="info-table">
     <tr><td class="label">${t('Company Name', 'Tên công ty:')}</td><td class="value">${blank(data.clientName)}</td></tr>
     <tr><td class="label">${t('Address', 'Địa chỉ:')}</td><td class="value">${blank(data.clientAddress)}</td></tr>
+    ${data.clientEmail ? `<tr><td class="label">Email:</td><td class="value">${data.clientEmail}</td></tr>` : ''}
     <tr><td class="label">${t('Tax ID', 'Mã số thuế:')}</td><td class="value">${blank(data.clientTaxCode)}</td></tr>
     <tr><td class="label">${t('Representative', 'Người đại diện:')}</td><td class="value">${blank(data.clientRepresentative)}</td></tr>
     <tr><td class="label">${t('Position', 'Chức vụ:')}</td><td class="value">${blank(data.clientRepresentativeTitle)}</td></tr>

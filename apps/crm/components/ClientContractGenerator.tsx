@@ -91,6 +91,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   const [clientName, setClientName] = useState(client.name || '');
   const [clientAddress, setClientAddress] = useState(client.address || '');
   const [clientTaxCode, setClientTaxCode] = useState(client.tax_code || '');
+  const [clientEmail, setClientEmail] = useState(client.email || contacts[0]?.email || '');
   const [clientRep, setClientRep] = useState(client.contact_person || contacts[0]?.name || '');
   const [clientRepTitle, setClientRepTitle] = useState(contacts[0]?.position || '');
 
@@ -153,6 +154,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setClientName(initialData.clientName || '');
     setClientAddress(initialData.clientAddress || '');
     setClientTaxCode(initialData.clientTaxCode || '');
+    setClientEmail(initialData.clientEmail || '');
     setClientRep(initialData.clientRepresentative || '');
     setClientRepTitle(initialData.clientRepresentativeTitle || '');
     setProjectName(initialData.projectName || '');
@@ -233,7 +235,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   // ── Dung payload dung chung cho preview va luu ──
   const buildData = (): ClientContractData => ({
     contractNumber, signingDate, companyKey,
-    clientName, clientAddress, clientTaxCode,
+    clientName, clientAddress, clientTaxCode, clientEmail,
     clientRepresentative: clientRep, clientRepresentativeTitle: clientRepTitle,
     projectName, scopeContent,
     startDate, estimatedDuration, estimatedCompletion,
@@ -258,7 +260,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   useEffect(() => {
     const data: ClientContractData = {
       contractNumber, signingDate, companyKey,
-      clientName, clientAddress, clientTaxCode,
+      clientName, clientAddress, clientTaxCode, clientEmail,
       clientRepresentative: clientRep, clientRepresentativeTitle: clientRepTitle,
       projectName, scopeContent,
       startDate, estimatedDuration, estimatedCompletion,
@@ -277,7 +279,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
         .map(x => x?.trim()).filter(Boolean).join(' — ') || undefined,
     };
     setPreviewHtml(generateClientContract(data));
-  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, companyProfile, contractType, lang, totalValue, currency, phases, selectedBankId, bankAccounts]);
+  }, [contractNumber, signingDate, companyKey, clientName, clientAddress, clientTaxCode, clientEmail, clientRep, clientRepTitle, projectName, scopeContent, startDate, estimatedDuration, estimatedCompletion, companyProfile, contractType, lang, totalValue, currency, phases, selectedBankId, bankAccounts]);
 
   // ── Write preview to iframe ──
   useEffect(() => {
