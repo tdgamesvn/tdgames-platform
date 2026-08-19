@@ -9,7 +9,7 @@ const start = src.indexOf('export function generateClientContract');
 const body = src.slice(start, src.indexOf('\n// ═', start));
 const fn = body
   .replace(/^export function generateClientContract\(data: ClientContractData\): string \{/,
-           'function (data, COMPANY_OPTIONS, fmt, fmtDate, blank, numberToWords, PRINT_CSS) {')
+           'function (data, COMPANY_OPTIONS, fmt, fmtDate, blank, numberToWords, PRINT_CSS, normalizeScopeHtml) {')
   .replace(/: string/g, '');
 const gen = new Function('return ' + fn)();
 
@@ -58,7 +58,7 @@ const base = {
   phases: [{ label: 'P1', percentage: 100, amount: 1000, description: 'd' }],
 };
 const render = lang => gen({ ...base, lang }, CO, f, () => '01/01/2026',
-  (v, p = '..') => v || p, (n, c) => f(n) + ' ' + c, '').replace(/<[^>]+>/g, ' ');
+  (v, p = '..') => v || p, (n, c) => f(n) + ' ' + c, '', (x) => x || '').replace(/<[^>]+>/g, ' ');
 
 // Tu khoa dac trung tung ngon ngu - xuat hien o tieu de dieu/muc, la cho hay quen t()
 const EN = ['ARTICLE', 'PAYMENT TERMS', 'Limitation of Liability', 'Working Days',
