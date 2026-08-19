@@ -447,7 +447,7 @@ export function generateClientContract(data: ClientContractData): string {
     <li>${t('Deliver all products on time and in compliance with the required quality standards.', 'Bàn giao tất cả sản phẩm đúng hạn và đáp ứng tiêu chuẩn chất lượng.')}</li>
     <li>${t('Maintain strict confidentiality of all project-related information.', 'Bảo mật nghiêm ngặt toàn bộ thông tin liên quan đến dự án.')}</li>
     <li>${t('Provide technical support within thirty (30) days following delivery.', 'Hỗ trợ kỹ thuật trong vòng 30 ngày sau khi bàn giao.')}</li>
-    <li>${t('Delete all of Party A\'s source files within thirty (30) days after the expiry of the technical support period, save for one archival copy retained solely to perform warranty obligations and to comply with accounting and statutory record-keeping requirements.', 'Xóa toàn bộ file gốc của Bên A trong vòng 30 ngày kể từ khi kết thúc thời hạn hỗ trợ kỹ thuật, trừ một bản lưu trữ duy nhất chỉ nhằm thực hiện nghĩa vụ bảo hành và tuân thủ yêu cầu lưu trữ chứng từ kế toán theo quy định pháp luật.')}</li>
+    <li>${t('Party B may retain one archival copy of the deliverables and related materials for internal management, reconciliation, warranty, dispute resolution and compliance with its legal obligations. Such copy shall not be used for commercial purposes nor disclosed to any third party.', 'Bên B có quyền lưu trữ một bản sao nhằm mục đích quản lý nội bộ, đối chiếu, bảo hành, giải quyết tranh chấp và tuân thủ nghĩa vụ pháp lý; bản sao này không được sử dụng cho mục đích thương mại hoặc cung cấp cho bên thứ ba.')}</li>
   </ul>
 
   <p style="font-weight:bold;margin:6px 0 2px">5.2 ${t('Obligations of Party A (Client)', 'Nghĩa vụ của Bên A')}</p>
@@ -468,8 +468,8 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="vi">Quyền nhân thân của tác giả (bao gồm quyền đứng tên tác giả và quyền bảo vệ sự toàn vẹn của tác phẩm) không thể chuyển nhượng theo Luật Sở hữu trí tuệ Việt Nam và vẫn thuộc về tác giả, trừ quyền công bố tác phẩm đã được chuyển giao theo Điều này.</p>
   </div>
   <div class="bilingual">
-    <p class="en">Following the public release, Party B may showcase the completed work in its portfolio only with the prior written approval of Party A.</p>
-    <p class="vi">Sau khi phát hành công khai, Bên B được quyền sử dụng sản phẩm để giới thiệu nếu được sự đồng ý của Bên A bằng văn bản.</p>
+    <p class="en">Following the public release, Party B may showcase the completed work in its portfolio and marketing materials with the prior approval of Party A, given in writing or by email or messaging application. Such approval, once given, need not be repeated for each use.</p>
+    <p class="vi">Sau khi sản phẩm được phát hành công khai, Bên B được sử dụng sản phẩm trong portfolio và tài liệu giới thiệu nếu được Bên A đồng ý trước bằng văn bản, email hoặc tin nhắn. Sự đồng ý đã cho không cần lặp lại cho từng lần sử dụng.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">5.4 ${t('Warranty of Title &amp; Use of Personnel', 'Cam kết về quyền và việc sử dụng nhân sự')}</p>
