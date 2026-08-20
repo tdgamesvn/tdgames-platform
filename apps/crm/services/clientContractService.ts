@@ -446,7 +446,7 @@ export function generateClientContract(data: ClientContractData): string {
     <li>${t('Perform the agreed scope of work accurately and professionally.', 'Thực hiện đúng và chuyên nghiệp phạm vi công việc đã thỏa thuận.')}</li>
     <li>${t('Deliver all products on time and in compliance with the required quality standards.', 'Bàn giao tất cả sản phẩm đúng hạn và đáp ứng tiêu chuẩn chất lượng.')}</li>
     <li>${t('Maintain strict confidentiality of all project-related information.', 'Bảo mật nghiêm ngặt toàn bộ thông tin liên quan đến dự án.')}</li>
-    <li>${t('Provide technical support within thirty (30) days following delivery.', 'Hỗ trợ kỹ thuật trong vòng 30 ngày sau khi bàn giao.')}</li>
+    <li>${t('Provide technical support for thirty (30) days from the handover of the source files. Support covers defects attributable to Party B (export errors, corrupted or missing files, deviation from the agreed specifications) and is free of charge. Requests that change the agreed specifications are additional requests under Article 6.2.', 'Hỗ trợ kỹ thuật trong vòng 30 ngày kể từ ngày bàn giao file gốc. Phạm vi hỗ trợ gồm các lỗi thuộc về Bên B (lỗi xuất file, file hỏng hoặc thiếu, sai lệch so với thông số đã thỏa thuận) và được miễn phí. Yêu cầu làm thay đổi thông số đã thỏa thuận là yêu cầu phát sinh theo Điều 6.2.')}</li>
     <li>${t('Party B may retain one archival copy of the deliverables and related materials for internal management, reconciliation, warranty, dispute resolution and compliance with its legal obligations. Such copy shall not be used for commercial purposes nor disclosed to any third party.', 'Bên B có quyền lưu trữ một bản sao nhằm mục đích quản lý nội bộ, đối chiếu, bảo hành, giải quyết tranh chấp và tuân thủ nghĩa vụ pháp lý; bản sao này không được sử dụng cho mục đích thương mại hoặc cung cấp cho bên thứ ba.')}</li>
   </ul>
 
@@ -559,6 +559,18 @@ export function generateClientContract(data: ClientContractData): string {
   <div class="bilingual">
     <p class="en">"Working day" means a day from Monday to Friday, excluding public holidays of the Socialist Republic of Vietnam (including the Lunar New Year holiday). Party B shall notify Party A of its holiday schedule at least seven (07) calendar days in advance.</p>
     <p class="vi">"Ngày làm việc" là ngày từ Thứ Hai đến Thứ Sáu, không bao gồm các ngày nghỉ lễ, Tết theo quy định của nước Cộng hòa xã hội chủ nghĩa Việt Nam (bao gồm kỳ nghỉ Tết Nguyên đán). Bên B thông báo lịch nghỉ cho Bên A trước ít nhất 07 ngày.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.12 ${t('Notices', 'Thông báo')}</p>
+  <div class="bilingual">
+    <p class="en">All notices, approvals, feedback and acceptance under this Agreement may be given in writing or by email to the addresses stated in Article I, and shall be deemed validly delivered on the following working day. A Party changing its contact email shall notify the other Party in advance.</p>
+    <p class="vi">Mọi thông báo, phê duyệt, phản hồi và nghiệm thu theo Hợp đồng này có thể được thực hiện bằng văn bản hoặc qua email tới địa chỉ nêu tại Điều I, và được coi là đã gửi hợp lệ vào ngày làm việc kế tiếp. Bên thay đổi email liên hệ phải thông báo trước cho Bên kia.</p>
+  </div>
+
+  <p style="font-weight:bold;margin:6px 0 2px">6.13 ${t('Miscellaneous', 'Điều khoản khác')}</p>
+  <div class="bilingual">
+    <p class="en">This Agreement, together with its appendices, constitutes the entire agreement between the Parties and supersedes all prior discussions, quotations and correspondence on the same subject matter. If any provision is held invalid, the remaining provisions continue in full force. A Party's failure to exercise a right on any occasion does not constitute a waiver of that right.</p>
+    <p class="vi">Hợp đồng này cùng các phụ lục là toàn bộ thỏa thuận giữa các Bên và thay thế mọi trao đổi, báo giá, thư từ trước đó về cùng nội dung. Nếu một điều khoản bị tuyên vô hiệu, các điều khoản còn lại vẫn giữ nguyên hiệu lực. Việc một Bên không thực hiện quyền của mình trong một trường hợp cụ thể không được coi là từ bỏ quyền đó.</p>
   </div>
 </div>
 
