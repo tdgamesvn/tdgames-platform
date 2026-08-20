@@ -103,7 +103,9 @@ export interface ProjectedSummary {
 // xếp nhầm vào nhóm bỏ nên 4 task T8 ($1.150) không vào hiệu suất của ai.
 const NOT_YET_DONE = new Set([
   'new', 'new request', 'to do', 'todo', 'open', 'backlog', 'planning',
-  'in progress', 'in_progress', 'pending', 'cancelled', 'canceled',
+  // 'in progess' = lỗi chính tả có thật trên ClickUp (thiếu chữ r). Không có dòng này
+  // thì task đang làm dở lọt vào doanh thu dự kiến.
+  'in progress', 'in progess', 'in_progress', 'pending', 'cancelled', 'canceled',
 ]);
 
 /** Lưu config KPI: employeeId=null → global, ngược lại → override per nhân viên */
