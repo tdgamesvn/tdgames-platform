@@ -107,16 +107,13 @@ const TaskList: React.FC<TaskListProps> = ({
     const ids = matched.map(w => w.id!);
     if (ids.length === curMap.size && ids.every(id => curMap.has(id))) return; // không đổi
 
-    const kept = ids.filter(id => curMap.has(id));
-    const added = ids.filter(id => !curMap.has(id));
-    // ponytail: người mới chỉ được chia phần % còn trống (kept giữ nguyên). Nếu kept đã
-    // ăn đủ 100 thì người mới nhận 0 — sếp tự chỉnh trong modal sửa giá, không cướp ngầm.
-    const rest = Math.max(0, 100 - kept.reduce((s, id) => s + curMap.get(id)!, 0));
-    const addShares = added.length ? wfSvc.splitShares(added.length).map(p => Math.round(p * rest / 100)) : [];
-    await wfSvc.setTaskAssignees(taskId, [
-      ...kept.map(id => ({ worker_id: id, share_pct: curMap.get(id)! })),
-      ...added.map((id, i) => ({ worker_id: id, share_pct: addShares[i] })),
-    ]);
+    // Danh sách người làm thay đổi ⇒ chia đều lại cho tất cả (2 người = 50/50).
+    // ponytail: cách cũ chỉ cho người mới phần % còn trống, nên task 1 người (100%)
+    // thêm người thứ 2 thì người đó nhận 0% — doanh thu/lương không về tay ai.
+    // Đánh đổi: % sếp chỉnh tay bị reset KHI danh sách người đổi (sync cùng danh sách
+    // đã return ở trên nên không đụng). Chỉnh lại trong modal sửa giá nếu cần.
+    const shares = wfSvc.splitShares(ids.length);
+    await wfSvc.setTaskAssignees(taskId, ids.map((id, i) => ({ worker_id: id, share_pct: shares[i] })));
   };
 
   // Toggle thanh toán: đổi cho TẤT CẢ người của task (đúng hành vi cũ khi task 1 người).

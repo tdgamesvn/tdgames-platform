@@ -255,7 +255,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
   const { data: openTasks } = await supabase
     .from('wf_tasks')
-    .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name');
+    .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name, completed_at, closed_date');
   // Space nội bộ (marketing/BD/R&D): có task nhưng không bán cho khách ⇒ không đòi giá.
   const { data: spaceRows } = await supabase
     .from('wf_space_settings').select('space_name').eq('is_internal', true);
@@ -266,6 +266,11 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   (openTasks || []).forEach((t: any) => {
     if (inAcceptance.has(t.id)) return;
     if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
+    // Chỉ task LÀM XONG TRONG THÁNG đang xem. Không có mốc ngày ⇒ bỏ, vì không biết
+    // xếp vào tháng nào (trước đây thiếu bộ lọc này nên tháng nào cũng hiện cả task
+    // từ 2025 tồn lại).
+    const doneAt = t.completed_at || t.closed_date;
+    if (!doneAt || doneAt < startOfMonth || doneAt > endOfMonth) return;
     const isInternal = internalSpaces.has(t.clickup_space_name);
     if (!isInternal) projTaskCount++;
     const cp = Number(t.client_price || 0);
