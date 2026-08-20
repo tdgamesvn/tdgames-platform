@@ -1,6 +1,7 @@
 import { supabase } from '@/services/supabaseClient';
 import { fetchEmployees } from '@/apps/hr/services/hrService';
 import { acceptanceNetAmount } from './projectAcceptanceService';
+import { estimateMonthlyPayroll } from '@/apps/payroll/services/payrollService';
 
 export interface FulltimeKPI {
   employeeId: string;
@@ -93,7 +94,7 @@ export interface ProjectedSummary {
   grossProfit: number;
   taskCount: number;          // số task tính vào doanh thu dự kiến
   tasksWithoutPrice: number;  // task đủ điều kiện nhưng CHƯA nhập giá khách → doanh thu bị thiếu
-  payrollSource: 'sheet-thang-nay' | 'sheet-thang-truoc' | 'khong-co';
+  payrollSource: 'sheet-thang-nay' | 'sheet-thang-truoc' | 'uoc-tinh-nhap' | 'khong-co';
 }
 
 // Trạng thái ClickUp coi là CHƯA làm xong ⇒ không tính doanh thu dự kiến.
@@ -350,25 +351,23 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     }
   }
 
-  // Người mới vào giữa tháng chưa có mặt trong sheet nào ⇒ trước đây chi phí = 0, nên
-  // hiệu suất của họ hiện lãi ảo. Bù bằng lương hợp đồng đang hiệu lực.
-  // ponytail: lấy thẳng tổng khoản lương, KHÔNG prorate theo ngày vào và không cộng
-  // BHXH công ty — sai số vài trăm nghìn, vẫn sát hơn số 0 rất nhiều. Muốn chuẩn từng
-  // đồng thì chốt sheet lương của tháng đó.
-  const { data: salaryRows } = await supabase
-    .from('hr_employee_salary')
-    .select('employee_id, amount, effective_from, effective_to')
-    .lte('effective_from', endOfMonth)
-    .or(`effective_to.is.null,effective_to.gte.${startOfMonth}`);
-  const contractCost = new Map<string, number>();
-  (salaryRows || []).forEach((s: any) => {
-    if (projCostMap.has(s.employee_id)) return; // đã có số thật từ sheet
-    contractCost.set(s.employee_id, (contractCost.get(s.employee_id) || 0) + Number(s.amount || 0));
-  });
-  contractCost.forEach((cost, empId) => {
-    projCostMap.set(empId, cost);
-    projFulltime += cost;
-  });
+  // Chưa có sheet của tháng này ⇒ tự tính lương NHÁP theo hợp đồng, giả định đủ công.
+  // Chạy đúng engine calculatePayroll (thuế, BHXH, thử việc) nên sát bảng lương thật;
+  // kế toán nhập chấm công / chốt sheet là số thật thay thế ngay.
+  if (payrollSource !== 'sheet-thang-nay') {
+    const draft = await estimateMonthlyPayroll(month, year);
+    if (draft.size > 0) {
+      projFulltime = 0;
+      projCostMap.clear();
+      projGrossMap.clear();
+      draft.forEach((v, empId) => {
+        projCostMap.set(empId, v.companyCost);
+        projGrossMap.set(empId, v.grossActual);
+        projFulltime += v.companyCost;
+      });
+      payrollSource = 'uoc-tinh-nhap';
+    }
+  }
 
   const projTotalCost = projFulltime + projFreelancer + operationalExpenses;
   const projected: ProjectedSummary = {

@@ -341,6 +341,84 @@ const SALARY_NAME_MAP: Record<string, keyof PayPayrollRecord> = {
   'Tăng ca': 'default_ot',
 };
 
+/**
+ * Lương NHÁP của một tháng: chạy đúng engine calculatePayroll nhưng giả định mọi người
+ * đi làm ĐỦ CÔNG, không ghi gì vào DB. Dùng cho số "dự kiến" trên dashboard khi kế toán
+ * chưa chốt bảng lương tháng đó.
+ *
+ * ponytail: bỏ qua chấm công, đơn nghỉ và OT thêm — đó là lý do nó là số nháp. Khi sheet
+ * thật được tạo, dashboard lấy sheet và số này biến mất. Không nhân bản công thức thuế/BHXH,
+ * chỉ dựng input rồi gọi calculatePayroll như createPayrollSheet.
+ */
+export async function estimateMonthlyPayroll(
+  month: number, year: number
+): Promise<Map<string, { companyCost: number; grossActual: number }>> {
+  const result = new Map<string, { companyCost: number; grossActual: number }>();
+  const { config: formulaConfig } = await fetchPayrollFormulaForMonth(month, year);
+  const stdDays = countWeekdays(year, month);
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const monthEndISO = `${year}-${String(month).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+
+  const { data: allEmployees } = await supabase
+    .from('hr_employees').select('*')
+    .eq('entity', getWorkspace()).eq('type', 'fulltime').eq('status', 'active')
+    .neq('exclude_from_payroll', true);
+  const employees = (allEmployees || []).filter(e => !e.start_date || e.start_date <= monthEndISO);
+  if (!employees.length) return result;
+
+  const ids = employees.map(e => e.id);
+  const [{ data: salaryRows }, { data: dependents }] = await Promise.all([
+    supabase.from('hr_employee_salary').select('*, component:hr_salary_components(name)').in('employee_id', ids),
+    supabase.from('hr_dependents').select('employee_id').eq('status', 'active').in('employee_id', ids),
+  ]);
+  const depCount: Record<string, number> = {};
+  (dependents || []).forEach((d: any) => { depCount[d.employee_id] = (depCount[d.employee_id] || 0) + 1; });
+
+  employees.forEach(emp => {
+    const salaryMap: Record<string, number> = {};
+    (salaryRows || []).filter((s: any) => s.employee_id === emp.id).forEach((s: any) => {
+      const field = SALARY_NAME_MAP[s.component?.name || ''];
+      if (field) salaryMap[field] = s.amount || 0;
+    });
+
+    const officialRaw = (emp as any).official_date
+      || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
+    const officialDate = officialRaw ? new Date(officialRaw) : null;
+    // Đủ công ⇒ không có ngày nghỉ để phân bổ, phần thử việc chỉ còn là tỷ lệ ngày theo lịch.
+    let probationRatio = 0;
+    if (!officialDate || officialDate > lastDay) probationRatio = 1;
+    else if (officialDate > firstDay) {
+      probationRatio = Math.max(0, Math.min(1,
+        (stdDays - countWeekdaysFromDate(year, month, officialDate.getDate())) / stdDays));
+    }
+    const isProbation = probationRatio === 1;
+    const bhxhExempt = isProbation
+      || (probationRatio > 0 && officialDate ? countWeekdaysFromDate(year, month, officialDate.getDate()) < 14 : false);
+
+    const out = calculatePayroll({
+      workDays: stdDays,
+      baseSalary: salaryMap.base_salary || 0,
+      lunchAllowance: salaryMap.lunch_allowance || 0,
+      transportAllowance: salaryMap.transport_allowance || 0,
+      phoneAllowance: salaryMap.phone_allowance || 0,
+      clothingAllowance: salaryMap.clothing_allowance || 0,
+      kpiAllowance: salaryMap.kpi_allowance || 0,
+      defaultOt: salaryMap.default_ot || 0,
+      extraOtHours: 0,
+      dependentsCount: depCount[emp.id] || 0,
+      isProbation,
+      probationRatio,
+      bonus: 0,
+      bhxhExempt,
+    }, formulaConfig, stdDays);
+
+    result.set(emp.id, { companyCost: out.totalCompanyCost, grossActual: out.grossActual });
+  });
+
+  return result;
+}
+
 export async function createPayrollSheet(
   month: number, year: number
 ): Promise<{ sheet: PayPayrollSheet; records: PayPayrollRecord[] }> {

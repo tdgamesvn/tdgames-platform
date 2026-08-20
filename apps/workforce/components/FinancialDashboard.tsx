@@ -153,7 +153,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
               <p className="text-3xl font-black text-red-400">{formatVND(data.totalCost)}</p>
               <p className="text-[11px] text-red-400/60 mt-2 border-t border-white/5 pt-2">
                 Dự kiến: <span className="font-black">{formatVND(data.projected.totalCost)}</span>
-                <span className="text-neutral-medium"> · lương {data.projected.payrollSource === 'sheet-thang-nay' ? 'tháng này' : data.projected.payrollSource === 'sheet-thang-truoc' ? 'ước theo tháng trước' : 'chưa có dữ liệu'}</span>
+                <span className="text-neutral-medium"> · lương {data.projected.payrollSource === 'sheet-thang-nay' ? 'bảng lương tháng này' : data.projected.payrollSource === 'uoc-tinh-nhap' ? 'tính nháp theo hợp đồng (đủ công)' : data.projected.payrollSource === 'sheet-thang-truoc' ? 'ước theo tháng trước' : 'chưa có dữ liệu'}</span>
               </p>
             </div>
             
@@ -229,7 +229,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                   <div className="flex rounded-lg border border-white/10 overflow-hidden text-[10px] font-black uppercase tracking-wider">
                     {[
                       { key: false, label: 'Thực tế', hint: 'Phiếu nghiệm thu đã chốt + bảng lương tháng này' },
-                      { key: true, label: 'Dự kiến', hint: 'Task đã xong chưa nghiệm thu + lương ước theo sheet gần nhất' },
+                      { key: true, label: 'Dự kiến', hint: 'Task đã xong chưa nghiệm thu + lương nháp tính theo hợp đồng (giả định đủ công), tự thay bằng số thật khi chốt bảng lương' },
                     ].map(o => (
                       <button
                         key={String(o.key)}
