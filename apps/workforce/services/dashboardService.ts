@@ -535,3 +535,114 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     kpiSettings
   };
 }
+
+/**
+ * Gộp nhiều tháng thành một báo cáo. Chạy lại getDashboardData cho từng tháng rồi cộng dồn.
+ *
+ * ponytail: gọi song song N lần thay vì viết query gộp — mỗi tháng đã có sẵn toàn bộ logic
+ * (lương nháp, phiếu nghiệm thu, task dự kiến) và N ở đây là 3-12, không phải 1000. Viết
+ * query gộp là nhân đôi công thức để tiết kiệm vài trăm ms.
+ * Số tỷ lệ (ROI, %KPI, thưởng) KHÔNG cộng được — phải tính lại trên tổng.
+ */
+export async function getDashboardDataRange(
+  months: { month: number; year: number }[],
+  exchangeRate: number = 25000,
+  accountTypeFilter: 'all' | 'company' | 'personal' = 'all',
+): Promise<MonthlyFinancialSummary> {
+  const parts = await Promise.all(
+    months.map(m => getDashboardData(m.month, m.year, exchangeRate, accountTypeFilter)),
+  );
+  if (parts.length === 1) return parts[0];
+
+  const last = parts[parts.length - 1];
+  const s = last.kpiSettings;
+  const sum = (pick: (p: MonthlyFinancialSummary) => number) => parts.reduce((a, p) => a + pick(p), 0);
+
+  // ── Nhân sự fulltime: gộp theo employeeId ──
+  const empMap = new Map<string, FulltimeKPI>();
+  parts.forEach(p => p.fulltimeBreakdown.forEach(k => {
+    const cur = empMap.get(k.employeeId);
+    if (!cur) { empMap.set(k.employeeId, { ...k, tasks: [...k.tasks], projTasks: [...k.projTasks] }); return; }
+    cur.totalCompanyCost += k.totalCompanyCost;
+    cur.totalTaskRevenue += k.totalTaskRevenue;
+    cur.totalTaskCount += k.totalTaskCount;
+    cur.grossActual += k.grossActual;
+    cur.projTaskCount += k.projTaskCount;
+    cur.projRevenueUSD += k.projRevenueUSD;
+    cur.projCost += k.projCost;
+    cur.projGross += k.projGross;
+    cur.tasks.push(...k.tasks);
+    cur.projTasks.push(...k.projTasks);
+  }));
+  const fulltimeBreakdown = [...empMap.values()].map(k => {
+    const revVND = k.totalTaskRevenue * exchangeRate;
+    const projRevVND = k.projRevenueUSD * exchangeRate;
+    const pnl = revVND - k.totalCompanyCost;
+    const roi = k.totalCompanyCost > 0 ? (pnl / k.totalCompanyCost) * 100 : 0;
+    let kpiScore: FulltimeKPI['kpiScore'] = 'N/A';
+    if (k.totalCompanyCost > 0) {
+      if (roi >= 150) kpiScore = 'A';
+      else if (roi >= 100) kpiScore = 'B';
+      else if (roi >= 50) kpiScore = 'C';
+      else if (roi > 0) kpiScore = 'D';
+      else kpiScore = 'F';
+    }
+    const target = k.grossActual * k.kpiMultiplier;
+    const projTarget = k.projGross * k.kpiMultiplier;
+    return {
+      ...k,
+      period: `${months[0].year}-${String(months[0].month).padStart(2, '0')} → ${months[months.length - 1].year}-${String(months[months.length - 1].month).padStart(2, '0')}`,
+      profitLoss: pnl,
+      roiPercent: roi,
+      kpiScore,
+      kpiTargetVND: target,
+      kpiPercent: target > 0 ? (revVND / target) * 100 : null,
+      kpiBonusVND: target > 0 ? Math.max(0, revVND - target) * k.kpiBonusPercent / 100 : 0,
+      projKpiPercent: projTarget > 0 ? (projRevVND / projTarget) * 100 : null,
+      projBonusVND: projTarget > 0 ? Math.max(0, projRevVND - projTarget) * k.kpiBonusPercent / 100 : 0,
+    };
+  });
+
+  // ── Freelancer: gộp theo workerId ──
+  const flMap = new Map<string, FreelancerPaymentSummary>();
+  parts.forEach(p => p.freelancerBreakdown.forEach(f => {
+    const cur = flMap.get(f.workerId);
+    if (!cur) { flMap.set(f.workerId, { ...f }); return; }
+    cur.taskCount += f.taskCount;
+    cur.totalAmount += f.totalAmount;
+    cur.bonusAmount += f.bonusAmount;
+    cur.taxAmount += f.taxAmount;
+    cur.netAmount += f.netAmount;
+    // Nhiều tháng gộp lại thì trạng thái trả tiền không còn là một giá trị duy nhất.
+    if (cur.paymentStatus !== f.paymentStatus) cur.paymentStatus = 'mixed';
+  }));
+
+  const totalCost = sum(p => p.totalCost);
+  const grossProfit = sum(p => p.grossProfit);
+  const projTotalCost = sum(p => p.projected.totalCost);
+  return {
+    period: last.period,
+    totalRevenue: sum(p => p.totalRevenue),
+    revenueCurrency: last.revenueCurrency,
+    revenueVND: sum(p => p.revenueVND),
+    fulltimePayroll: sum(p => p.fulltimePayroll),
+    freelancerPayments: sum(p => p.freelancerPayments),
+    operationalExpenses: sum(p => p.operationalExpenses),
+    totalCost,
+    grossProfit,
+    profitMargin: totalCost > 0 ? (grossProfit / totalCost) * 100 : 0,
+    fulltimeBreakdown,
+    freelancerBreakdown: [...flMap.values()],
+    kpiSettings: s,
+    projected: {
+      revenueVND: sum(p => p.projected.revenueVND),
+      fulltimeCost: sum(p => p.projected.fulltimeCost),
+      freelancerCost: sum(p => p.projected.freelancerCost),
+      totalCost: projTotalCost,
+      grossProfit: sum(p => p.projected.grossProfit),
+      taskCount: sum(p => p.projected.taskCount),
+      tasksWithoutPrice: sum(p => p.projected.tasksWithoutPrice),
+      payrollSource: last.projected.payrollSource,
+    },
+  };
+}

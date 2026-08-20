@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MonthlyFinancialSummary, getDashboardData, saveKpiSettings } from '../services/dashboardService';
+import { MonthlyFinancialSummary, getDashboardData, getDashboardDataRange, saveKpiSettings } from '../services/dashboardService';
 
 interface FinancialDashboardProps {
   vcbAvgRate: number;
@@ -8,6 +8,8 @@ interface FinancialDashboardProps {
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRate }) => {
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(new Date().getFullYear());
+  // Số tháng gộp, đếm lùi từ tháng đang chọn. 1 = chỉ tháng đó (mặc định cũ).
+  const [span, setSpan] = useState<number>(1);
   const exchangeRate = vcbAvgRate;
   const [data, setData] = useState<MonthlyFinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -34,13 +36,26 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
 
   useEffect(() => {
     loadData();
-  }, [month, year, vcbAvgRate, accountFilter]);
+  }, [month, year, span, vcbAvgRate, accountFilter]);
+
+  /** Danh sách tháng được gộp: đếm LÙI từ tháng đang chọn (span=1 ⇒ chỉ tháng đó). */
+  const monthsInRange = () => {
+    const list: { month: number; year: number }[] = [];
+    for (let i = span - 1; i >= 0; i--) {
+      const d = new Date(year, month - 1 - i, 1);
+      list.push({ month: d.getMonth() + 1, year: d.getFullYear() });
+    }
+    return list;
+  };
 
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await getDashboardData(month, year, exchangeRate, accountFilter);
+      const range = monthsInRange();
+      const result = range.length > 1
+        ? await getDashboardDataRange(range, exchangeRate, accountFilter)
+        : await getDashboardData(month, year, exchangeRate, accountFilter);
       setData(result);
     } catch (err: any) {
       setError(err.message || 'Failed to load dashboard data');
@@ -90,6 +105,18 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
           >
             {[year - 1, year, year + 1].map(y => (
               <option key={y} value={y} className="bg-surface text-white">{y}</option>
+            ))}
+          </select>
+          <select
+            value={span}
+            onChange={(e) => setSpan(Number(e.target.value))}
+            title="Gộp nhiều tháng, đếm lùi từ tháng đang chọn"
+            className="bg-transparent text-white font-bold px-2 py-1 focus:outline-none cursor-pointer border-l border-white/10"
+          >
+            {[1, 2, 3, 6, 12].map(n => (
+              <option key={n} value={n} className="bg-surface text-white">
+                {n === 1 ? '1 tháng' : `Gộp ${n} tháng`}
+              </option>
             ))}
           </select>
           <button onClick={loadData} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
