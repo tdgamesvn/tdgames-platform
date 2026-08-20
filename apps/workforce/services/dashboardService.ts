@@ -350,6 +350,26 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     }
   }
 
+  // Người mới vào giữa tháng chưa có mặt trong sheet nào ⇒ trước đây chi phí = 0, nên
+  // hiệu suất của họ hiện lãi ảo. Bù bằng lương hợp đồng đang hiệu lực.
+  // ponytail: lấy thẳng tổng khoản lương, KHÔNG prorate theo ngày vào và không cộng
+  // BHXH công ty — sai số vài trăm nghìn, vẫn sát hơn số 0 rất nhiều. Muốn chuẩn từng
+  // đồng thì chốt sheet lương của tháng đó.
+  const { data: salaryRows } = await supabase
+    .from('hr_employee_salary')
+    .select('employee_id, amount, effective_from, effective_to')
+    .lte('effective_from', endOfMonth)
+    .or(`effective_to.is.null,effective_to.gte.${startOfMonth}`);
+  const contractCost = new Map<string, number>();
+  (salaryRows || []).forEach((s: any) => {
+    if (projCostMap.has(s.employee_id)) return; // đã có số thật từ sheet
+    contractCost.set(s.employee_id, (contractCost.get(s.employee_id) || 0) + Number(s.amount || 0));
+  });
+  contractCost.forEach((cost, empId) => {
+    projCostMap.set(empId, cost);
+    projFulltime += cost;
+  });
+
   const projTotalCost = projFulltime + projFreelancer + operationalExpenses;
   const projected: ProjectedSummary = {
     revenueVND: projRevenueUSD * exchangeRate,
