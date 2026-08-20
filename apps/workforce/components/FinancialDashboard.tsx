@@ -17,6 +17,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
   const [expandedEmp, setExpandedEmp] = useState<string | null>(null);
   // KPI config editor (chỉ tham khảo, không đẩy vào payroll)
   const [editKpi, setEditKpi] = useState(false);
+  // Bảng hiệu suất: xem số thực tế (đã nghiệm thu + lương chốt) hay số dự kiến
+  const [showProj, setShowProj] = useState(false);
   const [multInput, setMultInput] = useState('3');
   const [pctInput, setPctInput] = useState('20');
 
@@ -188,33 +190,29 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-end border-b border-white/5 pb-3">
-                    <div>
-                      <p className="text-sm font-bold text-white">Fulltime Payroll</p>
-                      <p className="text-[10px] text-neutral-medium mt-0.5">Lương & bảo hiểm (gross)</p>
+                  {[
+                    { label: 'Fulltime Payroll', hint: 'Lương & bảo hiểm (gross)', actual: data.fulltimePayroll, proj: data.projected.fulltimeCost },
+                    { label: 'Freelancer Payments', hint: 'Thanh toán nghiệm thu', actual: data.freelancerPayments, proj: data.projected.freelancerCost },
+                    { label: 'Operational Expenses', hint: 'Chi phí vận hành khác', actual: data.operationalExpenses, proj: data.operationalExpenses },
+                  ].map(row => (
+                    <div key={row.label} className="flex justify-between items-end border-b border-white/5 pb-3">
+                      <div>
+                        <p className="text-sm font-bold text-white">{row.label}</p>
+                        <p className="text-[10px] text-neutral-medium mt-0.5">{row.hint}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-mono font-bold">{formatVND(row.actual)}</p>
+                        <p className="text-[10px] font-mono text-neutral-medium mt-0.5">DK: {formatVND(row.proj)}</p>
+                      </div>
                     </div>
-                    <p className="text-sm font-mono font-bold">{formatVND(data.fulltimePayroll)}</p>
-                  </div>
-                  
-                  <div className="flex justify-between items-end border-b border-white/5 pb-3">
-                    <div>
-                      <p className="text-sm font-bold text-white">Freelancer Payments</p>
-                      <p className="text-[10px] text-neutral-medium mt-0.5">Thanh toán nghiệm thu</p>
-                    </div>
-                    <p className="text-sm font-mono font-bold">{formatVND(data.freelancerPayments)}</p>
-                  </div>
-                  
-                  <div className="flex justify-between items-end border-b border-white/5 pb-3">
-                    <div>
-                      <p className="text-sm font-bold text-white">Operational Expenses</p>
-                      <p className="text-[10px] text-neutral-medium mt-0.5">Chi phí vận hành khác</p>
-                    </div>
-                    <p className="text-sm font-mono font-bold">{formatVND(data.operationalExpenses)}</p>
-                  </div>
-                  
+                  ))}
+
                   <div className="flex justify-between items-center pt-2">
                     <p className="text-xs font-black uppercase text-neutral-medium">Tổng Chi Phí</p>
-                    <p className="text-lg font-black text-red-400">{formatVND(data.totalCost)}</p>
+                    <div className="text-right">
+                      <p className="text-lg font-black text-red-400">{formatVND(data.totalCost)}</p>
+                      <p className="text-[10px] font-mono text-red-400/60">DK: {formatVND(data.projected.totalCost)}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -228,6 +226,21 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                     <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     Hiệu Suất Nhân Sự Fulltime
                   </h3>
+                  <div className="flex rounded-lg border border-white/10 overflow-hidden text-[10px] font-black uppercase tracking-wider">
+                    {[
+                      { key: false, label: 'Thực tế', hint: 'Phiếu nghiệm thu đã chốt + bảng lương tháng này' },
+                      { key: true, label: 'Dự kiến', hint: 'Task đã xong chưa nghiệm thu + lương ước theo sheet gần nhất' },
+                    ].map(o => (
+                      <button
+                        key={String(o.key)}
+                        onClick={() => setShowProj(o.key)}
+                        title={o.hint}
+                        className={`px-3 py-1.5 transition-colors ${showProj === o.key ? 'bg-primary text-black' : 'text-neutral-medium hover:text-white'}`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
                   {editKpi ? (
                     <div className="flex items-center gap-2 text-xs">
                       <span className="text-neutral-medium font-bold">Target ×</span>
@@ -272,7 +285,22 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                           </td>
                         </tr>
                       ) : (
-                        data.fulltimeBreakdown.map(emp => (
+                        data.fulltimeBreakdown.map(emp => {
+                          const revUSD = showProj ? emp.projRevenueUSD : emp.totalTaskRevenue;
+                          const cost = showProj ? emp.projCost : emp.totalCompanyCost;
+                          const gross = showProj ? emp.projGross : emp.grossActual;
+                          const v = {
+                            count: showProj ? emp.projTaskCount : emp.totalTaskCount,
+                            revVND: revUSD * exchangeRate,
+                            cost,
+                            pnl: revUSD * exchangeRate - cost,
+                            kpiPercent: showProj ? emp.projKpiPercent : emp.kpiPercent,
+                            bonus: showProj ? emp.projBonusVND : emp.kpiBonusVND,
+                            target: gross * emp.kpiMultiplier,
+                            gross,
+                            tasks: showProj ? emp.projTasks : emp.tasks,
+                          };
+                          return (
                           <React.Fragment key={emp.employeeId}>
                           <tr
                             onClick={() => setExpandedEmp(prev => prev === emp.employeeId ? null : emp.employeeId)}
@@ -283,35 +311,35 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                               <span className={`inline-block mr-1.5 text-[9px] text-neutral-medium transition-transform ${expandedEmp === emp.employeeId ? 'rotate-90' : ''}`}>▶</span>
                               {emp.fullName}
                             </td>
-                            <td className="py-3 text-center">{emp.totalTaskCount}</td>
-                            <td className="py-3 text-right font-mono text-emerald-400">{formatVND(emp.totalTaskRevenue * exchangeRate)}</td>
-                            <td className="py-3 text-right font-mono text-red-400">{formatVND(emp.totalCompanyCost)}</td>
+                            <td className="py-3 text-center">{v.count}</td>
+                            <td className="py-3 text-right font-mono text-emerald-400">{formatVND(v.revVND)}</td>
+                            <td className="py-3 text-right font-mono text-red-400">{formatVND(v.cost)}</td>
                             <td className="py-3 text-right font-mono">
-                              <span className={emp.profitLoss >= 0 ? 'text-blue-400' : 'text-orange-400'}>
-                                {emp.profitLoss >= 0 ? '+' : ''}{formatVND(emp.profitLoss)}
+                              <span className={v.pnl >= 0 ? 'text-blue-400' : 'text-orange-400'}>
+                                {v.pnl >= 0 ? '+' : ''}{formatVND(v.pnl)}
                               </span>
                             </td>
                             <td className="py-3 text-center">
-                              {emp.kpiPercent == null ? (
-                                <span className="text-[10px] text-neutral-medium" title="Chưa tạo bảng lương tháng này (KPI hiện ngay khi bảng lương được tạo, kể cả draft)">—</span>
+                              {v.kpiPercent == null ? (
+                                <span className="text-[10px] text-neutral-medium" title={showProj ? 'Chưa có bảng lương nào để ước target' : 'Chưa tạo bảng lương tháng này (KPI hiện ngay khi bảng lương được tạo, kể cả draft)'}>—</span>
                               ) : (
-                                <div className="inline-flex flex-col items-center gap-1 min-w-[72px]" title={`Target: ${formatVND(emp.kpiTargetVND)} (gross ${formatVND(emp.grossActual)} × ${emp.kpiMultiplier})`}>
-                                  <span className={`text-xs font-black ${emp.kpiPercent >= 100 ? 'text-emerald-400' : emp.kpiPercent >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
-                                    {emp.kpiPercent.toFixed(0)}%
+                                <div className="inline-flex flex-col items-center gap-1 min-w-[72px]" title={`Target: ${formatVND(v.target)} (gross ${formatVND(v.gross)} × ${emp.kpiMultiplier})`}>
+                                  <span className={`text-xs font-black ${v.kpiPercent >= 100 ? 'text-emerald-400' : v.kpiPercent >= 70 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {v.kpiPercent.toFixed(0)}%
                                   </span>
                                   <div className="w-16 h-1 rounded-full bg-white/10 overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full ${emp.kpiPercent >= 100 ? 'bg-emerald-400' : emp.kpiPercent >= 70 ? 'bg-amber-400' : 'bg-red-400'}`}
-                                      style={{ width: `${Math.min(100, emp.kpiPercent)}%` }}
+                                      className={`h-full rounded-full ${v.kpiPercent >= 100 ? 'bg-emerald-400' : v.kpiPercent >= 70 ? 'bg-amber-400' : 'bg-red-400'}`}
+                                      style={{ width: `${Math.min(100, v.kpiPercent)}%` }}
                                     />
                                   </div>
                                 </div>
                               )}
                             </td>
                             <td className="py-3 text-right font-mono">
-                              {emp.kpiBonusVND > 0 ? (
+                              {v.bonus > 0 ? (
                                 <span className="text-emerald-400 font-bold" title={`(Doanh thu − Target) × ${emp.kpiBonusPercent}% — nhập tay vào bảng lương nếu duyệt`}>
-                                  {formatVND(emp.kpiBonusVND)}
+                                  {formatVND(v.bonus)}
                                 </span>
                               ) : (
                                 <span className="text-neutral-medium">—</span>
@@ -321,8 +349,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                           {expandedEmp === emp.employeeId && (
                             <tr>
                               <td colSpan={7} className="py-3 px-4 bg-white/[0.02]">
-                                {emp.tasks.length === 0 ? (
-                                  <p className="text-xs text-neutral-medium">Chưa có task nghiệm thu trong tháng này</p>
+                                {v.tasks.length === 0 ? (
+                                  <p className="text-xs text-neutral-medium">{showProj ? 'Chưa có task xong chờ nghiệm thu' : 'Chưa có task nghiệm thu trong tháng này'}</p>
                                 ) : (
                                   <table className="w-full text-xs">
                                     <thead>
@@ -334,7 +362,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-white/5">
-                                      {emp.tasks.map((t, i) => (
+                                      {v.tasks.map((t, i) => (
                                         <tr key={i}>
                                           <td className="py-1.5 pr-3 text-white">{t.title}</td>
                                           <td className="py-1.5 pr-3 text-neutral-light">{t.project || '—'}</td>
@@ -352,7 +380,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                             </tr>
                           )}
                           </React.Fragment>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

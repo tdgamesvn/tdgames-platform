@@ -21,6 +21,15 @@ export interface FulltimeKPI {
   kpiMultiplier: number;
   kpiBonusPercent: number;
   tasks: FulltimeTaskDetail[]; // chi tiết task nghiệm thu trong tháng (drill-down)
+  // ── DỰ KIẾN: task đã làm xong nhưng CHƯA nghiệm thu + lương ước (sheet tháng này,
+  // không có thì sheet tháng gần nhất). Cùng công thức KPI/thưởng như số thực tế.
+  projTaskCount: number;
+  projRevenueUSD: number;
+  projCost: number;             // VND
+  projGross: number;            // VND — gross dùng để tính target dự kiến
+  projKpiPercent: number | null;
+  projBonusVND: number;
+  projTasks: FulltimeTaskDetail[];
 }
 
 export interface FulltimeTaskDetail {
@@ -240,7 +249,106 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const grossProfit = revenueVND - totalCost;
   const profitMargin = totalCost > 0 ? (grossProfit / totalCost) * 100 : 0;
 
-  // 5. Calculate Fulltime KPI
+  // ── 5. DỰ KIẾN (tính TRƯỚC bảng KPI để mỗi nhân sự có số dự kiến của riêng mình) ──
+  // Doanh thu dự kiến: task đã làm xong nhưng CHƯA nằm trong phiếu nghiệm thu nào.
+  const { data: acceptedTaskIds } = await supabase.from('wf_project_acceptance_tasks').select('task_id');
+  const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
+  const { data: openTasks } = await supabase
+    .from('wf_tasks')
+    .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name');
+  // Space nội bộ (marketing/BD/R&D): có task nhưng không bán cho khách ⇒ không đòi giá.
+  const { data: spaceRows } = await supabase
+    .from('wf_space_settings').select('space_name').eq('is_internal', true);
+  const internalSpaces = new Set((spaceRows || []).map((r: any) => r.space_name));
+
+  let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0;
+  const projTaskMap = new Map<string, any>();
+  (openTasks || []).forEach((t: any) => {
+    if (inAcceptance.has(t.id)) return;
+    if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
+    const isInternal = internalSpaces.has(t.clickup_space_name);
+    if (!isInternal) projTaskCount++;
+    const cp = Number(t.client_price || 0);
+    if (cp > 0) projRevenueUSD += cp;
+    else if (!isInternal) tasksWithoutPrice++;
+    if (t.payment_status !== 'paid') {
+      const p = Number(t.price || 0);
+      projFreelancer += t.currency === 'USD' ? p * exchangeRate : p;
+    }
+    projTaskMap.set(t.id, t);
+  });
+
+  // Chia doanh thu dự kiến cho người làm theo share_pct (cùng quy tắc với số thực tế)
+  const projByWorker = new Map<string, { count: number; revenue: number; tasks: FulltimeTaskDetail[] }>();
+  if (projTaskMap.size > 0) {
+    const { data: projAssg } = await supabase
+      .from('wf_task_assignees')
+      .select('task_id, worker_id, share_pct')
+      .in('task_id', [...projTaskMap.keys()]);
+    (projAssg || []).forEach((a: any) => {
+      const t = projTaskMap.get(a.task_id);
+      if (!t) return;
+      const cur = projByWorker.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
+      const price = Number(t.client_price || 0) * Number(a.share_pct || 0) / 100;
+      cur.count += 1;
+      cur.revenue += price;
+      cur.tasks.push({
+        title: t.title || '(không tên)',
+        project: t.project || t.clickup_folder_name || '',
+        client: t.client_name || t.clickup_space_name || '',
+        priceUSD: price,
+      });
+      projByWorker.set(a.worker_id, cur);
+    });
+  }
+
+  // Chi phí lương dự kiến: sheet tháng này (kể cả draft) → không có thì lấy sheet gần nhất
+  // đã chốt, coi như tháng này mọi người làm đủ công y như tháng trước.
+  // ponytail: xấp xỉ bằng tháng trước thay vì dựng lại calculatePayroll từ hr_employee_salary.
+  // Người mới vào / nghỉ giữa tháng sẽ lệch — nâng cấp khi con số này bị soi kỹ.
+  let projFulltime = 0;
+  let payrollSource: ProjectedSummary['payrollSource'] = 'khong-co';
+  const projCostMap = new Map<string, number>();   // employee_id -> chi phí công ty dự kiến
+  const projGrossMap = new Map<string, number>();  // employee_id -> gross dự kiến
+  const loadSheetCosts = async (ids: string[]) => {
+    const { data } = await supabase.from('pay_payroll_records')
+      .select('employee_id, total_company_cost, gross_actual').in('sheet_id', ids);
+    let sum = 0;
+    (data || []).forEach((r: any) => {
+      const c = Number(r.total_company_cost || 0);
+      sum += c;
+      projCostMap.set(r.employee_id, (projCostMap.get(r.employee_id) || 0) + c);
+      projGrossMap.set(r.employee_id, (projGrossMap.get(r.employee_id) || 0) + Number(r.gross_actual || 0));
+    });
+    return sum;
+  };
+  if (sheets && sheets.length > 0) {
+    projFulltime = await loadSheetCosts(sheets.map(s => s.id));
+    payrollSource = 'sheet-thang-nay';
+  } else {
+    const { data: prev } = await supabase
+      .from('pay_payroll_sheets').select('id')
+      .in('status', ['confirmed', 'paid'])
+      .order('year', { ascending: false }).order('month', { ascending: false }).limit(1);
+    if (prev && prev.length > 0) {
+      projFulltime = await loadSheetCosts([prev[0].id]);
+      payrollSource = 'sheet-thang-truoc';
+    }
+  }
+
+  const projTotalCost = projFulltime + projFreelancer + operationalExpenses;
+  const projected: ProjectedSummary = {
+    revenueVND: projRevenueUSD * exchangeRate,
+    fulltimeCost: projFulltime,
+    freelancerCost: projFreelancer,
+    totalCost: projTotalCost,
+    grossProfit: projRevenueUSD * exchangeRate - projTotalCost,
+    taskCount: projTaskCount,
+    tasksWithoutPrice,
+    payrollSource,
+  };
+
+  // 6. Calculate Fulltime KPI
   // We need tasks completed by fulltime workers in this period, and their client_price
   const { data: hrEmployees } = await supabase
     .from('hr_employees')
@@ -335,7 +443,24 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const kpiPercent = kpiTargetVND > 0 ? (revVND / kpiTargetVND) * 100 : null;
       const kpiBonusVND = kpiTargetVND > 0 ? Math.max(0, revVND - kpiTargetVND) * s.bonusPercent / 100 : 0;
 
+      // Dự kiến per nhân viên: doanh thu task đã xong chưa nghiệm thu + lương ước
+      const projData = workerId ? projByWorker.get(workerId) : null;
+      const projRevUSD = projData?.revenue || 0;
+      const projRevVND = projRevUSD * exchangeRate;
+      const projCost = projCostMap.get(emp.id) ?? cost;
+      const projGross = projGrossMap.get(emp.id) ?? gross;
+      const projTarget = projGross * s.multiplier;
+      const projKpiPercent = projTarget > 0 ? (projRevVND / projTarget) * 100 : null;
+      const projBonusVND = projTarget > 0 ? Math.max(0, projRevVND - projTarget) * s.bonusPercent / 100 : 0;
+
       fulltimeBreakdown.push({
+        projTaskCount: projData?.count || 0,
+        projRevenueUSD: projRevUSD,
+        projCost,
+        projGross,
+        projKpiPercent,
+        projBonusVND,
+        projTasks: (projData?.tasks || []).slice().sort((a, b) => b.priceUSD - a.priceUSD),
         employeeId: emp.id,
         workerId: workerId || '',
         fullName: emp.full_name,
@@ -359,69 +484,6 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   
   // Sort fulltime breakdown by ROI descending
   fulltimeBreakdown.sort((a, b) => b.roiPercent - a.roiPercent);
-
-  // ── 6. DỰ KIẾN ────────────────────────────────────────────────
-  // Doanh thu dự kiến: task đã làm xong nhưng CHƯA nằm trong phiếu nghiệm thu nào.
-  const { data: acceptedTaskIds } = await supabase.from('wf_project_acceptance_tasks').select('task_id');
-  const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
-  const { data: openTasks } = await supabase
-    .from('wf_tasks')
-    .select('id, client_price, price, currency, clickup_status, payment_status, clickup_space_name');
-  // Space nội bộ (marketing/BD/R&D): có task nhưng không bán cho khách ⇒ không đòi giá.
-  const { data: spaceRows } = await supabase
-    .from('wf_space_settings').select('space_name').eq('is_internal', true);
-  const internalSpaces = new Set((spaceRows || []).map((r: any) => r.space_name));
-
-  let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0;
-  (openTasks || []).forEach((t: any) => {
-    if (inAcceptance.has(t.id)) return;
-    if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
-    const isInternal = internalSpaces.has(t.clickup_space_name);
-    if (!isInternal) projTaskCount++;
-    const cp = Number(t.client_price || 0);
-    if (cp > 0) projRevenueUSD += cp;
-    else if (!isInternal) tasksWithoutPrice++;
-    if (t.payment_status !== 'paid') {
-      const p = Number(t.price || 0);
-      projFreelancer += t.currency === 'USD' ? p * exchangeRate : p;
-    }
-  });
-
-  // Chi phí lương dự kiến: sheet tháng này (kể cả draft) → không có thì lấy sheet gần nhất
-  // đã chốt, coi như tháng này mọi người làm đủ công y như tháng trước.
-  // ponytail: xấp xỉ bằng tháng trước thay vì dựng lại calculatePayroll từ hr_employee_salary.
-  // Người mới vào / nghỉ giữa tháng sẽ lệch — nâng cấp khi con số này bị soi kỹ.
-  let projFulltime = 0;
-  let payrollSource: ProjectedSummary['payrollSource'] = 'khong-co';
-  const sumSheetCost = async (ids: string[]) => {
-    const { data } = await supabase.from('pay_payroll_records').select('total_company_cost').in('sheet_id', ids);
-    return (data || []).reduce((s: number, r: any) => s + Number(r.total_company_cost || 0), 0);
-  };
-  if (sheets && sheets.length > 0) {
-    projFulltime = await sumSheetCost(sheets.map(s => s.id));
-    payrollSource = 'sheet-thang-nay';
-  } else {
-    const { data: prev } = await supabase
-      .from('pay_payroll_sheets').select('id')
-      .in('status', ['confirmed', 'paid'])
-      .order('year', { ascending: false }).order('month', { ascending: false }).limit(1);
-    if (prev && prev.length > 0) {
-      projFulltime = await sumSheetCost([prev[0].id]);
-      payrollSource = 'sheet-thang-truoc';
-    }
-  }
-
-  const projTotalCost = projFulltime + projFreelancer + operationalExpenses;
-  const projected: ProjectedSummary = {
-    revenueVND: projRevenueUSD * exchangeRate,
-    fulltimeCost: projFulltime,
-    freelancerCost: projFreelancer,
-    totalCost: projTotalCost,
-    grossProfit: projRevenueUSD * exchangeRate - projTotalCost,
-    taskCount: projTaskCount,
-    tasksWithoutPrice,
-    payrollSource,
-  };
 
   return {
     period: { month, year },
