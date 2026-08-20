@@ -493,8 +493,8 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="vi">Trình tự bàn giao và nghiệm thu như sau: (i) Bên B bàn giao bản duyệt (bản preview có watermark hoặc bản xuất không chỉnh sửa được) đủ để Bên A đánh giá chất lượng; (ii) Bên A thông báo nghiệm thu hoặc từ chối kèm lý do cụ thể bằng văn bản trong vòng 5 ngày làm việc — quá thời hạn này mà không có thông báo thì sản phẩm được coi là đã nghiệm thu toàn bộ; (iii) Bên A thanh toán đợt cuối; (iv) Bên B bàn giao file gốc. Bên A không phải thanh toán đợt cuối trước khi có cơ hội hợp lý để kiểm tra sản phẩm. Việc từ chối chỉ hợp lệ khi nêu rõ điểm sai lệch cụ thể so với thông số kỹ thuật dẫn chiếu tại Điều 5.1; việc từ chối dựa trên sở thích nằm ngoài các thông số đó là yêu cầu phát sinh theo Điều 6.2. Sau khi Bên B đã khắc phục đúng các điểm sai lệch đã nêu trong thông báo từ chối, sản phẩm được coi là đã nghiệm thu.</p>
   </div>
   <div class="bilingual">
-    <p class="en">Each deliverable is subject to a maximum of two (02) rounds of revision free of charge. From the third round onwards, or where the request changes the agreed specifications, the request shall be treated as an additional request under Article 6.2 and quoted separately.</p>
-    <p class="vi">Mỗi sản phẩm được chỉnh sửa tối đa 2 lần miễn phí. Từ lần chỉnh sửa thứ 3 trở đi, hoặc khi yêu cầu làm thay đổi thông số đã thỏa thuận, yêu cầu đó được coi là yêu cầu phát sinh theo Điều 6.2 và được báo giá riêng.</p>
+    <p class="en">Each deliverable is subject to a maximum of three (03) rounds of revision free of charge. From the fourth round onwards, or where the request changes the agreed specifications, the request shall be treated as an additional request under Article 6.2 and quoted separately.</p>
+    <p class="vi">Mỗi sản phẩm được chỉnh sửa tối đa 3 lần miễn phí. Từ lần chỉnh sửa thứ 4 trở đi, hoặc khi yêu cầu làm thay đổi thông số đã thỏa thuận, yêu cầu đó được coi là yêu cầu phát sinh theo Điều 6.2 và được báo giá riêng.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">6.2 ${t('Additional Requests', 'Yêu cầu phát sinh')}</p>
