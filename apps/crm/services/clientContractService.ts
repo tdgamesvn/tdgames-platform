@@ -468,8 +468,8 @@ export function generateClientContract(data: ClientContractData): string {
     <p class="vi">Quyền nhân thân của tác giả (bao gồm quyền đứng tên tác giả và quyền bảo vệ sự toàn vẹn của tác phẩm) không thể chuyển nhượng theo Luật Sở hữu trí tuệ Việt Nam và vẫn thuộc về tác giả, trừ quyền công bố tác phẩm đã được chuyển giao theo Điều này.</p>
   </div>
   <div class="bilingual">
-    <p class="en">Following the public release, Party B may showcase the completed work in its portfolio and marketing materials with the prior approval of Party A, given in writing or by email or messaging application. Such approval, once given, need not be repeated for each use.</p>
-    <p class="vi">Sau khi sản phẩm được phát hành công khai, Bên B được sử dụng sản phẩm trong portfolio và tài liệu giới thiệu nếu được Bên A đồng ý trước bằng văn bản, email hoặc tin nhắn. Sự đồng ý đã cho không cần lặp lại cho từng lần sử dụng.</p>
+    <p class="en">Following the public release, Party B may showcase the completed work in its portfolio and marketing materials with the prior one-time approval of Party A, given in writing or by email or messaging application.</p>
+    <p class="vi">Sau khi sản phẩm được phát hành công khai, Bên B được sử dụng sản phẩm trong portfolio và tài liệu giới thiệu nếu được Bên A đồng ý trước một lần bằng văn bản, email hoặc tin nhắn.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">5.4 ${t('Warranty of Title &amp; Use of Personnel', 'Cam kết về quyền và việc sử dụng nhân sự')}</p>
