@@ -8,8 +8,8 @@ interface FinancialDashboardProps {
 export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRate }) => {
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(new Date().getFullYear());
-  // Số tháng gộp, đếm lùi từ tháng đang chọn. 1 = chỉ tháng đó (mặc định cũ).
-  const [span, setSpan] = useState<number>(1);
+  // Tháng bắt đầu của khoảng xem (YYYY-MM). Rỗng/sau tháng Đến ⇒ chỉ xem 1 tháng.
+  const [from, setFrom] = useState<string>('');
   const exchangeRate = vcbAvgRate;
   const [data, setData] = useState<MonthlyFinancialSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -36,14 +36,15 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
 
   useEffect(() => {
     loadData();
-  }, [month, year, span, vcbAvgRate, accountFilter]);
+  }, [month, year, from, vcbAvgRate, accountFilter]);
 
-  /** Danh sách tháng được gộp: đếm LÙI từ tháng đang chọn (span=1 ⇒ chỉ tháng đó). */
+  /** Mọi tháng trong khoảng Từ → Đến (bao gồm 2 đầu). Từ > Đến ⇒ chỉ lấy tháng Đến. */
   const monthsInRange = () => {
+    const [fy, fm] = from.split('-').map(Number);
     const list: { month: number; year: number }[] = [];
-    for (let i = span - 1; i >= 0; i--) {
-      const d = new Date(year, month - 1 - i, 1);
-      list.push({ month: d.getMonth() + 1, year: d.getFullYear() });
+    if (!fy || !fm || fy * 12 + fm > year * 12 + month) return [{ month, year }];
+    for (let k = fy * 12 + fm; k <= year * 12 + month; k++) {
+      list.push({ month: ((k - 1) % 12) + 1, year: Math.floor((k - 1) / 12) });
     }
     return list;
   };
@@ -107,18 +108,22 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
               <option key={y} value={y} className="bg-surface text-white">{y}</option>
             ))}
           </select>
-          <select
-            value={span}
-            onChange={(e) => setSpan(Number(e.target.value))}
-            title="Gộp nhiều tháng, đếm lùi từ tháng đang chọn"
-            className="bg-transparent text-white font-bold px-2 py-1 focus:outline-none cursor-pointer border-l border-white/10"
-          >
-            {[1, 2, 3, 6, 12].map(n => (
-              <option key={n} value={n} className="bg-surface text-white">
-                {n === 1 ? '1 tháng' : `Gộp ${n} tháng`}
-              </option>
-            ))}
-          </select>
+          {/* Gộp khoảng: để trống = chỉ xem tháng đã chọn ở trên (tháng KẾT THÚC của khoảng) */}
+          <div className="flex items-center gap-1 border-l border-white/10 pl-3">
+            <span className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Từ</span>
+            <input
+              type="month"
+              value={from}
+              max={`${year}-${String(month).padStart(2, '0')}`}
+              onChange={(e) => setFrom(e.target.value)}
+              title="Gộp từ tháng này đến tháng đã chọn. Bỏ trống = chỉ xem 1 tháng."
+              className="bg-transparent text-white font-bold px-1 py-1 text-sm focus:outline-none cursor-pointer [color-scheme:dark]"
+            />
+            {from && (
+              <button onClick={() => setFrom('')} title="Bỏ gộp, xem 1 tháng"
+                className="text-neutral-medium hover:text-white px-1 font-black">×</button>
+            )}
+          </div>
           <button onClick={loadData} className="p-2 rounded-lg hover:bg-white/5 transition-colors">
             <svg className="w-4 h-4 text-neutral-medium hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           </button>

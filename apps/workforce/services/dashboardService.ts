@@ -549,9 +549,40 @@ export async function getDashboardDataRange(
   exchangeRate: number = 25000,
   accountTypeFilter: 'all' | 'company' | 'personal' = 'all',
 ): Promise<MonthlyFinancialSummary> {
-  const parts = await Promise.all(
+  const raw = await Promise.all(
     months.map(m => getDashboardData(m.month, m.year, exchangeRate, accountTypeFilter)),
   );
+
+  // Tháng ĐÃ QUA thì "dự kiến" của nó chính là số thực tế đã chốt — không còn gì để đoán.
+  // Chỉ tháng đang chạy (và tháng tương lai) mới dùng số dự kiến. Nhờ vậy cột Dự kiến của
+  // cả kỳ = thực tế các tháng trước + dự kiến tháng này, đúng như cách đọc báo cáo.
+  const now = new Date();
+  const curKey = now.getFullYear() * 12 + now.getMonth() + 1;
+  const parts = raw.map((p, i) => {
+    const isPast = months[i].year * 12 + months[i].month < curKey;
+    if (!isPast) return p;
+    return {
+      ...p,
+      projected: {
+        ...p.projected,
+        revenueVND: p.revenueVND,
+        fulltimeCost: p.fulltimePayroll,
+        freelancerCost: p.freelancerPayments,
+        totalCost: p.totalCost,
+        grossProfit: p.grossProfit,
+        taskCount: 0,
+        tasksWithoutPrice: 0,
+      },
+      fulltimeBreakdown: p.fulltimeBreakdown.map(k => ({
+        ...k,
+        projTaskCount: k.totalTaskCount,
+        projRevenueUSD: k.totalTaskRevenue,
+        projCost: k.totalCompanyCost,
+        projGross: k.grossActual,
+        projTasks: k.tasks,
+      })),
+    };
+  });
   if (parts.length === 1) return parts[0];
 
   const last = parts[parts.length - 1];
