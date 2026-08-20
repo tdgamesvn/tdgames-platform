@@ -200,6 +200,8 @@ export interface WorkforceTask {
   closed_date: string | null;
   completed_at: string | null;
   approved_at: string | null;
+  /** ClickUp date_updated — ngày task chuyển động lần cuối. Mốc phân tháng cho task chưa done. */
+  clickup_updated_at?: string | null;
   payment_status: 'unpaid' | 'paid';
   notes: string;
   synced_at: string | null;

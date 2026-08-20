@@ -295,6 +295,10 @@ const TaskList: React.FC<TaskListProps> = ({
         if (!closedDate && (ourStatus === 'approved' || ourStatus === 'completed') && ct.date_updated) {
           closedDate = ct.date_updated.split('T')[0];
         }
+        // Task chưa done (client_review…) không có date_done. Lưu riêng date_updated của
+        // ClickUp để dashboard có mốc phân tháng — KHÔNG dùng cột updated_at của DB vì
+        // updateTask ghi đè nó mỗi lần bấm Sync.
+        const clickupUpdatedAt = ct.date_updated ? ct.date_updated.split('T')[0] : null;
 
         if (existing) {
           // Update existing — also update project name in case folder was renamed on ClickUp
@@ -307,6 +311,7 @@ const TaskList: React.FC<TaskListProps> = ({
             start_date: startDate,
             closed_date: closedDate,
             completed_at: closedDate,
+            clickup_updated_at: clickupUpdatedAt,
             clickup_space_name: ct.space_name || null,
             clickup_folder_name: ct.folder_name || null,
             clickup_list_name: ct.list_name || null,
@@ -334,6 +339,7 @@ const TaskList: React.FC<TaskListProps> = ({
             start_date: startDate,
             closed_date: closedDate,
             completed_at: closedDate,
+            clickup_updated_at: clickupUpdatedAt,
             approved_at: ourStatus === 'approved' ? (closedDate || new Date().toISOString().split('T')[0]) : null,
             payment_status: 'unpaid',
             notes: '',

@@ -255,7 +255,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
   const { data: openTasks } = await supabase
     .from('wf_tasks')
-    .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name, completed_at, closed_date, updated_at');
+    .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name, completed_at, closed_date, clickup_updated_at');
   // Space nội bộ (marketing/BD/R&D): có task nhưng không bán cho khách ⇒ không đòi giá.
   const { data: spaceRows } = await supabase
     .from('wf_space_settings').select('space_name').eq('is_internal', true);
@@ -268,11 +268,13 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
     // Chỉ task LÀM XONG TRONG THÁNG đang xem (trước đây không lọc ngày nên tháng nào
     // cũng gộp cả task tồn từ 2025).
-    // ponytail: task chờ khách duyệt (client_review…) chưa đóng nên ClickUp KHÔNG trả
-    // date_closed ⇒ dùng updated_at (lần đổi trạng thái gần nhất) làm mốc, nếu không cả
-    // đống task đang treo tiền bị giấu mất. Không dùng synced_at — sync hàng loạt nên
-    // task nào cũng mang ngày hôm nay.
-    const doneAt = t.completed_at || t.closed_date || String(t.updated_at || '').slice(0, 10);
+    // Task chờ khách duyệt (client_review…) chưa đóng nên ClickUp KHÔNG trả date_done ⇒
+    // lấy clickup_updated_at (ngày task chuyển động lần cuối trên ClickUp) làm mốc, nếu
+    // không cả đống task đang treo tiền bị giấu mất.
+    // ponytail: KHÔNG dùng updated_at/synced_at của DB — chúng là ngày bấm Sync, sync
+    // một phát là cả task từ tháng 4 nhảy vào tháng hiện tại. start_date cũng không dùng
+    // (kéo task về tháng bắt đầu, task xong tháng này mà khởi động tháng trước sẽ mất).
+    const doneAt = t.completed_at || t.closed_date || t.clickup_updated_at;
     if (!doneAt || doneAt < startOfMonth || doneAt > endOfMonth) return;
     const isInternal = internalSpaces.has(t.clickup_space_name);
     if (!isInternal) projTaskCount++;
