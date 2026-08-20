@@ -422,7 +422,7 @@ export function generateClientContract(data: ClientContractData): string {
   <div class="bilingual" style="margin-top:4px">
     ${dom
       ? `<p class="en">Each Party shall bear the bank charges levied by its own bank. Payment shall be made in Vietnamese Dong (VND) by bank transfer; cash payment shall not be accepted.</p>
-    <p class="vi">Mỗi Bên chịu phí ngân hàng do ngân hàng của mình thu. Việc thanh toán được thực hiện bằng Đồng Việt Nam (VND) qua chuyển khoản; không chấp nhận thanh toán bằng tiền mặt.</p>`
+    <p class="vi">Mỗi Bên chịu phí ngân hàng do ngân hàng của mình thu. Việc thanh toán được thực hiện bằng Đồng Việt Nam (${cur}) qua chuyển khoản; không chấp nhận thanh toán bằng tiền mặt.</p>`
       : `<p class="en">All bank transfer fees incurred outside of Vietnam shall be borne by Party A. Fees within Vietnam shall be borne by Party B. Payment shall be made by bank transfer; cash payment shall not be accepted.</p>
     <p class="vi">Tất cả phí chuyển khoản phát sinh ngoài lãnh thổ Việt Nam do Bên A chịu. Phí trong nước do Bên B chịu. Việc thanh toán được thực hiện qua chuyển khoản; không chấp nhận thanh toán bằng tiền mặt.</p>`}
   </div>
@@ -545,8 +545,8 @@ export function generateClientContract(data: ClientContractData): string {
 
   <p style="font-weight:bold;margin:6px 0 2px">6.9 ${t('Limitation of Liability', 'Giới hạn trách nhiệm')}</p>
   <div class="bilingual">
-    <p class="en">Save for breach of confidentiality, infringement of third-party intellectual property rights, and wilful misconduct, the total aggregate liability of either Party under this Agreement shall not exceed the total contract value stated in Article 4.1. Neither Party shall be liable for indirect or consequential loss, loss of profit, loss of revenue, or loss of data.</p>
-    <p class="vi">Trừ trường hợp vi phạm nghĩa vụ bảo mật, xâm phạm quyền sở hữu trí tuệ của bên thứ ba và hành vi cố ý, tổng trách nhiệm của mỗi Bên theo Hợp đồng này không vượt quá tổng giá trị hợp đồng nêu tại Điều 4.1. Không Bên nào chịu trách nhiệm về thiệt hại gián tiếp, thiệt hại phái sinh, lợi nhuận mất, doanh thu mất hoặc mất mát dữ liệu.</p>
+    <p class="en">Save for breach of confidentiality and wilful misconduct, the total aggregate liability of either Party under this Agreement shall not exceed the total contract value stated in Article 4.1. This cap also applies to Party B's indemnity for third-party intellectual property claims under Article 5.4. Neither Party shall be liable for indirect or consequential loss, loss of profit, loss of revenue, or loss of data.</p>
+    <p class="vi">Trừ trường hợp vi phạm nghĩa vụ bảo mật và hành vi cố ý, tổng trách nhiệm của mỗi Bên theo Hợp đồng này không vượt quá tổng giá trị hợp đồng nêu tại Điều 4.1. Mức trần này áp dụng cho cả trách nhiệm bồi hoàn của Bên B đối với khiếu nại của bên thứ ba về sở hữu trí tuệ theo Điều 5.4. Không Bên nào chịu trách nhiệm về thiệt hại gián tiếp, thiệt hại phái sinh, lợi nhuận mất, doanh thu mất hoặc mất mát dữ liệu.</p>
   </div>
 
   <p style="font-weight:bold;margin:6px 0 2px">6.10 ${t('Assignment', 'Chuyển nhượng hợp đồng')}</p>
