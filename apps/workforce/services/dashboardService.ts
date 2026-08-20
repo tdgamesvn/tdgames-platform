@@ -99,8 +99,10 @@ export interface ProjectedSummary {
 // Trạng thái ClickUp coi là CHƯA làm xong ⇒ không tính doanh thu dự kiến.
 // Sếp chốt: mới / đang làm / pending / cancelled thì bỏ, còn lại (review, fix,
 // complete, approved, Closed...) đều tính.
+// lead_check = làm xong, chờ lead duyệt nội bộ ⇒ là REVIEW, phải tính. Trước đây bị
+// xếp nhầm vào nhóm bỏ nên 4 task T8 ($1.150) không vào hiệu suất của ai.
 const NOT_YET_DONE = new Set([
-  'new', 'new request', 'to do', 'todo', 'open', 'backlog', 'planning', 'lead_check',
+  'new', 'new request', 'to do', 'todo', 'open', 'backlog', 'planning',
   'in progress', 'in_progress', 'pending', 'cancelled', 'canceled',
 ]);
 
