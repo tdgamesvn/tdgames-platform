@@ -292,6 +292,16 @@
         max-height: 70vh !important;
       }
     }
+
+    /* ponytail: thanh tab mobile là position:fixed nên che mất đáy trang.
+       :has() cho phép chừa chỗ đúng những màn có thanh tab, khỏi phải thêm
+       pb-16 vào <main> của cả 15 mini-app. Nâng cấp: nếu cần hỗ trợ trình
+       duyệt không có :has() thì đổi sang toggle class trên <body>. */
+    @media (max-width: 767px) {
+      body:has(.mobile-tabbar) {
+        padding-bottom: calc(56px + env(safe-area-inset-bottom));
+      }
+    }
   </style>
   <script type="importmap">
 {
