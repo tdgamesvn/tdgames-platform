@@ -18,9 +18,11 @@ interface NavbarProps {
   appName?: string;
   tabLabels?: Record<string, string>;
   onHelp?: () => void;
+  /** Ẩn dải tab cuộn ngang ở mobile — dùng khi màn đã có thanh tab đáy (MemberTabBar). */
+  hideMobileTabs?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels, onHelp }) => {
+export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels, onHelp, hideMobileTabs }) => {
   return (
   <nav className={`sticky top-0 backdrop-blur-md border-b z-50 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-primary/10' : 'bg-white/95 border-gray-200 shadow-sm'}`}>
     {/* Row 1: Logo + controls */}
@@ -140,7 +142,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
     </div>
 
     {/* Row 2: Tabs — mobile only, full width scrollable */}
-    <div className={`md:hidden overflow-x-auto scrollbar-hide border-t ${theme === 'dark' ? 'border-white/5' : 'border-gray-100'}`}>
+    <div className={`${hideMobileTabs ? 'hidden md:hidden' : 'md:hidden'} overflow-x-auto scrollbar-hide border-t ${theme === 'dark' ? 'border-white/5' : 'border-gray-100'}`}>
       <div className="flex gap-0.5 px-3 py-1.5 min-w-min">
         {accessibleTabs.map((tab) => (
           <button

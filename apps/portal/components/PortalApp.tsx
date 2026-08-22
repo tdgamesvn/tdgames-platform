@@ -10,6 +10,8 @@ import {
 } from '@/types';
 import { ToastNotification } from '@/components/ToastNotification';
 import { Navbar } from '@/components/Navbar';
+import MemberTabBar, { MEMBER_TABBAR_PAD } from '@/components/MemberTabBar';
+import { isMemberOnly } from '@/config/apps';
 import {
   fetchMyPayslips,
   fetchMyAttendance,
@@ -71,14 +73,17 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
     ? initialTab.slice('eval-'.length)
     : null;
 
-  // Deep-link: initialTab === 'proposals' → jump to change requests tab
+  // Deep-link: #portal/<navbar tab> → mở thẳng tab đó (recurring→leave, tasks→attendance…).
+  // Trước đây chỉ nhận 'proposals', mọi hash khác rơi về 'payslip'.
   const resolvedInitialTab: PortalTab = initialEvalCycleId
     ? 'evaluation'
-    : initialTab === 'proposals'
-      ? 'proposals'
-      : 'payslip';
+    : (initialTab && REVERSE_TAB[initialTab]) || 'payslip';
 
   const [activeTab, setActiveTab] = useState<PortalTab>(resolvedInitialTab);
+
+  // Hash đổi khi component ĐANG mở (thanh tab đáy, nút Back trình duyệt, bookmark) thì
+  // initialTab mới về nhưng useState ở trên không chạy lại → URL một đằng, màn một nẻo.
+  useEffect(() => { setActiveTab(resolvedInitialTab); }, [resolvedInitialTab]);
   const [payslips, setPayslips] = useState<PayslipWithSheet[]>([]);
   /** id phiếu lương đang mở chi tiết trong danh sách dạng list — null = tất cả đang thu gọn */
   const [expandedPayslipId, setExpandedPayslipId] = useState<string | null>(null);
@@ -203,9 +208,11 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
           onLogout={onBack}
           tabLabels={TAB_LABELS}
           appName="Employee Portal"
+          hideMobileTabs={isMemberOnly(currentUser)}
         />
 
-        <main className="flex-1 px-4 md:px-8 lg:px-12 py-8 max-w-7xl mx-auto w-full">
+        <MemberTabBar currentUser={currentUser} />
+        <main className={`portal-main flex-1 px-4 md:px-8 lg:px-12 py-8 max-w-7xl mx-auto w-full ${MEMBER_TABBAR_PAD}`}>
           {/* ── Payslip Tab ── */}
           {activeTab === 'payslip' && (
             <div className="animate-fadeInUp">

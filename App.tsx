@@ -371,7 +371,7 @@ const App: React.FC = () => {
   }
 
   if (activeApp === 'handbook') {
-    return <HandbookApp currentUser={currentUser} onBack={handleBack} />;
+    return <HandbookApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
   }
 
   // ── Home Screen ──

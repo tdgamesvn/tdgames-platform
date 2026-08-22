@@ -1,4 +1,7 @@
 // App Registry — add new apps here
+import { AccountUser } from '@/types';
+import { hasRole, hasAnyRole } from '@/utils/roleUtils';
+
 export interface AppConfig {
   id: string;
   name: string;
@@ -155,3 +158,17 @@ export const APPS: AppConfig[] = [
     roles: ['ke_toan_thue'],
   },
 ];
+
+/** App mà user này được thấy. */
+export function getMyApps(user: AccountUser): AppConfig[] {
+  return APPS.filter(app => !app.roles || hasAnyRole(user, app.roles));
+}
+
+/**
+ * Nhân viên thường: role `member` và chỉ được cấp Portal + Company Hub.
+ * Bật giao diện mobile (MemberHome + thanh tab đáy). Bám vào SỐ APP nên ai được
+ * cấp thêm quyền sẽ tự quay lại giao diện lưới đầy đủ, không phải sửa chỗ này.
+ */
+export function isMemberOnly(user: AccountUser): boolean {
+  return hasRole(user, 'member') && getMyApps(user).length <= 2;
+}

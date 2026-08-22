@@ -292,6 +292,21 @@
         max-height: 70vh !important;
       }
     }
+
+    /* Mobile — tiêu đề trang trong Portal/Company Hub.
+       7 tab đặt tiêu đề bằng inline style (2rem, #06B6D4) nên phải !important để đè.
+       Ở màn hẹp: thu nhỏ, đổi về cam brand cho khớp Trang chủ, và bỏ dòng mô tả
+       phụ (thanh tab đáy đã cho biết đang ở đâu, không cần lặp lại). */
+    @media (max-width: 767.98px) {
+      .portal-main h2 {
+        font-size: 1.15rem !important;
+        color: #FF9500 !important;
+        letter-spacing: -0.01em !important;
+      }
+      .portal-main h2 + p {
+        display: none !important;
+      }
+    }
   </style>
   <script type="importmap">
 {

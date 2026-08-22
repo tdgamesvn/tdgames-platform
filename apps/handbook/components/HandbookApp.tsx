@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import AppBackground from '@/components/AppBackground';
 import { AccountUser, HandbookCategory, HandbookArticle, HrEmployee, HrDepartment } from '@/types';
 import { Navbar } from '@/components/Navbar';
+import MemberTabBar, { MEMBER_TABBAR_PAD } from '@/components/MemberTabBar';
+import { isMemberOnly } from '@/config/apps';
 import { ToastNotification } from '@/components/ToastNotification';
 import { fetchCategories, fetchArticles } from '../services/handbookService';
 import { fetchEmployeeDirectory, fetchDepartments } from '@/apps/portal/services/portalService';
@@ -11,6 +13,8 @@ import MarkdownRenderer from '@/components/MarkdownRenderer';
 interface HandbookAppProps {
   currentUser: AccountUser;
   onBack: () => void;
+  /** Deep-link #handbook/<tab>: 'activity' → Danh bạ */
+  initialTab?: string | null;
 }
 
 type DirectoryEmployee = Pick<
@@ -34,7 +38,7 @@ const REVERSE_TAB: Record<string, HandbookTab> = {
 };
 
 // ─────────────────────────────────────────────────────────────
-export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
+export default function HandbookApp({ currentUser, onBack, initialTab }: HandbookAppProps) {
   const [categories, setCategories]       = useState<HandbookCategory[]>([]);
   const [articles, setArticles]           = useState<HandbookArticle[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -43,7 +47,7 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
   const [search, setSearch]               = useState('');
   const [toast, setToast]                 = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const [activeTab, setActiveTab]       = useState<HandbookTab>('articles');
+  const [activeTab, setActiveTab]       = useState<HandbookTab>((initialTab && REVERSE_TAB[initialTab]) || 'articles');
   const [showRequired, setShowRequired] = useState(false);
   const [employees, setEmployees]       = useState<DirectoryEmployee[]>([]);
   const [departments, setDepartments]   = useState<DepartmentLite[]>([]);
@@ -132,10 +136,12 @@ export default function HandbookApp({ currentUser, onBack }: HandbookAppProps) {
         onLogout={onBack}
         onBack={onBack}
         appName="Company Hub"
+        hideMobileTabs={isMemberOnly(currentUser)}
         tabLabels={TAB_LABELS}
       />
 
-      <main className="flex-1 p-6 md:p-10 max-w-[1400px] mx-auto w-full">
+      <MemberTabBar currentUser={currentUser} />
+      <main className={`portal-main flex-1 p-6 md:p-10 max-w-[1400px] mx-auto w-full ${MEMBER_TABBAR_PAD}`}>
 
         {/* ── Directory tab ── */}
         {activeTab === 'directory' && (

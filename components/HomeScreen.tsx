@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { AccountUser } from '@/types';
-import { APPS, AppConfig } from '@/config/apps';
+import { APPS, AppConfig, getMyApps, isMemberOnly } from '@/config/apps';
 import { fetchTotalNewInsights } from '@/apps/ai-agent/services/aiAgentService';
 import { hasRole, hasAnyRole, getUserRoles } from '@/utils/roleUtils';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import MemberHome from './MemberHome';
 
 interface HomeScreenProps {
   currentUser: AccountUser;
@@ -20,6 +21,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
       fetchTotalNewInsights().then(setAgentBadge);
     }
   }, [currentUser.role, currentUser.secondary_roles]);
+
+  const myApps = getMyApps(currentUser);
+
+  // ponytail: nhân viên thường chỉ có Portal + Company Hub → lưới 2 ô là màn hình vô nghĩa.
+  if (isMemberOnly(currentUser)) {
+    return <MemberHome currentUser={currentUser} onLogout={onLogout} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -68,7 +76,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
 
         {/* App Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 max-w-3xl w-full">
-          {APPS.filter(app => !app.roles || hasAnyRole(currentUser, app.roles)).map((app) => (
+          {myApps.map((app) => (
             <AppCard
               key={app.id}
               app={app}
