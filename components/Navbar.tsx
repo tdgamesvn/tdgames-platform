@@ -22,7 +22,6 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, accessibleTabs, onTabChange, onLogout, vcbRate, vcbRateLoading, onBack, appName, tabLabels, onHelp }) => {
   return (
-  <>
   <nav className={`sticky top-0 backdrop-blur-md border-b z-50 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-primary/10' : 'bg-white/95 border-gray-200 shadow-sm'}`}>
     {/* Row 1: Logo + controls */}
     <div className="h-14 md:h-20 flex items-center justify-between px-3 md:px-12">
@@ -140,36 +139,20 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
       </div>
     </div>
 
-  </nav>
-
-  {/* Tabs — mobile only: thanh cố định dưới đáy cho giống app native.
-      ponytail: vẫn cuộn ngang vì có app tới 9 tab, không nhét vừa 390px.
-      Vệt mờ mép phải là dấu hiệu còn tab bên phải (scrollbar bị scrollbar-hide giấu mất).
-      Nâng cấp: nếu muốn bỏ hẳn cuộn thì cắt còn 4 tab + nút "Thêm" mở sheet. */}
-  <div
-    className={`mobile-tabbar md:hidden fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md border-t ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-white/8' : 'bg-white/95 border-gray-200'}`}
-    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-  >
-    <div className="relative">
-      <div className="overflow-x-auto scrollbar-hide">
-        <div className="flex gap-1 px-3 py-2 min-w-min">
-          {accessibleTabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => onTabChange(tab)}
-              className={`flex-shrink-0 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === tab ? 'bg-primary text-black' : theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}
-            >
-              {tabLabels?.[tab] || tab}
-            </button>
-          ))}
-        </div>
+    {/* Row 2: Tabs — mobile only, full width scrollable */}
+    <div className={`md:hidden overflow-x-auto scrollbar-hide border-t ${theme === 'dark' ? 'border-white/5' : 'border-gray-100'}`}>
+      <div className="flex gap-0.5 px-3 py-1.5 min-w-min">
+        {accessibleTabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => onTabChange(tab)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === tab ? 'bg-primary text-black' : theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}
+          >
+            {tabLabels?.[tab] || tab}
+          </button>
+        ))}
       </div>
-      <div
-        className="pointer-events-none absolute right-0 top-0 bottom-0 w-10"
-        style={{ background: `linear-gradient(to right, transparent, ${theme === 'dark' ? '#0F0F0F' : '#ffffff'})` }}
-      />
     </div>
-  </div>
-  </>
+  </nav>
   );
 };
