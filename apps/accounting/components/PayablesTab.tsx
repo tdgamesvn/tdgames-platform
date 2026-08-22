@@ -117,57 +117,59 @@ export default function PayablesTab({ expenses, vcbRate }: Props) {
         <div className="text-center py-16 text-neutral-600 text-sm">Không có chi phí trong kỳ này</div>
       ) : (
         <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="text-left px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Nhà cung cấp</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Phải trả</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Đã trả</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Còn nợ</th>
-                <th className="text-center px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Phiếu</th>
-              </tr>
-            </thead>
-            <tbody>
-              {byVendor.map(v => (
-                <React.Fragment key={v.vendor}>
-                  <tr
-                    className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
-                    onClick={() => setExpandedVendor(expandedVendor === v.vendor ? null : v.vendor)}
-                  >
-                    <td className="px-5 py-3 text-white font-semibold flex items-center gap-2">
-                      <span className={`transition-transform text-neutral-500 text-xs ${expandedVendor === v.vendor ? 'rotate-90' : ''}`}>▶</span>
-                      {v.vendor}
-                    </td>
-                    <td className="px-5 py-3 text-right text-neutral-300">{fmt(v.payable)}</td>
-                    <td className="px-5 py-3 text-right text-emerald-400">{fmt(v.paid)}</td>
-                    <td className={`px-5 py-3 text-right font-bold ${v.outstanding > 0 ? 'text-orange-400' : 'text-neutral-500'}`}>{fmt(v.outstanding)}</td>
-                    <td className="px-5 py-3 text-center text-neutral-400">{v.rows.length}</td>
-                  </tr>
-                  {expandedVendor === v.vendor && v.rows.map(row => (
-                    <tr key={row.id} className="border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                      <td className="pl-12 pr-5 py-2 text-neutral-400 text-xs">{row.expense_date} — {row.title}</td>
-                      <td className="px-5 py-2 text-right text-xs text-neutral-400">
-                        {row.status !== 'paid' ? (
-                          <span>{fmt(row.currency === 'VND' ? row.amount : row.amount * rate)}
-                            {row.currency !== 'VND' && <span className="text-neutral-600 ml-1">(${fmt(row.amount)})</span>}
-                          </span>
-                        ) : '—'}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Nhà cung cấp</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Phải trả</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Đã trả</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Còn nợ</th>
+                  <th className="text-center px-5 py-3 text-neutral-500 text-xs uppercase tracking-wider">Phiếu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byVendor.map(v => (
+                  <React.Fragment key={v.vendor}>
+                    <tr
+                      className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+                      onClick={() => setExpandedVendor(expandedVendor === v.vendor ? null : v.vendor)}
+                    >
+                      <td className="px-5 py-3 text-white font-semibold flex items-center gap-2">
+                        <span className={`transition-transform text-neutral-500 text-xs ${expandedVendor === v.vendor ? 'rotate-90' : ''}`}>▶</span>
+                        {v.vendor}
                       </td>
-                      <td className="px-5 py-2 text-right text-xs text-emerald-400/70">
-                        {row.status === 'paid' ? (
-                          <span>{fmt(row.currency === 'VND' ? row.amount : row.amount * rate)}
-                            {row.currency !== 'VND' && <span className="text-neutral-600 ml-1">(${fmt(row.amount)})</span>}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-5 py-2 text-right text-xs">{statusBadge(row.status)}</td>
-                      <td className="px-5 py-2 text-center text-xs text-neutral-600">{row.currency !== 'VND' && row.currency}</td>
+                      <td className="px-5 py-3 text-right text-neutral-300">{fmt(v.payable)}</td>
+                      <td className="px-5 py-3 text-right text-emerald-400">{fmt(v.paid)}</td>
+                      <td className={`px-5 py-3 text-right font-bold ${v.outstanding > 0 ? 'text-orange-400' : 'text-neutral-500'}`}>{fmt(v.outstanding)}</td>
+                      <td className="px-5 py-3 text-center text-neutral-400">{v.rows.length}</td>
                     </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+                    {expandedVendor === v.vendor && v.rows.map(row => (
+                      <tr key={row.id} className="border-b border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                        <td className="pl-12 pr-5 py-2 text-neutral-400 text-xs">{row.expense_date} — {row.title}</td>
+                        <td className="px-5 py-2 text-right text-xs text-neutral-400">
+                          {row.status !== 'paid' ? (
+                            <span>{fmt(row.currency === 'VND' ? row.amount : row.amount * rate)}
+                              {row.currency !== 'VND' && <span className="text-neutral-600 ml-1">(${fmt(row.amount)})</span>}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-5 py-2 text-right text-xs text-emerald-400/70">
+                          {row.status === 'paid' ? (
+                            <span>{fmt(row.currency === 'VND' ? row.amount : row.amount * rate)}
+                              {row.currency !== 'VND' && <span className="text-neutral-600 ml-1">(${fmt(row.amount)})</span>}
+                            </span>
+                          ) : '—'}
+                        </td>
+                        <td className="px-5 py-2 text-right text-xs">{statusBadge(row.status)}</td>
+                        <td className="px-5 py-2 text-center text-xs text-neutral-600">{row.currency !== 'VND' && row.currency}</td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

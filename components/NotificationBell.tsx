@@ -116,7 +116,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, them
 
       {/* Dropdown Panel */}
       {open && (
-        <div style={{
+        <div className="notif-panel" style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
           right: 0,

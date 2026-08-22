@@ -285,113 +285,115 @@ export default function BankReconcTab({ statements, invoices, expenses, advances
         </div>
       ) : (
         <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngày</th>
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Mô tả</th>
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngân hàng</th>
-                <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Phát sinh Nợ</th>
-                <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Phát sinh Có</th>
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Khớp với</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(stmt => {
-                const auto = !stmt.matched_id ? autoMatchCandidate(stmt, invoices, expenses, advances, usdRate) : null;
-                const isMatchingThis = matchingId === stmt.id;
-                return (
-                  <React.Fragment key={stmt.id}>
-                    <tr className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                        style={isMatchingThis ? { background: 'rgba(255,255,255,0.03)' } : {}}>
-                      <td className="px-4 py-2.5 text-neutral-400 font-mono">{stmt.transaction_date}</td>
-                      <td className="px-4 py-2.5 text-neutral-300 max-w-xs truncate" title={stmt.description}>{stmt.description}</td>
-                      <td className="px-4 py-2.5">
-                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-white/5 text-neutral-400">
-                          {stmt.bank_name === 'techcombank' ? 'TCB' : 'BIDV'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-orange-400 font-mono">
-                        {stmt.transaction_type === 'debit' ? fmt(stmt.amount) : '—'}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-emerald-400 font-mono">
-                        {stmt.transaction_type === 'credit' ? fmt(stmt.amount) : '—'}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {stmt.matched_id ? (
-                          <span className="text-sky-400 font-semibold">{getMatchLabel(stmt)}</span>
-                        ) : auto ? (
-                          <span className="text-yellow-400/70 italic text-[10px]">~{auto.label}</span>
-                        ) : (
-                          <span className="text-neutral-700">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                        {stmt.matched_id ? (
-                          <button onClick={() => onUnmatch(stmt.id)}
-                            className="px-2 py-1 rounded-lg text-[10px] font-black text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                            Bỏ khớp
-                          </button>
-                        ) : (
-                          <div className="flex gap-1 justify-end">
-                            {auto && (
-                              <button onClick={() => onMatch(stmt.id, auto.type, auto.id)}
-                                className="px-2 py-1 rounded-lg text-[10px] font-black text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all">
-                                Auto ✓
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-xs">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngày</th>
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Mô tả</th>
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngân hàng</th>
+                  <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Phát sinh Nợ</th>
+                  <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Phát sinh Có</th>
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Khớp với</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(stmt => {
+                  const auto = !stmt.matched_id ? autoMatchCandidate(stmt, invoices, expenses, advances, usdRate) : null;
+                  const isMatchingThis = matchingId === stmt.id;
+                  return (
+                    <React.Fragment key={stmt.id}>
+                      <tr className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                          style={isMatchingThis ? { background: 'rgba(255,255,255,0.03)' } : {}}>
+                        <td className="px-4 py-2.5 text-neutral-400 font-mono">{stmt.transaction_date}</td>
+                        <td className="px-4 py-2.5 text-neutral-300 max-w-xs truncate" title={stmt.description}>{stmt.description}</td>
+                        <td className="px-4 py-2.5">
+                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase bg-white/5 text-neutral-400">
+                            {stmt.bank_name === 'techcombank' ? 'TCB' : 'BIDV'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-orange-400 font-mono">
+                          {stmt.transaction_type === 'debit' ? fmt(stmt.amount) : '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-emerald-400 font-mono">
+                          {stmt.transaction_type === 'credit' ? fmt(stmt.amount) : '—'}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          {stmt.matched_id ? (
+                            <span className="text-sky-400 font-semibold">{getMatchLabel(stmt)}</span>
+                          ) : auto ? (
+                            <span className="text-yellow-400/70 italic text-[10px]">~{auto.label}</span>
+                          ) : (
+                            <span className="text-neutral-700">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                          {stmt.matched_id ? (
+                            <button onClick={() => onUnmatch(stmt.id)}
+                              className="px-2 py-1 rounded-lg text-[10px] font-black text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                              Bỏ khớp
+                            </button>
+                          ) : (
+                            <div className="flex gap-1 justify-end">
+                              {auto && (
+                                <button onClick={() => onMatch(stmt.id, auto.type, auto.id)}
+                                  className="px-2 py-1 rounded-lg text-[10px] font-black text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all">
+                                  Auto ✓
+                                </button>
+                              )}
+                              <button onClick={() => setMatchingId(isMatchingThis ? null : stmt.id)}
+                                className="px-2 py-1 rounded-lg text-[10px] font-black text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 transition-all">
+                                Khớp
                               </button>
-                            )}
-                            <button onClick={() => setMatchingId(isMatchingThis ? null : stmt.id)}
-                              className="px-2 py-1 rounded-lg text-[10px] font-black text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 transition-all">
-                              Khớp
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                    {/* Manual match panel */}
-                    {isMatchingThis && (
-                      <tr className="border-b border-white/5 bg-sky-500/5">
-                        <td colSpan={7} className="px-8 py-3">
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <select value={manualType} onChange={e => { setManualType(e.target.value as any); setManualId(''); }}
-                              className="px-3 py-1.5 rounded-xl text-xs text-neutral-300 border border-white/10 outline-none"
-                              style={{ background: '#1a1a1a' }}>
-                              <option value="invoice">Hoá đơn</option>
-                              <option value="expense">Chi phí</option>
-                              <option value="advance">Tạm ứng</option>
-                            </select>
-                            <select value={manualId} onChange={e => setManualId(e.target.value)}
-                              className="flex-1 min-w-48 px-3 py-1.5 rounded-xl text-xs text-neutral-300 border border-white/10 outline-none"
-                              style={{ background: '#1a1a1a' }}>
-                              <option value="">-- Chọn --</option>
-                              {manualOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-                            </select>
-                            <button
-                              disabled={!manualId}
-                              onClick={async () => {
-                                if (!manualId) return;
-                                await onMatch(stmt.id, manualType, manualId);
-                                setMatchingId(null);
-                                setManualId('');
-                              }}
-                              className="px-4 py-1.5 rounded-xl text-xs font-black text-white disabled:opacity-30 transition-all"
-                              style={{ background: '#FF9500' }}>
-                              Xác nhận
-                            </button>
-                            <button onClick={() => setMatchingId(null)}
-                              className="px-3 py-1.5 rounded-xl text-xs text-neutral-500 hover:text-white transition-all">
-                              Huỷ
-                            </button>
-                          </div>
+                            </div>
+                          )}
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {/* Manual match panel */}
+                      {isMatchingThis && (
+                        <tr className="border-b border-white/5 bg-sky-500/5">
+                          <td colSpan={7} className="px-8 py-3">
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <select value={manualType} onChange={e => { setManualType(e.target.value as any); setManualId(''); }}
+                                className="px-3 py-1.5 rounded-xl text-xs text-neutral-300 border border-white/10 outline-none"
+                                style={{ background: '#1a1a1a' }}>
+                                <option value="invoice">Hoá đơn</option>
+                                <option value="expense">Chi phí</option>
+                                <option value="advance">Tạm ứng</option>
+                              </select>
+                              <select value={manualId} onChange={e => setManualId(e.target.value)}
+                                className="flex-1 min-w-48 px-3 py-1.5 rounded-xl text-xs text-neutral-300 border border-white/10 outline-none"
+                                style={{ background: '#1a1a1a' }}>
+                                <option value="">-- Chọn --</option>
+                                {manualOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                              </select>
+                              <button
+                                disabled={!manualId}
+                                onClick={async () => {
+                                  if (!manualId) return;
+                                  await onMatch(stmt.id, manualType, manualId);
+                                  setMatchingId(null);
+                                  setManualId('');
+                                }}
+                                className="px-4 py-1.5 rounded-xl text-xs font-black text-white disabled:opacity-30 transition-all"
+                                style={{ background: '#FF9500' }}>
+                                Xác nhận
+                              </button>
+                              <button onClick={() => setMatchingId(null)}
+                                className="px-3 py-1.5 rounded-xl text-xs text-neutral-500 hover:text-white transition-all">
+                                Huỷ
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

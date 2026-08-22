@@ -583,139 +583,141 @@ const StudiosTab: React.FC<{ currentUser: AccountUser }> = ({ currentUser }) => 
             <p className="text-neutral-600 text-sm">Không tìm thấy studio nào</p>
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Studio</th>
-                <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden md:table-cell">Quốc gia</th>
-                <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden lg:table-cell">Domain</th>
-                <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Nguồn</th>
-                <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">BD Status</th>
-                <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden xl:table-cell">BD phụ trách</th>
-                <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden sm:table-cell">Contacts</th>
-                <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              {studios.map(studio => {
-                const sc = SOURCE_COLOR[studio.source];
-                const bc = BD_STATUS_COLOR[studio.bd_status];
-                const isActive = selected?.id === studio.id;
-                return (
-                  <tr
-                    key={studio.id}
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
-                    style={isActive ? { background: 'rgba(255,255,255,0.04)' } : {}}
-                    onClick={() => setSelected(isActive ? null : studio)}
-                  >
-                    {/* Name */}
-                    <td className="px-5 py-3">
-                      <p className="text-sm font-semibold text-white truncate" style={{ maxWidth: '220px' }}>
-                        {studio.studio_name}
-                      </p>
-                    </td>
-                    {/* Country */}
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-xs text-neutral-medium">
-                        {studio.country ?? '—'}
-                      </span>
-                    </td>
-                    {/* Domain */}
-                    <td className="px-4 py-3 hidden lg:table-cell" onClick={e => e.stopPropagation()}>
-                      {studio.domain ? (
-                        <a
-                          href={`https://${studio.domain}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-orange-400 hover:underline"
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[820px]">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Studio</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden md:table-cell">Quốc gia</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden lg:table-cell">Domain</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Nguồn</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">BD Status</th>
+                  <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden xl:table-cell">BD phụ trách</th>
+                  <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600 hidden sm:table-cell">Contacts</th>
+                  <th className="text-right px-5 py-3 text-[10px] font-black uppercase tracking-wider text-neutral-600">Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studios.map(studio => {
+                  const sc = SOURCE_COLOR[studio.source];
+                  const bc = BD_STATUS_COLOR[studio.bd_status];
+                  const isActive = selected?.id === studio.id;
+                  return (
+                    <tr
+                      key={studio.id}
+                      className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                      style={isActive ? { background: 'rgba(255,255,255,0.04)' } : {}}
+                      onClick={() => setSelected(isActive ? null : studio)}
+                    >
+                      {/* Name */}
+                      <td className="px-5 py-3">
+                        <p className="text-sm font-semibold text-white truncate" style={{ maxWidth: '220px' }}>
+                          {studio.studio_name}
+                        </p>
+                      </td>
+                      {/* Country */}
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="text-xs text-neutral-medium">
+                          {studio.country ?? '—'}
+                        </span>
+                      </td>
+                      {/* Domain */}
+                      <td className="px-4 py-3 hidden lg:table-cell" onClick={e => e.stopPropagation()}>
+                        {studio.domain ? (
+                          <a
+                            href={`https://${studio.domain}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-orange-400 hover:underline"
+                          >
+                            {studio.domain}
+                          </a>
+                        ) : (
+                          <span className="text-xs text-neutral-600">—</span>
+                        )}
+                      </td>
+                      {/* Source */}
+                      <td className="px-4 py-3">
+                        <span
+                          className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
+                          style={{ background: `${sc}20`, color: sc }}
                         >
-                          {studio.domain}
-                        </a>
-                      ) : (
-                        <span className="text-xs text-neutral-600">—</span>
-                      )}
-                    </td>
-                    {/* Source */}
-                    <td className="px-4 py-3">
-                      <span
-                        className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
-                        style={{ background: `${sc}20`, color: sc }}
-                      >
-                        {SOURCE_LABEL[studio.source]}
-                      </span>
-                    </td>
-                    {/* BD Status */}
-                    <td className="px-4 py-3">
-                      <span
-                        className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
-                        style={{ background: `${bc}20`, color: bc }}
-                      >
-                        {BD_STATUS_LABEL[studio.bd_status]}
-                      </span>
-                    </td>
-                    {/* BD phụ trách */}
-                    <td className="px-4 py-3 hidden xl:table-cell" onClick={e => e.stopPropagation()}>
-                      {studio.owner_name && !editingOwnerIds.has(studio.id) ? (
-                        <div className="flex items-center gap-1">
-                          <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(10,132,255,0.14)', color: '#0A84FF' }}>
-                            {studio.owner_name}
-                          </span>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => setEditingOwnerIds(prev => { const next = new Set(prev); next.add(studio.id); return next; })}
-                              style={{ fontSize: '10px', color: '#666', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
-                            >Đổi</button>
-                          )}
-                          {(isAdmin || studio.owner_id === currentUser.id) && (
-                            <button
-                              type="button"
-                              onClick={() => handleReleaseOwner(studio.id, studio.owner_name)}
-                              style={{ fontSize: '10px', color: '#FF453A', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
-                            >Bỏ nhận</button>
-                          )}
-                        </div>
-                      ) : isAdmin ? (
-                        <select
-                          style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', color: '#E5E5E5', padding: '4px 8px', fontSize: '11px', outline: 'none' }}
-                          value=""
-                          onChange={e => {
-                            const user = bdUsers.find(u => u.id === e.target.value);
-                            if (user) handleAssignOwner(studio.id, user.id, user.full_name);
-                          }}
+                          {SOURCE_LABEL[studio.source]}
+                        </span>
+                      </td>
+                      {/* BD Status */}
+                      <td className="px-4 py-3">
+                        <span
+                          className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg"
+                          style={{ background: `${bc}20`, color: bc }}
                         >
-                          <option value="">-- Chọn BD --</option>
-                          {bdUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                        </select>
-                      ) : (
-                        // BD thường: chỉ được tự nhận studio chưa ai phụ trách, không được chọn/đổi cho người khác
-                        <button
-                          type="button"
-                          onClick={() => handleSelfAssign(studio.id)}
-                          style={{ fontSize: '10px', fontWeight: 700, color: '#FF9500', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}
-                        >+ Nhận studio</button>
-                      )}
-                    </td>
-                    {/* Contacts */}
-                    <td className="px-5 py-3 text-right hidden sm:table-cell">
-                      <span className="text-sm font-semibold text-white">{studio.contacts_found}</span>
-                    </td>
-                    {/* Convert to Client */}
-                    <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
-                      {canAddStudio && (
-                        <button
-                          type="button"
-                          onClick={() => handleConvertToClient(studio)}
-                          title="Tạo khách hàng từ studio này"
-                          className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
-                        >→ KH</button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                          {BD_STATUS_LABEL[studio.bd_status]}
+                        </span>
+                      </td>
+                      {/* BD phụ trách */}
+                      <td className="px-4 py-3 hidden xl:table-cell" onClick={e => e.stopPropagation()}>
+                        {studio.owner_name && !editingOwnerIds.has(studio.id) ? (
+                          <div className="flex items-center gap-1">
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', background: 'rgba(10,132,255,0.14)', color: '#0A84FF' }}>
+                              {studio.owner_name}
+                            </span>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingOwnerIds(prev => { const next = new Set(prev); next.add(studio.id); return next; })}
+                                style={{ fontSize: '10px', color: '#666', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
+                              >Đổi</button>
+                            )}
+                            {(isAdmin || studio.owner_id === currentUser.id) && (
+                              <button
+                                type="button"
+                                onClick={() => handleReleaseOwner(studio.id, studio.owner_name)}
+                                style={{ fontSize: '10px', color: '#FF453A', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '4px' }}
+                              >Bỏ nhận</button>
+                            )}
+                          </div>
+                        ) : isAdmin ? (
+                          <select
+                            style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', color: '#E5E5E5', padding: '4px 8px', fontSize: '11px', outline: 'none' }}
+                            value=""
+                            onChange={e => {
+                              const user = bdUsers.find(u => u.id === e.target.value);
+                              if (user) handleAssignOwner(studio.id, user.id, user.full_name);
+                            }}
+                          >
+                            <option value="">-- Chọn BD --</option>
+                            {bdUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                          </select>
+                        ) : (
+                          // BD thường: chỉ được tự nhận studio chưa ai phụ trách, không được chọn/đổi cho người khác
+                          <button
+                            type="button"
+                            onClick={() => handleSelfAssign(studio.id)}
+                            style={{ fontSize: '10px', fontWeight: 700, color: '#FF9500', background: 'rgba(255,149,0,0.08)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer' }}
+                          >+ Nhận studio</button>
+                        )}
+                      </td>
+                      {/* Contacts */}
+                      <td className="px-5 py-3 text-right hidden sm:table-cell">
+                        <span className="text-sm font-semibold text-white">{studio.contacts_found}</span>
+                      </td>
+                      {/* Convert to Client */}
+                      <td className="px-5 py-3 text-right" onClick={e => e.stopPropagation()}>
+                        {canAddStudio && (
+                          <button
+                            type="button"
+                            onClick={() => handleConvertToClient(studio)}
+                            title="Tạo khách hàng từ studio này"
+                            className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all"
+                          >→ KH</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

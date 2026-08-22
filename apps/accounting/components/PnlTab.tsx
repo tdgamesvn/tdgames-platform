@@ -214,29 +214,31 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
             {revenueRows.length === 0 ? (
               <p className="text-center py-8 text-neutral-600 text-sm">Không có hoá đơn trong kỳ</p>
             ) : (
-              <table className="w-full text-xs">
-                <thead><tr className="border-b border-white/5">
-                  <th className="text-left px-5 py-2 text-neutral-500">Số HĐ</th>
-                  <th className="text-left px-5 py-2 text-neutral-500">Client</th>
-                  <th className="text-right px-5 py-2 text-neutral-500">Giá trị</th>
-                  <th className="text-right px-5 py-2 text-neutral-500">Ngày phát hành</th>
-                </tr></thead>
-                <tbody>
-                  {revenueRows.map((inv, i) => {
-                    const sub = netOf(inv);
-                    return (
-                      <tr key={inv.id || i} className="border-b border-white/3 hover:bg-white/2">
-                        <td className="px-5 py-2 text-neutral-300 font-mono">{inv.invoiceNumber}</td>
-                        <td className="px-5 py-2 text-neutral-400">{inv.clientInfo?.name}</td>
-                        <td className="px-5 py-2 text-right text-emerald-400 font-bold">
-                          {inv.currency === 'USD' ? `$${fmt(sub)}` : `${fmt(sub)} ₫`}
-                        </td>
-                        <td className="px-5 py-2 text-right text-neutral-500">{inv.issueDate}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[480px] text-xs">
+                  <thead><tr className="border-b border-white/5">
+                    <th className="text-left px-5 py-2 text-neutral-500">Số HĐ</th>
+                    <th className="text-left px-5 py-2 text-neutral-500">Client</th>
+                    <th className="text-right px-5 py-2 text-neutral-500">Giá trị</th>
+                    <th className="text-right px-5 py-2 text-neutral-500">Ngày phát hành</th>
+                  </tr></thead>
+                  <tbody>
+                    {revenueRows.map((inv, i) => {
+                      const sub = netOf(inv);
+                      return (
+                        <tr key={inv.id || i} className="border-b border-white/3 hover:bg-white/2">
+                          <td className="px-5 py-2 text-neutral-300 font-mono">{inv.invoiceNumber}</td>
+                          <td className="px-5 py-2 text-neutral-400">{inv.clientInfo?.name}</td>
+                          <td className="px-5 py-2 text-right text-emerald-400 font-bold">
+                            {inv.currency === 'USD' ? `$${fmt(sub)}` : `${fmt(sub)} ₫`}
+                          </td>
+                          <td className="px-5 py-2 text-right text-neutral-500">{inv.issueDate}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -251,24 +253,26 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
           {byCat.length === 0 ? (
             <p className="text-center py-8 text-neutral-600 text-sm">Không có chi phí trong kỳ</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-white/5">
-                <th className="text-left px-5 py-3 text-neutral-500 text-xs uppercase">Danh mục</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Số tiền (VND)</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">% Tổng chi</th>
-              </tr></thead>
-              <tbody>
-                {byCat.map(([cat, amt]) => (
-                  <tr key={cat} className="border-b border-white/3 hover:bg-white/2">
-                    <td className="px-5 py-3 text-white">{cat}</td>
-                    <td className="px-5 py-3 text-right text-orange-400 font-bold">{fmt(amt)}</td>
-                    <td className="px-5 py-3 text-right text-neutral-400">
-                      {totalExpense > 0 ? ((amt / totalExpense) * 100).toFixed(1) : 0}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead><tr className="border-b border-white/5">
+                  <th className="text-left px-5 py-3 text-neutral-500 text-xs uppercase">Danh mục</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Số tiền (VND)</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">% Tổng chi</th>
+                </tr></thead>
+                <tbody>
+                  {byCat.map(([cat, amt]) => (
+                    <tr key={cat} className="border-b border-white/3 hover:bg-white/2">
+                      <td className="px-5 py-3 text-white">{cat}</td>
+                      <td className="px-5 py-3 text-right text-orange-400 font-bold">{fmt(amt)}</td>
+                      <td className="px-5 py-3 text-right text-neutral-400">
+                        {totalExpense > 0 ? ((amt / totalExpense) * 100).toFixed(1) : 0}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -282,26 +286,28 @@ export default function PnlTab({ expenses, invoices, vcbAvgRate }: Props) {
           {byClient.length === 0 ? (
             <p className="text-center py-8 text-neutral-600 text-sm">Không có dữ liệu</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-white/5">
-                <th className="text-left px-5 py-3 text-neutral-500 text-xs uppercase">Client</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Doanh thu</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Chi phí</th>
-                <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Lợi nhuận</th>
-              </tr></thead>
-              <tbody>
-                {byClient.map(row => (
-                  <tr key={row.client} className="border-b border-white/3 hover:bg-white/2">
-                    <td className="px-5 py-3 text-white font-semibold">{row.client}</td>
-                    <td className="px-5 py-3 text-right text-emerald-400">{fmt(row.revenue)}</td>
-                    <td className="px-5 py-3 text-right text-orange-400">{fmt(row.expense)}</td>
-                    <td className={`px-5 py-3 text-right font-bold ${row.profit >= 0 ? 'text-sky-400' : 'text-red-400'}`}>
-                      {fmt(row.profit)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-sm">
+                <thead><tr className="border-b border-white/5">
+                  <th className="text-left px-5 py-3 text-neutral-500 text-xs uppercase">Client</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Doanh thu</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Chi phí</th>
+                  <th className="text-right px-5 py-3 text-neutral-500 text-xs uppercase">Lợi nhuận</th>
+                </tr></thead>
+                <tbody>
+                  {byClient.map(row => (
+                    <tr key={row.client} className="border-b border-white/3 hover:bg-white/2">
+                      <td className="px-5 py-3 text-white font-semibold">{row.client}</td>
+                      <td className="px-5 py-3 text-right text-emerald-400">{fmt(row.revenue)}</td>
+                      <td className="px-5 py-3 text-right text-orange-400">{fmt(row.expense)}</td>
+                      <td className={`px-5 py-3 text-right font-bold ${row.profit >= 0 ? 'text-sky-400' : 'text-red-400'}`}>
+                        {fmt(row.profit)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

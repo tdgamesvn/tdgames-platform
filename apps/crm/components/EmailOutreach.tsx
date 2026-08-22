@@ -911,7 +911,7 @@ const LeadsTab: React.FC<LeadsProps> = ({ leads, clients, isLoading, templates, 
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 820 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #333' }}>
                 {['Tier', 'Signal', 'Contact', 'Email', 'Studio', 'Chức vụ', 'Trạng thái', 'Nguồn', 'Actions'].map((h, i) => (
@@ -1496,8 +1496,8 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
                     /> Chọn tất cả
                   </label>
                 </div>
-                <div style={{ maxHeight: '360px', overflowY: 'auto', border: '1px solid #333', borderRadius: '8px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <div style={{ maxHeight: '360px', overflowY: 'auto', overflowX: 'auto', border: '1px solid #333', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: 640 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #333', position: 'sticky', top: 0, background: '#1A1A1A' }}>
                         <th style={{ padding: '8px', width: '32px' }}></th>
@@ -1586,8 +1586,8 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
 
             {/* Company List */}
             {importList.length > 0 && (
-              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #333', borderRadius: '8px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', overflowX: 'auto', border: '1px solid #333', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: 640 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #333', position: 'sticky', top: 0, background: '#1A1A1A' }}>
                       <th style={{ padding: '8px 12px', textAlign: 'left', color: '#666', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>#</th>
@@ -1699,33 +1699,35 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
                   </span>
                 </div>
                 {r.contacts.length > 0 && (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                    <tbody>
-                      {r.contacts.map((c: any, ci: number) => {
-                        const tc = tierOf(tiers, c.tier_num);
-                        const isInvalid = c.email_valid === false;
-                        return (
-                          <tr key={ci} style={{ borderBottom: '1px solid #161616', opacity: isInvalid ? 0.55 : 1 }}>
-                            <td style={{ padding: '6px 12px 6px 32px', width: '80px' }}><span style={{ fontSize: '10px', color: tc.color, fontWeight: 700 }}>{tc.icon} T{c.tier_num}</span></td>
-                            <td style={{ padding: '6px 12px', color: '#F5F5F5', fontWeight: 600 }}>{c.name}</td>
-                            <td style={{ padding: '6px 12px', color: '#888', fontSize: '11px' }}>{c.title}</td>
-                            <td style={{ padding: '6px 12px', fontSize: '11px' }}>
-                              <span style={{ color: isInvalid ? '#FF453A80' : '#0A84FF' }}>{c.email}</span>
-                              {zbBadge(c)}
-                            </td>
-                            <td style={{ padding: '6px 8px', width: '60px' }}>
-                              <button onClick={() => handleAddToLeads(c, c.email, r.company)} style={{
-                                padding: '3px 8px', border: 'none', borderRadius: '4px',
-                                background: isInvalid ? '#FF453A20' : '#34C75920',
-                                color: isInvalid ? '#FF453A' : '#34C759',
-                                fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-                              }}>＋ Add</button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: 640 }}>
+                      <tbody>
+                        {r.contacts.map((c: any, ci: number) => {
+                          const tc = tierOf(tiers, c.tier_num);
+                          const isInvalid = c.email_valid === false;
+                          return (
+                            <tr key={ci} style={{ borderBottom: '1px solid #161616', opacity: isInvalid ? 0.55 : 1 }}>
+                              <td style={{ padding: '6px 12px 6px 32px', width: '80px' }}><span style={{ fontSize: '10px', color: tc.color, fontWeight: 700 }}>{tc.icon} T{c.tier_num}</span></td>
+                              <td style={{ padding: '6px 12px', color: '#F5F5F5', fontWeight: 600 }}>{c.name}</td>
+                              <td style={{ padding: '6px 12px', color: '#888', fontSize: '11px' }}>{c.title}</td>
+                              <td style={{ padding: '6px 12px', fontSize: '11px' }}>
+                                <span style={{ color: isInvalid ? '#FF453A80' : '#0A84FF' }}>{c.email}</span>
+                                {zbBadge(c)}
+                              </td>
+                              <td style={{ padding: '6px 8px', width: '60px' }}>
+                                <button onClick={() => handleAddToLeads(c, c.email, r.company)} style={{
+                                  padding: '3px 8px', border: 'none', borderRadius: '4px',
+                                  background: isInvalid ? '#FF453A20' : '#34C75920',
+                                  color: isInvalid ? '#FF453A' : '#34C759',
+                                  fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                                }}>＋ Add</button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             ))}
@@ -1760,76 +1762,78 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
               color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
             }}>＋ Thêm tất cả vào Leads</button>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #333' }}>
-                {['Tier', 'Name / Company', 'Title', 'Email', 'LinkedIn', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#666' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((c: any, i: number) => {
-                const tc = tierOf(tiers, c.tier_num);
-                const emailOptions = parseWorkEmails(c);
-                const chosenEmail = selectedEmails[i] || emailOptions[0] || '';
-                const domainOk = isDomainMatch(chosenEmail, domain);
-                // Company mismatch: contact's company ≠ searched company
-                const contactCompany = (c.company || '').trim();
-                const companyMismatch = contactCompany && contactCompany.toLowerCase() !== company.toLowerCase();
-                return (
-                  <tr key={i} style={{ borderBottom: '1px solid #1A1A1A', background: domainOk ? 'transparent' : '#FF453A08' }}>
-                    <td style={{ padding: '8px 12px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: tc.color }}>{tc.icon} {tc.label}</span>
-                    </td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <div style={{ fontWeight: 600, color: '#F5F5F5', fontSize: '12px' }}>{c.name}</div>
-                      {companyMismatch && (
-                        <div style={{ fontSize: '10px', color: '#FF9500', marginTop: '2px' }}>
-                          📍 {contactCompany}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '8px 12px', color: '#888', fontSize: '11px', maxWidth: '180px' }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
-                    </td>
-                    <td style={{ padding: '8px 12px', minWidth: '220px' }}>
-                      {emailOptions.length > 1 ? (
-                        <select
-                          value={chosenEmail}
-                          onChange={e => setSelectedEmails(prev => ({ ...prev, [i]: e.target.value }))}
-                          style={{ background: '#1A1A1A', border: `1px solid ${domainOk ? '#333' : '#FF9500'}`, borderRadius: '6px', color: domainOk ? '#0A84FF' : '#FF9500', fontSize: '11px', padding: '3px 6px', width: '100%', cursor: 'pointer' }}
-                        >
-                          {emailOptions.map((em, ei) => {
-                            const ok = isDomainMatch(em, domain);
-                            return <option key={ei} value={em}>{ok ? '✓' : '⚠'} {em}</option>;
-                          })}
-                        </select>
-                      ) : (
-                        <span style={{ fontSize: '11px', color: domainOk ? '#0A84FF' : '#FF9500' }}>{chosenEmail}</span>
-                      )}
-                      {!domainOk && chosenEmail && (
-                        <div style={{ fontSize: '10px', color: '#FF9500', marginTop: '3px' }}>
-                          ⚠️ Domain khác — email có thể sai công ty
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '8px 12px' }}>
-                      {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0A84FF' }}>↗</a>}
-                    </td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <button onClick={() => handleAddToLeads(c, chosenEmail)} style={{
-                        padding: '4px 10px', border: 'none', borderRadius: '6px',
-                        background: domainOk ? '#34C75920' : '#FF950020',
-                        color: domainOk ? '#34C759' : '#FF9500',
-                        fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                      }}>＋ Add</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: 640 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #333' }}>
+                  {['Tier', 'Name / Company', 'Title', 'Email', 'LinkedIn', ''].map((h, i) => (
+                    <th key={i} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: '#666' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((c: any, i: number) => {
+                  const tc = tierOf(tiers, c.tier_num);
+                  const emailOptions = parseWorkEmails(c);
+                  const chosenEmail = selectedEmails[i] || emailOptions[0] || '';
+                  const domainOk = isDomainMatch(chosenEmail, domain);
+                  // Company mismatch: contact's company ≠ searched company
+                  const contactCompany = (c.company || '').trim();
+                  const companyMismatch = contactCompany && contactCompany.toLowerCase() !== company.toLowerCase();
+                  return (
+                    <tr key={i} style={{ borderBottom: '1px solid #1A1A1A', background: domainOk ? 'transparent' : '#FF453A08' }}>
+                      <td style={{ padding: '8px 12px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: tc.color }}>{tc.icon} {tc.label}</span>
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <div style={{ fontWeight: 600, color: '#F5F5F5', fontSize: '12px' }}>{c.name}</div>
+                        {companyMismatch && (
+                          <div style={{ fontSize: '10px', color: '#FF9500', marginTop: '2px' }}>
+                            📍 {contactCompany}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 12px', color: '#888', fontSize: '11px', maxWidth: '180px' }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                      </td>
+                      <td style={{ padding: '8px 12px', minWidth: '220px' }}>
+                        {emailOptions.length > 1 ? (
+                          <select
+                            value={chosenEmail}
+                            onChange={e => setSelectedEmails(prev => ({ ...prev, [i]: e.target.value }))}
+                            style={{ background: '#1A1A1A', border: `1px solid ${domainOk ? '#333' : '#FF9500'}`, borderRadius: '6px', color: domainOk ? '#0A84FF' : '#FF9500', fontSize: '11px', padding: '3px 6px', width: '100%', cursor: 'pointer' }}
+                          >
+                            {emailOptions.map((em, ei) => {
+                              const ok = isDomainMatch(em, domain);
+                              return <option key={ei} value={em}>{ok ? '✓' : '⚠'} {em}</option>;
+                            })}
+                          </select>
+                        ) : (
+                          <span style={{ fontSize: '11px', color: domainOk ? '#0A84FF' : '#FF9500' }}>{chosenEmail}</span>
+                        )}
+                        {!domainOk && chosenEmail && (
+                          <div style={{ fontSize: '10px', color: '#FF9500', marginTop: '3px' }}>
+                            ⚠️ Domain khác — email có thể sai công ty
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        {c.linkedin_url && <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0A84FF' }}>↗</a>}
+                      </td>
+                      <td style={{ padding: '8px 12px' }}>
+                        <button onClick={() => handleAddToLeads(c, chosenEmail)} style={{
+                          padding: '4px 10px', border: 'none', borderRadius: '6px',
+                          background: domainOk ? '#34C75920' : '#FF950020',
+                          color: domainOk ? '#34C759' : '#FF9500',
+                          fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                        }}>＋ Add</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

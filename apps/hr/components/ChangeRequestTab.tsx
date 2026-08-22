@@ -50,47 +50,49 @@ type FilterTab = 'all' | 'pending' | 'approved' | 'rejected';
 
 function SalaryTable({ components }: { components: Array<{ name: string; old_amount: number; new_amount: number }> }) {
   return (
-    <table className="w-full text-xs mt-2">
-      <thead>
-        <tr className="text-neutral-medium">
-          <th className="text-left py-1.5 font-black uppercase tracking-wider">Khoản mục</th>
-          <th className="text-right py-1.5 font-black uppercase tracking-wider">Hiện tại</th>
-          <th className="text-right py-1.5 font-black uppercase tracking-wider">Đề xuất</th>
-          <th className="text-right py-1.5 font-black uppercase tracking-wider">Chênh lệch</th>
-        </tr>
-      </thead>
-      <tbody>
-        {components.map((c, i) => {
-          const diff = c.new_amount - c.old_amount;
-          return (
-            <tr key={i} className="border-t border-white/5">
-              <td className="py-2 text-neutral-light">{c.name}</td>
-              <td className="py-2 text-right text-neutral-medium">{fmt(c.old_amount)}</td>
-              <td className="py-2 text-right font-black" style={{ color: '#FF9500' }}>{fmt(c.new_amount)}</td>
-              <td className={`py-2 text-right font-black ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-neutral-medium'}`}>
-                {diff > 0 ? '+' : ''}{fmt(diff)}
-              </td>
-            </tr>
-          );
-        })}
-        {/* Total row */}
-        {components.length > 1 && (() => {
-          const oldTotal = components.reduce((s, c) => s + c.old_amount, 0);
-          const newTotal = components.reduce((s, c) => s + c.new_amount, 0);
-          const diffTotal = newTotal - oldTotal;
-          return (
-            <tr className="border-t-2 border-white/10 font-black">
-              <td className="py-2 text-neutral-light uppercase tracking-wider text-[10px]">Tổng</td>
-              <td className="py-2 text-right text-neutral-medium">{fmt(oldTotal)}</td>
-              <td className="py-2 text-right" style={{ color: '#FF9500' }}>{fmt(newTotal)}</td>
-              <td className={`py-2 text-right ${diffTotal > 0 ? 'text-emerald-400' : diffTotal < 0 ? 'text-red-400' : 'text-neutral-medium'}`}>
-                {diffTotal > 0 ? '+' : ''}{fmt(diffTotal)}
-              </td>
-            </tr>
-          );
-        })()}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[480px] text-xs mt-2">
+        <thead>
+          <tr className="text-neutral-medium">
+            <th className="text-left py-1.5 font-black uppercase tracking-wider">Khoản mục</th>
+            <th className="text-right py-1.5 font-black uppercase tracking-wider">Hiện tại</th>
+            <th className="text-right py-1.5 font-black uppercase tracking-wider">Đề xuất</th>
+            <th className="text-right py-1.5 font-black uppercase tracking-wider">Chênh lệch</th>
+          </tr>
+        </thead>
+        <tbody>
+          {components.map((c, i) => {
+            const diff = c.new_amount - c.old_amount;
+            return (
+              <tr key={i} className="border-t border-white/5">
+                <td className="py-2 text-neutral-light">{c.name}</td>
+                <td className="py-2 text-right text-neutral-medium">{fmt(c.old_amount)}</td>
+                <td className="py-2 text-right font-black" style={{ color: '#FF9500' }}>{fmt(c.new_amount)}</td>
+                <td className={`py-2 text-right font-black ${diff > 0 ? 'text-emerald-400' : diff < 0 ? 'text-red-400' : 'text-neutral-medium'}`}>
+                  {diff > 0 ? '+' : ''}{fmt(diff)}
+                </td>
+              </tr>
+            );
+          })}
+          {/* Total row */}
+          {components.length > 1 && (() => {
+            const oldTotal = components.reduce((s, c) => s + c.old_amount, 0);
+            const newTotal = components.reduce((s, c) => s + c.new_amount, 0);
+            const diffTotal = newTotal - oldTotal;
+            return (
+              <tr className="border-t-2 border-white/10 font-black">
+                <td className="py-2 text-neutral-light uppercase tracking-wider text-[10px]">Tổng</td>
+                <td className="py-2 text-right text-neutral-medium">{fmt(oldTotal)}</td>
+                <td className="py-2 text-right" style={{ color: '#FF9500' }}>{fmt(newTotal)}</td>
+                <td className={`py-2 text-right ${diffTotal > 0 ? 'text-emerald-400' : diffTotal < 0 ? 'text-red-400' : 'text-neutral-medium'}`}>
+                  {diffTotal > 0 ? '+' : ''}{fmt(diffTotal)}
+                </td>
+              </tr>
+            );
+          })()}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

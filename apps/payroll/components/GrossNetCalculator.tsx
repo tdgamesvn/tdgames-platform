@@ -303,32 +303,34 @@ const GrossNetCalculator: React.FC = () => {
               {!isProbation && result.assessableIncome > 0 && (
                 <div className="rounded-2xl border border-white/8 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
                   <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-3">Biểu thuế lũy tiến</p>
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-neutral-medium">
-                        <th className="text-left py-1.5 font-black uppercase tracking-wider">Bậc</th>
-                        <th className="text-right py-1.5 font-black uppercase tracking-wider">Mức chịu thuế</th>
-                        <th className="text-right py-1.5 font-black uppercase tracking-wider">Thuế suất</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formula.taxBrackets.map((b, i) => {
-                        const prevLimit = i > 0 ? formula.taxBrackets[i - 1].limit : 0;
-                        const isActive = result.assessableIncome > prevLimit;
-                        return (
-                          <tr key={i} className={`border-t border-white/5 ${isActive ? 'text-white' : 'text-neutral-700'}`}>
-                            <td className="py-1.5">{i + 1}</td>
-                            <td className="py-1.5 text-right font-mono">
-                              {b.limit === Infinity ? `Trên ${fmt(prevLimit)}` : `${fmt(prevLimit)} → ${fmt(b.limit)}`}
-                            </td>
-                            <td className="py-1.5 text-right font-mono" style={isActive ? { color: '#FF9500' } : {}}>
-                              {(b.rate * 100)}%
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[480px] text-xs">
+                      <thead>
+                        <tr className="text-neutral-medium">
+                          <th className="text-left py-1.5 font-black uppercase tracking-wider">Bậc</th>
+                          <th className="text-right py-1.5 font-black uppercase tracking-wider">Mức chịu thuế</th>
+                          <th className="text-right py-1.5 font-black uppercase tracking-wider">Thuế suất</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formula.taxBrackets.map((b, i) => {
+                          const prevLimit = i > 0 ? formula.taxBrackets[i - 1].limit : 0;
+                          const isActive = result.assessableIncome > prevLimit;
+                          return (
+                            <tr key={i} className={`border-t border-white/5 ${isActive ? 'text-white' : 'text-neutral-700'}`}>
+                              <td className="py-1.5">{i + 1}</td>
+                              <td className="py-1.5 text-right font-mono">
+                                {b.limit === Infinity ? `Trên ${fmt(prevLimit)}` : `${fmt(prevLimit)} → ${fmt(b.limit)}`}
+                              </td>
+                              <td className="py-1.5 text-right font-mono" style={isActive ? { color: '#FF9500' } : {}}>
+                                {(b.rate * 100)}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </>

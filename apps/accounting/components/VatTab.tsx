@@ -184,48 +184,50 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
         <div className="text-center py-16 text-neutral-600 text-sm">Không có hoá đơn trong kỳ này</div>
       ) : (
         <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-white/5">
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Số HĐ</th>
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngày xuất</th>
-                <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Khách hàng</th>
-                <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Doanh thu</th>
-                <th className="text-center px-4 py-3 text-neutral-500 uppercase tracking-wider">Thuế suất</th>
-                <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">VAT</th>
-                <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Tổng cộng</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-b border-white/3 hover:bg-white/2">
-                  <td className="px-4 py-2.5 text-neutral-300 font-mono">{r.invoiceNumber}</td>
-                  <td className="px-4 py-2.5 text-neutral-500">{r.issueDate}</td>
-                  <td className="px-4 py-2.5 text-white font-semibold truncate max-w-[200px]">{r.client}</td>
-                  <td className="px-4 py-2.5 text-right text-neutral-300">{fmt(r.subtotal)}</td>
-                  <td className="px-4 py-2.5 text-center">
-                    {r.taxRate > 0 ? (
-                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-orange-500/15 text-orange-300">{r.taxRate}%</span>
-                    ) : (
-                      <span className="text-neutral-600">0%</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-orange-400 font-bold">{fmt(r.vatAmt)}</td>
-                  <td className="px-4 py-2.5 text-right text-emerald-400 font-bold">{fmt(r.total)}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-xs">
+              <thead>
+                <tr className="border-b border-white/5">
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Số HĐ</th>
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Ngày xuất</th>
+                  <th className="text-left px-4 py-3 text-neutral-500 uppercase tracking-wider">Khách hàng</th>
+                  <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Doanh thu</th>
+                  <th className="text-center px-4 py-3 text-neutral-500 uppercase tracking-wider">Thuế suất</th>
+                  <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">VAT</th>
+                  <th className="text-right px-4 py-3 text-neutral-500 uppercase tracking-wider">Tổng cộng</th>
                 </tr>
-              ))}
-              {/* Total row */}
-              <tr className="border-t border-white/10 bg-white/2">
-                <td colSpan={3} className="px-4 py-3 text-neutral-400 font-black uppercase text-xs tracking-wider">
-                  Tổng {rows.length} hoá đơn — TD GAMES
-                </td>
-                <td className="px-4 py-3 text-right text-white font-black">{fmt(totSubtotal)}</td>
-                <td />
-                <td className="px-4 py-3 text-right text-orange-400 font-black">{fmt(totVat)}</td>
-                <td className="px-4 py-3 text-right text-emerald-400 font-black">{fmt(totTotal)}</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-b border-white/3 hover:bg-white/2">
+                    <td className="px-4 py-2.5 text-neutral-300 font-mono">{r.invoiceNumber}</td>
+                    <td className="px-4 py-2.5 text-neutral-500">{r.issueDate}</td>
+                    <td className="px-4 py-2.5 text-white font-semibold truncate max-w-[200px]">{r.client}</td>
+                    <td className="px-4 py-2.5 text-right text-neutral-300">{fmt(r.subtotal)}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {r.taxRate > 0 ? (
+                        <span className="px-2 py-0.5 rounded-lg text-[10px] font-black bg-orange-500/15 text-orange-300">{r.taxRate}%</span>
+                      ) : (
+                        <span className="text-neutral-600">0%</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-orange-400 font-bold">{fmt(r.vatAmt)}</td>
+                    <td className="px-4 py-2.5 text-right text-emerald-400 font-bold">{fmt(r.total)}</td>
+                  </tr>
+                ))}
+                {/* Total row */}
+                <tr className="border-t border-white/10 bg-white/2">
+                  <td colSpan={3} className="px-4 py-3 text-neutral-400 font-black uppercase text-xs tracking-wider">
+                    Tổng {rows.length} hoá đơn — TD GAMES
+                  </td>
+                  <td className="px-4 py-3 text-right text-white font-black">{fmt(totSubtotal)}</td>
+                  <td />
+                  <td className="px-4 py-3 text-right text-orange-400 font-black">{fmt(totVat)}</td>
+                  <td className="px-4 py-3 text-right text-emerald-400 font-black">{fmt(totTotal)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

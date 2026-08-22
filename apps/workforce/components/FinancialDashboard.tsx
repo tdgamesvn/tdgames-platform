@@ -384,29 +384,31 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                 {v.tasks.length === 0 ? (
                                   <p className="text-xs text-neutral-medium">{showProj ? 'Chưa có task xong chờ nghiệm thu' : 'Chưa có task nghiệm thu trong tháng này'}</p>
                                 ) : (
-                                  <table className="w-full text-xs">
-                                    <thead>
-                                      <tr className="text-[9px] font-black uppercase tracking-widest text-neutral-600 border-b border-white/5">
-                                        <th className="pb-2 text-left font-medium">Task</th>
-                                        <th className="pb-2 text-left font-medium">Dự án</th>
-                                        <th className="pb-2 text-left font-medium">Khách hàng</th>
-                                        <th className="pb-2 text-right font-medium">Số tiền</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-white/5">
-                                      {v.tasks.map((t, i) => (
-                                        <tr key={i}>
-                                          <td className="py-1.5 pr-3 text-white">{t.title}</td>
-                                          <td className="py-1.5 pr-3 text-neutral-light">{t.project || '—'}</td>
-                                          <td className="py-1.5 pr-3 text-neutral-light">{t.client || '—'}</td>
-                                          <td className="py-1.5 text-right font-mono">
-                                            <span className="text-emerald-400 font-bold">{formatUSD(t.priceUSD)}</span>
-                                            <span className="text-neutral-medium ml-2">≈ {formatVND(t.priceUSD * exchangeRate)}</span>
-                                          </td>
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[640px] text-xs">
+                                      <thead>
+                                        <tr className="text-[9px] font-black uppercase tracking-widest text-neutral-600 border-b border-white/5">
+                                          <th className="pb-2 text-left font-medium">Task</th>
+                                          <th className="pb-2 text-left font-medium">Dự án</th>
+                                          <th className="pb-2 text-left font-medium">Khách hàng</th>
+                                          <th className="pb-2 text-right font-medium">Số tiền</th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                      </thead>
+                                      <tbody className="divide-y divide-white/5">
+                                        {v.tasks.map((t, i) => (
+                                          <tr key={i}>
+                                            <td className="py-1.5 pr-3 text-white">{t.title}</td>
+                                            <td className="py-1.5 pr-3 text-neutral-light">{t.project || '—'}</td>
+                                            <td className="py-1.5 pr-3 text-neutral-light">{t.client || '—'}</td>
+                                            <td className="py-1.5 text-right font-mono">
+                                              <span className="text-emerald-400 font-bold">{formatUSD(t.priceUSD)}</span>
+                                              <span className="text-neutral-medium ml-2">≈ {formatVND(t.priceUSD * exchangeRate)}</span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 )}
                               </td>
                             </tr>

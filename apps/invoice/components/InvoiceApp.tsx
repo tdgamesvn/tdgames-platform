@@ -171,8 +171,8 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
 
       {/* Delete Confirmation Modal */}
       {state.deleteConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => state.setDeleteConfirm(null)}>
-          <div className={`w-[420px] p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-red-500/20' : 'bg-white border-red-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => state.setDeleteConfirm(null)}>
+          <div className={`w-full max-w-[420px] p-6 sm:p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-red-500/20' : 'bg-white border-red-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
                 <span className="text-3xl">🗑️</span>
@@ -210,8 +210,8 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
           ? n.toLocaleString('vi-VN')
           : n.toLocaleString('en-US', { minimumFractionDigits: 2 });
         return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-            <div className={`w-[460px] p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+            <div className={`w-full max-w-[460px] p-6 sm:p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`}>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl">💰</span>
@@ -273,8 +273,8 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
         const totalUSD = afterDisc + tax;
         const totalVND = Math.round(totalUSD * state.exchangeRate);
         return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => state.setShowExchangeRateModal(false)}>
-            <div className={`w-[480px] p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4" onClick={() => state.setShowExchangeRateModal(false)}>
+            <div className={`w-full max-w-[480px] p-6 sm:p-8 rounded-[24px] border ${APP_UI_IS_DARK ? 'bg-surface border-primary/20' : 'bg-white border-gray-200 shadow-2xl'}`} onClick={e => e.stopPropagation()}>
               <div className="text-center mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl">💱</span>

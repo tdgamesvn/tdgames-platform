@@ -277,6 +277,21 @@
         display: block !important;
       }
     }
+
+    /* ponytail: panel thông báo neo theo nút chuông (absolute right:0) nên trên
+       màn hẹp nó tràn khỏi mép trái. Media query kéo về full width thay vì tính
+       toạ độ bằng JS. Nâng cấp: nếu có thêm popover kiểu này thì gom thành
+       .mobile-sheet dùng chung. */
+    @media (max-width: 767px) {
+      .notif-panel {
+        position: fixed !important;
+        top: 60px !important;
+        left: 8px !important;
+        right: 8px !important;
+        width: auto !important;
+        max-height: 70vh !important;
+      }
+    }
   </style>
   <script type="importmap">
 {

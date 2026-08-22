@@ -32,46 +32,48 @@ function fmtDateTime(s: string | null | undefined) {
 // ── Salary Table ───────────────────────────────────────────
 function SalaryTable({ components }: { components: Array<{ name: string; old_amount: number; new_amount: number }> }) {
   return (
-    <table style={{ width: '100%', fontSize: '12px', marginTop: '8px', borderCollapse: 'collapse' }}>
-      <thead>
-        <tr style={{ color: '#888' }}>
-          <th style={{ textAlign: 'left', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Khoản mục</th>
-          <th style={{ textAlign: 'right', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Hiện tại</th>
-          <th style={{ textAlign: 'right', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mới</th>
-          <th style={{ textAlign: 'right', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Chênh lệch</th>
-        </tr>
-      </thead>
-      <tbody>
-        {components.map((c, i) => {
-          const diff = c.new_amount - c.old_amount;
-          return (
-            <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-              <td style={{ padding: '8px 0', color: '#ccc' }}>{c.name}</td>
-              <td style={{ padding: '8px 0', textAlign: 'right', color: '#888' }}>{fmt(c.old_amount)}</td>
-              <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 700, color: '#06B6D4' }}>{fmt(c.new_amount)}</td>
-              <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 700, color: diff > 0 ? '#34C759' : diff < 0 ? '#FF3B30' : '#888' }}>
-                {diff > 0 ? '+' : ''}{fmt(diff)}
-              </td>
-            </tr>
-          );
-        })}
-        {components.length > 1 && (() => {
-          const oldTotal = components.reduce((s, c) => s + c.old_amount, 0);
-          const newTotal = components.reduce((s, c) => s + c.new_amount, 0);
-          const diffTotal = newTotal - oldTotal;
-          return (
-            <tr style={{ borderTop: '2px solid rgba(255,255,255,0.08)', fontWeight: 800 }}>
-              <td style={{ padding: '8px 0', color: '#ccc', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tổng</td>
-              <td style={{ padding: '8px 0', textAlign: 'right', color: '#888' }}>{fmt(oldTotal)}</td>
-              <td style={{ padding: '8px 0', textAlign: 'right', color: '#06B6D4' }}>{fmt(newTotal)}</td>
-              <td style={{ padding: '8px 0', textAlign: 'right', color: diffTotal > 0 ? '#34C759' : diffTotal < 0 ? '#FF3B30' : '#888' }}>
-                {diffTotal > 0 ? '+' : ''}{fmt(diffTotal)}
-              </td>
-            </tr>
-          );
-        })()}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table style={{ width: '100%', fontSize: '12px', marginTop: '8px', borderCollapse: 'collapse', minWidth: 480 }}>
+        <thead>
+          <tr style={{ color: '#888' }}>
+            <th style={{ textAlign: 'left', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Khoản mục</th>
+            <th style={{ textAlign: 'right', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Hiện tại</th>
+            <th style={{ textAlign: 'right', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mới</th>
+            <th style={{ textAlign: 'right', padding: '6px 0', fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Chênh lệch</th>
+          </tr>
+        </thead>
+        <tbody>
+          {components.map((c, i) => {
+            const diff = c.new_amount - c.old_amount;
+            return (
+              <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+                <td style={{ padding: '8px 0', color: '#ccc' }}>{c.name}</td>
+                <td style={{ padding: '8px 0', textAlign: 'right', color: '#888' }}>{fmt(c.old_amount)}</td>
+                <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 700, color: '#06B6D4' }}>{fmt(c.new_amount)}</td>
+                <td style={{ padding: '8px 0', textAlign: 'right', fontWeight: 700, color: diff > 0 ? '#34C759' : diff < 0 ? '#FF3B30' : '#888' }}>
+                  {diff > 0 ? '+' : ''}{fmt(diff)}
+                </td>
+              </tr>
+            );
+          })}
+          {components.length > 1 && (() => {
+            const oldTotal = components.reduce((s, c) => s + c.old_amount, 0);
+            const newTotal = components.reduce((s, c) => s + c.new_amount, 0);
+            const diffTotal = newTotal - oldTotal;
+            return (
+              <tr style={{ borderTop: '2px solid rgba(255,255,255,0.08)', fontWeight: 800 }}>
+                <td style={{ padding: '8px 0', color: '#ccc', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tổng</td>
+                <td style={{ padding: '8px 0', textAlign: 'right', color: '#888' }}>{fmt(oldTotal)}</td>
+                <td style={{ padding: '8px 0', textAlign: 'right', color: '#06B6D4' }}>{fmt(newTotal)}</td>
+                <td style={{ padding: '8px 0', textAlign: 'right', color: diffTotal > 0 ? '#34C759' : diffTotal < 0 ? '#FF3B30' : '#888' }}>
+                  {diffTotal > 0 ? '+' : ''}{fmt(diffTotal)}
+                </td>
+              </tr>
+            );
+          })()}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

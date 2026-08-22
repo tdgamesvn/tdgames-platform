@@ -119,49 +119,51 @@ const PaymentTracker: React.FC<Props> = ({ clients, currentUser }) => {
       {/* Invoice table */}
       {invoices.length > 0 && (
         <div className="rounded-[20px] border border-primary/10 bg-surface" style={{ overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#1A1A1A' }}>
-                {['Số HĐ', 'Khách hàng', 'Mô tả', 'Giá trị', 'Trạng thái', 'Ngày TT', 'Ngày tạo'].map(h => (
-                  <th key={h} style={{
-                    textAlign: 'left', padding: '14px 16px', fontSize: '11px', fontWeight: 700,
-                    textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', borderBottom: '1px solid #222',
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map(inv => {
-                const st = STATUS_MAP[inv.status] || STATUS_MAP.draft;
-                const total = inv.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-                return (
-                  <tr key={inv.id} style={{ borderBottom: '1px solid #1A1A1A' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#1A1A1A')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td style={{ padding: '14px 16px', color: '#F5F5F5', fontWeight: 700, fontSize: '13px' }}>{inv.invoice_number}</td>
-                    <td style={{ padding: '14px 16px', color: '#aaa', fontSize: '13px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.client_name}</td>
-                    <td style={{ padding: '14px 16px', color: '#aaa', fontSize: '13px', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {inv.items.map(it => it.description).join(', ')}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#FF9500', fontWeight: 800, fontSize: '13px' }}>
-                      {total.toLocaleString()} {inv.currency}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '6px', background: st.bg, color: st.color, textTransform: 'uppercase' }}>
-                        {st.label}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#888', fontSize: '13px' }}>
-                      {inv.paid_date ? new Date(inv.paid_date).toLocaleDateString('vi-VN') : '—'}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#666', fontSize: '13px' }}>
-                      {new Date(inv.created_at).toLocaleDateString('vi-VN')}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+              <thead>
+                <tr style={{ background: '#1A1A1A' }}>
+                  {['Số HĐ', 'Khách hàng', 'Mô tả', 'Giá trị', 'Trạng thái', 'Ngày TT', 'Ngày tạo'].map(h => (
+                    <th key={h} style={{
+                      textAlign: 'left', padding: '14px 16px', fontSize: '11px', fontWeight: 700,
+                      textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', borderBottom: '1px solid #222',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map(inv => {
+                  const st = STATUS_MAP[inv.status] || STATUS_MAP.draft;
+                  const total = inv.items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+                  return (
+                    <tr key={inv.id} style={{ borderBottom: '1px solid #1A1A1A' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#1A1A1A')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <td style={{ padding: '14px 16px', color: '#F5F5F5', fontWeight: 700, fontSize: '13px' }}>{inv.invoice_number}</td>
+                      <td style={{ padding: '14px 16px', color: '#aaa', fontSize: '13px', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.client_name}</td>
+                      <td style={{ padding: '14px 16px', color: '#aaa', fontSize: '13px', maxWidth: '250px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {inv.items.map(it => it.description).join(', ')}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#FF9500', fontWeight: 800, fontSize: '13px' }}>
+                        {total.toLocaleString()} {inv.currency}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '6px', background: st.bg, color: st.color, textTransform: 'uppercase' }}>
+                          {st.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#888', fontSize: '13px' }}>
+                        {inv.paid_date ? new Date(inv.paid_date).toLocaleDateString('vi-VN') : '—'}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#666', fontSize: '13px' }}>
+                        {new Date(inv.created_at).toLocaleDateString('vi-VN')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
