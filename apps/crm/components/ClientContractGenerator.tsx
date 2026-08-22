@@ -44,6 +44,12 @@ const phaseDesc = (i: number, isLast: boolean, L: 'both' | 'vi' | 'en') => {
   if (i === 0) return tt('Upon contract signing', 'Khi ký hợp đồng');
   return isLast ? tt('Upon acceptance, prior to source file handover', 'Sau khi nghiệm thu, trước khi bàn giao file gốc') : '';
 };
+// ponytail: khong luu co "user da sua" (se pha type da luu trong DB) - suy ra bang cach
+// do chuoi voi moi nhan mac dinh co the co. Khop = chua sua -> duoc danh so/dich lai.
+const LANGS = ['both', 'vi', 'en'] as const;
+const isDefaultText = (v: string, n: number, gen: typeof phaseLabel) =>
+  v === '' || Array.from({ length: n + 1 }).some((_, j) =>
+    LANGS.some(L => v === gen(j, true, L) || v === gen(j, false, L)));
 
 const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, client, contacts, projects, onClose, onSaved, currentUserId }) => {
   // ── Bank accounts ──
@@ -132,7 +138,6 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   // ── Payment ──
   const [totalValue, setTotalValue] = useState(0);
   const [currency, setCurrency] = useState('USD');
-  const [phaseCount, setPhaseCount] = useState(2);
   // ponytail: khach noi dia bat buoc VND (TT 32/2013) - ep ngay khi doi loai hop dong
   useEffect(() => { if (contractType === 'domestic') setCurrency('VND'); }, [contractType]);
   const [phases, setPhases] = useState<PaymentPhase[]>([
@@ -166,11 +171,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setEstimatedCompletion(initialData.estimatedCompletion || '');
     setTotalValue(initialData.totalValue || 0);
     setCurrency(initialData.currency || 'USD');
-    if (initialData.phases?.length) {
-      skipPhaseRebuild.current = true;
-      setPhaseCount(initialData.phases.length);
-      setPhases(initialData.phases);
-    }
+    if (initialData.phases?.length) setPhases(initialData.phases);
   }, [initialData]);
 
   // ── UI state ──
@@ -178,8 +179,6 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  // ponytail: prefill set phaseCount -> effect rebuild se ghi de phases da luu. Chan 1 lan.
-  const skipPhaseRebuild = useRef(false);
   // ponytail: prefill set companyKey -> effect auto-switch bank se de mat tai khoan da luu
   const skipBankAutoSwitch = useRef(false);
 
@@ -204,22 +203,26 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
     setPhases(prev => prev.map(p => ({ ...p, amount: Math.round(totalValue * p.percentage / 100) })));
   }, [totalValue]);
 
-  // ── Rebuild phase array when count changes ──
-  useEffect(() => {
-    if (skipPhaseRebuild.current) { skipPhaseRebuild.current = false; return; }
-    const pct = Math.floor(100 / phaseCount);
-    const newPhases: PaymentPhase[] = Array.from({ length: phaseCount }, (_, i) => {
-      const isLast = i === phaseCount - 1;
-      const percentage = isLast ? 100 - pct * (phaseCount - 1) : pct;
-      return {
-        label: phaseLabel(i, isLast, lang),
-        percentage,
-        amount: Math.round(totalValue * percentage / 100),
-        description: phaseDesc(i, isLast, lang),
-      };
-    });
-    setPhases(newPhases);
-  }, [phaseCount, lang]);
+  // ── Danh so / dich lai cac nhan CHUA bi sua tay (khi them, xoa dot hoac doi ngon ngu) ──
+  const relabel = (arr: PaymentPhase[]): PaymentPhase[] => arr.map((p, i) => {
+    const isLast = i === arr.length - 1;
+    return {
+      ...p,
+      label: isDefaultText(p.label, arr.length, phaseLabel) ? phaseLabel(i, isLast, lang) : p.label,
+      description: isDefaultText(p.description, arr.length, phaseDesc) ? phaseDesc(i, isLast, lang) : p.description,
+    };
+  });
+  useEffect(() => { setPhases(relabel); }, [lang]);
+
+  const addPhase = () => setPhases(prev => {
+    const rest = Math.max(0, 100 - prev.reduce((s, p) => s + p.percentage, 0));
+    return relabel([...prev, { label: '', percentage: rest, amount: Math.round(totalValue * rest / 100), description: '' }]);
+  });
+  const removePhase = (i: number) => setPhases(prev => relabel(prev.filter((_, j) => j !== i)));
+  const patchPhase = (i: number, patch: Partial<PaymentPhase>) =>
+    setPhases(prev => prev.map((p, j) => j === i ? { ...p, ...patch } : p));
+
+  const pctSum = phases.reduce((s, p) => s + p.percentage, 0);
 
   // ── Selected bank account ──
   const selectedBank = bankAccounts.find(a => a.id === selectedBankId);
@@ -545,27 +548,37 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
               </select>
             </div>
           </div>
-          <div>
-            <p className={labelCls}>Số đợt thanh toán</p>
-            <select value={phaseCount} onChange={e => setPhaseCount(Number(e.target.value))} className={inputCls} style={inputStyle}>
-              <option value={2}>2 đợt</option>
-              <option value={3}>3 đợt</option>
-              <option value={4}>4 đợt</option>
-            </select>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <p className={labelCls} style={{ margin: 0 }}>Đợt thanh toán ({phases.length})</p>
+            <span style={{ fontSize: 10, fontWeight: 900, color: pctSum === 100 ? '#666' : '#ef4444' }}>
+              Tổng {pctSum}%
+            </span>
           </div>
           {phases.map((p, i) => (
-            <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 8 }}>
-              <p style={{ fontSize: 10, fontWeight: 900, color: '#888', marginBottom: 4 }}>{p.label}</p>
+            <div key={i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input value={p.label} onChange={e => patchPhase(i, { label: e.target.value })}
+                  placeholder={`Đợt ${i + 1}`} className={inputCls} style={{ ...inputStyle, padding: '4px 8px', fontSize: 12, fontWeight: 700 }} />
+                <button type="button" onClick={() => removePhase(i)} disabled={phases.length <= 1}
+                  title="Xoá đợt"
+                  style={{ background: 'transparent', border: 'none', color: phases.length <= 1 ? '#444' : '#ef4444', cursor: phases.length <= 1 ? 'default' : 'pointer', fontSize: 14, padding: '0 4px' }}>✕</button>
+              </div>
+              <input value={p.description} onChange={e => patchPhase(i, { description: e.target.value })}
+                placeholder="Mô tả đợt (vd: Khi ký hợp đồng)" className={inputCls}
+                style={{ ...inputStyle, padding: '4px 8px', fontSize: 11, fontStyle: 'italic' }} />
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <input type="number" value={p.percentage} onChange={e => {
-                  const next = [...phases];
-                  next[i] = { ...next[i], percentage: Number(e.target.value) || 0, amount: Math.round(totalValue * (Number(e.target.value) || 0) / 100) };
-                  setPhases(next);
+                  const pct = Number(e.target.value) || 0;
+                  patchPhase(i, { percentage: pct, amount: Math.round(totalValue * pct / 100) });
                 }} style={{ ...inputStyle, width: 50, padding: '2px 4px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 12, textAlign: 'center' as const }} />
                 <span style={{ fontSize: 11, color: '#666' }}>% = {p.amount.toLocaleString()} {currency}</span>
               </div>
             </div>
           ))}
+          <button type="button" onClick={addPhase} className={inputCls}
+            style={{ ...inputStyle, cursor: 'pointer', fontSize: 11, fontWeight: 900, padding: '6px 8px', color: '#FF9500' }}>
+            + Thêm đợt
+          </button>
 
           <div style={{ height: 40 }} />
         </div>
