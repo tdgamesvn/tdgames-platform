@@ -24,6 +24,28 @@ interface Props {
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
+// OT tách theo loại ngày (BLLĐ 2019 Đ.98) + ca đêm (NĐ 145/2020 Đ.57).
+// Hệ số lấy từ bộ công thức đang áp dụng.
+const OT_FIELDS = [
+  { key: 'extra_ot_hours', label: 'Ngày thường', rate: 'otRateWeekday' },
+  { key: 'extra_ot_hours_weekend', label: 'T7 / CN', rate: 'otRateWeekend' },
+  { key: 'extra_ot_hours_holiday', label: 'Lễ / Tết', rate: 'otRateHoliday' },
+  { key: 'extra_ot_hours_night', label: 'Đêm — ngày thường', rate: 'otRateNightWeekday' },
+  { key: 'extra_ot_hours_night_weekend', label: 'Đêm — T7 / CN', rate: 'otRateNightWeekend' },
+  { key: 'extra_ot_hours_night_holiday', label: 'Đêm — Lễ / Tết', rate: 'otRateNightHoliday' },
+] as const;
+
+const otRate = (formula: PayrollFormulaConfig, key: string) =>
+  formula[(OT_FIELDS.find(f => f.key === key)!.rate)] ?? 0;
+
+export const totalOtHours = (rec: PayPayrollRecord) =>
+  OT_FIELDS.reduce((s, f) => s + ((rec as any)[f.key] || 0), 0);
+
+const otBreakdown = (rec: PayPayrollRecord) => OT_FIELDS
+  .filter(f => ((rec as any)[f.key] || 0) > 0)
+  .map(f => `${f.label}: ${(rec as any)[f.key]}h`)
+  .join(' · ');
+
 const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending:   { label: '⏳ Chờ XN', cls: 'bg-yellow-500/15 text-yellow-400' },
   confirmed: { label: '✅ Đã XN', cls: 'bg-emerald-500/15 text-emerald-400' },
@@ -275,21 +297,40 @@ const PayrollSheet: React.FC<Props> = ({
 
                     <span className="text-right text-xs text-neutral-medium">{fmt(rec.gross_ref)}</span>
 
-                    {/* Extra OT hours - editable */}
-                    <div className="text-right" onClick={e => e.stopPropagation()}>
-                      {isDraft && editingCell?.id === rec.id && editingCell?.field === 'extra_ot_hours' ? (
-                        <input ref={inputRef} type="number" step="0.5"
-                          className="w-16 px-1 py-0.5 rounded bg-black/40 border border-blue-500/40 text-white text-xs text-right outline-none"
-                          value={rec.extra_ot_hours}
-                          onChange={e => handleCellChange(rec, 'extra_ot_hours', +e.target.value)}
-                          onBlur={() => setEditingCell(null)}
-                        />
-                      ) : (
-                        <span className={`text-xs ${isDraft ? 'text-blue-400 cursor-text' : 'text-white'}`}
-                          onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'extra_ot_hours' })}>
-                          {rec.extra_ot_hours > 0 ? `${rec.extra_ot_hours}h` : '—'}
-                        </span>
+                    {/* Extra OT hours - editable (3 loại ngày qua popover) */}
+                    <div className="text-right relative" onClick={e => e.stopPropagation()}>
+                      {isDraft && editingCell?.id === rec.id && editingCell?.field === 'extra_ot_hours' && (
+                        <div
+                          className={`absolute right-0 ${popoverUp ? 'bottom-full mb-1' : 'top-full mt-1'} z-30 w-60 bg-surface border border-blue-500/30 rounded-xl shadow-2xl shadow-black/70 p-3 text-left space-y-2.5`}
+                          onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') setEditingCell(null); }}
+                        >
+                          <p className="text-[10px] font-black text-blue-400 uppercase tracking-wider">💪 Tăng ca phát sinh (giờ)</p>
+                          {OT_FIELDS.map((f, i) => (
+                            <div key={f.key}>
+                              <label className="block text-[9px] font-black text-neutral-600 uppercase tracking-wider mb-1">
+                                {f.label} — {(otRate(formula, f.key) * 100).toFixed(0)}%
+                              </label>
+                              <input ref={i === 0 ? inputRef : undefined} type="number" step="0.5" min="0" placeholder="0"
+                                className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-xs text-right outline-none focus:border-blue-500/50"
+                                value={(rec as any)[f.key] ?? 0}
+                                onChange={e => handleCellChange(rec, f.key, +e.target.value)}
+                              />
+                            </div>
+                          ))}
+                          <div className="flex justify-between items-center pt-0.5">
+                            <span className="text-[9px] text-neutral-medium">= {fmt(rec.extra_ot)}đ</span>
+                            <button
+                              onClick={() => setEditingCell(null)}
+                              className="px-3 py-1 rounded-lg bg-primary text-black text-[10px] font-black uppercase hover:opacity-90 transition-opacity"
+                            >Xong</button>
+                          </div>
+                        </div>
                       )}
+                      <span className={`text-xs ${isDraft ? 'text-blue-400 cursor-pointer' : 'text-white'}`}
+                        title={otBreakdown(rec)}
+                        onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'extra_ot_hours' })}>
+                        {totalOtHours(rec) > 0 ? `${totalOtHours(rec)}h` : '—'}
+                      </span>
                     </div>
 
                     <span className="text-right text-xs text-white font-bold">{fmt(rec.gross_actual)}</span>
@@ -448,7 +489,12 @@ const PayrollSheet: React.FC<Props> = ({
                               )}
                             </div>
                           )}
-                          <Row label="Tăng ca phát sinh" value={rec.extra_ot_hours > 0 ? `${rec.extra_ot_hours}h → ${fmt(rec.extra_ot)}đ` : '—'} highlight />
+                          <Row
+                            label="Tăng ca phát sinh"
+                            value={totalOtHours(rec) > 0 ? `${totalOtHours(rec)}h → ${fmt(rec.extra_ot)}đ` : '—'}
+                            sub={totalOtHours(rec) > 0 ? otBreakdown(rec) : undefined}
+                            highlight
+                          />
                           <div className="border-t border-white/[0.06] pt-2 mt-2">
                             <Row label="Gross tham chiếu" value={fmt(rec.gross_ref)} bold />
                             <Row label="Gross thực tế" value={fmt(rec.gross_actual)} bold highlight />

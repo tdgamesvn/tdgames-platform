@@ -165,6 +165,27 @@ const parseInvoice = (row: any): InvoiceData => ({
     createdAt: row.created_at,
 });
 
+/**
+ * Hoá đơn "cùng loại" với `data`: cùng khách (không phân biệt hoa/thường), cùng pháp nhân
+ * phát hành, cùng loại tiền, chưa huỷ. Caller lọc tiếp theo tổng tiền + ngày phát hành để
+ * quyết định có phải nghi trùng hay không (xem findDuplicateInvoices trong useInvoiceState).
+ */
+export const fetchSimilarInvoices = async (data: InvoiceData): Promise<InvoiceData[]> => {
+    const name = (data.clientInfo?.name || '').trim();
+    if (!name) return [];
+    const { data: rows, error } = await supabase
+        .from('invoice_invoices')
+        .select('*')
+        .ilike('client_name', name)
+        .eq('billing_entity', data.billing_entity || 'TD GAMES')
+        .eq('currency', data.currency)
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(50);
+    if (error) throw new Error(`Fetch similar invoices failed: ${error.message}`);
+    return (rows || []).map(parseInvoice).filter(inv => inv.id !== data.id);
+};
+
 export const fetchInvoicesFromCloud = async (): Promise<InvoiceData[]> => {
     const { data, error } = await supabase
         .from('invoice_invoices')

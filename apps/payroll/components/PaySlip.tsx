@@ -11,6 +11,20 @@ interface Props {
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
+/** Nhãn OT phát sinh — tách theo loại ngày + ca đêm (150/200/300% · đêm 200/270/390%). */
+const otLabel = (rec: PayPayrollRecord) => {
+  const parts = [
+    [rec.extra_ot_hours, 'thường'] as const,
+    [rec.extra_ot_hours_weekend, 'T7/CN'] as const,
+    [rec.extra_ot_hours_holiday, 'lễ'] as const,
+    [rec.extra_ot_hours_night, 'đêm thường'] as const,
+    [rec.extra_ot_hours_night_weekend, 'đêm T7/CN'] as const,
+    [rec.extra_ot_hours_night_holiday, 'đêm lễ'] as const,
+  ].filter(([h]) => (h || 0) > 0);
+  if (!parts.length) return 'Tăng ca phát sinh (0h)';
+  return `Tăng ca phát sinh (${parts.map(([h, l]) => `${h}h ${l}`).join(' + ')})`;
+};
+
 const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
   // Dùng standard_work_days từ sheet (T2-T6 thực tế tháng đó), fallback về formula nếu sheet cũ
   const std = sheet.standard_work_days ?? formula.standardWorkDays;
@@ -178,7 +192,7 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
               <Tr label="PC trang phục" ref_val={fmt(rec.clothing_allowance)} actual={fmt(Math.round(rec.clothing_allowance * ratio))} />
               <Tr label="Phụ cấp KPI" ref_val={fmt(rec.kpi_allowance)} actual={fmt(Math.round(rec.kpi_allowance * ratio))} />
               <Tr label="Tăng ca mặc định" ref_val={fmt(rec.default_ot)} actual={fmt(Math.round(rec.default_ot * ratio))} />
-              <Tr label={`Tăng ca phát sinh (${rec.extra_ot_hours}h)`} ref_val="—" actual={rec.extra_ot > 0 ? fmt(rec.extra_ot) : '0'} highlight />
+              <Tr label={otLabel(rec)} ref_val="—" actual={rec.extra_ot > 0 ? fmt(rec.extra_ot) : '0'} highlight />
               <TrBold label="GROSS THAM CHIẾU" value={fmt(rec.gross_ref)} />
               <TrBold label="GROSS THỰC TẾ" value={fmt(rec.gross_actual)} highlight />
             </tbody>

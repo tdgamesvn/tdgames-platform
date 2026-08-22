@@ -35,7 +35,12 @@ export function exportPayrollToExcel(
     'PC trang phục',
     'KPI',
     'Tăng ca MĐ',
-    'Tăng ca PS (h)',
+    'TC thường (h)',
+    'TC T7/CN (h)',
+    'TC lễ/Tết (h)',
+    'TC đêm thường (h)',
+    'TC đêm T7/CN (h)',
+    'TC đêm lễ/Tết (h)',
     'Tăng ca PS (đ)',
     'Gross TK',
     'Gross thực tế',
@@ -67,6 +72,11 @@ export function exportPayrollToExcel(
       rec.kpi_allowance,
       rec.default_ot,
       rec.extra_ot_hours,
+      rec.extra_ot_hours_weekend ?? 0,
+      rec.extra_ot_hours_holiday ?? 0,
+      rec.extra_ot_hours_night ?? 0,
+      rec.extra_ot_hours_night_weekend ?? 0,
+      rec.extra_ot_hours_night_holiday ?? 0,
       rec.extra_ot,
       rec.gross_ref,
       rec.gross_actual,
@@ -99,6 +109,11 @@ export function exportPayrollToExcel(
     sum('kpi_allowance'),
     sum('default_ot'),
     sum('extra_ot_hours'),
+    sum('extra_ot_hours_weekend'),
+    sum('extra_ot_hours_holiday'),
+    sum('extra_ot_hours_night'),
+    sum('extra_ot_hours_night_weekend'),
+    sum('extra_ot_hours_night_holiday'),
     sum('extra_ot'),
     sum('gross_ref'),
     sum('gross_actual'),
@@ -206,7 +221,14 @@ export function exportPaySlipToExcel(
   rows.push(['Phụ cấp trang phục', rec.clothing_allowance, Math.round(rec.clothing_allowance * ratio)]);
   rows.push(['Phụ cấp KPI', rec.kpi_allowance, Math.round(rec.kpi_allowance * ratio)]);
   rows.push(['Tăng ca mặc định', rec.default_ot, Math.round(rec.default_ot * ratio)]);
-  rows.push(['Tăng ca phát sinh', `${rec.extra_ot_hours}h`, rec.extra_ot]);
+  rows.push(['Tăng ca phát sinh', [
+    `${rec.extra_ot_hours}h thường`,
+    (rec.extra_ot_hours_weekend ?? 0) > 0 ? `${rec.extra_ot_hours_weekend}h T7/CN` : '',
+    (rec.extra_ot_hours_holiday ?? 0) > 0 ? `${rec.extra_ot_hours_holiday}h lễ` : '',
+    (rec.extra_ot_hours_night ?? 0) > 0 ? `${rec.extra_ot_hours_night}h đêm thường` : '',
+    (rec.extra_ot_hours_night_weekend ?? 0) > 0 ? `${rec.extra_ot_hours_night_weekend}h đêm T7/CN` : '',
+    (rec.extra_ot_hours_night_holiday ?? 0) > 0 ? `${rec.extra_ot_hours_night_holiday}h đêm lễ` : '',
+  ].filter(Boolean).join(' + '), rec.extra_ot]);
   rows.push([]);
   rows.push(['Gross tham chiếu', '', rec.gross_ref]);
   rows.push(['Gross thực tế', '', rec.gross_actual]);

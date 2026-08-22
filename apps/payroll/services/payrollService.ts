@@ -25,7 +25,18 @@ interface PayrollInput {
   clothingAllowance: number;
   kpiAllowance: number;
   defaultOt: number;
+  /** Giờ OT ngày thường T2-T6 — hệ số formula.otRateWeekday */
   extraOtHours: number;
+  /** Giờ OT ngày nghỉ tuần T7/CN — hệ số formula.otRateWeekend */
+  extraOtHoursWeekend?: number;
+  /** Giờ OT ngày lễ/Tết — hệ số formula.otRateHoliday */
+  extraOtHoursHoliday?: number;
+  /** Giờ OT ban đêm (22h-6h) ngày thường — hệ số formula.otRateNightWeekday */
+  extraOtHoursNight?: number;
+  /** Giờ OT ban đêm T7/CN — hệ số formula.otRateNightWeekend */
+  extraOtHoursNightWeekend?: number;
+  /** Giờ OT ban đêm lễ/Tết — hệ số formula.otRateNightHoliday */
+  extraOtHoursNightHoliday?: number;
   dependentsCount: number;
   isProbation: boolean;
   /** Tỷ lệ ngày thử việc trong tháng. 0 = full official, 1 = full probation, 0<x<1 = transition month (lên chính thức giữa tháng) */
@@ -100,8 +111,23 @@ export function calculatePayroll(
     : input.defaultOt;
   const defaultOtActual = r(effectiveDefaultOt * ratio);
 
-  const hourlyRate = input.baseSalary / std / hpd;
-  const extraOt = r(hourlyRate * formula.otRateWeekday * input.extraOtHours);
+  // Đơn giá giờ để tính OT (NĐ 145/2020 Đ.55): "tiền lương thực trả của công việc đang làm",
+  // gồm lương CB + phụ cấp gắn với công việc (KPI/trách nhiệm). KHÔNG gồm ăn ca, trang phục,
+  // xăng xe, điện thoại (hỗ trợ không gắn công việc) và không gồm chính tiền OT (defaultOt).
+  // Dùng effective* (đã blend mức cũ/mới) nên tháng chuyển giao thử việc→chính thức tính đúng
+  // đơn giá của từng giai đoạn, không lấy nhầm mức lương chính thức cho cả tháng.
+  const hourlyRate = (effectiveBaseSalary + effectiveKpiAllowance) / std / hpd;
+  // OT theo loại ngày (BLLĐ 2019 Đ.98): ngày thường 150%, ngày nghỉ tuần 200%, lễ/Tết 300%.
+  // OT ban đêm (NĐ 145/2020 Đ.57 k.3): 200% / 270% / 390% tương ứng.
+  // Hệ số lấy từ bảng công thức nên kế toán chỉnh được, không hardcode.
+  const extraOt = r(hourlyRate * (
+    formula.otRateWeekday * input.extraOtHours
+    + formula.otRateWeekend * (input.extraOtHoursWeekend ?? 0)
+    + formula.otRateHoliday * (input.extraOtHoursHoliday ?? 0)
+    + formula.otRateNightWeekday * (input.extraOtHoursNight ?? 0)
+    + formula.otRateNightWeekend * (input.extraOtHoursNightWeekend ?? 0)
+    + formula.otRateNightHoliday * (input.extraOtHoursNightHoliday ?? 0)
+  ));
   const bonusAmount = input.bonus ?? 0;
 
   const grossRef = r(input.baseSalary + input.lunchAllowance + input.transportAllowance
@@ -601,6 +627,11 @@ export async function createPayrollSheet(
     // Fallback: dùng stdDays (T2-T6 thực tế) thay vì formulaConfig.standardWorkDays cố định
     const workDays = attRec?.work_days ?? stdDays;
     const extraOtHours = attRec?.ot_hours ?? 0;
+    const extraOtHoursWeekend = attRec?.ot_hours_weekend ?? 0;
+    const extraOtHoursHoliday = attRec?.ot_hours_holiday ?? 0;
+    const extraOtHoursNight = attRec?.ot_hours_night ?? 0;
+    const extraOtHoursNightWeekend = attRec?.ot_hours_night_weekend ?? 0;
+    const extraOtHoursNightHoliday = attRec?.ot_hours_night_holiday ?? 0;
 
     // ── Probation ratio computation ─────────────────────────
     // Ưu tiên official_date (ngày lên chính thức). Fallback về probation_end + 1 nếu chưa có.
@@ -666,6 +697,11 @@ export async function createPayrollSheet(
       kpiAllowance: salaryMap.kpi_allowance || 0,
       defaultOt: salaryMap.default_ot || 0,
       extraOtHours,
+      extraOtHoursWeekend,
+      extraOtHoursHoliday,
+      extraOtHoursNight,
+      extraOtHoursNightWeekend,
+      extraOtHoursNightHoliday,
       dependentsCount: depCountMap[emp.id] || 0,
       isProbation,
       probationRatio,
@@ -690,6 +726,11 @@ export async function createPayrollSheet(
       kpi_allowance: input.kpiAllowance,
       default_ot: input.defaultOt,
       extra_ot_hours: input.extraOtHours,
+      extra_ot_hours_weekend: extraOtHoursWeekend,
+      extra_ot_hours_holiday: extraOtHoursHoliday,
+      extra_ot_hours_night: extraOtHoursNight,
+      extra_ot_hours_night_weekend: extraOtHoursNightWeekend,
+      extra_ot_hours_night_holiday: extraOtHoursNightHoliday,
       extra_ot: output.extraOt,
       dependents_count: input.dependentsCount,
       is_probation: isProbation,
@@ -740,6 +781,11 @@ export function recalculateRecord(
     kpiAllowance: rec.kpi_allowance,
     defaultOt: rec.default_ot,
     extraOtHours: rec.extra_ot_hours,
+    extraOtHoursWeekend: rec.extra_ot_hours_weekend ?? 0,
+    extraOtHoursHoliday: rec.extra_ot_hours_holiday ?? 0,
+    extraOtHoursNight: rec.extra_ot_hours_night ?? 0,
+    extraOtHoursNightWeekend: rec.extra_ot_hours_night_weekend ?? 0,
+    extraOtHoursNightHoliday: rec.extra_ot_hours_night_holiday ?? 0,
     dependentsCount: rec.dependents_count,
     isProbation: rec.is_probation ?? false,
     probationRatio: rec.probation_ratio ?? (rec.is_probation ? 1 : 0),

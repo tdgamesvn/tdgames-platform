@@ -13,6 +13,11 @@ interface Props {
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
 
+/** Tổng giờ OT phát sinh — gộp cả 3 loại ngày (thường / T7-CN / lễ). */
+const otTotalHours = (ps: PayPayrollRecord) =>
+  (ps.extra_ot_hours || 0) + (ps.extra_ot_hours_weekend || 0) + (ps.extra_ot_hours_holiday || 0)
+  + (ps.extra_ot_hours_night || 0) + (ps.extra_ot_hours_night_weekend || 0) + (ps.extra_ot_hours_night_holiday || 0);
+
 // Row/label/value dùng className (Tailwind, arbitrary values) để scale theo breakpoint
 // thay vì style cố định — to hơn & đọc được trên mọi kích thước màn hình.
 const rowCls = 'flex justify-between items-center py-1.5 sm:py-2 border-b border-white/5';
@@ -139,9 +144,9 @@ const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays, onViewAttenda
         ))}
 
         {/* Extra OT row */}
-        {(ps.extra_ot_hours || 0) > 0 && (
+        {otTotalHours(ps) > 0 && (
           <div className={rowCls}>
-            <span className={`${lblCls} text-[#FF9500]`}>Tăng ca phát sinh ({ps.extra_ot_hours}h)</span>
+            <span className={`${lblCls} text-[#FF9500]`}>Tăng ca phát sinh ({otTotalHours(ps)}h)</span>
             <div className={valWrapCls}>
               <span className={refValCls}>—</span>
               <span className={`${actValCls} text-[#FF9500]`}>{fmt(ps.extra_ot || 0)}</span>

@@ -14,6 +14,12 @@ export const FALLBACK_PAYROLL_FORMULA: PayrollFormulaConfig = {
   personalDeduction: 15_500_000,
   dependentDeduction: 6_200_000,
   otRateWeekday: 1.5,
+  otRateWeekend: 2.0,
+  otRateHoliday: 3.0,
+  // OT ban đêm (NĐ 145/2020 Đ.57 k.3) = hệ số OT + 30% + 20% × đơn giá ban ngày của loại ngày đó
+  otRateNightWeekday: 2.0,  // 150 + 30 + 20%×100
+  otRateNightWeekend: 2.7,  // 200 + 30 + 20%×200
+  otRateNightHoliday: 3.9,  // 300 + 30 + 20%×300
   probationPitRate: 0.1,
   taxBrackets: [
     { limit: 10_000_000, rate: 0.05, deduction: 0 },
@@ -58,6 +64,13 @@ export function settingsRowToConfig(row: PayPayrollFormulaSettings): PayrollForm
     personalDeduction: Number(row.personal_deduction),
     dependentDeduction: Number(row.dependent_deduction),
     otRateWeekday: Number(row.ot_rate_weekday),
+    // Bảng công thức cũ (trước migration OT theo loại ngày) không có 2 cột này → fallback luật định.
+    otRateWeekend: Number(row.ot_rate_weekend ?? FALLBACK_PAYROLL_FORMULA.otRateWeekend),
+    otRateHoliday: Number(row.ot_rate_holiday ?? FALLBACK_PAYROLL_FORMULA.otRateHoliday),
+    // Bảng công thức cũ (trước migration OT ban đêm) không có 3 cột này → fallback luật định.
+    otRateNightWeekday: Number(row.ot_rate_night_weekday ?? FALLBACK_PAYROLL_FORMULA.otRateNightWeekday),
+    otRateNightWeekend: Number(row.ot_rate_night_weekend ?? FALLBACK_PAYROLL_FORMULA.otRateNightWeekend),
+    otRateNightHoliday: Number(row.ot_rate_night_holiday ?? FALLBACK_PAYROLL_FORMULA.otRateNightHoliday),
     probationPitRate: Number(row.probation_pit_rate),
     taxBrackets: parseTaxBrackets(row.tax_brackets),
   };
@@ -117,6 +130,11 @@ export type PayrollFormulaUpsert = {
   personal_deduction: number;
   dependent_deduction: number;
   ot_rate_weekday: number;
+  ot_rate_weekend: number;
+  ot_rate_holiday: number;
+  ot_rate_night_weekday: number;
+  ot_rate_night_weekend: number;
+  ot_rate_night_holiday: number;
   probation_pit_rate: number;
   tax_brackets: PayrollTaxBracketRow[];
   notes?: string;

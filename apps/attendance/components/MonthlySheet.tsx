@@ -111,11 +111,22 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     }
   };
 
+  // OT tách theo loại ngày + ca ngày/đêm để payroll áp đúng hệ số.
+  // Ngày 150/200/300% (BLLĐ 2019 Đ.98) · Đêm 200/270/390% (NĐ 145/2020 Đ.57)
+  const OT_FIELDS = [
+    { key: 'ot_hours', cls: 'text-purple-400' },
+    { key: 'ot_hours_weekend', cls: 'text-purple-300' },
+    { key: 'ot_hours_holiday', cls: 'text-pink-400' },
+    { key: 'ot_hours_night', cls: 'text-indigo-400' },
+    { key: 'ot_hours_night_weekend', cls: 'text-indigo-300' },
+    { key: 'ot_hours_night_holiday', cls: 'text-sky-400' },
+  ] as const;
+
   const cardCls = 'rounded-[20px] border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl';
   const inputCls = 'w-full px-3 py-2 rounded-lg bg-black/30 border border-primary/10 text-white text-sm text-center focus:border-orange-400/50 outline-none transition-colors';
 
   const totalWorkDays = records.reduce((s, r) => s + (r.work_days || 0), 0);
-  const totalOT = records.reduce((s, r) => s + (r.ot_hours || 0), 0);
+  const totalOT = records.reduce((s, r) => s + OT_FIELDS.reduce((a, f) => a + ((r as any)[f.key] || 0), 0), 0);
   const totalAbsent = records.reduce((s, r) => s + (r.absent_days || 0), 0);
   const isLocked = selectedSheet?.status === 'finalized';
 
@@ -256,7 +267,12 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                     <th className="text-left py-3 px-3">Mã NV</th>
                     <th className="text-left py-3 px-3">Họ tên</th>
                     <th className="text-center py-3 px-3 w-32 bg-green-500/5">Ngày công</th>
-                    <th className="text-center py-3 px-3 w-28 bg-purple-500/5">OT (giờ)</th>
+                    <th className="text-center py-3 px-3 w-24 bg-purple-500/5" title="Tăng ca ngày thường T2-T6 — 150%">OT thường</th>
+                    <th className="text-center py-3 px-3 w-24 bg-purple-500/5" title="Tăng ca ngày nghỉ hằng tuần T7/CN — 200%">OT T7/CN</th>
+                    <th className="text-center py-3 px-3 w-24 bg-purple-500/5" title="Tăng ca ngày lễ/Tết — 300%">OT lễ/Tết</th>
+                    <th className="text-center py-3 px-3 w-24 bg-indigo-500/5" title="Tăng ca ban đêm 22h-6h ngày thường — 200%">OT đêm</th>
+                    <th className="text-center py-3 px-3 w-24 bg-indigo-500/5" title="Tăng ca ban đêm T7/CN — 270%">OT đêm T7/CN</th>
+                    <th className="text-center py-3 px-3 w-24 bg-indigo-500/5" title="Tăng ca ban đêm lễ/Tết — 390%">OT đêm lễ/Tết</th>
                     <th className="text-center py-3 px-3 w-24 bg-orange-500/5">Đi muộn</th>
                     <th className="text-center py-3 px-3 w-28 bg-red-500/5">Ngày nghỉ</th>
                     <th className="text-left py-3 px-3">Ghi chú</th>
@@ -283,21 +299,23 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                           placeholder="0.00"
                         />
                       </td>
-                      <td className="py-2 px-3 bg-purple-500/[0.02]">
-                        <input
-                          type="number"
-                          step="0.5"
-                          disabled={isLocked}
-                          value={r.ot_hours || ''}
-                          onChange={e => {
-                            const v = parseFloat(e.target.value) || 0;
-                            setRecords(prev => prev.map(x => x.id === r.id ? { ...x, ot_hours: v } : x));
-                          }}
-                          onBlur={e => handleUpdateField(r.id, 'ot_hours', parseFloat(e.target.value) || 0)}
-                          className={inputCls + ' text-purple-400 disabled:opacity-50'}
-                          placeholder="0"
-                        />
-                      </td>
+                      {OT_FIELDS.map(f => (
+                        <td key={f.key} className="py-2 px-3 bg-purple-500/[0.02]">
+                          <input
+                            type="number"
+                            step="0.5"
+                            disabled={isLocked}
+                            value={(r as any)[f.key] || ''}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              setRecords(prev => prev.map(x => x.id === r.id ? { ...x, [f.key]: v } : x));
+                            }}
+                            onBlur={e => handleUpdateField(r.id, f.key, parseFloat(e.target.value) || 0)}
+                            className={inputCls + ` ${f.cls} disabled:opacity-50`}
+                            placeholder="0"
+                          />
+                        </td>
+                      ))}
                       <td className="py-2 px-3 bg-orange-500/[0.02]">
                         <input
                           type="number"
@@ -348,7 +366,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                   <tr className="border-t-2 border-white/[0.1] font-black text-white">
                     <td colSpan={3} className="py-3 px-3 text-right uppercase text-xs tracking-wider text-neutral-medium">TỔNG CỘNG</td>
                     <td className="py-3 px-3 text-center text-green-400 text-lg">{totalWorkDays.toFixed(2)}</td>
-                    <td className="py-3 px-3 text-center text-purple-400 text-lg">{totalOT.toFixed(1)}</td>
+                    <td colSpan={OT_FIELDS.length} className="py-3 px-3 text-center text-purple-400 text-lg">{totalOT.toFixed(1)}</td>
                     <td className="py-3 px-3 text-center text-orange-400 text-lg">{records.reduce((s, r) => s + (r.late_count || 0), 0)}</td>
                     <td className="py-3 px-3 text-center text-red-400 text-lg">{totalAbsent.toFixed(2)}</td>
                     <td></td>

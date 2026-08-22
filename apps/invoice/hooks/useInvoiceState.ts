@@ -12,6 +12,7 @@ import {
   updateInvoiceInCloud,
   canEditInvoice,
   fetchInvoicesFromCloud,
+  fetchSimilarInvoices,
   updateInvoiceStatusInCloud,
   updateEInvoiceInCloud,
   deleteInvoiceFromCloud,
@@ -335,7 +336,29 @@ export function useInvoiceState(initialTab?: string | null) {
    * Guard `canEditInvoice` chặn ghi đè lên hoá đơn đã paid/đã xuất eInvoice
    * (dùng Duplicate để tạo bản mới trong trường hợp đó).
    */
-  const persistInvoice = async (data: InvoiceData): Promise<{ id: string; wasUpdate: boolean }> => {
+  /** Hoá đơn nghi trùng: cùng khách + pháp nhân + loại tiền + tổng tiền, ngày phát hành lệch ≤ 31 ngày. */
+  const findDuplicateInvoices = async (data: InvoiceData): Promise<InvoiceData[]> => {
+    const total = calcInvoiceTotal(data);
+    const issued = new Date(data.issueDate || Date.now()).getTime();
+    const similar = await fetchSimilarInvoices(data);
+    return similar.filter(inv =>
+      Math.abs(calcInvoiceTotal(inv) - total) < 0.01 &&
+      Math.abs(new Date(inv.issueDate || 0).getTime() - issued) <= 31 * 864e5);
+  };
+
+  const persistInvoice = async (data: InvoiceData): Promise<{ id: string; wasUpdate: boolean } | null> => {
+    if (!data.id) {
+      // ponytail: window.confirm — cảnh báo mềm, vẫn cho lưu đè nếu sếp xác nhận là cố ý.
+      // Lỗi query (mạng/RLS) không được chặn việc lưu → nuốt lỗi, bỏ qua kiểm tra.
+      const dupes = await findDuplicateInvoices(data).catch(() => []);
+      if (dupes.length) {
+        const list = dupes.map(d => `• ${d.invoiceNumber} — ${d.issueDate} — ${d.status}`).join('\n');
+        const ok = window.confirm(
+          `⚠️ Có ${dupes.length} hoá đơn giống hệt (cùng khách, cùng số tiền, trong vòng 31 ngày):\n\n${list}\n\nVẫn tạo hoá đơn mới?`
+        );
+        if (!ok) return null;
+      }
+    }
     if (data.id) {
       if (!canEditInvoice(data)) {
         throw new Error('Hoá đơn này đã thanh toán hoặc đã xuất eInvoice, không thể ghi đè. Hãy dùng chức năng Duplicate để tạo bản mới.');
@@ -350,7 +373,9 @@ export function useInvoiceState(initialTab?: string | null) {
   const handleSaveToCloud = async () => {
     setIsLoading(true);
     try {
-      const { id, wasUpdate } = await persistInvoice(invoice);
+      const saved = await persistInvoice(invoice);
+      if (!saved) { notify('Đã huỷ lưu hoá đơn trùng.', 'warning'); return; }
+      const { id, wasUpdate } = saved;
       if (!wasUpdate) setInvoice(prev => ({ ...prev, id }));
       notify(wasUpdate ? "Invoice updated!" : "Invoice synced to Cloud!", "success");
       if (activeTab === 'history') loadHistory();
@@ -469,7 +494,9 @@ export function useInvoiceState(initialTab?: string | null) {
   const handleConfirmSave = async () => {
     if (!pendingInvoiceToSave) return;
     try {
-      const { id, wasUpdate } = await persistInvoice(pendingInvoiceToSave);
+      const saved = await persistInvoice(pendingInvoiceToSave);
+      if (!saved) { notify('Đã huỷ lưu hoá đơn trùng.', 'warning'); return; }
+      const { id, wasUpdate } = saved;
       notify(wasUpdate ? 'Đã cập nhật hoá đơn!' : 'Đã lưu hoá đơn lên Cloud!', 'success');
       const savedInvoice = { ...pendingInvoiceToSave, id };
       setInvoice(prev => ({ ...prev, id }));

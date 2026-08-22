@@ -30,6 +30,11 @@ function emptyForm(): {
   personal_deduction: number;
   dependent_deduction: number;
   ot_rate_weekday: number;
+  ot_rate_weekend: number;
+  ot_rate_holiday: number;
+  ot_rate_night_weekday: number;
+  ot_rate_night_weekend: number;
+  ot_rate_night_holiday: number;
   probation_pit_rate: number;
   tax_brackets: PayrollTaxBracketRow[];
   notes: string;
@@ -47,6 +52,11 @@ function emptyForm(): {
     personal_deduction: FALLBACK_PAYROLL_FORMULA.personalDeduction,
     dependent_deduction: FALLBACK_PAYROLL_FORMULA.dependentDeduction,
     ot_rate_weekday: FALLBACK_PAYROLL_FORMULA.otRateWeekday,
+    ot_rate_weekend: FALLBACK_PAYROLL_FORMULA.otRateWeekend,
+    ot_rate_holiday: FALLBACK_PAYROLL_FORMULA.otRateHoliday,
+    ot_rate_night_weekday: FALLBACK_PAYROLL_FORMULA.otRateNightWeekday,
+    ot_rate_night_weekend: FALLBACK_PAYROLL_FORMULA.otRateNightWeekend,
+    ot_rate_night_holiday: FALLBACK_PAYROLL_FORMULA.otRateNightHoliday,
     probation_pit_rate: FALLBACK_PAYROLL_FORMULA.probationPitRate,
     tax_brackets: defaultBrackets(),
     notes: '',
@@ -102,6 +112,11 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
       personal_deduction: Number(row.personal_deduction),
       dependent_deduction: Number(row.dependent_deduction),
       ot_rate_weekday: Number(row.ot_rate_weekday),
+      ot_rate_weekend: Number(row.ot_rate_weekend ?? FALLBACK_PAYROLL_FORMULA.otRateWeekend),
+      ot_rate_holiday: Number(row.ot_rate_holiday ?? FALLBACK_PAYROLL_FORMULA.otRateHoliday),
+      ot_rate_night_weekday: Number(row.ot_rate_night_weekday ?? FALLBACK_PAYROLL_FORMULA.otRateNightWeekday),
+      ot_rate_night_weekend: Number(row.ot_rate_night_weekend ?? FALLBACK_PAYROLL_FORMULA.otRateNightWeekend),
+      ot_rate_night_holiday: Number(row.ot_rate_night_holiday ?? FALLBACK_PAYROLL_FORMULA.otRateNightHoliday),
       probation_pit_rate: Number(row.probation_pit_rate),
       tax_brackets: tb.length ? tb : defaultBrackets(),
       notes: row.notes || '',
@@ -197,6 +212,16 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
           <div className="grid grid-cols-2 gap-3">
             <Num label="Hệ số tăng ca ngày thường (VD 1.5)" value={form.ot_rate_weekday} onChange={v => setForm(f => ({ ...f, ot_rate_weekday: v }))} step="0.1" />
             <Num label="Thuế TNCN thử việc (tỷ lệ)" value={form.probation_pit_rate} onChange={v => setForm(f => ({ ...f, probation_pit_rate: v }))} step="0.01" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Num label="Hệ số tăng ca T7/CN (luật ≥ 2.0)" value={form.ot_rate_weekend} onChange={v => setForm(f => ({ ...f, ot_rate_weekend: v }))} step="0.1" />
+            <Num label="Hệ số tăng ca lễ/Tết (luật ≥ 3.0)" value={form.ot_rate_holiday} onChange={v => setForm(f => ({ ...f, ot_rate_holiday: v }))} step="0.1" />
+          </div>
+          {/* OT ban đêm (22h-6h) — NĐ 145/2020 Đ.57 k.3: hệ số OT + 30% + 20% × đơn giá ban ngày của loại ngày đó */}
+          <div className="grid grid-cols-3 gap-3">
+            <Num label="OT đêm ngày thường (luật ≥ 2.0)" value={form.ot_rate_night_weekday} onChange={v => setForm(f => ({ ...f, ot_rate_night_weekday: v }))} step="0.1" />
+            <Num label="OT đêm T7/CN (luật ≥ 2.7)" value={form.ot_rate_night_weekend} onChange={v => setForm(f => ({ ...f, ot_rate_night_weekend: v }))} step="0.1" />
+            <Num label="OT đêm lễ/Tết (luật ≥ 3.9)" value={form.ot_rate_night_holiday} onChange={v => setForm(f => ({ ...f, ot_rate_night_holiday: v }))} step="0.1" />
           </div>
 
           <div>

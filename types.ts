@@ -1029,7 +1029,18 @@ export interface AttMonthlyRecord {
   sheet_id: string;
   employee_id: string;
   work_days: number;         // decimal e.g. 12.56
+  /** OT ngày thường (T2-T6) — hệ số ot_rate_weekday (150%) */
   ot_hours: number;
+  /** OT ngày nghỉ hằng tuần (T7/CN) — hệ số ot_rate_weekend (200%) */
+  ot_hours_weekend?: number;
+  /** OT ngày lễ/Tết — hệ số ot_rate_holiday (300%) */
+  ot_hours_holiday?: number;
+  /** OT ban đêm (22h-6h) ngày thường — hệ số ot_rate_night_weekday (200%) */
+  ot_hours_night?: number;
+  /** OT ban đêm T7/CN — hệ số ot_rate_night_weekend (270%) */
+  ot_hours_night_weekend?: number;
+  /** OT ban đêm lễ/Tết — hệ số ot_rate_night_holiday (390%) */
+  ot_hours_night_holiday?: number;
   late_count: number;
   absent_days: number;
   note: string;
@@ -1061,6 +1072,16 @@ export interface PayPayrollFormulaSettings {
   personal_deduction: number;
   dependent_deduction: number;
   ot_rate_weekday: number;
+  /** Hệ số OT ngày nghỉ hằng tuần (T7/CN) — BLLĐ 2019 Đ.98: ≥ 2.0 */
+  ot_rate_weekend?: number;
+  /** Hệ số OT ngày lễ/Tết — BLLĐ 2019 Đ.98: ≥ 3.0 */
+  ot_rate_holiday?: number;
+  /** Hệ số OT ban đêm ngày thường — NĐ 145/2020 Đ.57: ≥ 2.0 */
+  ot_rate_night_weekday?: number;
+  /** Hệ số OT ban đêm T7/CN — NĐ 145/2020 Đ.57: ≥ 2.7 */
+  ot_rate_night_weekend?: number;
+  /** Hệ số OT ban đêm lễ/Tết — NĐ 145/2020 Đ.57: ≥ 3.9 */
+  ot_rate_night_holiday?: number;
   probation_pit_rate: number;
   tax_brackets: PayrollTaxBracketRow[];
   notes: string | null;
@@ -1077,6 +1098,11 @@ export interface PayrollFormulaConfig {
   personalDeduction: number;
   dependentDeduction: number;
   otRateWeekday: number;
+  otRateWeekend: number;
+  otRateHoliday: number;
+  otRateNightWeekday: number;
+  otRateNightWeekend: number;
+  otRateNightHoliday: number;
   probationPitRate: number;
   taxBrackets: { limit: number; rate: number; deduction: number }[];
 }
@@ -1111,7 +1137,19 @@ export interface PayPayrollRecord {
   clothing_allowance: number;
   kpi_allowance: number;
   default_ot: number;
+  /** Giờ OT ngày thường (T2-T6) — 150% */
   extra_ot_hours: number;
+  /** Giờ OT ngày nghỉ tuần (T7/CN) — 200% */
+  extra_ot_hours_weekend?: number;
+  /** Giờ OT ngày lễ/Tết — 300% */
+  extra_ot_hours_holiday?: number;
+  /** Giờ OT ban đêm (22h-6h) ngày thường — 200% */
+  extra_ot_hours_night?: number;
+  /** Giờ OT ban đêm T7/CN — 270% */
+  extra_ot_hours_night_weekend?: number;
+  /** Giờ OT ban đêm lễ/Tết — 390% */
+  extra_ot_hours_night_holiday?: number;
+  /** Tổng tiền OT phát sinh (cả 6 loại: 3 ngày × ngày/đêm) */
   extra_ot: number;
   dependents_count: number;
   is_probation: boolean;
