@@ -21,3 +21,40 @@ self.addEventListener('activate', (event) => {
 // Chrome yêu cầu phải có fetch handler thì mới hiện lời mời cài đặt.
 // Không gọi respondWith() => trình duyệt xử lý như bình thường.
 self.addEventListener('fetch', () => {});
+
+// ─── Web Push ────────────────────────────────────────────────────────────────
+// Payload do Edge Function notify-push gửi: { title, body, link, tag }.
+self.addEventListener('push', (event) => {
+  let d = {};
+  try {
+    d = event.data ? event.data.json() : {};
+  } catch (e) {
+    d = { title: 'TD Games', body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(d.title || 'TD Games', {
+      body: d.body || '',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: d.tag, // trùng tag => thay thế, không dồn đống cùng 1 thông báo
+      data: { link: d.link || '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      // Đang mở app rồi thì điều hướng tab cũ, đừng mở thêm cửa sổ.
+      for (const c of list) {
+        if ('focus' in c) {
+          if ('navigate' in c) c.navigate(link).catch(() => {});
+          return c.focus();
+        }
+      }
+      return clients.openWindow(link);
+    })
+  );
+});

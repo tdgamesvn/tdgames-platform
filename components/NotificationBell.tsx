@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
-import { AppNotification } from '@/services/notificationService';
+import { AppNotification, enablePush, pushPermission } from '@/services/notificationService';
 
 const TYPE_ICONS: Record<string, string> = {
   leave_approved:  '✅',
@@ -32,8 +32,18 @@ interface NotificationBellProps {
 export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, theme }) => {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications(userId);
   const [open, setOpen] = useState(false);
+  const [pushPerm, setPushPerm] = useState(pushPermission());
   const panelRef = useRef<HTMLDivElement>(null);
   const dark = theme === 'dark';
+
+  const handleEnablePush = async () => {
+    try {
+      setPushPerm(await enablePush(userId));
+    } catch (e) {
+      console.error('Bật thông báo đẩy thất bại:', e);
+      alert('Không bật được thông báo đẩy trên thiết bị này.');
+    }
+  };
 
   // Close on outside click
   useEffect(() => {
@@ -134,6 +144,19 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, them
                 <span style={{ color: '#FF9500', marginLeft: '4px' }}>({unreadCount} mới)</span>
               )}
             </span>
+            {pushPerm === 'default' && (
+              <button
+                onClick={handleEnablePush}
+                title="Nhận thông báo ngay cả khi không mở app"
+                style={{
+                  fontSize: '11px', fontWeight: 700, color: '#FF9500',
+                  background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px',
+                  borderRadius: '8px', marginLeft: 'auto',
+                }}
+              >
+                🔔 Bật đẩy
+              </button>
+            )}
             {unreadCount > 0 && (
               <button
                 onClick={() => markAllRead()}
