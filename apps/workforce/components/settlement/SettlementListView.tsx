@@ -40,7 +40,7 @@ const SettlementListView: React.FC<SettlementListViewProps> = ({
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:gap-0 md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Nghiệm Thu</h2>
           <p className="text-neutral-medium text-sm mt-1">Tổng hợp & thanh toán theo tháng</p>

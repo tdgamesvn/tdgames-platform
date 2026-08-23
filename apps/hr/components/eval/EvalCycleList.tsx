@@ -75,7 +75,7 @@ const EvalCycleList: React.FC<EvalCycleListProps> = ({ employees, currentUser, o
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:gap-0 md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
             Đánh giá

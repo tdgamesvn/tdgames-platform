@@ -47,7 +47,7 @@ const ExpenseCategoryManager: React.FC<Props> = ({ categories, onSave, onUpdate,
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:gap-0 md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Categories</h2>
           <p className="text-neutral-medium text-sm mt-2">Quản lý danh mục chi phí</p>

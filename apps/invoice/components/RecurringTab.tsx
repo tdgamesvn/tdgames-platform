@@ -100,7 +100,7 @@ export const RecurringTab: React.FC<RecurringTabProps> = ({
 
   return (
     <div className="animate-fadeInUp space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:gap-0 md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">🔄 Recurring</h2>
           <p className={`text-sm mt-2 ${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>Hoá đơn định kỳ tự động</p>
