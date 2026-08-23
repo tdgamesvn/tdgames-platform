@@ -35,7 +35,9 @@ const parseSecondaryRoles = (raw: unknown): string[] | undefined => {
   const valid = raw.filter(r => typeof r === 'string' && VALID_ROLES.includes(r as any));
   return valid.length > 0 ? valid : undefined;
 };
-const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'ai-agent', 'system-monitor', 'handbook', 'tax-portal'];
+// ponytail: 'ai-agent' tạm gỡ khỏi VALID_APPS — ẩn thẻ ở HomeScreen thôi chưa đủ,
+// gõ thẳng #ai-agent vào URL vẫn vào được. Thêm lại chuỗi này là bật lại route.
+const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'system-monitor', 'handbook', 'tax-portal'];
 
 /** Parse hash like #workforce/tasks or #hr/requests/uuid → { app, tab, param } */
 const parseHash = (): { app: string | null; tab: string | null; param: string | null } => {

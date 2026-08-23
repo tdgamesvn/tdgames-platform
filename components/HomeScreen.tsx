@@ -26,9 +26,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
   }, []);
 
   useEffect(() => {
-    if (hasRole(currentUser, 'admin')) {
-      fetchTotalNewInsights().then(setAgentBadge);
-    }
+    // ponytail: AI Agent tạm ngưng (2026-08) → khỏi query insight cho badge không còn hiện.
+    // Bật lại cùng lúc với entry 'ai-agent' trong config/apps.ts.
+    // if (hasRole(currentUser, 'admin')) {
+    //   fetchTotalNewInsights().then(setAgentBadge);
+    // }
   }, [currentUser.role, currentUser.secondary_roles]);
 
   const myApps = getMyApps(currentUser);

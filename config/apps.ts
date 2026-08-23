@@ -121,15 +121,18 @@ export const APPS: AppConfig[] = [
     gradient: 'linear-gradient(135deg, #64748B 0%, #475569 100%)',
     roles: ['admin', 'ke_toan', 'hr'],
   },
-  {
-    id: 'ai-agent',
-    name: 'AI Agent',
-    icon: '🤖',
-    description: 'Hệ thống AI Agent cho TDGames',
-    color: '#8B5CF6',
-    gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
-    roles: ['admin'],
-  },
+  // ponytail: 2026-08 tạm ngưng dùng AI Agent. 4 cron agent-*-morning trong DB vốn đã
+  // active=false, nên chỉ cần ẩn lối vào. Bỏ comment 3 dòng dưới là bật lại — KHÔNG xoá
+  // code/bảng ai_* vì "tạm thời". Gateway 9router đang down cũng là lý do.
+  // {
+  //   id: 'ai-agent',
+  //   name: 'AI Agent',
+  //   icon: '🤖',
+  //   description: 'Hệ thống AI Agent cho TDGames',
+  //   color: '#8B5CF6',
+  //   gradient: 'linear-gradient(135deg, #8B5CF6 0%, #A855F7 100%)',
+  //   roles: ['admin'],
+  // },
   {
     id: 'system-monitor',
     name: 'System Monitor',
