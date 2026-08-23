@@ -27,7 +27,6 @@ const SERVICE_ICONS: Record<string, string> = {
   'cliproxy.tdgamestudio.com': '🔗',
   'gog.tdgamestudio.com': '🎮',
   'openclaw.tdgamestudio.com': '🦅',
-  'zalo.tdconsulting.vn': '💬',
 };
 
 function timeAgo(iso: string): string {

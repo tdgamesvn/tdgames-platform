@@ -435,7 +435,6 @@ async function executeTool(
           { name: 'cliproxy.tdgamestudio.com', url: 'https://cliproxy.tdgamestudio.com' },
           { name: 'gog.tdgamestudio.com',      url: 'https://gog.tdgamestudio.com' },
           { name: 'openclaw.tdgamestudio.com', url: 'https://openclaw.tdgamestudio.com' },
-          { name: 'zalo.tdconsulting.vn',      url: 'https://zalo.tdconsulting.vn' },
         ];
 
         const targets = args.services?.length

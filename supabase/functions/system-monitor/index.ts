@@ -13,7 +13,6 @@ const HTTP_SERVICES = [
   { name: 'cliproxy.tdgamestudio.com', url: 'https://cliproxy.tdgamestudio.com', critical: false },
   { name: 'gog.tdgamestudio.com',      url: 'https://gog.tdgamestudio.com',      critical: false },
   { name: 'openclaw.tdgamestudio.com', url: 'https://openclaw.tdgamestudio.com', critical: false },
-  { name: 'zalo.tdconsulting.vn',      url: 'https://zalo.tdconsulting.vn',      critical: false },
 ];
 
 interface CheckResult {
