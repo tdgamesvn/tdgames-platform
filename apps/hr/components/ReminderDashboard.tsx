@@ -45,7 +45,7 @@ const ReminderDashboard: React.FC<Props> = ({ reminders, onGenerate, onDismiss }
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>Nhắc việc</h2>
           <p className="text-neutral-medium text-sm mt-1">Cảnh báo & nhắc nhở tự động</p>

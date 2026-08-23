@@ -75,7 +75,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
         <div>
           <h2 className="text-3xl font-black uppercase tracking-tighter" style={{ color: '#E5A023' }}>
             Tổng Quan Tài Chính

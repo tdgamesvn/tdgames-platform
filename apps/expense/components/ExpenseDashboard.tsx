@@ -129,7 +129,7 @@ const ExpenseDashboard: React.FC<Props> = ({ expenses, categories, isLoading, on
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Page Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Financial Hub</h2>
           <p className="text-neutral-medium text-sm mt-2">Tổng quan tài chính • {months[months.length - 1].label}</p>

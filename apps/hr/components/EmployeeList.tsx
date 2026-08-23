@@ -60,14 +60,15 @@ const EmployeeList: React.FC<Props> = ({
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF375F' }}>
             Nhân sự
           </h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý hồ sơ nhân sự toàn diện</p>
         </div>
-        <div className="flex items-center gap-3">
+        {/* ponytail: wrap để 4 nút không tràn mép trên điện thoại; md+ vẫn 1 hàng như cũ */}
+        <div className="flex flex-wrap items-center gap-2 md:gap-3">
           {pendingReminders > 0 && (
             <span className="px-3 py-1.5 rounded-full bg-red-500/20 text-red-400 text-xs font-bold animate-pulse">
               🔔 {pendingReminders} nhắc việc

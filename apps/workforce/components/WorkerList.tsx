@@ -31,7 +31,7 @@ const WorkerList: React.FC<WorkerListProps> = ({
   return (
     <div className="animate-fadeInUp space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Nhân Sự</h2>
           <p className="text-neutral-medium text-sm mt-1">Quản lý freelancer & inhouse</p>

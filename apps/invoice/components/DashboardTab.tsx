@@ -71,7 +71,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   return (
     <div className="animate-fadeInUp space-y-10">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-end">
         <div>
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">📊 Dashboard</h2>
           <p className={`text-sm mt-2 ${theme === 'dark' ? 'text-neutral-medium' : 'text-gray-500'}`}>Revenue & receivables overview</p>
