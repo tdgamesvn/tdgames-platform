@@ -6,6 +6,7 @@ import { AccountUser, AttRecord, AttRequest, HrChangeRequest } from '@/types';
 import CheckinWidget from '@/apps/portal/components/CheckinWidget';
 import { ToastNotification } from '@/components/ToastNotification';
 import MemberTabBar, { MEMBER_TABBAR_PAD } from '@/components/MemberTabBar';
+import { NotificationBell } from '@/components/NotificationBell';
 import { getMyApps } from '@/config/apps';
 import { fetchMyRecordsByRange } from '@/apps/attendance/services/attendanceService';
 import { fetchYearlyBalance, getAvailableLeaveDays, fetchMyLeaveRequests } from '@/apps/portal/services/leaveService';
@@ -79,7 +80,9 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
               <p className="text-neutral-600 text-[11px] font-black uppercase tracking-wider mt-1">{profile.position}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {/* ponytail: dùng lại chuông của Navbar (member không thấy Navbar trên mobile). */}
+            <NotificationBell userId={currentUser.id} theme="dark" />
             <button
               onClick={() => go('portal/edit')}
               title="Hồ sơ của tôi"
@@ -101,15 +104,15 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
 
         {/* ── KPI ── */}
         <div className="grid grid-cols-3 gap-2.5 mt-5">
-          <button onClick={() => go('portal/tasks')} className="bg-surface border border-white/[.08] rounded-2xl p-3.5 text-left">
+          <button onClick={() => go('portal/tasks')} className="bg-surface border border-white/[.08] rounded-2xl p-3.5 text-left active:scale-[.97] active:bg-white/[.04] transition-all">
             <p className="text-neutral-600 text-[9px] font-black uppercase tracking-wider">Công tháng</p>
             <p className="text-white text-[22px] font-black mt-1.5 leading-none">{workDays}</p>
           </button>
-          <button onClick={() => go('portal/recurring')} className="bg-surface border border-white/[.08] rounded-2xl p-3.5 text-left">
+          <button onClick={() => go('portal/recurring')} className="bg-surface border border-white/[.08] rounded-2xl p-3.5 text-left active:scale-[.97] active:bg-white/[.04] transition-all">
             <p className="text-neutral-600 text-[9px] font-black uppercase tracking-wider">Phép còn</p>
             <p className="text-[#4CAF50] text-[22px] font-black mt-1.5 leading-none">{leaveLeft ?? '—'}</p>
           </button>
-          <button onClick={() => go('portal/tasks')} className="bg-surface border border-white/[.08] rounded-2xl p-3.5 text-left">
+          <button onClick={() => go('portal/tasks')} className="bg-surface border border-white/[.08] rounded-2xl p-3.5 text-left active:scale-[.97] active:bg-white/[.04] transition-all">
             <p className="text-neutral-600 text-[9px] font-black uppercase tracking-wider">Đi muộn</p>
             <p className={`text-[22px] font-black mt-1.5 leading-none ${lateDays ? 'text-[#FFA726]' : 'text-white'}`}>{lateDays}</p>
           </button>
@@ -124,9 +127,18 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
             { icon: '💵', label: 'Phiếu lương', to: 'portal/activity' },
             { icon: '👥', label: 'Danh bạ',     to: 'handbook/activity' },
           ].map(a => (
-            <button key={a.label} onClick={() => go(a.to)} className="flex flex-col items-center gap-2">
-              <div className="w-full aspect-square rounded-2xl bg-surface border border-white/[.08] flex items-center justify-center text-[22px]">{a.icon}</div>
-              <span className="text-neutral-400 text-[10px] font-bold text-center leading-tight">{a.label}</span>
+            // active:scale — feedback khi chạm (mobile), không phải hover:scale mà STYLE_GUIDE cấm.
+            <button key={a.label} onClick={() => go(a.to)} className="flex flex-col items-center gap-2 active:scale-[.93] transition-transform">
+              <div
+                className="w-full aspect-square rounded-2xl border border-white/[.14] flex items-center justify-center text-[22px]"
+                style={{
+                  background: 'linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.03))',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.10), 0 2px 8px rgba(0,0,0,.35)',
+                }}
+              >
+                {a.icon}
+              </div>
+              <span className="text-neutral-300 text-[10px] font-bold text-center leading-tight">{a.label}</span>
             </button>
           ))}
         </div>
@@ -168,10 +180,17 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
         <p className="mt-7 mb-3 text-neutral-600 text-[10px] font-black uppercase tracking-widest">Ứng dụng</p>
         <div className="grid grid-cols-2 gap-2.5">
           {getMyApps(currentUser).map(app => (
-            <button key={app.id} onClick={() => go(app.id)} className="bg-surface border border-white/[.08] rounded-2xl p-4 text-left">
-              <span className="text-[22px]">{app.icon}</span>
-              <p className="text-white text-[13px] font-black mt-2">{app.name}</p>
-              <p className="text-neutral-600 text-[11px] font-semibold">{app.description}</p>
+            <button
+              key={app.id}
+              onClick={() => go(app.id)}
+              className="relative bg-surface border border-white/[.14] rounded-2xl p-4 text-left active:scale-[.97] active:border-primary/40 transition-all"
+              style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.35)' }}
+            >
+              {/* chevron: tín hiệu "mở được", rẻ hơn mọi animation */}
+              <span className="absolute top-3.5 right-3.5 text-primary/70 text-[15px] font-black leading-none">›</span>
+              <span className="w-9 h-9 rounded-xl flex items-center justify-center text-[18px] bg-primary/10 border border-primary/20">{app.icon}</span>
+              <p className="text-white text-[13px] font-black mt-2.5">{app.name}</p>
+              <p className="text-neutral-500 text-[11px] font-semibold">{app.description}</p>
             </button>
           ))}
         </div>

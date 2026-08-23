@@ -63,7 +63,8 @@ Deno.serve(async (req: Request) => {
 
     const message = JSON.stringify({
       title: record.title,
-      body:  record.body || '',
+      // OS push hiện text thuần — body dùng chung với email nên có <strong>, phải gỡ tag.
+      body:  (record.body || '').replace(/<[^>]*>/g, ''),
       link,
       tag:   record.id,
     });

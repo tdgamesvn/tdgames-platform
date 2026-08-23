@@ -24,6 +24,10 @@ function timeAgo(iso: string): string {
   return `${d} ngày trước`;
 }
 
+// `notifications.body` chứa <strong> vì notify-email dùng chung field này để in đậm nhãn.
+// Chỗ nào hiện text thuần thì phải gỡ tag — cùng regex notify-email đang dùng cho bản text.
+const stripTags = (s: string) => s.replace(/<[^>]*>/g, '');
+
 interface NotificationBellProps {
   userId: string;
   theme: string;
@@ -120,7 +124,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, them
           position: 'absolute',
           top: 'calc(100% + 8px)',
           right: 0,
-          width: '360px',
+          // min(): màn hẹp (iPhone SE) panel neo phải sẽ tràn mép trái nếu cứng 360px.
+          width: 'min(360px, calc(100vw - 24px))',
           maxHeight: '480px',
           borderRadius: '16px',
           border: `1px solid ${dark ? '#2a2a2a' : '#e5e7eb'}`,
@@ -243,7 +248,7 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId, them
                         display: '-webkit-box', WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical' as any,
                       }}>
-                        {n.body}
+                        {stripTags(n.body)}
                       </p>
                     )}
                     <p style={{
