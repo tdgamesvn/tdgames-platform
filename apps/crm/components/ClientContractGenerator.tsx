@@ -230,7 +230,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   // ── Auto-switch bank when company changes ──
   useEffect(() => {
     if (skipBankAutoSwitch.current) { skipBankAutoSwitch.current = false; return; }
-    const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES', tdconsulting: 'TD CONSULTING' };
+    const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES' };
     const sameEntity = bankAccounts.filter(a => a.entity === entityMap[companyKey]);
     // ponytail: uu tien tai khoan dung loai tien - HD VND ma tra ve TK USD la sai chung tu
     const match = sameEntity.find(a => a.currency === currency) || sameEntity[0];

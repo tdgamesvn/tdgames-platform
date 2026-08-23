@@ -6,7 +6,7 @@ import {
   generateHDLD, generateHDTV, generateNDA,
   generateHDKV, generateNDA_CTV, generateHDCTV,
   printContract, CONTRACT_TYPES_FULLTIME, CONTRACT_TYPES_FREELANCER, ContractType,
-  CompanyKey, COMPANY_OPTIONS,
+  CompanyKey, COMPANY_OPTIONS, SELECTABLE_COMPANY_KEYS,
 } from '../services/contractService';
 
 interface Props {
@@ -451,7 +451,11 @@ const ContractGenerator: React.FC<Props> = ({ employee, department, initialContr
                   <span style={{ display: 'block', fontSize: 11, color: '#777', marginBottom: 4 }}>
                     🏢 Bên A (Công ty ký)
                   </span>
-                  {(Object.entries(COMPANY_OPTIONS) as [CompanyKey, typeof COMPANY_OPTIONS[CompanyKey]][]).map(([key, co]) => (
+                  {/* ponytail: chỉ hiện pháp nhân được phép ký MỚI. HĐ cũ ký với TD Consulting
+                      vẫn parse & render đúng vì COMPANY_OPTIONS còn giữ entry legacy. */}
+                  {(Object.entries(COMPANY_OPTIONS) as [CompanyKey, typeof COMPANY_OPTIONS[CompanyKey]][])
+                    .filter(([key]) => SELECTABLE_COMPANY_KEYS.includes(key) || key === companyKey)
+                    .map(([key, co]) => (
                     <button
                       key={key}
                       type="button"

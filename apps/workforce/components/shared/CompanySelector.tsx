@@ -37,16 +37,17 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({ selected, onCh
       <img src="/logo_td_notext.png" alt="" className="w-5 h-5 object-contain" />
       TD Games
     </button>
-    <button
-      onClick={() => onChange('tdconsulting')}
-      className={`px-4 py-2.5 text-xs font-bold tracking-wider transition-all flex items-center gap-2 ${
-        selected === 'tdconsulting'
-          ? 'bg-pink-500/20 text-pink-400'
-          : 'text-neutral-medium hover:text-white hover:bg-white/5'
-      }`}
-    >
-      <img src="/logo_tdc.png" alt="" className="w-5 h-5 object-contain" />
-      TD Consulting
-    </button>
+    {/* ponytail: TD Consulting là LEGACY — chỉ hiện khi chứng từ CŨ đang gắn pháp nhân đó,
+        để xuất lại đúng bản gốc. Chứng từ mới chỉ ký TD Games nên nút này không xuất hiện. */}
+    {selected === 'tdconsulting' && (
+      <button
+        disabled
+        title="Pháp nhân cũ — giữ để xuất lại chứng từ đã lập trước đây"
+        className="px-4 py-2.5 text-xs font-bold tracking-wider flex items-center gap-2 bg-pink-500/20 text-pink-400 cursor-default"
+      >
+        <img src="/logo_tdc.png" alt="" className="w-5 h-5 object-contain" />
+        TD Consulting
+      </button>
+    )}
   </div>
 );

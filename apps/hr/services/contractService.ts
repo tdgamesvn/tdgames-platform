@@ -206,6 +206,9 @@ export const COMPANY_OPTIONS: Record<CompanyKey, {
   representativeTitle: string;
   gender: string; // Ông/Bà
 }> = {
+  // ponytail: 'tdconsulting' là LEGACY — chỉ để render lại hợp đồng đã ký trước đây với
+  // pháp nhân đó cho đúng bản gốc. KHÔNG được cho chọn khi tạo mới: chỗ nào render danh
+  // sách để chọn phải lọc bằng SELECTABLE_COMPANY_KEYS. Từ 2026-08 chỉ ký với TD Games.
   tdgames: {
     name: 'CÔNG TY TNHH TD GAMES',
     nameShort: 'Công ty TNHH TD Games',
@@ -225,6 +228,10 @@ export const COMPANY_OPTIONS: Record<CompanyKey, {
     gender: 'Bà',
   },
 };
+
+/** Pháp nhân được phép chọn khi tạo hợp đồng MỚI. Hợp đồng cũ vẫn đọc được
+ *  'tdconsulting' từ COMPANY_OPTIONS để in lại đúng bản gốc. */
+export const SELECTABLE_COMPANY_KEYS: CompanyKey[] = ['tdgames'];
 
 const companyInfo = (companyKey: CompanyKey = 'tdgames') => {
   const c = COMPANY_OPTIONS[companyKey];
@@ -701,7 +708,7 @@ ${nationalHeader()}
   <p>Căn cứ Bộ luật Dân sự số 91/2015/QH13 ngày 24/11/2015;</p>
   <p>Căn cứ Luật Sở hữu trí tuệ số 50/2005/QH11, được sửa đổi bổ sung năm 2022;</p>
   <p>Căn cứ Nhu cầu hợp tác sản xuất nội dung ${workScope} cho dự án ${projectName} của Bên A và năng lực chuyên môn của Bên B.</p>
-  <p>Hôm nay, ngày ${d.day} tháng ${d.month} năm ${d.year}, tại TD Consulting, hai bên gồm có:</p>
+  <p>Hôm nay, ngày ${d.day} tháng ${d.month} năm ${d.year}, tại Hà Nội, hai bên gồm có:</p>
 </div>
 
 <div class="article-title">I. THÔNG TIN CÁC BÊN</div>
