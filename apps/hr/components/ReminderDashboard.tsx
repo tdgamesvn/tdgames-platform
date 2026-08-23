@@ -90,12 +90,14 @@ const ReminderDashboard: React.FC<Props> = ({ reminders, onGenerate, onDismiss }
             const typeInfo = TYPE_LABELS[r.type] || { icon: '🔔', label: r.type, color: '#888' };
 
             return (
-              <div key={r.id} className={`relative rounded-[16px] border ${urg.border} ${urg.bg} p-5 flex items-center justify-between group transition-all`}>
-                <div className="flex items-center gap-4">
+              // ponytail: badge hạn + nút bên phải giành chỗ, ép cụm trái bóp lại → nhãn loại
+              // rớt 3 dòng trên 390px. Cho wrap 2 tầng; md+ vẫn 1 hàng như cũ.
+              <div key={r.id} className={`relative rounded-[16px] border ${urg.border} ${urg.bg} p-5 flex flex-wrap items-center justify-between gap-3 group transition-all`}>
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <span className="text-2xl">{typeInfo.icon}</span>
                   <div>
                     <p className="text-white font-bold text-sm">{r.title}</p>
-                    <div className="flex items-center gap-3 mt-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
                       <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md" style={{ background: `${typeInfo.color}20`, color: typeInfo.color }}>{typeInfo.label}</span>
                       {r.employee && (
                         <span className="text-neutral-medium text-xs">👤 {r.employee.full_name}</span>
