@@ -286,7 +286,7 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
         document.body
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Dự án</h2>
           <p className="text-sm text-neutral-medium mt-1">Theo dõi dự án theo khách hàng</p>

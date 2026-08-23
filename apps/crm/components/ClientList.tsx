@@ -51,7 +51,7 @@ const ClientList: React.FC<Props> = ({
   return (
     <div className="animate-fadeInUp" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
             Khách hàng
