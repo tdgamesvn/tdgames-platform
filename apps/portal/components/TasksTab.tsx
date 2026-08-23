@@ -425,9 +425,11 @@ const TasksTab: React.FC<Props> = ({ currentUser, onToast }) => {
       </div>
 
       {/* ── Task List ── */}
+      {/* ponytail: 5 cột cố định = 440px, không bao giờ vừa màn 390px. Cho cuộn ngang
+          thay vì dựng lại thành card — desktop rộng hơn 440px nên không đổi gì. */}
       <div style={{
         background: '#161616', border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: '16px', overflow: 'hidden',
+        borderRadius: '16px', overflowX: 'auto', overflowY: 'hidden',
       }}>
         {/* Filter bar */}
         <div style={{
@@ -477,7 +479,7 @@ const TasksTab: React.FC<Props> = ({ currentUser, onToast }) => {
 
         {/* Table header */}
         <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 120px 100px 90px 90px',
+          display: 'grid', gridTemplateColumns: '1fr 120px 100px 90px 90px', minWidth: '460px',
           padding: '10px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
           {['Tên Task / Dự án', 'Space / List', 'Trạng thái', 'Bắt đầu', 'Đóng'].map((h, i) => (
@@ -501,7 +503,7 @@ const TasksTab: React.FC<Props> = ({ currentUser, onToast }) => {
                 <div
                   key={t.id || i}
                   style={{
-                    display: 'grid', gridTemplateColumns: '1fr 120px 100px 90px 90px',
+                    display: 'grid', gridTemplateColumns: '1fr 120px 100px 90px 90px', minWidth: '460px',
                     padding: '12px 20px',
                     borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.04)',
                     alignItems: 'center',
