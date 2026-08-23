@@ -6,6 +6,7 @@ import { AccountUser, AttRecord, AttRequest, HrChangeRequest } from '@/types';
 import CheckinWidget from '@/apps/portal/components/CheckinWidget';
 import { ToastNotification } from '@/components/ToastNotification';
 import MemberTabBar, { MEMBER_TABBAR_PAD } from '@/components/MemberTabBar';
+import { getMyApps } from '@/config/apps';
 import { fetchMyRecordsByRange } from '@/apps/attendance/services/attendanceService';
 import { fetchYearlyBalance, getAvailableLeaveDays, fetchMyLeaveRequests } from '@/apps/portal/services/leaveService';
 import { fetchMyChangeRequests, fetchMyProfile } from '@/apps/portal/services/portalService';
@@ -163,19 +164,16 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
           </div>
         )}
 
-        {/* ── 2 app đầy đủ ── */}
+        {/* ── App đầy đủ — render từ quyền thật, ai được cấp thêm (CRM...) vẫn có lối vào ── */}
         <p className="mt-7 mb-3 text-neutral-600 text-[10px] font-black uppercase tracking-widest">Ứng dụng</p>
         <div className="grid grid-cols-2 gap-2.5">
-          <button onClick={() => go('portal')} className="bg-surface border border-white/[.08] rounded-2xl p-4 text-left">
-            <span className="text-[22px]">🏠</span>
-            <p className="text-white text-[13px] font-black mt-2">Employee Portal</p>
-            <p className="text-neutral-600 text-[11px] font-semibold">Lương, công, hồ sơ</p>
-          </button>
-          <button onClick={() => go('handbook')} className="bg-surface border border-white/[.08] rounded-2xl p-4 text-left">
-            <span className="text-[22px]">🏢</span>
-            <p className="text-white text-[13px] font-black mt-2">Company Hub</p>
-            <p className="text-neutral-600 text-[11px] font-semibold">Nội quy, tài liệu</p>
-          </button>
+          {getMyApps(currentUser).map(app => (
+            <button key={app.id} onClick={() => go(app.id)} className="bg-surface border border-white/[.08] rounded-2xl p-4 text-left">
+              <span className="text-[22px]">{app.icon}</span>
+              <p className="text-white text-[13px] font-black mt-2">{app.name}</p>
+              <p className="text-neutral-600 text-[11px] font-semibold">{app.description}</p>
+            </button>
+          ))}
         </div>
       </div>
     </div>

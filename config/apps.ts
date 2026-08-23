@@ -165,10 +165,11 @@ export function getMyApps(user: AccountUser): AppConfig[] {
 }
 
 /**
- * Nhân viên thường: role `member` và chỉ được cấp Portal + Company Hub.
- * Bật giao diện mobile (MemberHome + thanh tab đáy). Bám vào SỐ APP nên ai được
- * cấp thêm quyền sẽ tự quay lại giao diện lưới đầy đủ, không phải sửa chỗ này.
+ * Có role `member` ⇒ dùng giao diện nhân viên (MemberHome + thanh tab đáy).
+ * ponytail: bám role, KHÔNG đếm app — cấp thêm quyền (bd, hr...) không được
+ * làm mất thanh tab đáy trên điện thoại. App được cấp thêm hiện ở khối
+ * "Ứng dụng" trong MemberHome (render từ getMyApps).
  */
 export function isMemberOnly(user: AccountUser): boolean {
-  return hasRole(user, 'member') && getMyApps(user).length <= 2;
+  return hasRole(user, 'member');
 }

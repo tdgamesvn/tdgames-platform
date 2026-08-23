@@ -15,6 +15,16 @@ interface HomeScreenProps {
 const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLogout }) => {
   const [hoveredApp, setHoveredApp] = useState<string | null>(null);
   const [agentBadge, setAgentBadge] = useState<number>(0);
+  // ponytail: 767px = đúng breakpoint `md` của MemberTabBar — lệch là tạo lại vùng chết 640–767px.
+  // Khởi tạo sync trong useState initializer nên render ĐẦU TIÊN đã đúng, không nháy layout.
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const sync = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   useEffect(() => {
     if (hasRole(currentUser, 'admin')) {
@@ -24,8 +34,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ currentUser, onSelectApp, onLog
 
   const myApps = getMyApps(currentUser);
 
-  // ponytail: nhân viên thường chỉ có Portal + Company Hub → lưới 2 ô là màn hình vô nghĩa.
-  if (isMemberOnly(currentUser)) {
+  // Điện thoại + có role member → MemberHome (thanh tab đáy, 5 mục self-service).
+  // Desktop → lưới đầy đủ như mọi role khác. Tự đổi khi co/giãn cửa sổ, không cần bấm.
+  if (isMemberOnly(currentUser) && isMobile) {
     return <MemberHome currentUser={currentUser} onLogout={onLogout} />;
   }
 

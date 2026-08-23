@@ -238,9 +238,10 @@ export default function HandbookApp({ currentUser, onBack, initialTab }: Handboo
         {activeTab === 'articles' && (loading ? (
           <div className="flex items-center justify-center py-40 text-neutral-600 text-sm">Đang tải...</div>
         ) : (
-          <div className="flex gap-6">
+          <div className="flex flex-col md:flex-row gap-4 md:gap-6">
             {/* ── Sidebar: Categories ────────────────────────── */}
-            <aside className="w-64 flex-shrink-0 flex flex-col gap-2">
+            {/* ponytail: mobile = search full width + chips cuộn ngang; md+ = sidebar dọc như cũ */}
+            <aside className="w-full md:w-64 flex-shrink-0 flex flex-col gap-2">
               {/* Search */}
               <div className="relative mb-2">
                 <input
@@ -255,11 +256,12 @@ export default function HandbookApp({ currentUser, onBack, initialTab }: Handboo
                 )}
               </div>
 
+              <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible -mx-1 px-1 pb-1 md:m-0 md:p-0">
               {/* 📌 Bắt buộc đọc — top of sidebar */}
               {!search && requiredCount > 0 && (
                 <button
                   onClick={() => { setShowRequired(true); setSelectedCatId(null); setSelectedArticle(null); }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
+                  className="flex-shrink-0 md:flex-shrink whitespace-nowrap md:whitespace-normal flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
                   style={showRequired
                     ? { background: 'rgba(255,149,0,0.12)', borderColor: 'rgba(255,149,0,0.4)', color: '#FF9500' }
                     : { background: 'rgba(255,149,0,0.05)', borderColor: 'rgba(255,149,0,0.2)', color: 'rgba(255,149,0,0.75)' }
@@ -275,7 +277,7 @@ export default function HandbookApp({ currentUser, onBack, initialTab }: Handboo
               {!search && (
                 <button
                   onClick={() => { setSelectedCatId(null); setSelectedArticle(null); setShowRequired(false); }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-all"
+                  className="flex-shrink-0 md:flex-shrink whitespace-nowrap md:whitespace-normal flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-xs font-bold transition-all"
                   style={!selectedCatId && !showRequired
                     ? { background: 'rgba(255,149,0,0.1)', borderColor: 'rgba(255,149,0,0.3)', color: '#FF9500' }
                     : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', color: '#9D9C9D' }
@@ -291,7 +293,7 @@ export default function HandbookApp({ currentUser, onBack, initialTab }: Handboo
                 <button
                   key={cat.id}
                   onClick={() => { setSelectedCatId(cat.id); setSelectedArticle(null); setShowRequired(false); }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
+                  className="flex-shrink-0 md:flex-shrink whitespace-nowrap md:whitespace-normal flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left text-xs font-bold transition-all"
                   style={!showRequired && selectedCatId === cat.id
                     ? { background: 'rgba(255,149,0,0.1)', borderColor: 'rgba(255,149,0,0.3)', color: '#fff' }
                     : { background: 'rgba(255,255,255,0.02)', borderColor: 'rgba(255,255,255,0.06)', color: '#9D9C9D' }
@@ -304,6 +306,7 @@ export default function HandbookApp({ currentUser, onBack, initialTab }: Handboo
                   )}
                 </button>
               ))}
+              </div>
             </aside>
 
             {/* ── Main content ──────────────────────────────── */}
