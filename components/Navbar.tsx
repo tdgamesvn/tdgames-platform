@@ -27,7 +27,9 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
   <nav className={`sticky top-0 backdrop-blur-md border-b z-50 transition-colors duration-300 ${theme === 'dark' ? 'bg-[#0F0F0F]/95 border-primary/10' : 'bg-white/95 border-gray-200 shadow-sm'}`}>
     {/* Row 1: Logo + controls */}
     <div className="h-14 md:h-20 flex items-center justify-between px-3 md:px-12">
-      <div className="flex items-center gap-3">
+      {/* ponytail: shrink-0 — nếu không, trên mobile cụm này bị bóp 76px→56px và nút
+          trợ giúp đè lên logo. Phần co được là workspace switcher ở giữa, không phải đây. */}
+      <div className="flex items-center gap-3 shrink-0">
         {onBack && (
           <button onClick={onBack} title="Back to Home" className={`p-2 -ml-2 mr-1 rounded-xl transition-all hover:scale-110 ${theme === 'dark' ? 'text-neutral-medium hover:text-primary hover:bg-primary/10' : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'}`}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>

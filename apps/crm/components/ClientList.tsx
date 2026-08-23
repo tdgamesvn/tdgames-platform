@@ -161,11 +161,13 @@ const ClientList: React.FC<Props> = ({
                 {client.contacts && client.contacts.length > 0 ? (
                   <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: '#888', flexWrap: 'wrap' }}>
                     {client.contacts.slice(0, 3).map(ct => (
-                      <span key={ct.id} style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                      // ponytail: tên + chức danh + email trên 1 dòng nowrap = 386px trong khung
+                      // 211px. Cho wrap; email không có dấu cách nên phải break-word mới xuống được.
+                      <span key={ct.id} style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', maxWidth: '100%' }}>
                         <span style={{ color: ct.is_primary ? '#0A84FF' : '#666' }}>👤</span>
                         <span>{ct.name}</span>
                         {ct.role && <span style={{ color: '#555' }}>({ct.role})</span>}
-                        {ct.email && <span>· {ct.email}</span>}
+                        {ct.email && <span style={{ wordBreak: 'break-word', minWidth: 0 }}>· {ct.email}</span>}
                       </span>
                     ))}
                     {client.contacts.length > 3 && (
