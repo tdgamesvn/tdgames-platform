@@ -297,8 +297,8 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
-        <select className="flex-1 px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={filterClient} onChange={e => setFilterClient(e.target.value)}>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <select className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors" style={{ background: '#1a1a1a' }} value={filterClient} onChange={e => setFilterClient(e.target.value)}>
           <option value="">Tất cả khách hàng</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
@@ -354,7 +354,7 @@ const ProjectList: React.FC<Props> = ({ clients, currentUser }) => {
           return (
             <div key={proj.id} className="rounded-[20px] border border-primary/10 p-4 bg-surface hover:border-primary/20 transition-all"
               style={{ overflow: 'hidden', boxShadow: `inset 4px 0 0 ${st.color}`, opacity: proj.status === 'active' || isExpanded ? 1 : 0.55 }}>
-              <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+              <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', flexWrap: 'wrap', gap: '12px' }}
                 onClick={() => { const next = isExpanded ? null : proj.id; setExpandedId(next); if (next) { loadBilling(next); loadProjectDocs(next); } }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>

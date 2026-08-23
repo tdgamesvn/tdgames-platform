@@ -135,7 +135,8 @@ const ClientList: React.FC<Props> = ({
             >
               {/* Left: Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px' }}>
+                {/* ponytail: tên + tối đa 4 badge trên 1 hàng nowrap → tràn card trên mobile */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '6px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: '16px', fontWeight: 800, color: '#F5F5F5' }}>{client.name}</span>
                   <span style={{
                     fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '6px',
