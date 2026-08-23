@@ -244,8 +244,10 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
       }}
     >
       {/* Card header — always visible, click to expand */}
+      {/* ponytail: 2 badge + chevron đều shrink-0, trên màn hẹp chúng ăn hết chỗ và bóp
+          tên nhân viên còn 3px. Cho tên xuống dòng riêng dưới md; md+ giữ 1 hàng như cũ. */}
       <button
-        className="w-full flex items-center gap-4 p-5 text-left"
+        className="w-full flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-4 p-5 text-left"
         onClick={() => setExpanded(v => !v)}
       >
         {/* Type badge */}
@@ -257,7 +259,7 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
         </span>
 
         {/* Employee info */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 order-last basis-full md:order-none md:basis-auto">
           <p className="font-black text-neutral-light text-sm truncate">
             {emp?.full_name || '—'}
             {emp?.employee_code && (
