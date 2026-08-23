@@ -37,3 +37,6 @@ dist-ssr
 
 # MCP / tooling artifacts
 .playwright-mcp/
+
+# Supabase CLI ghi lại version mỗi lần chạy npx supabase → nhiễu diff, không phải state dự án
+supabase/.temp/cli-latest
