@@ -2,7 +2,6 @@ import React from 'react';
 import { AccountUser } from '@/types';
 import { hasRole, hasAnyRole, getUserRoles } from '@/utils/roleUtils';
 import { ExchangeRateData } from '@/services/exchangeRateService';
-import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { NotificationBell } from './NotificationBell';
 
 interface NavbarProps {
@@ -28,7 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
     {/* Row 1: Logo + controls */}
     <div className="h-14 md:h-20 flex items-center justify-between px-3 md:px-12">
       {/* ponytail: shrink-0 — nếu không, trên mobile cụm này bị bóp 76px→56px và nút
-          trợ giúp đè lên logo. Phần co được là workspace switcher ở giữa, không phải đây. */}
+          trợ giúp đè lên logo. Phần co được là cụm điều khiển bên phải, không phải đây. */}
       <div className="flex items-center gap-3 shrink-0">
         {onBack && (
           <button onClick={onBack} title="Back to Home" className={`p-2 -ml-2 mr-1 rounded-xl transition-all hover:scale-110 ${theme === 'dark' ? 'text-neutral-medium hover:text-primary hover:bg-primary/10' : 'text-gray-400 hover:text-orange-500 hover:bg-orange-50'}`}>
@@ -113,10 +112,6 @@ export const Navbar: React.FC<NavbarProps> = ({ theme, currentUser, activeTab, a
         {/* Notification Bell */}
         <NotificationBell userId={currentUser.id} theme={theme} />
 
-        {/* Workspace Switcher */}
-        {hasAnyRole(currentUser, ['admin', 'ke_toan', 'hr']) && (
-          <WorkspaceSwitcher variant="compact" theme={theme} />
-        )}
 
         {/* User info + Logout */}
         <div className="flex items-center gap-2 ml-2">
