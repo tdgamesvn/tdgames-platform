@@ -12,7 +12,7 @@ export const INVOICE_HELP: HelpContent[] = [
         title: 'Các bước tạo hoá đơn',
         type: 'steps',
         items: [
-          'Chọn <strong>Pháp nhân</strong> phát hành: TD Games, TD Consulting, hoặc Cá nhân.',
+          'Chọn <strong>Pháp nhân</strong> phát hành: TD Games hoặc Cá nhân.',
           'Điền thông tin khách hàng — gõ tên để gợi ý từ danh sách CRM, hoặc nhập mới.',
           'Thêm hạng mục dịch vụ: tên, số lượng, đơn giá, đơn vị tính.',
           'Chọn thuế suất (0%, 8%, 10%), loại giảm giá và ngân hàng nhận tiền.',
@@ -125,7 +125,7 @@ export const INVOICE_HELP: HelpContent[] = [
         title: 'Bộ lọc',
         type: 'tips',
         items: [
-          'Lọc theo <strong>Pháp nhân</strong> (TD Games, TD Consulting, Cá nhân) để xem riêng từng entity.',
+          'Lọc theo <strong>Pháp nhân</strong> (TD Games, Cá nhân) để xem riêng từng entity.',
           'Lọc theo <strong>Khách hàng</strong> để phân tích doanh thu theo từng client.',
           'Chọn <strong>Từ ngày / Đến ngày</strong> để xem bất kỳ khoảng thời gian nào.',
         ],

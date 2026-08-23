@@ -13,8 +13,7 @@ export const COMPANY_HELP: HelpContent[] = [
         type: 'info',
         items: [
           'Hiển thị toàn bộ thông tin đăng ký doanh nghiệp theo Cổng ĐKDN quốc gia.',
-          'Nếu có nhiều pháp nhân (TD GAMES / TD CONSULTING), chọn pháp nhân ở thanh trên.',
-          'TD GAMES ★ là pháp nhân chính — mặc định hiển thị khi vào app.',
+                    'TD GAMES ★ là pháp nhân chính — mặc định hiển thị khi vào app.',
         ],
       },
       {
@@ -85,7 +84,7 @@ export const COMPANY_HELP: HelpContent[] = [
         title: 'Thông tin hiển thị',
         type: 'info',
         items: [
-          'Hiển thị các tài khoản thuộc pháp nhân đang chọn (TD GAMES hoặc TD CONSULTING).',
+          'Hiển thị các tài khoản của TD GAMES.',
           'Tài khoản <strong>Chính</strong> được dùng mặc định khi tạo hoá đơn trong Invoice app.',
           'Tỷ giá VND/USD được lấy theo VCB bình quân hiển thị trên Navbar.',
         ],

@@ -82,7 +82,8 @@ const CashFlowView: React.FC<Props> = ({ expenses, vcbAvgRate, currentUserRole }
   const [stream, setStream] = useState<Stream>('Tất cả');
 
   const canSeePersonal = currentUserRole === 'admin' || currentUserRole === 'ke_toan';
-  const availableStreams: Stream[] = ['Tất cả', 'TD GAMES', 'TD CONSULTING', ...(canSeePersonal ? ['Cá nhân' as Stream] : [])];
+  // ponytail: bỏ 'TD CONSULTING' — pháp nhân này không còn dùng, không cho lọc/chọn nữa.
+  const availableStreams: Stream[] = ['Tất cả', 'TD GAMES', ...(canSeePersonal ? ['Cá nhân' as Stream] : [])];
 
   // ── Fetch paid invoices khi đổi năm ──
   useEffect(() => {

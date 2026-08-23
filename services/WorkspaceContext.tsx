@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export type Workspace = 'TD GAMES' | 'TD CONSULTING';
 
@@ -15,10 +15,11 @@ const WorkspaceContext = createContext<{
 }>({ workspace: 'TD GAMES', setWorkspace: () => {} });
 
 export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [workspace, setWs] = useState<Workspace>(() => {
-    const saved = localStorage.getItem(KEY);
-    return saved === 'TD CONSULTING' ? saved : 'TD GAMES'; // 'all' cũ trong localStorage tự về TD GAMES
-  });
+  // ponytail: TD CONSULTING đã ngừng dùng và switcher đã gỡ. Nếu vẫn đọc localStorage,
+  // ai từng chọn sổ đó sẽ BỊ KẸT vĩnh viễn ở sổ rỗng — không còn nút nào để đổi lại.
+  // Ghim TD GAMES và dọn luôn key cũ.
+  const [workspace, setWs] = useState<Workspace>('TD GAMES');
+  useEffect(() => { localStorage.removeItem(KEY); }, []);
   const setWorkspace = (w: Workspace) => {
     localStorage.setItem(KEY, w);
     setWs(w);
@@ -33,5 +34,4 @@ export const WorkspaceProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 export const useWorkspace = () => useContext(WorkspaceContext);
 
 // Đọc workspace ngoài React — service dùng để tag entity lúc insert
-export const getWorkspace = (): Workspace =>
-  localStorage.getItem(KEY) === 'TD CONSULTING' ? 'TD CONSULTING' : 'TD GAMES';
+export const getWorkspace = (): Workspace => 'TD GAMES';

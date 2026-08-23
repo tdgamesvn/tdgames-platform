@@ -56,7 +56,7 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
       setForm(rest as any);
     } else {
       // Tạo mới: default entity theo workspace đang chọn (edit giữ nguyên entity của record)
-      setForm({ ...EMPTY, expense_date: getToday(), entity: workspace === 'TD CONSULTING' ? 'TD CONSULTING' : 'TD GAMES' });
+      setForm({ ...EMPTY, expense_date: getToday(), entity: 'TD GAMES' });
     }
   }, [editingExpense]);
 
@@ -242,14 +242,15 @@ const ExpenseForm: React.FC<Props> = ({ categories, editingExpense, onSave, onUp
             <div>
               <label className={labelClass}>Công ty</label>
               <div className="flex gap-2">
-                {((workspace === 'TD CONSULTING' ? ['TD CONSULTING'] : ['TD GAMES', 'Cá nhân']) as readonly string[]).map(e => (
+                {/* ponytail: chỉ còn TD Games (+ Cá nhân). TD Consulting đã ngừng dùng. */}
+                {(['TD GAMES', 'Cá nhân'] as readonly string[]).map(e => (
                   <button key={e} type="button" onClick={() => update('entity', e)}
                     className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
                       ((form as any).entity || 'TD GAMES') === e
                         ? 'border-primary/40 bg-primary/10 text-primary'
                         : 'border-primary/10 text-neutral-medium hover:border-primary/20'
                     }`}>
-                    {e === 'TD GAMES' ? 'TD Games' : e === 'TD CONSULTING' ? 'TD Consulting' : 'Cá nhân'}
+                    {e === 'TD GAMES' ? 'TD Games' : 'Cá nhân'}
                   </button>
                 ))}
               </div>
