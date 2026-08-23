@@ -11,6 +11,7 @@ import { getMyApps } from '@/config/apps';
 import { fetchMyRecordsByRange } from '@/apps/attendance/services/attendanceService';
 import { fetchYearlyBalance, getAvailableLeaveDays, fetchMyLeaveRequests } from '@/apps/portal/services/leaveService';
 import { fetchMyChangeRequests, fetchMyProfile } from '@/apps/portal/services/portalService';
+import { toPublicUrl } from '@/apps/hr/services/hrService';
 
 interface Props {
   currentUser: AccountUser;
@@ -30,7 +31,7 @@ function greeting(h: number): string {
 const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
   const empId = currentUser.employee_id;
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [profile, setProfile] = useState<{ full_name?: string; position?: string } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string; position?: string; avatar_url?: string | null } | null>(null);
   const [daily, setDaily] = useState<AttRecord[]>([]);
   const [leaveLeft, setLeaveLeft] = useState<number | null>(null);
   const [pendingLeave, setPendingLeave] = useState<AttRequest[]>([]);
@@ -57,6 +58,8 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
   }, [empId]);
 
   const name = profile?.full_name || currentUser.username;
+  // fetchMyProfile select '*' nên avatar_url có sẵn — không thêm query nào.
+  const avatarUrl = profile?.avatar_url ? toPublicUrl(profile.avatar_url) : '';
   const initials = name.trim().split(/\s+/).slice(-2).map(w => w[0]).join('').toUpperCase();
   const workDays = daily.filter(r => r.check_in).length;
   const lateDays = daily.filter(r => r.status === 'late').length;
@@ -72,27 +75,39 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
       {/* max-w-md vừa điện thoại; desktop nới ra kẻo thành cột hẹp giữa màn hình trống hoác. */}
       <div className={`max-w-md sm:max-w-2xl mx-auto px-5 pt-6 sm:pt-10 pb-16 ${MEMBER_TABBAR_PAD}`}>
         {/* ── Header ── */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <p className="text-neutral-500 text-[13px] font-semibold">{greeting(new Date().getHours())}</p>
-            <h1 className="text-white text-[26px] font-black leading-tight mt-0.5">{name}</h1>
+        {/* Avatar đứng cạnh tên (nó là danh tính, không phải nút công cụ); bên phải chỉ còn
+            2 nút icon cùng khung 40px cho cân. min-w-0 để truncate ăn được trong flex. */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => go('portal/edit')}
+            title="Hồ sơ của tôi"
+            className="w-12 h-12 rounded-full shrink-0 overflow-hidden flex items-center justify-center text-black font-black text-base border border-white/10 active:scale-[.93] transition-transform"
+            style={avatarUrl ? undefined : { background: 'linear-gradient(135deg,#FF9500 0%,#E86800 100%)' }}
+          >
+            {avatarUrl
+              ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              : initials}
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-neutral-500 text-[12px] font-semibold leading-none">{greeting(new Date().getHours())}</p>
+            <h1 className="text-white text-[20px] font-black leading-tight mt-1 truncate">{name}</h1>
             {profile?.position && (
-              <p className="text-neutral-600 text-[11px] font-black uppercase tracking-wider mt-1">{profile.position}</p>
+              <p className="text-neutral-500 text-[10px] font-black uppercase tracking-wider mt-0.5 truncate">{profile.position}</p>
             )}
           </div>
-          <div className="flex items-center gap-1">
+
+          <div className="flex items-center gap-2 shrink-0">
             {/* ponytail: dùng lại chuông của Navbar (member không thấy Navbar trên mobile). */}
-            <NotificationBell userId={currentUser.id} theme="dark" />
+            <div className="w-10 h-10 rounded-xl bg-white/[.06] border border-white/10 flex items-center justify-center">
+              <NotificationBell userId={currentUser.id} theme="dark" size={22} />
+            </div>
             <button
-              onClick={() => go('portal/edit')}
-              title="Hồ sơ của tôi"
-              className="w-12 h-12 rounded-full flex items-center justify-center text-black font-black text-lg"
-              style={{ background: 'linear-gradient(135deg,#FF9500 0%,#E86800 100%)' }}
+              onClick={onLogout}
+              title="Đăng xuất"
+              className="w-10 h-10 rounded-xl bg-white/[.06] border border-white/10 flex items-center justify-center text-neutral-400 active:scale-[.93] active:text-red-400 active:bg-red-500/10 transition-all"
             >
-              {initials}
-            </button>
-            <button onClick={onLogout} title="Đăng xuất" className="p-2 rounded-xl text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
