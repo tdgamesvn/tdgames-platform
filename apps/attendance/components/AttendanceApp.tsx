@@ -11,6 +11,7 @@ import MonthlySheet from './MonthlySheet';
 
 import AttendanceReport from './AttendanceReport';
 import LeaveApproval from './LeaveApproval';
+import RequestManager from './RequestManager';
 import HelpPanel from '@/components/HelpPanel';
 import { ATTENDANCE_HELP } from '../helpContent';
 
@@ -26,6 +27,7 @@ const TAB_MAP: Record<AttTab, string> = {
   shifts: 'activity',
   reports: 'recurring',
   leaves: 'tasks',
+  requests: 'proposals',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -34,6 +36,7 @@ const TAB_LABELS: Record<string, string> = {
   activity: 'Ca làm việc',
   recurring: 'Báo cáo',
   tasks: 'Nghỉ phép',
+  proposals: 'Đơn từ',
 };
 
 const REVERSE_TAB: Record<string, AttTab> = {
@@ -42,14 +45,17 @@ const REVERSE_TAB: Record<string, AttTab> = {
   activity: 'shifts',
   recurring: 'reports',
   tasks: 'leaves',
+  proposals: 'requests',
 };
 
 const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
-  const state = useAttendanceState(initialTab);
+  // Hash dùng id kiểu navbar ('proposals'), state dùng AttTab ('requests') — đổi trước khi
+  // đưa vào hook, không thì link thẳng vào tab rơi hết về dashboard.
+  const state = useAttendanceState(initialTab ? (REVERSE_TAB[initialTab] ?? initialTab) : initialTab);
 
   const navbarTab = TAB_MAP[state.activeTab];
   const [helpOpen, setHelpOpen] = React.useState(false);
-  const accessibleTabs = ['dashboard', 'history', 'activity', 'recurring', 'tasks'];
+  const accessibleTabs = ['dashboard', 'history', 'activity', 'recurring', 'tasks', 'proposals'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -118,6 +124,16 @@ const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
           <AttendanceReport
             employees={state.employees}
             shifts={state.shifts}
+          />
+        )}
+
+        {state.activeTab === 'requests' && (
+          <RequestManager
+            requests={state.requests}
+            employees={state.employees}
+            onSave={state.handleSaveRequest}
+            onApprove={state.handleApproveRequest}
+            onReject={state.handleRejectRequest}
           />
         )}
 

@@ -187,12 +187,83 @@ export async function saveRequest(req: Omit<AttRequest, 'id' | 'created_at' | 'a
   return data;
 }
 
+/**
+ * Đơn giải trình quên chấm công. Chấm công chặn cứng theo GPS nên đây là lối duy nhất để
+ * ngày quên bấm được tính công — và phải qua tay Admin/HR.
+ */
+export async function submitForgotRequest(
+  employeeId: string,
+  date: string,
+  timeFrom: string | null,
+  timeTo: string | null,
+  reason: string,
+): Promise<AttRequest> {
+  const { data, error } = await supabase
+    .from('att_requests')
+    .insert({
+      employee_id: employeeId,
+      request_type: 'forgot',
+      date_from: date,
+      date_to: date,
+      time_from: timeFrom,
+      time_to: timeTo,
+      reason,
+      status: 'pending',
+      reviewer_note: '',
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Duyệt đơn "quên chấm" = ghi giờ vào bảng công luôn, nếu không thì duyệt xong vẫn mất công.
+ * Chỉ ghi chiều nào đơn có khai (quên check-out thì check_in thật giữ nguyên).
+ * `method: 'manual'` để báo cáo phân biệt được công duyệt tay với công chấm bằng GPS.
+ */
+async function applyForgotRequest(req: AttRequest): Promise<void> {
+  const date = req.date_from;
+  const at = (t: string) => new Date(`${date}T${t}`).toISOString();
+  const patch: Record<string, unknown> = {};
+  if (req.time_from) patch.check_in = at(req.time_from);
+  if (req.time_to) patch.check_out = at(req.time_to);
+  if (!Object.keys(patch).length) return;
+
+  const { data: existing } = await supabase
+    .from('att_records')
+    .select('id')
+    .eq('employee_id', req.employee_id)
+    .eq('date', date)
+    .maybeSingle();
+
+  const note = `Giải trình đã duyệt: ${req.reason || '—'}`;
+  // Đơn khai cả 2 chiều ⇒ cả ngày công là do duyệt tay, đánh dấu 'manual' để báo cáo phân biệt
+  // được với công chấm bằng GPS. Chỉ vá 1 chiều thì giữ method cũ — chiều kia vẫn là GPS thật.
+  const bothSides = !!req.time_from && !!req.time_to;
+  const { error } = existing
+    ? await supabase.from('att_records')
+        .update({ ...patch, note, ...(bothSides ? { method: 'manual' } : {}) })
+        .eq('id', existing.id)
+    : await supabase.from('att_records').insert({
+        employee_id: req.employee_id, date, method: 'manual', status: 'present',
+        late_minutes: 0, early_minutes: 0, overtime_minutes: 0, note, ...patch,
+      });
+  if (error) throw error;
+}
+
 export async function approveRequest(id: string, approved_by: string, reviewer_note: string = '') {
+  const { data: req, error: readErr } = await supabase
+    .from('att_requests').select('*').eq('id', id).single();
+  if (readErr) throw readErr;
+
   const { error } = await supabase
     .from('att_requests')
     .update({ status: 'approved', approved_by, approved_at: new Date().toISOString(), reviewer_note })
     .eq('id', id);
   if (error) throw error;
+
+  if (req?.request_type === 'forgot') await applyForgotRequest(req as AttRequest);
 }
 
 export async function rejectRequest(id: string, approved_by: string, reviewer_note: string = '') {

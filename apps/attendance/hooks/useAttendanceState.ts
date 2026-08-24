@@ -5,8 +5,8 @@ import * as svc from '../services/attendanceService';
 import { fetchEmployees } from '@/apps/hr/services/hrService';
 import { setHashTab } from '@/App';
 
-export type AttTab = 'dashboard' | 'log' | 'shifts' | 'reports' | 'leaves';
-const VALID_TABS: AttTab[] = ['dashboard', 'log', 'shifts', 'reports', 'leaves'];
+export type AttTab = 'dashboard' | 'log' | 'shifts' | 'reports' | 'leaves' | 'requests';
+const VALID_TABS: AttTab[] = ['dashboard', 'log', 'shifts', 'reports', 'leaves', 'requests'];
 
 export function useAttendanceState(initialTab?: string | null) {
   const { workspace } = useWorkspace();
@@ -145,7 +145,10 @@ export function useAttendanceState(initialTab?: string | null) {
   const wsEmployees = employees.filter(e => matchesWorkspace(e.entity, workspace));
   const empIds = new Set(wsEmployees.map(e => e.id));
   const wsShifts = shifts.filter(s => matchesWorkspace((s as any).entity, workspace));
-  const wsRequests = requests.filter(r => empIds.has(r.employee_id));
+  // Đơn từ lọc theo entity của CHÍNH người gửi, không dùng empIds: empIds đã bị lọc cho bảng
+  // công (bỏ người exclude_from_payroll / thử việc), nên đơn của họ sẽ mất khỏi màn duyệt mà
+  // không ai hay — gửi đơn xong không ai duyệt được.
+  const wsRequests = requests.filter(r => matchesWorkspace((r as any).employee?.entity, workspace));
   const wsRecords = records.filter(r => empIds.has(r.employee_id));
   const wsEmployeeShifts = employeeShifts.filter(es => empIds.has(es.employee_id));
 

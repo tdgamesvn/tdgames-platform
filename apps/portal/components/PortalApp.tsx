@@ -20,6 +20,7 @@ import {
 import PayslipAcknowledgeModal from './PayslipAcknowledgeModal';
 import PayslipDetailSection from './PayslipDetailSection';
 import CheckinWidget from './CheckinWidget';
+import ForgotCheckinForm from './ForgotCheckinForm';
 import { fetchMyRecordsByRange } from '@/apps/attendance/services/attendanceService';
 
 type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
@@ -396,6 +397,10 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                 <>
                   {/* Check-in Widget */}
                   <CheckinWidget
+                    employeeId={currentUser.employee_id}
+                    onToast={(msg, type) => setToast({ message: msg, type })}
+                  />
+                  <ForgotCheckinForm
                     employeeId={currentUser.employee_id}
                     onToast={(msg, type) => setToast({ message: msg, type })}
                   />
