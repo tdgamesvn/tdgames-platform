@@ -1,8 +1,8 @@
 // apps/portal/components/ForgotCheckinForm.tsx
 // Đơn giải trình quên chấm công. Chấm công chặn cứng theo GPS (phải đứng trong bán kính VP),
 // nên đây là lối duy nhất để ngày quên bấm vẫn được tính — Admin/HR duyệt ở tab "📝 Đơn từ".
-import React, { useState } from 'react';
-import { submitForgotRequest } from '@/apps/attendance/services/attendanceService';
+import React, { useEffect, useState } from 'react';
+import { submitForgotRequest, fetchMyRecordsByRange } from '@/apps/attendance/services/attendanceService';
 
 interface Props {
   employeeId: string;
@@ -18,6 +18,22 @@ const ForgotCheckinForm: React.FC<Props> = ({ employeeId, onToast }) => {
   const [timeFrom, setTimeFrom] = useState('');
   const [timeTo, setTimeTo] = useState('');
   const [reason, setReason] = useState('');
+  const [gapDays, setGapDays] = useState<string[]>([]);
+
+  // Đỏ chỉ bật khi THẬT SỰ có ngày thiếu công, không thì nó là báo động giả và người ta quen mắt.
+  // Chỉ đếm ngày đã có check-in mà thiếu check-out: ngày trống hoàn toàn thì mơ hồ (nghỉ phép,
+  // ngày lễ, mới vào làm) — báo bừa còn tệ hơn không báo. Hôm nay không tính vì đang làm dở.
+  useEffect(() => {
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    fetchMyRecordsByRange(employeeId, `${ym}-01`, `${ym}-${String(last).padStart(2, '0')}`)
+      .then(rs => setGapDays(
+        rs.filter(r => r.date < today() && r.check_in && !r.check_out).map(r => r.date),
+      ))
+      // Không nuốt im lặng: hỏng cái này thì nút mất tông cảnh báo mà không ai biết vì sao.
+      .catch(e => console.error('Không đọc được bảng công để dò ngày thiếu giờ ra:', e));
+  }, [employeeId]);
 
   const inputCls = 'w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm';
 
@@ -37,25 +53,34 @@ const ForgotCheckinForm: React.FC<Props> = ({ employeeId, onToast }) => {
     }
   };
 
+  const hasGap = gapDays.length > 0;
+
   if (!open) {
-    // Tông đỏ + quầng sáng: đây là việc bắt buộc phải làm nếu muốn được tính công, không phải
-    // tuỳ chọn. Không dùng animate-pulse — nút này luôn hiện, nhấp nháy cả ngày sẽ thành nhiễu.
+    // Không dùng animate-pulse — nút luôn hiện, nhấp nháy cả ngày sẽ thành nhiễu.
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full mb-6 rounded-xl border border-[#FF3B30]/40 bg-[#FF3B30]/[.08] px-4 py-3.5 text-left flex items-center gap-3 active:scale-[.97] transition-all"
-        style={{ boxShadow: '0 0 18px rgba(255,59,48,.20), inset 0 1px 0 rgba(255,255,255,.06)' }}
+        className={`w-full mb-6 rounded-xl border px-4 py-3.5 text-left flex items-center gap-3 active:scale-[.97] transition-all ${
+          hasGap ? 'border-[#FF3B30]/40 bg-[#FF3B30]/[.08]' : 'border-white/10 bg-white/[.03]'
+        }`}
+        style={hasGap ? { boxShadow: '0 0 18px rgba(255,59,48,.20), inset 0 1px 0 rgba(255,255,255,.06)' } : undefined}
       >
         <span
-          className="w-10 h-10 shrink-0 rounded-xl bg-[#FF3B30]/15 border border-[#FF3B30]/30 flex items-center justify-center text-[19px]"
-          style={{ boxShadow: '0 0 12px rgba(255,59,48,.25)' }}
+          className={`w-10 h-10 shrink-0 rounded-xl border flex items-center justify-center text-[19px] ${
+            hasGap ? 'bg-[#FF3B30]/15 border-[#FF3B30]/30' : 'bg-white/[.04] border-white/10'
+          }`}
+          style={hasGap ? { boxShadow: '0 0 12px rgba(255,59,48,.25)' } : undefined}
         >
           🆘
         </span>
         <span className="min-w-0">
-          <span className="block text-[#FF6B60] text-[13px] font-black">Quên chấm công?</span>
+          <span className={`block text-[13px] font-black ${hasGap ? 'text-[#FF6B60]' : 'text-white'}`}>
+            {hasGap ? `${gapDays.length} ngày thiếu giờ ra` : 'Quên chấm công?'}
+          </span>
           <span className="block text-neutral-400 text-[11px] font-semibold mt-0.5">
-            Gửi đơn giải trình để Admin/HR duyệt tính công
+            {hasGap
+              ? `Gần nhất ${gapDays[0]} — gửi giải trình kẻo mất công`
+              : 'Gửi đơn giải trình để Admin/HR duyệt tính công'}
           </span>
         </span>
       </button>
