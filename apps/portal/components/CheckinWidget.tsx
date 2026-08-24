@@ -24,6 +24,13 @@ type WidgetState =
   | 'checked_in'
   | 'checked_out';
 
+// ponytail: máy tính không có chip GPS — trình duyệt đoán vị trí từ wifi/IP, lệch 100m tới
+// vài km ⇒ chấm công chỉ mở trên điện thoại. Chặn nhầm lẫn, KHÔNG phải chặn gian lận (đổi
+// user-agent là qua được) — nên chỉ giấu nút CHECK IN, check-out vẫn bấm được ở mọi máy.
+// maxTouchPoints: iPadOS 13+ khai UA y hệt macOS, không bắt được bằng regex.
+const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
@@ -188,16 +195,31 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
       {state === 'not_checked_in' && (
         <div style={{ textAlign: 'center' }}>
           <p style={{ color: '#888', fontSize: '13px', marginBottom: '16px' }}>Bạn chưa chấm công hôm nay</p>
-          <button
-            onClick={handleCheckIn}
-            style={{
-              background: '#FF9500', color: '#000', border: 'none', borderRadius: '12px',
-              padding: '14px 40px', fontSize: '15px', fontWeight: 900, cursor: 'pointer',
-              letterSpacing: '-0.01em', width: '100%', maxWidth: '280px',
-            }}
-          >
-            📍 CHECK IN
-          </button>
+          {isMobileDevice ? (
+            <button
+              onClick={handleCheckIn}
+              style={{
+                background: '#FF9500', color: '#000', border: 'none', borderRadius: '12px',
+                padding: '14px 40px', fontSize: '15px', fontWeight: 900, cursor: 'pointer',
+                letterSpacing: '-0.01em', width: '100%', maxWidth: '280px',
+              }}
+            >
+              📍 CHECK IN
+            </button>
+          ) : (
+            <div style={{
+              border: '1px solid rgba(255,255,255,.10)', borderRadius: '12px',
+              background: 'rgba(255,255,255,.04)', padding: '14px 16px',
+              maxWidth: '320px', margin: '0 auto',
+            }}>
+              <p style={{ color: '#F5F5F5', fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>
+                📱 Chấm công bằng điện thoại
+              </p>
+              <p style={{ color: '#888', fontSize: '12px', lineHeight: 1.5 }}>
+                Máy tính không có GPS, vị trí bị lệch cả km nên dễ chấm sai chỗ.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
