@@ -37,6 +37,19 @@ dist-ssr
 
 # MCP / tooling artifacts
 .playwright-mcp/
+# Ảnh chụp verify của agent luôn rơi vào thư mục gốc — đừng để lọt vào repo.
+/*.png
 
 # Supabase CLI ghi lại version mỗi lần chạy npx supabase → nhiễu diff, không phải state dự án
 supabase/.temp/cli-latest
+
+# Sao lưu dữ liệu thật của agent (có CSV lương nhân viên) — KHÔNG BAO GIỜ commit.
+.agent/backups/
+# Bộ nhớ/nhân cách agent, theo quy ước dự án là không commit.
+/AGENTS.md
+/MEMORY.md
+/SOUL.md
+/USER.md
+/TOOLS.md
+/IDENTITY.md
+/HEARTBEAT.md
