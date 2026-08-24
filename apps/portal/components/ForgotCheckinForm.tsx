@@ -38,15 +38,26 @@ const ForgotCheckinForm: React.FC<Props> = ({ employeeId, onToast }) => {
   };
 
   if (!open) {
+    // Tông đỏ + quầng sáng: đây là việc bắt buộc phải làm nếu muốn được tính công, không phải
+    // tuỳ chọn. Không dùng animate-pulse — nút này luôn hiện, nhấp nháy cả ngày sẽ thành nhiễu.
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full mb-6 rounded-xl border border-white/10 bg-white/[.03] px-4 py-3 text-left active:scale-[.97] transition-all"
+        className="w-full mb-6 rounded-xl border border-[#FF3B30]/40 bg-[#FF3B30]/[.08] px-4 py-3.5 text-left flex items-center gap-3 active:scale-[.97] transition-all"
+        style={{ boxShadow: '0 0 18px rgba(255,59,48,.20), inset 0 1px 0 rgba(255,255,255,.06)' }}
       >
-        <p className="text-white text-[13px] font-black">😅 Quên chấm công?</p>
-        <p className="text-neutral-500 text-[11px] font-semibold mt-0.5">
-          Gửi đơn giải trình để Admin/HR duyệt tính công
-        </p>
+        <span
+          className="w-10 h-10 shrink-0 rounded-xl bg-[#FF3B30]/15 border border-[#FF3B30]/30 flex items-center justify-center text-[19px]"
+          style={{ boxShadow: '0 0 12px rgba(255,59,48,.25)' }}
+        >
+          🆘
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[#FF6B60] text-[13px] font-black">Quên chấm công?</span>
+          <span className="block text-neutral-400 text-[11px] font-semibold mt-0.5">
+            Gửi đơn giải trình để Admin/HR duyệt tính công
+          </span>
+        </span>
       </button>
     );
   }
