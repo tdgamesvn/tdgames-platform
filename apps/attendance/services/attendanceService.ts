@@ -207,6 +207,11 @@ export async function submitForgotRequest(
       date_to: date,
       time_from: timeFrom,
       time_to: timeTo,
+      // Cột leave_type/leave_days có DEFAULT 'annual'/1.0 — bỏ trống là DB tự điền, khiến đơn
+      // quên chấm trông y như đơn phép năm 1 ngày. Chính nó kích hoạt trigger trừ phép hôm nay,
+      // và còn làm báo cáo phép đếm nhầm. Ghi null cho đúng bản chất.
+      leave_type: null,
+      leave_days: null,
       reason,
       status: 'pending',
       reviewer_note: '',
