@@ -433,14 +433,20 @@ export async function selfCheckIn(
 
 /**
  * Self check-out: set check_out timestamp on an existing att_record.
+ * `warning` = ghi chú vị trí lúc check-out (rỗng khi đang ở trong bán kính VP).
+ *
+ * ponytail: ghi vào `note` thay vì thêm cột check_out_lat/lng — HR cần đọc "cách VP bao xa",
+ * không cần toạ độ thô, mà Dashboard chấm công đã hiện sẵn cột note. Cần thống kê/vẽ bản đồ
+ * điểm check-out thì lúc đó mới thêm cột.
  */
 export async function selfCheckOut(
-  recordId: string
+  recordId: string,
+  warning = ''
 ): Promise<AttRecord> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('att_records')
-    .update({ check_out: now })
+    .update({ check_out: now, ...(warning ? { note: warning } : {}) })
     .eq('id', recordId)
     .select('*')
     .single();

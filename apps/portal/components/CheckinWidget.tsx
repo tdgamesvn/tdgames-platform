@@ -25,8 +25,9 @@ type WidgetState =
   | 'checked_out';
 
 // ponytail: máy tính không có chip GPS — trình duyệt đoán vị trí từ wifi/IP, lệch 100m tới
-// vài km ⇒ chấm công chỉ mở trên điện thoại. Chặn nhầm lẫn, KHÔNG phải chặn gian lận (đổi
-// user-agent là qua được) — nên chỉ giấu nút CHECK IN, check-out vẫn bấm được ở mọi máy.
+// vài km ⇒ cả check-in lẫn check-out chỉ mở trên điện thoại (check-out cũng phải đo vị trí,
+// kẻo về nhà rồi mới bấm vẫn tính đủ công). Chặn nhầm lẫn, KHÔNG phải chặn gian lận — đổi
+// user-agent là qua được; chặn thật phải nằm ở RLS.
 // maxTouchPoints: iPadOS 13+ khai UA y hệt macOS, không bắt được bằng regex.
 const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
   || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
@@ -142,10 +143,31 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
     );
   };
 
+  /**
+   * Vị trí lúc check-out — ghi lại, KHÔNG chặn. Chặn thì người quên bấm lúc rời VP sẽ treo
+   * bản ghi cả ngày và HR phải sửa tay, tệ hơn là để HR nhìn thấy "cách VP 8km" rồi hỏi.
+   */
+  const checkOutWarning = (): Promise<string> => {
+    if (!officeConfig || !navigator.geolocation) return Promise.resolve('');
+    return new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const d = haversineDistance(pos.coords.latitude, pos.coords.longitude, officeConfig.lat, officeConfig.lng);
+          if (d <= officeConfig.radius_meters) return resolve('');
+          const far = d >= 1000 ? `${(d / 1000).toFixed(1)}km` : `${Math.round(d)}m`;
+          // Kèm sai số: ±3km nghĩa là máy không đo được vị trí, khác hẳn với đang ở xa thật.
+          resolve(`⚠️ Check-out cách VP ~${far} (sai số ±${Math.round(pos.coords.accuracy)}m)`);
+        },
+        () => resolve('⚠️ Check-out: không lấy được vị trí'),
+        { enableHighAccuracy: true, timeout: 10000 },
+      );
+    });
+  };
+
   const handleCheckOut = async () => {
     if (!record) return;
     try {
-      const r = await selfCheckOut(record.id);
+      const r = await selfCheckOut(record.id, await checkOutWarning());
       setRecord(r);
       setState('checked_out');
       const { hm, dayFraction } = formatDuration(r.check_in!, r.check_out!);
@@ -287,16 +309,22 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleCheckOut}
-            style={{
-              background: 'transparent', border: '1px solid #FF9500', borderRadius: '12px',
-              color: '#FF9500', padding: '12px 32px', fontSize: '14px', fontWeight: 800,
-              cursor: 'pointer', width: '100%', letterSpacing: '-0.01em',
-            }}
-          >
-            🏁 CHECK OUT
-          </button>
+          {isMobileDevice ? (
+            <button
+              onClick={handleCheckOut}
+              style={{
+                background: 'transparent', border: '1px solid #FF9500', borderRadius: '12px',
+                color: '#FF9500', padding: '12px 32px', fontSize: '14px', fontWeight: 800,
+                cursor: 'pointer', width: '100%', letterSpacing: '-0.01em',
+              }}
+            >
+              🏁 CHECK OUT
+            </button>
+          ) : (
+            <p style={{ color: '#888', fontSize: '12px', textAlign: 'center', lineHeight: 1.5 }}>
+              📱 Check out bằng điện thoại — máy tính không đo được vị trí lúc tan làm.
+            </p>
+          )}
         </div>
       )}
 
