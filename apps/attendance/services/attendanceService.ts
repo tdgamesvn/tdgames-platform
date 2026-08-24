@@ -542,3 +542,39 @@ export async function checkRemoteApproved(
   if (error) throw error;
   return data !== null;
 }
+
+// ══════════════════════════════════════════════════════════
+// ── Ngày nghỉ lễ (HR nhập tay) ────────────────────────────
+// ══════════════════════════════════════════════════════════
+
+export interface AttHoliday {
+  id: string;
+  name: string;
+  date_from: string;
+  date_to: string;
+  created_at?: string;
+}
+
+export async function fetchHolidays(): Promise<AttHoliday[]> {
+  const { data, error } = await supabase
+    .from('att_holidays')
+    .select('*')
+    .order('date_from', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function saveHoliday(name: string, dateFrom: string, dateTo: string): Promise<AttHoliday> {
+  const { data, error } = await supabase
+    .from('att_holidays')
+    .insert({ name, date_from: dateFrom, date_to: dateTo })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteHoliday(id: string): Promise<void> {
+  const { error } = await supabase.from('att_holidays').delete().eq('id', id);
+  if (error) throw error;
+}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AttShift, HrEmployee, AttEmployeeShift, AttOfficeConfig } from '@/types';
-import { fetchOfficeConfig, updateOfficeConfig } from '@/apps/attendance/services/attendanceService';
+import { fetchOfficeConfig, updateOfficeConfig, fetchHolidays, saveHoliday, deleteHoliday, AttHoliday } from '@/apps/attendance/services/attendanceService';
 
 interface Props {
   shifts: AttShift[];
@@ -34,7 +34,30 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
   const [officeConfig, setOfficeConfig] = useState<AttOfficeConfig | null>(null);
   const [officeForm, setOfficeForm] = useState({ office_name: '', lat: '', lng: '', radius_meters: '' });
   const [savingOffice, setSavingOffice] = useState(false);
+  const [holidays, setHolidays] = useState<AttHoliday[]>([]);
+  const [holidayForm, setHolidayForm] = useState({ name: '', date_from: '', date_to: '' });
   const [saveOfficeError, setSaveOfficeError] = useState<string>('');
+
+  React.useEffect(() => { fetchHolidays().then(setHolidays).catch(() => {}); }, []);
+
+  const handleAddHoliday = async () => {
+    const { name, date_from, date_to } = holidayForm;
+    if (!name.trim() || !date_from) return;
+    // Nghỉ 1 ngày thì HR chỉ cần điền ô đầu, khỏi bắt gõ 2 lần cùng một ngày.
+    const to = date_to || date_from;
+    try {
+      const h = await saveHoliday(name.trim(), date_from, to);
+      setHolidays(prev => [h, ...prev]);
+      setHolidayForm({ name: '', date_from: '', date_to: '' });
+    } catch { /* RLS chặn người không phải staff — nút này chỉ hiện trong app HR */ }
+  };
+
+  const handleDeleteHoliday = async (id: string) => {
+    try {
+      await deleteHoliday(id);
+      setHolidays(prev => prev.filter(h => h.id !== id));
+    } catch { /* ignore */ }
+  };
 
   // Load office config on mount
   React.useEffect(() => {
@@ -288,6 +311,59 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
           <div className="text-sm">Nhấn "+ Thêm ca" để bắt đầu</div>
         </div>
       )}
+
+      {/* ── Ngày nghỉ lễ ──────────────────────────────── */}
+      <div className="rounded-[20px] border border-white/[0.06] bg-white/[0.03] p-6">
+        <h3 className="text-sm font-black text-primary uppercase tracking-wider mb-1">🎉 Ngày nghỉ lễ / Tết</h3>
+        <p className="text-neutral-500 text-[11px] font-semibold mb-4">
+          Những ngày này hệ thống không nhắc chấm công. Nghỉ nhiều ngày liền thì điền một dòng theo khoảng.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          <input
+            placeholder="Tên dịp nghỉ (VD: Tết Nguyên đán)" value={holidayForm.name}
+            onChange={e => setHolidayForm(f => ({ ...f, name: e.target.value }))}
+            className="md:col-span-2 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+          />
+          <input
+            type="date" value={holidayForm.date_from}
+            onChange={e => setHolidayForm(f => ({ ...f, date_from: e.target.value }))}
+            className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+          />
+          <input
+            type="date" value={holidayForm.date_to} min={holidayForm.date_from || undefined}
+            onChange={e => setHolidayForm(f => ({ ...f, date_to: e.target.value }))}
+            className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+          />
+        </div>
+        <button
+          onClick={handleAddHoliday}
+          disabled={!holidayForm.name.trim() || !holidayForm.date_from}
+          className="rounded-lg bg-primary px-5 py-2 text-black text-[13px] font-black disabled:opacity-50 mb-4"
+        >
+          ➕ Thêm ngày nghỉ
+        </button>
+
+        {holidays.length === 0 ? (
+          <p className="text-neutral-600 text-xs font-semibold">Chưa khai ngày nghỉ lễ nào.</p>
+        ) : (
+          <div className="space-y-2">
+            {holidays.map(h => (
+              <div key={h.id} className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+                <div>
+                  <p className="text-white text-[13px] font-black">{h.name}</p>
+                  <p className="text-neutral-500 text-[11px] font-semibold">
+                    {h.date_from === h.date_to ? h.date_from : `${h.date_from} → ${h.date_to}`}
+                  </p>
+                </div>
+                <button onClick={() => handleDeleteHoliday(h.id)} className="text-neutral-500 hover:text-red-400 text-xs font-black">
+                  ✕ Xoá
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Office Location Settings ─────────────────── */}
       <div className={cardCls} style={{ marginTop: '24px' }}>
