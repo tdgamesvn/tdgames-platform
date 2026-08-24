@@ -53,6 +53,9 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const [record, setRecord] = useState<AttRecord | null>(null);
   const [officeConfig, setOfficeConfig] = useState<AttOfficeConfig | null>(null);
   const [outOfRangeDistance, setOutOfRangeDistance] = useState<number>(0);
+  // Màn "ngoài vùng"/"chưa cấp quyền" dùng chung cho cả check-in lẫn check-out, nên phải nhớ
+  // bấm "Thử lại" thì quay về trạng thái nào.
+  const [retryTo, setRetryTo] = useState<'not_checked_in' | 'checked_in'>('not_checked_in');
   const [isRemoteDay, setIsRemoteDay] = useState(false);
   const [liveTimer, setLiveTimer] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -110,6 +113,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
     }
 
     // Office day: require GPS
+    setRetryTo('not_checked_in');
     if (!navigator.geolocation) {
       setState('gps_denied');
       return;
@@ -143,38 +147,51 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
     );
   };
 
-  /**
-   * Vị trí lúc check-out — ghi lại, KHÔNG chặn. Chặn thì người quên bấm lúc rời VP sẽ treo
-   * bản ghi cả ngày và HR phải sửa tay, tệ hơn là để HR nhìn thấy "cách VP 8km" rồi hỏi.
-   */
-  const checkOutWarning = (): Promise<string> => {
-    if (!officeConfig || !navigator.geolocation) return Promise.resolve('');
-    return new Promise(resolve => {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const d = haversineDistance(pos.coords.latitude, pos.coords.longitude, officeConfig.lat, officeConfig.lng);
-          if (d <= officeConfig.radius_meters) return resolve('');
-          const far = d >= 1000 ? `${(d / 1000).toFixed(1)}km` : `${Math.round(d)}m`;
-          // Kèm sai số: ±3km nghĩa là máy không đo được vị trí, khác hẳn với đang ở xa thật.
-          resolve(`⚠️ Check-out cách VP ~${far} (sai số ±${Math.round(pos.coords.accuracy)}m)`);
-        },
-        () => resolve('⚠️ Check-out: không lấy được vị trí'),
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
-    });
-  };
-
-  const handleCheckOut = async () => {
+  const saveCheckOut = async () => {
     if (!record) return;
     try {
-      const r = await selfCheckOut(record.id, await checkOutWarning());
+      const r = await selfCheckOut(record.id);
       setRecord(r);
       setState('checked_out');
       const { hm, dayFraction } = formatDuration(r.check_in!, r.check_out!);
       onToast(`✅ Check out — ${hm} (${dayFraction} ngày công)`, 'success');
     } catch {
       onToast('Lỗi khi lưu check out. Thử lại sau.', 'error');
+      setState('checked_in');
     }
+  };
+
+  /**
+   * Check-out cũng phải ở trong bán kính VP — về nhà rồi mới bấm thì không tính.
+   * Quên bấm ⇒ hôm sau làm đơn giải trình cho Admin duyệt (không mở cửa sau ở đây).
+   */
+  const handleCheckOut = async () => {
+    if (!record) return;
+    // Ngày WFH đã được duyệt thì không có VP nào để đứng gần.
+    if (isRemoteDay || record.method === 'remote') return saveCheckOut();
+
+    if (!officeConfig || !navigator.geolocation) {
+      setRetryTo('checked_in');
+      setState('gps_denied');
+      return;
+    }
+    setRetryTo('checked_in');
+    setState('gps_requesting');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const dist = haversineDistance(
+          pos.coords.latitude, pos.coords.longitude, officeConfig.lat, officeConfig.lng,
+        );
+        if (dist > officeConfig.radius_meters) {
+          setOutOfRangeDistance(Math.round(dist));
+          setState('out_of_range');
+          return;
+        }
+        saveCheckOut();
+      },
+      () => setState('gps_denied'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   };
 
   const card: React.CSSProperties = {
@@ -259,7 +276,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
             ⚠️ Vui lòng cho phép quyền vị trí trong trình duyệt
           </p>
           <button
-            onClick={() => setState('not_checked_in')}
+            onClick={() => setState(retryTo)}
             style={{
               background: 'transparent', border: '1px solid #444', borderRadius: '8px',
               color: '#ccc', padding: '8px 20px', fontSize: '12px', cursor: 'pointer',
@@ -276,10 +293,11 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
             📍 Bạn đang cách văn phòng ~{outOfRangeDistance}m
           </p>
           <p style={{ color: '#666', fontSize: '12px', marginBottom: '12px' }}>
-            Cần ở trong bán kính {officeConfig?.radius_meters ?? 300}m để chấm công
+            Cần ở trong bán kính {officeConfig?.radius_meters ?? 300}m để chấm công.
+            Quên chấm thì hôm sau làm đơn giải trình để Admin duyệt.
           </p>
           <button
-            onClick={() => setState('not_checked_in')}
+            onClick={() => setState(retryTo)}
             style={{
               background: 'transparent', border: '1px solid #444', borderRadius: '8px',
               color: '#ccc', padding: '8px 20px', fontSize: '12px', cursor: 'pointer',
