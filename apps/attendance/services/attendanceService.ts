@@ -252,6 +252,29 @@ async function applyForgotRequest(req: AttRequest): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Báo kết quả duyệt cho người gửi đơn. Trước đây duyệt/từ chối xong nhân viên không hề biết —
+ * đơn chỉ lặng lẽ biến mất khỏi danh sách chờ.
+ * Lỗi gửi thông báo không được làm hỏng việc duyệt, nên nuốt lỗi ở đây.
+ */
+async function notifyRequestResult(req: AttRequest, approved: boolean, note: string): Promise<void> {
+  try {
+    const { data: emp } = await supabase
+      .from('hr_employees').select('auth_user_id').eq('id', req.employee_id).maybeSingle();
+    if (!emp?.auth_user_id) return;
+    const label = req.request_type === 'forgot' ? 'Đơn giải trình quên chấm công' : 'Đơn từ';
+    await supabase.from('notifications').insert({
+      recipient_user_id: emp.auth_user_id,
+      type: approved ? 'att_request_approved' : 'att_request_rejected',
+      title: approved ? `✅ ${label} đã được duyệt` : `❌ ${label} bị từ chối`,
+      body: `Ngày ${req.date_from}${note ? ` — ${note}` : ''}`,
+      link: '#portal/tasks',
+    });
+  } catch (e) {
+    console.error('Không gửi được thông báo kết quả duyệt đơn:', e);
+  }
+}
+
 export async function approveRequest(id: string, approved_by: string, reviewer_note: string = '') {
   const { data: req, error: readErr } = await supabase
     .from('att_requests').select('*').eq('id', id).single();
@@ -264,14 +287,17 @@ export async function approveRequest(id: string, approved_by: string, reviewer_n
   if (error) throw error;
 
   if (req?.request_type === 'forgot') await applyForgotRequest(req as AttRequest);
+  if (req) await notifyRequestResult(req as AttRequest, true, reviewer_note);
 }
 
 export async function rejectRequest(id: string, approved_by: string, reviewer_note: string = '') {
+  const { data: req } = await supabase.from('att_requests').select('*').eq('id', id).single();
   const { error } = await supabase
     .from('att_requests')
     .update({ status: 'rejected', approved_by, approved_at: new Date().toISOString(), reviewer_note })
     .eq('id', id);
   if (error) throw error;
+  if (req) await notifyRequestResult(req as AttRequest, false, reviewer_note);
 }
 
 export async function deleteRequest(id: string) {

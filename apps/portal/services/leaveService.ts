@@ -42,12 +42,13 @@ export function getAvailableLeaveDays(yearlyBalance: LeaveBalance | null): {
 // ── Leave Request CRUD ────────────────────────────────────
 // ══════════════════════════════════════════════════════════
 
-export async function fetchMyLeaveRequests(employeeId: string): Promise<AttRequest[]> {
+/** `types` mở rộng để màn "đang chờ duyệt" lấy kèm đơn quên chấm, mặc định vẫn chỉ đơn nghỉ. */
+export async function fetchMyLeaveRequests(employeeId: string, types: string[] = ['leave']): Promise<AttRequest[]> {
   const { data, error } = await supabase
     .from('att_requests')
     .select('*, employee:hr_employees(*)')
     .eq('employee_id', employeeId)
-    .eq('request_type', 'leave')
+    .in('request_type', types)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];

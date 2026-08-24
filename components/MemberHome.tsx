@@ -49,7 +49,7 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
     fetchYearlyBalance(empId, now.getFullYear())
       .then(b => setLeaveLeft(getAvailableLeaveDays(b).available))
       .catch(() => {});
-    fetchMyLeaveRequests(empId)
+    fetchMyLeaveRequests(empId, ['leave', 'forgot'])
       .then(rs => setPendingLeave(rs.filter(r => r.status === 'pending')))
       .catch(() => {});
     fetchMyChangeRequests(empId)
@@ -168,16 +168,20 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
           </div>
         ) : (
           <div className="space-y-2.5">
-            {pendingLeave.map(r => (
-              <button key={r.id} onClick={() => go('portal/recurring')} className="w-full bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3 text-left">
-                <span className="text-[20px]">🌴</span>
+            {pendingLeave.map(r => {
+              // Cùng bảng att_requests nên gộp một danh sách; chỉ đổi nhãn + chỗ bấm tới.
+              const isForgot = r.request_type === 'forgot';
+              return (
+              <button key={r.id} onClick={() => go(isForgot ? 'portal/tasks' : 'portal/recurring')} className="w-full bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3 text-left">
+                <span className="text-[20px]">{isForgot ? '😅' : '🌴'}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-[13px] font-bold truncate">Đơn nghỉ {r.date_from}{r.date_to !== r.date_from ? ` → ${r.date_to}` : ''}</p>
+                  <p className="text-white text-[13px] font-bold truncate">{isForgot ? `Giải trình quên chấm ${r.date_from}` : `Đơn nghỉ ${r.date_from}${r.date_to !== r.date_from ? ` → ${r.date_to}` : ''}`}</p>
                   <p className="text-neutral-600 text-[11px] font-semibold truncate">{r.reason || '—'}</p>
                 </div>
                 <span className="text-[10px] font-black uppercase text-[#FFA726]">Chờ duyệt</span>
               </button>
-            ))}
+              );
+            })}
             {pendingReq.map(r => (
               <button key={r.id} onClick={() => go('portal/proposals')} className="w-full bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3 text-left">
                 <span className="text-[20px]">📝</span>
