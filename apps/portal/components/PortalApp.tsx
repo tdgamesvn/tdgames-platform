@@ -157,6 +157,9 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
     }
   }, [activeTab, currentUser.employee_id]);
 
+  // Check-in/out xong thì lịch sử chấm công bên dưới đang là dữ liệu cũ — bump để tải lại.
+  const [attReload, setAttReload] = useState(0);
+
   // Load attendance when tab changes
   useEffect(() => {
     if (activeTab === 'attendance' && currentUser.employee_id) {
@@ -178,7 +181,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
         .catch(() => { setAttendance([]); setDailyRecords([]); })
         .finally(() => setIsLoading(false));
     }
-  }, [activeTab, currentUser.employee_id, attMonth]);
+  }, [activeTab, currentUser.employee_id, attMonth, attReload]);
 
   return (
     <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -398,7 +401,11 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                   {/* Check-in Widget */}
                   <CheckinWidget
                     employeeId={currentUser.employee_id}
-                    onToast={(msg, type) => setToast({ message: msg, type })}
+                    onToast={(msg, type) => {
+                      setToast({ message: msg, type });
+                      // Toast 'success' của widget chỉ đến từ check-in/out vừa ghi DB.
+                      if (type === 'success') setAttReload(n => n + 1);
+                    }}
                   />
                   <ForgotCheckinForm
                     employeeId={currentUser.employee_id}

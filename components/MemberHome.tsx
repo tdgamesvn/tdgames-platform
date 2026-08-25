@@ -36,6 +36,9 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
   const [leaveLeft, setLeaveLeft] = useState<number | null>(null);
   const [pendingLeave, setPendingLeave] = useState<AttRequest[]>([]);
   const [pendingReq, setPendingReq] = useState<HrChangeRequest[]>([]);
+  // ponytail: đếm lượt tải lại thay vì tách hàm fetch riêng — check-in/out xong là mọi số ở đây
+  // (công tháng, đơn chờ) đều có thể đổi, tải lại cả cụm rẻ hơn nhớ cái nào phụ thuộc cái nào.
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (!empId) return;
@@ -55,7 +58,7 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
     fetchMyChangeRequests(empId)
       .then(rs => setPendingReq(rs.filter(r => r.status === 'pending')))
       .catch(() => {});
-  }, [empId]);
+  }, [empId, reload]);
 
   const name = profile?.full_name || currentUser.username;
   // fetchMyProfile select '*' nên avatar_url có sẵn — không thêm query nào.
@@ -115,7 +118,17 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
         </div>
 
         {/* ── Check-in (dùng lại widget của Portal, kèm GPS) ── */}
-        {empId && <CheckinWidget employeeId={empId} onToast={(message, type) => setToast({ message, type })} />}
+        {/* Mọi toast 'success' của widget đều là check-in/check-out vừa ghi DB ⇒ số liệu cũ đã hết
+            hạn. Bám vào đó thay vì thêm prop onSuccess: widget không có đường thành công nào khác. */}
+        {empId && (
+          <CheckinWidget
+            employeeId={empId}
+            onToast={(message, type) => {
+              setToast({ message, type });
+              if (type === 'success') setReload(n => n + 1);
+            }}
+          />
+        )}
 
         {/* ── KPI ── */}
         <div className="grid grid-cols-3 gap-2.5 mt-5">
