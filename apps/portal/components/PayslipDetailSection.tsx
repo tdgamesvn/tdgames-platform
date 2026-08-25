@@ -1,5 +1,7 @@
 import React from 'react';
 import { PayPayrollRecord, PayPayrollSheet } from '@/types';
+import { FALLBACK_PAYROLL_FORMULA as LEGAL } from '@/apps/payroll/services/payrollFormulaService';
+import { otBreakdown } from '@/apps/payroll/services/otBreakdown';
 
 type PayslipWithSheet = PayPayrollRecord & { sheet?: PayPayrollSheet };
 
@@ -13,10 +15,13 @@ interface Props {
 
 const fmt = (n: number) => Math.round(n || 0).toLocaleString('vi-VN');
 
-/** Tổng giờ OT phát sinh — gộp cả 3 loại ngày (thường / T7-CN / lễ). */
-const otTotalHours = (ps: PayPayrollRecord) =>
-  (ps.extra_ot_hours || 0) + (ps.extra_ot_hours_weekend || 0) + (ps.extra_ot_hours_holiday || 0)
-  + (ps.extra_ot_hours_night || 0) + (ps.extra_ot_hours_night_weekend || 0) + (ps.extra_ot_hours_night_holiday || 0);
+/**
+ * ponytail: hệ số OT dùng mức luật định (BLLĐ 2019 Đ.98 + NĐ 145/2020 Đ.57), vì RLS
+ * `pay_formula_select_staff` = is_staff() chặn member đọc bảng công thức. Hiện DB đang để
+ * đúng mức luật nên khớp 100%. Nếu kế toán nâng hệ số cao hơn luật ⇒ tỷ lệ chia giữa các
+ * dòng lệch (TỔNG vẫn đúng); lúc đó mở RLS cho member SELECT bảng công thức và truyền
+ * PayrollFormulaConfig thật vào `otBreakdown` thay cho LEGAL. Phiếu lương HR đã dùng config thật.
+ */
 
 // Row/label/value dùng className (Tailwind, arbitrary values) để scale theo breakpoint
 // thay vì style cố định — to hơn & đọc được trên mọi kích thước màn hình.
@@ -35,6 +40,7 @@ const actValCls = 'w-[64px] sm:w-[96px] text-right text-[12px] sm:text-[14px] fo
 const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays, onViewAttendance }) => {
   const STANDARD_DAYS = standardDays ?? ps.sheet?.standard_work_days ?? 22;
   const ratio = (ps.work_days || 0) / STANDARD_DAYS;
+  const ot = otBreakdown(ps, LEGAL);
 
   // Thử việc / tháng chuyển giao
   const isTransition = !ps.is_probation && (ps.probation_ratio || 0) > 0 && (ps.probation_ratio || 0) < 1;
@@ -143,15 +149,33 @@ const PayslipDetailSection: React.FC<Props> = ({ ps, standardDays, onViewAttenda
           </div>
         ))}
 
-        {/* Extra OT row */}
-        {otTotalHours(ps) > 0 && (
-          <div className={rowCls}>
-            <span className={`${lblCls} text-[#FF9500]`}>Tăng ca phát sinh ({otTotalHours(ps)}h)</span>
-            <div className={valWrapCls}>
-              <span className={refValCls}>—</span>
-              <span className={`${actValCls} text-[#FF9500]`}>{fmt(ps.extra_ot || 0)}</span>
+        {/* Extra OT — tổng giờ + tổng tiền, rồi tách từng loại để nhân viên tự đối chiếu
+            giờ nào ăn hệ số nào. Trước đây chỉ có 1 dòng "6h + một cục tiền". */}
+        {ot.totalHours > 0 && (
+          <>
+            <div className={rowCls}>
+              <span className={`${lblCls} text-[#FF9500]`}>Tăng ca phát sinh ({ot.totalHours}h)</span>
+              <div className={valWrapCls}>
+                <span className={refValCls}>—</span>
+                <span className={`${actValCls} text-[#FF9500]`}>{fmt(ot.totalPay)}</span>
+              </div>
             </div>
-          </div>
+            {ot.items.map(it => (
+              <div key={it.label}
+                className="flex justify-between items-center py-1 pl-3 border-b border-white/5"
+                style={{ background: 'rgba(255,255,255,0.02)' }}>
+                <span className="text-[11px] sm:text-[12px] text-[#9D9C9D] pr-2">
+                  {it.hours}h × {Math.round(it.rate * 100)}% · {it.label}
+                </span>
+                <div className={valWrapCls}>
+                  <span className={refValCls}>—</span>
+                  <span className="w-[64px] sm:w-[96px] text-right text-[11px] sm:text-[12px] font-semibold text-[#9D9C9D]">
+                    {fmt(it.pay)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </>
         )}
 
         {/* Gross rows */}

@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
 import { FALLBACK_PAYROLL_FORMULA } from './payrollFormulaService';
+import { otBreakdown } from './otBreakdown';
 
 const fmt = (n: number) => Math.round(n).toLocaleString('vi-VN');
 
@@ -221,14 +222,9 @@ export function exportPaySlipToExcel(
   rows.push(['Phụ cấp trang phục', rec.clothing_allowance, Math.round(rec.clothing_allowance * ratio)]);
   rows.push(['Phụ cấp KPI', rec.kpi_allowance, Math.round(rec.kpi_allowance * ratio)]);
   rows.push(['Tăng ca mặc định', rec.default_ot, Math.round(rec.default_ot * ratio)]);
-  rows.push(['Tăng ca phát sinh', [
-    `${rec.extra_ot_hours}h thường`,
-    (rec.extra_ot_hours_weekend ?? 0) > 0 ? `${rec.extra_ot_hours_weekend}h T7/CN` : '',
-    (rec.extra_ot_hours_holiday ?? 0) > 0 ? `${rec.extra_ot_hours_holiday}h lễ` : '',
-    (rec.extra_ot_hours_night ?? 0) > 0 ? `${rec.extra_ot_hours_night}h đêm thường` : '',
-    (rec.extra_ot_hours_night_weekend ?? 0) > 0 ? `${rec.extra_ot_hours_night_weekend}h đêm T7/CN` : '',
-    (rec.extra_ot_hours_night_holiday ?? 0) > 0 ? `${rec.extra_ot_hours_night_holiday}h đêm lễ` : '',
-  ].filter(Boolean).join(' + '), rec.extra_ot]);
+  const ot = otBreakdown(rec, formula);
+  rows.push(['Tăng ca phát sinh', `${ot.totalHours}h`, ot.totalPay]);
+  ot.items.forEach(it => rows.push([`  → ${it.label}`, `${it.hours}h × ${Math.round(it.rate * 100)}%`, it.pay]));
   rows.push([]);
   rows.push(['Gross tham chiếu', '', rec.gross_ref]);
   rows.push(['Gross thực tế', '', rec.gross_actual]);
