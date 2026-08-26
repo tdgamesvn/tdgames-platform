@@ -145,6 +145,44 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // ── GUARD: chỉ admin/hr ────────────────────────────────────────────────
+    // Trước 2026-08-26 function này KHÔNG kiểm quyền caller. Nó chạy bằng
+    // SERVICE_ROLE_KEY và `update_role` ghi thẳng vào `app_metadata` — đúng chỗ RLS đọc.
+    // Nghĩa là bất kỳ ai trên Internet cũng nâng được email bất kỳ lên 'admin' THẬT:
+    //   curl -X POST .../create-employee-auth \
+    //     -d '{"action":"update_role","email":"<ai đó>","role":"admin"}'
+    // rồi đọc sạch lương, hoá đơn, CCCD. `delete_user`/`disable` thì xoá/khoá tài khoản.
+    // Mọi lời gọi hợp lệ đều đến từ HR app và đã kèm Authorization (EmployeeDetail.tsx,
+    // hrService.ts) — kể cả `check_email`, nên không cần chừa action công khai nào.
+    const callerToken = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!callerToken) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized: thiếu Authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const { data: { user: caller }, error: callerErr } =
+      await supabaseAdmin.auth.getUser(callerToken);
+    if (callerErr || !caller) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized: token không hợp lệ" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // Đọc app_metadata chứ KHÔNG phải user_metadata: user_metadata do chính người dùng
+    // ghi được, dùng nó để phân quyền là tự mở lại đúng lỗ hổng vừa vá.
+    const callerMeta = (caller.app_metadata || {}) as Record<string, unknown>;
+    const callerRoles = [
+      callerMeta.role,
+      ...(Array.isArray(callerMeta.secondary_roles) ? callerMeta.secondary_roles : []),
+    ];
+    if (!callerRoles.some((r) => r === "admin" || r === "hr")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden: cần quyền admin hoặc hr" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // ── DELETE_USER ACTION: Permanently delete auth user ──
     if (action === "delete_user") {
       const { email } = body;
