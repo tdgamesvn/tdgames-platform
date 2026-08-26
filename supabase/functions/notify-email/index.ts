@@ -208,15 +208,6 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ skipped: true }), { status: 200 });
     }
 
-    const record = payload.record as {
-      id:                string;
-      recipient_user_id: string;
-      type:              string;
-      title:             string;
-      body?:             string;
-      link?:             string;
-    };
-
     const resendKey = Deno.env.get('RESEND_API_KEY');
     const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'noreply@tdgamestudio.com';
     const appUrl    = (Deno.env.get('APP_URL') || 'https://app.tdgamestudio.com').replace(/\/$/, '');
@@ -226,16 +217,46 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY not set' }), { status: 503 });
     }
 
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+
+    // ── Không tin payload: đọc lại notification từ DB (sửa 2026-08-26) ─────────
+    // Y hệt lỗ đã vá ở `notify-push`. Function này verify_jwt=false và không kiểm auth;
+    // trigger DB gọi nó kèm ANON_KEY (nằm trong bundle JS công khai) nên lời gọi giả không
+    // phân biệt được với lời gọi thật:
+    //   curl -X POST .../notify-email -d '{"type":"INSERT","table":"notifications","record":
+    //     {"id":"x","recipient_user_id":"<uid nhân viên>","type":"payslip",
+    //      "title":"Phiếu lương tháng 8","link":"https://evil/login"}}'
+    // ⇒ Resend gửi mail từ noreply@tdgamestudio.com, template thật, tới đúng hộp thư nhân
+    // viên, nội dung và link do kẻ tấn công đặt. Chữ ký domain hợp lệ nên qua được mọi bộ
+    // lọc — phishing thu thập mật khẩu nội bộ, và đốt cả uy tín domain gửi.
+    //
+    // Chặn bằng cách bỏ tin payload: chỉ lấy `id`, nội dung đọc từ bảng bằng service_role.
+    // ponytail: vẫn replay được (gọi lại với id thật ⇒ gửi lại đúng mail đó cho đúng người).
+    // Vô hại. Chặn hẳn thì thêm x-notify-secret vào cả trigger lẫn đây.
+    const recordId = (payload.record as { id?: string } | undefined)?.id;
+    if (!recordId) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'missing record id' }), { status: 200 });
+    }
+
+    const { data: record, error: recErr } = await supabase
+      .from('notifications')
+      .select('id, recipient_user_id, type, title, body, link')
+      .eq('id', recordId)
+      .single();
+
+    if (recErr || !record) {
+      return new Response(JSON.stringify({ skipped: true, reason: 'notification not found' }), { status: 200 });
+    }
+
     // Resolve per-type metadata (subject + category badge)
     const meta     = TYPE_META[record.type] ?? { subject: `[TD Games] ${record.title}`, category: 'Thông báo' };
     const bodyText = record.body || null;
     const linkText = record.link || null;
 
     // Look up recipient's email address via Supabase Admin
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
     const { data: userData, error: userErr } = await supabase.auth.admin.getUserById(
       record.recipient_user_id,
     );
