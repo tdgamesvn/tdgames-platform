@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { InvoiceData } from '@/types';
 import { Button } from '@/components/Button';
+import { supabase } from '@/services/supabaseClient';
 
 interface EmailModalProps {
   theme: string;
@@ -79,9 +80,13 @@ export const EmailModal: React.FC<EmailModalProps> = ({ theme, invoice, onClose,
     setError(null);
     try {
       const edgeFnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invoice-email`;
+      // Phải gửi access_token của phiên, KHÔNG phải anon key: anon key nằm trong bundle JS
+      // công khai nên nó không chứng minh được danh tính ai cả. Edge function dùng token này
+      // để kiểm caller là admin/ke_toan — thiếu nó thì hàm trả 401.
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(edgeFnUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
         body: JSON.stringify({
           to, subject,
           html_body: buildEmailHtml(),

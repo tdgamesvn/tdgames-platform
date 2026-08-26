@@ -90,6 +90,41 @@ Deno.serve(async (req: Request) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // ── GUARD: chỉ admin/hr ────────────────────────────────────────────────
+    // Trước 2026-08-26 function này KHÔNG kiểm quyền caller dù chạy bằng SERVICE_ROLE_KEY.
+    // Ai cũng gọi được `reset_password` cho email bất kỳ ⇒ spam link đặt lại mật khẩu tới
+    // nhân viên, và nó còn ghi đè `user_metadata: { password_set: false }` (xoá luôn role
+    // trong user_metadata ⇒ hỏng guard UI của người đó). `resend_invite` thì xoá được
+    // tài khoản chưa xác nhận: nhánh đó gọi deleteUser trước khi tạo lại.
+    // Cả 2 lời gọi hợp lệ đều từ HR app và đã kèm Authorization (hrService.ts:414, :434).
+    const callerToken = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!callerToken) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: thiếu Authorization header' }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+    const { data: { user: caller }, error: callerErr } =
+      await supabaseAdmin.auth.getUser(callerToken);
+    if (callerErr || !caller) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: token không hợp lệ' }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+    // app_metadata, KHÔNG phải user_metadata — user_metadata do chính người dùng ghi được.
+    const callerMeta = (caller.app_metadata || {}) as Record<string, unknown>;
+    const callerRoles = [
+      callerMeta.role,
+      ...(Array.isArray(callerMeta.secondary_roles) ? callerMeta.secondary_roles : []),
+    ];
+    if (!callerRoles.some((r) => r === 'admin' || r === 'hr')) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: cần quyền admin hoặc hr' }),
+        { status: 403, headers: corsHeaders }
+      );
+    }
+
     // ── RESEND INVITE ──
     if (action === 'resend_invite') {
       if (!employee_id) {
