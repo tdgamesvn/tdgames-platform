@@ -1,11 +1,43 @@
 // ai-format-scope — chuyển mô tả phạm vi công việc dạng thô thành HTML song ngữ
 // cho ĐIỀU II của hợp đồng khách hàng (CRM > Tạo hợp đồng).
-// LLM qua endpoint OpenAI-compatible ở LLM_API_BASE. verify_jwt = true → chỉ user đã đăng nhập.
+// LLM qua endpoint OpenAI-compatible ở LLM_API_BASE.
+//
+// ⚠ `verify_jwt = true` KHÔNG phải bảo vệ: anon key cũng là JWT hợp lệ và nằm sẵn trong bundle
+// JS công khai ⇒ trước đây đây là proxy LLM miễn phí cho cả Internet, đốt `LLM_API_KEY` của
+// công ty (20.000 ký tự vào / 8.000 token ra mỗi lượt). Guard dưới bắt user thật + role CRM.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+/** Quyền khớp app CRM (nơi duy nhất gọi hàm này): admin / ke_toan. Đọc `app_metadata`. */
+async function requireStaff(req: Request): Promise<Response | null> {
+  const deny = (msg: string, status: number) =>
+    new Response(JSON.stringify({ error: msg }), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return deny('Unauthorized: thiếu Authorization header', 401);
+
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+  const { data: { user }, error } = await admin.auth.getUser(token);
+  if (error || !user) return deny('Unauthorized: token không hợp lệ', 401);
+
+  const meta = (user.app_metadata || {}) as Record<string, unknown>;
+  const roles = [meta.role, ...(Array.isArray(meta.secondary_roles) ? meta.secondary_roles : [])];
+  if (!roles.some((r) => r === 'admin' || r === 'ke_toan' || r === 'bd')) {
+    return deny('Forbidden: cần quyền CRM (admin/ke_toan/bd)', 403);
+  }
+  return null;
+}
 
 type Lang = 'both' | 'vi' | 'en';
 
@@ -44,6 +76,9 @@ QUY TAC BAT BUOC:
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const denied = await requireStaff(req);
+  if (denied) return denied;
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {

@@ -43,6 +43,20 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // Trước đây chỉ kiểm "có đăng nhập" ⇒ mọi tài khoản (kể cả freelancer) chuyển tiếp được
+  // method/path tuỳ ý sang Outreach API, mà function tự gắn `x-outreach-internal` hộ ⇒ gửi mail
+  // outreach thật, đổi `PUT /api/settings`. Quyền khớp gate app CRM (`config/apps.ts`):
+  // admin / ke_toan / bd — `bd` nằm ở `secondary_roles` của 3 tài khoản member thật.
+  // `app_metadata`, KHÔNG phải `user_metadata` (user tự ghi được).
+  const meta = (user.app_metadata || {}) as Record<string, unknown>;
+  const roles = [meta.role, ...(Array.isArray(meta.secondary_roles) ? meta.secondary_roles : [])];
+  if (!roles.some((r) => r === "admin" || r === "ke_toan" || r === "bd")) {
+    return new Response(JSON.stringify({ detail: "Forbidden: cần quyền CRM (admin/ke_toan/bd)" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const backend = (Deno.env.get("OUTREACH_API_URL") || "").trim().replace(/\/$/, "");
   if (!backend) {
     return new Response(JSON.stringify({ detail: "OUTREACH_API_URL not set on project secrets" }), {
