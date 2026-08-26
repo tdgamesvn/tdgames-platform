@@ -121,6 +121,12 @@ export async function fetchMyProfile(employeeId: string) {
 }
 
 // Update profile — only allow employee-editable fields
+/**
+ * Cột nhân viên được tự sửa. Danh sách này được nhân đôi trong trigger
+ * `hr_employees_guard_self_update` (migration 20260826120000) — tầng chặn thật, vì lọc ở
+ * client thì ai gọi thẳng PostgREST bằng token của mình cũng bỏ qua được.
+ * ⚠ Thêm cột mới vào form thì phải thêm ở CẢ HAI chỗ, không thì DB âm thầm giữ giá trị cũ.
+ */
 const EMPLOYEE_EDITABLE_FIELDS = [
   'full_name', 'email', 'phone', 'date_of_birth', 'gender', 'nationality',
   'address', 'temp_address', 'id_number', 'id_issue_date', 'id_issue_place',
