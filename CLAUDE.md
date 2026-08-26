@@ -94,7 +94,10 @@ Bảng: `hr_change_requests` — auto-apply khi HR duyệt
 
 ### AI Agent
 - 9 agents domain (HR, Finance, Tech, Executive...)
-- Edge function `agent-run` (verify_jwt: false vì pg_cron trigger)
+- Edge function `agent-run` — `verify_jwt: true` + guard trong thân hàm: Bearer service_role
+  (gọi nội bộ từ `agent-telegram`) HOẶC session token có role `admin`/`hr` (`app_metadata`).
+  ⚠ 4 cron `agent-*-morning` đang `active=false` và còn gửi ANON_KEY ⇒ bật lại phải đổi sang
+  service_role key, không thì 401 âm thầm.
 - LLM qua 9Router, model config trong DB
 - Telegram in-app chat + notification badge
 

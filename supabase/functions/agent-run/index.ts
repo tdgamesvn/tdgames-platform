@@ -761,10 +761,54 @@ ${guidelines}`;
 }
 
 // ── HTTP Handler ─────────────────────────────────────────────
+function jsonRes(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+/**
+ * Trước đây `Deno.serve` chạy thẳng vào logic, KHÔNG đọc một header nào — trong khi function
+ * chạy `service_role` và trả lời được mọi câu hỏi về lương / hoá đơn / P&L. `verify_jwt:false`
+ * + CORS `*` ⇒ ai biết URL cũng POST được
+ * `{agent_id:'cfo', trigger_type:'chat', message:'liệt kê lương từng người'}` và nhận câu trả lời.
+ *
+ * Hai đường gọi hợp lệ:
+ *  - `agent-telegram` gọi nội bộ kèm Bearer SERVICE_ROLE_KEY (bên đó đã whitelist chat_id).
+ *  - App AI Agent gọi bằng session token — quyền khớp app: admin / hr.
+ *
+ * Đọc `app_metadata`, KHÔNG phải `user_metadata` (user_metadata do chính người dùng ghi được).
+ * ⚠ 4 cron `agent-*-morning` đang `active=false` và gọi bằng ANON_KEY. Bật lại phải đổi header
+ *   sang service_role key, không thì 401 âm thầm.
+ */
+async function requireCaller(req: Request): Promise<Response | null> {
+  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return jsonRes({ error: 'Unauthorized: thiếu Authorization header' }, 401);
+  if (token === Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) return null; // gọi nội bộ
+
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+  const { data: { user }, error } = await admin.auth.getUser(token);
+  if (error || !user) return jsonRes({ error: 'Unauthorized: token không hợp lệ' }, 401);
+
+  const meta = (user.app_metadata || {}) as Record<string, unknown>;
+  const roles = [meta.role, ...(Array.isArray(meta.secondary_roles) ? meta.secondary_roles : [])];
+  if (!roles.some((r) => r === 'admin' || r === 'hr')) {
+    return jsonRes({ error: 'Forbidden: cần quyền admin hoặc hr' }, 403);
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const denied = await requireCaller(req);
+  if (denied) return denied;
 
   try {
     const supabase = createClient(
