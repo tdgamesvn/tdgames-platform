@@ -1,4 +1,4 @@
-// VÔ HIỆU HOÁ 2026-08-26 — ban sao gan nhu y het platform-data (thieu action rls_audit). Cung lo, cung probe 200 bang anon key. 0 cho goi trong repo, 0 cron.
+// VÔ HIỆU HOÁ 2026-08-26 — rac TD Workflow — dung fb_clickup_tokens (khong ton tai). Proxy ClickUp endpoint tuy y. 0 cho goi.
 //
 // verify_jwt: true KHÔNG bảo vệ được gì: anon key cũng là JWT hợp lệ và nằm công khai
 // trong bundle JS của app.tdgamestudio.com ⇒ gateway cho qua, thân hàm không kiểm role.
@@ -7,7 +7,7 @@
 // thêm guard Bearer + kiểm role qua app_metadata — mẫu chuẩn: outreach-auto-batch.
 Deno.serve(() =>
   new Response(
-    JSON.stringify({ error: "Gone", message: "billing-report da bi vo hieu hoa (2026-08-26)." }),
+    JSON.stringify({ error: "Gone", message: "clickup-proxy da bi vo hieu hoa (2026-08-26)." }),
     { status: 410, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } },
   )
 );
