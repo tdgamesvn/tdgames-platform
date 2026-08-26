@@ -40,6 +40,29 @@ Deno.serve(async (req: Request) => {
     const text      = message.text.trim();
     const fromName  = message.from?.first_name || 'Bạn';
 
+    // ── Whitelist chat_id (thêm 2026-08-26) ───────────────────────────────────
+    // Trước đây bot KHÔNG kiểm ai đang nhắn. Hai đường rò cùng một gốc:
+    //  1. Bất kỳ ai tìm ra username bot → /start → /cfo → hỏi "lương từng người bao nhiêu"
+    //     và AI agent (chạy service_role) trả lời thẳng vào Telegram của họ.
+    //  2. Webhook không verify nên POST giả cũng được: đặt `chat.id` thành chat của mình.
+    // Whitelist chặn cả hai bằng một điều kiện: câu trả lời chỉ đi tới chat đã được cấp
+    // quyền, nên kẻ giả webhook cùng lắm khiến người thật nhận tin — không lấy được gì.
+    //
+    // ponytail: danh sách để ở env, không phải bảng. Đang có đúng 1 người dùng bot; dựng
+    // bảng + UI quản lý cho 1 dòng là thừa. Nhiều người thì đổi sang ánh xạ
+    // hr_employees.telegram_chat_id.
+    // Fail-closed: env trống thì chặn hết, và trả về chat_id để admin thêm cho nhanh.
+    const allowedChats = (Deno.env.get('TELEGRAM_ALLOWED_CHAT_IDS') || '')
+      .split(',').map((s) => s.trim()).filter(Boolean);
+    if (!allowedChats.includes(String(chatId))) {
+      await sendTelegram(BOT_TOKEN, chatId,
+        '⛔ <b>Chat này chưa được cấp quyền dùng AI agent nội bộ.</b>\n\n' +
+        `Chat ID của bạn: <code>${chatId}</code>\n` +
+        'Gửi ID này cho admin để được thêm vào <code>TELEGRAM_ALLOWED_CHAT_IDS</code>.'
+      );
+      return new Response(JSON.stringify({ ok: true, blocked: true }), { status: 200 });
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
