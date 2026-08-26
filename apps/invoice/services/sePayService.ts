@@ -2,11 +2,18 @@ import { InvoiceData } from '@/types';
 
 // ── Config ──────────────────────────────────────────────────────
 const EDGE_FUNCTION_URL = import.meta.env.VITE_SEPAY_EDGE_FUNCTION_URL;
-const API_KEY = import.meta.env.VITE_SEPAY_API_KEY || 'tdgames-sepay-2026';
+// Không để giá trị mặc định ở đây: chuỗi fallback nằm trong source là secret công khai
+// vĩnh viễn trong lịch sử git, và nó âm thầm gánh cho việc quên cấu hình .env nên không
+// ai phát hiện ra. Thiếu key thì phải nổ ngay lúc gọi.
+// ⚠ Vá này mới chỉ bỏ chuỗi hardcode. VITE_* vẫn bị Vite nhúng vào bundle JS công khai,
+// nên key này coi như ai cũng đọc được — xem TASKS.md, phải chuyển sang Edge Function
+// giữ secret server-side thì mới thực sự kín.
+const API_KEY = import.meta.env.VITE_SEPAY_API_KEY;
 
 // ── Helpers ─────────────────────────────────────────────────────
 
 async function callProxy(action: string, payload: Record<string, unknown> = {}) {
+    if (!API_KEY) throw new Error('VITE_SEPAY_API_KEY chưa cấu hình trong .env — không gọi được SePay.');
     const res = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
