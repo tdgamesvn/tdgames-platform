@@ -1,24 +1,26 @@
 import { InvoiceData } from '@/types';
+import { supabase } from '@/services/supabaseClient';
 
 // ── Config ──────────────────────────────────────────────────────
 const EDGE_FUNCTION_URL = import.meta.env.VITE_SEPAY_EDGE_FUNCTION_URL;
-// Không để giá trị mặc định ở đây: chuỗi fallback nằm trong source là secret công khai
-// vĩnh viễn trong lịch sử git, và nó âm thầm gánh cho việc quên cấu hình .env nên không
-// ai phát hiện ra. Thiếu key thì phải nổ ngay lúc gọi.
-// ⚠ Vá này mới chỉ bỏ chuỗi hardcode. VITE_* vẫn bị Vite nhúng vào bundle JS công khai,
-// nên key này coi như ai cũng đọc được — xem TASKS.md, phải chuyển sang Edge Function
-// giữ secret server-side thì mới thực sự kín.
-const API_KEY = import.meta.env.VITE_SEPAY_API_KEY;
 
 // ── Helpers ─────────────────────────────────────────────────────
 
+// VITE_SEPAY_API_KEY đã bị bỏ: Vite nhúng mọi biến VITE_* vào bundle JS công khai nên nó
+// không bao giờ là secret được. sepay-proxy giờ kiểm session token + role admin/ke_toan.
+async function authHeader(): Promise<string> {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Phiên đăng nhập đã hết hạn — đăng nhập lại để dùng hoá đơn điện tử.');
+    return `Bearer ${token}`;
+}
+
 async function callProxy(action: string, payload: Record<string, unknown> = {}) {
-    if (!API_KEY) throw new Error('VITE_SEPAY_API_KEY chưa cấu hình trong .env — không gọi được SePay.');
     const res = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'x-api-key': API_KEY,
+            Authorization: await authHeader(),
         },
         body: JSON.stringify({ action, payload }),
     });
@@ -273,28 +275,37 @@ export async function createAndPollDraft(
 }
 
 /**
- * Build a direct-download URL cho PDF eInvoice, phục vụ qua chính sepay-proxy edge function
- * (GET /?action=download-pdf) — KHÔNG còn phụ thuộc webhook n8n bên ngoài nữa.
- * sepay-proxy tự thử tải PDF theo thứ tự: reference_code → tracking_code → fetch trực tiếp pdf_url,
- * rồi trả về binary PDF kèm header Content-Disposition để trình duyệt tự động tải xuống đúng tên file.
- * `key` truyền qua query param (thay vì header x-api-key) vì đây là điều hướng trình duyệt thuần
- * (window.open/<a href>), không set custom header được.
+ * Tải PDF eInvoice qua sepay-proxy (GET /?action=download-pdf).
+ * Trước đây trả về URL để `window.open` — điều hướng trình duyệt không set được header nên
+ * key phải nhét vào query string (lọt vào log Supabase + history trình duyệt). Giờ fetch kèm
+ * Bearer rồi tự dựng blob, không còn secret nào nằm trong URL.
+ * Tham số `pdfUrl` đã bỏ hẳn: server nhận URL tuỳ ý rồi fetch hộ chính là SSRF.
  */
-export function getEInvoiceDownloadUrl(params: {
+export async function downloadEInvoicePdf(params: {
     referenceCode?: string;
     trackingCode?: string;
-    pdfUrl?: string;
     filename?: string;
-}): string {
+}): Promise<void> {
     const qs = new URLSearchParams({
         action: 'download-pdf',
-        key: API_KEY,
         reference_code: params.referenceCode || '',
         tracking_code: params.trackingCode || '',
-        pdf_url: params.pdfUrl || '',
         filename: params.filename || 'eInvoice',
     });
-    return `${EDGE_FUNCTION_URL}?${qs.toString()}`;
+    const res = await fetch(`${EDGE_FUNCTION_URL}?${qs.toString()}`, {
+        headers: { Authorization: await authHeader() },
+    });
+    if (!res.ok) {
+        const msg = await res.json().catch(() => null);
+        throw new Error(msg?.error || `Tải PDF thất bại (${res.status})`);
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${params.filename || 'eInvoice'}.pdf`;
+    a.click();
+    // ponytail: revoke lùi 1 tick — revoke đồng bộ ngay sau click() làm Firefox/Safari huỷ tải.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**

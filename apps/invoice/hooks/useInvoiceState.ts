@@ -4,7 +4,7 @@ import { DEFAULT_INVOICE } from '@/constants';
 import { InvoiceData, ServiceItem, BankingInfo, ClientRecord, StudioInfo, AccountUser } from '@/types';
 import { supabase } from '@/services/supabaseClient';
 import { hasAnyRole } from '@/utils/roleUtils';
-import { createAndPollDraft, getEInvoiceDetail, getEInvoiceDownloadUrl } from '../services/sePayService';
+import { createAndPollDraft, getEInvoiceDetail, downloadEInvoicePdf } from '../services/sePayService';
 import { useExchangeRate } from '@/services/ExchangeRateContext';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
@@ -628,14 +628,16 @@ export function useInvoiceState(initialTab?: string | null) {
     } catch (err) { console.error('[Reset] FAILED:', err); notify('Error resetting eInvoice', 'error'); }
   };
 
-  const handleDownloadEInvoice = (inv: InvoiceData) => {
-    const url = getEInvoiceDownloadUrl({
-      referenceCode: inv.einvoice_reference_code || '',
-      trackingCode: inv.einvoice_tracking_code || '',
-      pdfUrl: inv.einvoice_pdf_url || '',
-      filename: `eInvoice_${inv.einvoice_reference_code || inv.invoiceNumber}`,
-    });
-    window.open(url, '_blank');
+  const handleDownloadEInvoice = async (inv: InvoiceData) => {
+    try {
+      await downloadEInvoicePdf({
+        referenceCode: inv.einvoice_reference_code || '',
+        trackingCode: inv.einvoice_tracking_code || '',
+        filename: `eInvoice_${inv.einvoice_reference_code || inv.invoiceNumber}`,
+      });
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Tải PDF thất bại', 'error');
+    }
   };
 
   /**

@@ -1,6 +1,6 @@
 import React from 'react';
 import { InvoiceData } from '@/types';
-import { getEInvoiceDownloadUrl } from '../services/sePayService';
+import { downloadEInvoicePdf } from '../services/sePayService';
 
 interface EInvoiceModalsProps {
   theme: string;
@@ -116,13 +116,11 @@ export const EInvoiceModals: React.FC<EInvoiceModalsProps> = ({
                 ) : (
                   <button
                     onClick={() => {
-                      const url = getEInvoiceDownloadUrl({
+                      downloadEInvoicePdf({
                         referenceCode: eInvoiceResult.reference_code || '',
                         trackingCode: eInvoiceResult.tracking_code || '',
-                        pdfUrl: eInvoiceResult.pdf_url || '',
                         filename: `eInvoice_${eInvoiceResult.reference_code}`,
-                      });
-                      window.open(url, '_blank');
+                      }).catch((err) => alert(err instanceof Error ? err.message : 'Tải PDF thất bại'));
                     }}
                     className="inline-block px-6 py-3 rounded-2xl bg-emerald-500 text-white font-black text-sm uppercase tracking-widest hover:bg-emerald-600 transition-all cursor-pointer"
                   >
