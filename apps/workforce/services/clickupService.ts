@@ -51,9 +51,14 @@ export interface ListContext {
 
 // ── Edge Function proxy calls ─────────────────────────────────
 async function callEdgeFunction(body: any): Promise<any> {
+  // clickup-sync trước đây không đọc header nào ⇒ ai cũng POST được. Giờ nó đòi session token
+  // thật + role admin/ke_toan, nên phải gửi kèm — thiếu là 401.
+  const { data: sess } = await supabase.auth.getSession();
+  const accessToken = sess.session?.access_token;
+  if (!accessToken) throw new Error('Phiên đăng nhập đã hết hạn — đăng nhập lại để đồng bộ ClickUp.');
   const resp = await fetch(EDGE_FN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify(body),
   });
   const data = await resp.json();
