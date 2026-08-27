@@ -214,6 +214,11 @@ async function runAutoSync() {
         if (!closedDate && (ourStatus === "approved" || ourStatus === "completed") && task.date_updated) {
           closedDate = new Date(parseInt(task.date_updated)).toISOString().split("T")[0];
         }
+        // Moc "task con dong" tren ClickUp. Dashboard dung lam fallback cuoi khi
+        // completed_at/closed_date trong (task client_review) — thieu cot nay task roi khoi moi thang.
+        const clickupUpdatedAt = task.date_updated
+          ? new Date(parseInt(task.date_updated)).toISOString().split("T")[0]
+          : null;
 
         const { data: existingRows } = await supabase
           .from("wf_tasks").select("id").eq("clickup_task_id", task.id);
@@ -230,6 +235,7 @@ async function runAutoSync() {
             start_date: startDate,
             closed_date: closedDate,
             completed_at: closedDate,
+            clickup_updated_at: clickupUpdatedAt,
             clickup_space_name: list.space_name,
             clickup_folder_name: list.folder,
             clickup_list_name: list.name,
@@ -260,6 +266,7 @@ async function runAutoSync() {
             start_date: startDate,
             closed_date: closedDate,
             completed_at: closedDate,
+            clickup_updated_at: clickupUpdatedAt,
             approved_at: ourStatus === "approved" ? (closedDate || new Date().toISOString().split("T")[0]) : null,
             payment_status: "unpaid",
             notes: "",
