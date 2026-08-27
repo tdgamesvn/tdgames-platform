@@ -182,6 +182,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                   ⚠️ {data.projected.tasksWithoutDate} task thiếu ngày hoàn thành · không vào tháng nào
                 </p>
               )}
+              {data.projected.duplicateTasks > 0 && (
+                <p className="text-[11px] text-red-400/90 mt-1" title="Hai task trùng tên cùng vào doanh thu dự kiến tháng này ⇒ ClickUp có thể bị tạo trùng, tiền đang cộng đôi. Xoá bản dư trên ClickUp rồi Sync là số tự về đúng.">
+                  🚨 {data.projected.duplicateTasks} task TRÙNG TÊN · dư ≈ {formatUSD(data.projected.duplicateRevenueUSD)}
+                </p>
+              )}
             </div>
             
             <div className="p-5 rounded-2xl border border-primary/10 bg-surface relative overflow-hidden group">

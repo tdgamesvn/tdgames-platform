@@ -95,6 +95,8 @@ export interface ProjectedSummary {
   taskCount: number;          // số task tính vào doanh thu dự kiến
   tasksWithoutPrice: number;  // task đủ điều kiện nhưng CHƯA nhập giá khách → doanh thu bị thiếu
   tasksWithoutDate: number;   // task xong nhưng KHÔNG có ngày nào → rơi khỏi mọi tháng, mất hẳn
+  duplicateTasks: number;         // task trùng tên trong cùng tháng → doanh thu dự kiến cộng đôi
+  duplicateRevenueUSD: number;    // phần tiền thừa do trùng (tổng client_price của bản dư)
   payrollSource: 'sheet-thang-nay' | 'sheet-thang-truoc' | 'uoc-tinh-nhap' | 'khong-co';
 }
 
@@ -298,6 +300,22 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     projTaskMap.set(t.id, t);
   });
 
+  // Task TRÙNG TÊN trong cùng tháng dự kiến ⇒ ClickUp bị tạo 2 lần, doanh thu cộng đôi.
+  // ponytail: chỉ ĐẾM, không tự loại bản dư — nguồn thật nằm trên ClickUp, xoá nhầm thì
+  // mất luôn task hợp lệ (làm lại lần 2 cũng trùng tên). Sếp xoá trên ClickUp + sync là hết.
+  const byTitle = new Map<string, any[]>();
+  projTaskMap.forEach((t: any) => {
+    const k = String(t.title || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!k) return;
+    byTitle.set(k, [...(byTitle.get(k) || []), t]);
+  });
+  let duplicateTasks = 0, duplicateRevenueUSD = 0;
+  byTitle.forEach(list => {
+    if (list.length < 2) return;
+    duplicateTasks += list.length - 1;
+    duplicateRevenueUSD += list.slice(1).reduce((s, t) => s + Number(t.client_price || 0), 0);
+  });
+
   // Chia doanh thu dự kiến cho người làm theo share_pct (cùng quy tắc với số thực tế)
   const projByWorker = new Map<string, { count: number; revenue: number; tasks: FulltimeTaskDetail[] }>();
   if (projTaskMap.size > 0) {
@@ -384,6 +402,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     taskCount: projTaskCount,
     tasksWithoutPrice,
     tasksWithoutDate,
+    duplicateTasks,
+    duplicateRevenueUSD,
     payrollSource,
   };
 
@@ -680,6 +700,8 @@ export async function getDashboardDataRange(
       taskCount: sum(p => p.projected.taskCount),
       tasksWithoutPrice: sum(p => p.projected.tasksWithoutPrice),
       tasksWithoutDate: sum(p => p.projected.tasksWithoutDate),
+      duplicateTasks: sum(p => p.projected.duplicateTasks),
+      duplicateRevenueUSD: sum(p => p.projected.duplicateRevenueUSD),
       payrollSource: last.projected.payrollSource,
     },
   };

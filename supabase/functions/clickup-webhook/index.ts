@@ -202,7 +202,10 @@ async function handleWebhookEvent(body: any) {
     return { ok: true, action: "updated", taskId, title: task.name, assignees: matchedWorkerIds.length };
   }
 
-  const { data: inserted, error: insErr } = await supabase.from("wf_tasks").insert({
+  // ponytail: upsert — ClickUp bắn 2 webhook cách nhau vài ms cho cùng 1 task mới, hai
+  // lần chạy song song cùng thấy "chưa có" rồi cùng chèn (11 task trùng, migration
+  // 20260827180000). Unique constraint chặn ở DB, upsert biến kẻ thua race thành UPDATE.
+  const { data: inserted, error: insErr } = await supabase.from("wf_tasks").upsert({
     project: folderName || listName || "",
     client_name: spaceName || "",
     title: task.name,
@@ -225,7 +228,7 @@ async function handleWebhookEvent(body: any) {
     payment_status: "unpaid",
     notes: "",
     synced_at: new Date().toISOString(),
-  }).select("id").single();
+  }, { onConflict: "clickup_task_id" }).select("id").single();
 
   if (insErr || !inserted) {
     console.error(`[clickup-webhook] insert failed task=${taskId}:`, insErr?.message);

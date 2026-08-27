@@ -134,9 +134,14 @@ export async function saveTask(
   t: Omit<WorkforceTask, 'id' | 'created_at' | 'updated_at' | 'assignees'>,
   assignees: Pick<TaskAssignee, 'worker_id' | 'share_pct'>[] = []
 ): Promise<WorkforceTask> {
+  // ponytail: upsert chứ không insert — 3 nơi sync ClickUp đều SELECT-rồi-INSERT, hai
+  // webhook bắn cách nhau vài ms là cùng thấy "chưa có" rồi cùng chèn (đã đẻ 11 task
+  // trùng, migration 20260827180000). Unique constraint chặn ở DB; upsert biến kẻ thua
+  // race thành UPDATE thay vì ném 23505 làm đứt cả vòng sync.
+  // Task nhập tay có clickup_task_id null → NULL không xung đột → vẫn insert bình thường.
   const { data, error } = await supabase
     .from('wf_tasks')
-    .insert(t)
+    .upsert(t, { onConflict: 'clickup_task_id' })
     .select('id')
     .single();
   if (error) throw error;

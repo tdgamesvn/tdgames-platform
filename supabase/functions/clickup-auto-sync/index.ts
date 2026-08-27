@@ -238,7 +238,10 @@ async function runAutoSync() {
           }).eq("id", existing.id);
           await syncAssignees(supabase, existing.id, workerIds);
         } else {
-          const { data: inserted, error: insErr } = await supabase.from("wf_tasks").insert({
+          // ponytail: upsert — auto-sync có thể chạy trùng lúc webhook bắn, cả hai cùng
+          // thấy "chưa có" rồi cùng chèn (11 task trùng, migration 20260827180000).
+          // Unique constraint chặn ở DB, upsert biến kẻ thua race thành UPDATE.
+          const { data: inserted, error: insErr } = await supabase.from("wf_tasks").upsert({
             project: list.folder || list.name || "",
             client_name: list.space_name || "",
             title: task.name,
@@ -261,7 +264,7 @@ async function runAutoSync() {
             payment_status: "unpaid",
             notes: "",
             synced_at: new Date().toISOString(),
-          }).select("id").single();
+          }, { onConflict: "clickup_task_id" }).select("id").single();
 
           if (insErr || !inserted) {
             console.error(`[clickup-auto-sync] insert failed task=${task.id}:`, insErr?.message);
