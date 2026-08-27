@@ -183,7 +183,9 @@ export function exportPaySlipToExcel(
   rec: PayPayrollRecord,
   formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
 ) {
-  const std = formula.standardWorkDays;
+  // Phải lấy công chuẩn CỦA BẢNG LƯƠNG (T2-T6 thực tế tháng đó, HR sửa được),
+  // không phải hằng số 22 trong config — web hiển thị đúng mà Excel lệch là do dòng này.
+  const std = sheet.standard_work_days ?? formula.standardWorkDays;
   const ratio = rec.work_days / std;
   const empName = rec.employee?.full_name || 'N/A';
   const empCode = rec.employee?.employee_code || '';

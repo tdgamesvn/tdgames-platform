@@ -13,6 +13,8 @@ interface Props {
   onBack: () => void;
   onUpdateRecord: (id: string, field: string, value: number | string) => void;
   onSaveRecord: (rec: PayPayrollRecord) => void;
+  /** Sửa công chuẩn của bảng + tính lại toàn bộ record. Chỉ dùng khi bảng còn nháp. */
+  onUpdateStandardWorkDays?: (std: number) => void;
   onConfirm: () => void;
   onMarkPaid?: () => void;
   onRollback?: () => void;
@@ -54,7 +56,7 @@ const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const PayrollSheet: React.FC<Props> = ({
-  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onConfirm, onMarkPaid, onRollback, onResolveDispute, onRefresh,
+  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onUpdateStandardWorkDays, onConfirm, onMarkPaid, onRollback, onResolveDispute, onRefresh,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -64,6 +66,17 @@ const PayrollSheet: React.FC<Props> = ({
 
   const isDraft = sheet.status === 'draft';
   const isPaid = sheet.status === 'paid';
+
+  // Công chuẩn: số tự tính chỉ đếm T2–T6 ⇒ tháng có lễ (2/9) hoặc có buổi làm T7 phải sửa tay.
+  const sheetStd = sheet.standard_work_days ?? formula.standardWorkDays;
+  const [stdDraft, setStdDraft] = useState(String(sheetStd));
+  useEffect(() => { setStdDraft(String(sheetStd)); }, [sheetStd]);
+  // Chỉ gửi khi rời ô / Enter — gõ từng phím mà recalc cả bảng là tự bắn chân.
+  const commitStd = () => {
+    const v = Number(stdDraft);
+    if (!Number.isFinite(v) || v <= 0 || v > 31 || v === sheetStd) { setStdDraft(String(sheetStd)); return; }
+    onUpdateStandardWorkDays?.(v);
+  };
 
   // Chỉ cho phép "Đã trả lương" khi tất cả NV đã xác nhận hoặc đã giải quyết khiếu nại
   const canMarkPaid = records.length > 0 && records.every(r =>
@@ -126,6 +139,24 @@ const PayrollSheet: React.FC<Props> = ({
                   {sheet.status === 'draft' ? 'Nháp' : sheet.status === 'confirmed' ? 'Đã xác nhận' : 'Đã trả'}
                 </span>
                 <span className="text-neutral-medium text-xs">{records.length} nhân viên</span>
+                <span className="text-neutral-medium text-xs flex items-center gap-1">
+                  · Công chuẩn:
+                  {isDraft && onUpdateStandardWorkDays ? (
+                    <input
+                      type="number" step="0.5" min="1" max="31"
+                      value={stdDraft}
+                      onChange={e => setStdDraft(e.target.value)}
+                      onBlur={commitStd}
+                      onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                      disabled={loading}
+                      title="Sửa khi tháng có lễ (2/9) hoặc có buổi làm T7. Lưu xong tính lại cả bảng."
+                      className="w-14 bg-[#1a1a1a] border border-white/10 rounded-lg px-1.5 py-0.5 text-white font-bold text-xs text-right outline-none focus:border-primary/60 disabled:opacity-40"
+                    />
+                  ) : (
+                    <b className="text-white">{sheetStd}</b>
+                  )}
+                  ngày
+                </span>
                 {isPaid && sheet.paid_at && (
                   <span className="text-cyan-400/90 text-[10px] font-semibold">
                     Đã trả: {new Date(sheet.paid_at).toLocaleString('vi-VN')}
