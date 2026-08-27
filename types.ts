@@ -1125,6 +1125,8 @@ export interface PayPayrollSheet {
   formula_settings_id?: string | null;
   /** Số ngày T2-T6 trong tháng — tính động khi tạo bảng, lưu cố định để recalculate dùng lại. */
   standard_work_days?: number | null;
+  /** Lý do kế toán sửa công chuẩn tay (bắt buộc nhập ở UI). Null = chưa từng sửa. */
+  standard_work_days_note?: string | null;
 }
 
 export interface PayPayrollRecord {

@@ -335,10 +335,10 @@ export async function updateSheetStatus(
 /** Sửa công chuẩn của bảng lương. Số tự tính chỉ đếm T2–T6 nên tháng có lễ (2/9)
  *  hoặc có buổi làm T7 là sai — kế toán phải chỉnh tay được.
  *  Gọi xong BẮT BUỘC recalc lại toàn bộ record, vì ratio = work_days / std. */
-export async function updateSheetStandardWorkDays(id: string, std: number): Promise<PayPayrollSheet> {
+export async function updateSheetStandardWorkDays(id: string, std: number, note: string): Promise<PayPayrollSheet> {
   const { data, error } = await supabase
     .from('pay_payroll_sheets')
-    .update({ standard_work_days: std })
+    .update({ standard_work_days: std, standard_work_days_note: note })
     .eq('id', id)
     .select()
     .single();

@@ -168,17 +168,22 @@ export function usePayrollState(initialTab?: string | null) {
 
   /** Kế toán sửa công chuẩn của bảng (VD T9/2026: 22 T2-T6 + lễ 2/9 + nửa ngày T7 = 23).
    *  Đổi số xong phải tính lại HẾT record, không thì ratio cũ còn nguyên trong DB. */
-  const updateStandardWorkDays = useCallback(async (std: number) => {
+  const updateStandardWorkDays = useCallback(async (std: number, note: string) => {
     if (!activeSheet || activeSheet.status !== 'draft') return;
     if (!Number.isFinite(std) || std <= 0 || std > 31) {
       setToast({ message: 'Công chuẩn phải trong khoảng 1–31 ngày', type: 'error' });
+      return;
+    }
+    // Lý do bắt buộc: đổi số này là tính lại tiền cả bảng, phải có vết giải trình.
+    if (!note.trim()) {
+      setToast({ message: 'Phải nhập lý do đổi công chuẩn', type: 'error' });
       return;
     }
     if (std === activeSheet.standard_work_days) return;
     const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
     setLoading(true);
     try {
-      const updated = await svc.updateSheetStandardWorkDays(activeSheet.id, std);
+      const updated = await svc.updateSheetStandardWorkDays(activeSheet.id, std, note.trim());
       const recalced = await Promise.all(records.map(r => svc.recalculateAndSave(r, f, std)));
       setActiveSheet(updated);
       setSheets(prev => prev.map(s => (s.id === updated.id ? updated : s)));

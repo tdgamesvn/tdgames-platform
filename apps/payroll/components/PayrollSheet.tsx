@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import AppBackground from '@/components/AppBackground';
 import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
 import { exportPayrollToExcel } from '../services/payrollExportService';
@@ -14,7 +15,7 @@ interface Props {
   onUpdateRecord: (id: string, field: string, value: number | string) => void;
   onSaveRecord: (rec: PayPayrollRecord) => void;
   /** Sửa công chuẩn của bảng + tính lại toàn bộ record. Chỉ dùng khi bảng còn nháp. */
-  onUpdateStandardWorkDays?: (std: number) => void;
+  onUpdateStandardWorkDays?: (std: number, note: string) => void;
   onConfirm: () => void;
   onMarkPaid?: () => void;
   onRollback?: () => void;
@@ -69,13 +70,23 @@ const PayrollSheet: React.FC<Props> = ({
 
   // Công chuẩn: số tự tính chỉ đếm T2–T6 ⇒ tháng có lễ (2/9) hoặc có buổi làm T7 phải sửa tay.
   const sheetStd = sheet.standard_work_days ?? formula.standardWorkDays;
+  // Sửa qua modal, không sửa inline: đổi số này là tính lại tiền cả bảng nên phải cố ý + có lý do.
+  const [stdModal, setStdModal] = useState(false);
   const [stdDraft, setStdDraft] = useState(String(sheetStd));
-  useEffect(() => { setStdDraft(String(sheetStd)); }, [sheetStd]);
-  // Chỉ gửi khi rời ô / Enter — gõ từng phím mà recalc cả bảng là tự bắn chân.
-  const commitStd = () => {
-    const v = Number(stdDraft);
-    if (!Number.isFinite(v) || v <= 0 || v > 31 || v === sheetStd) { setStdDraft(String(sheetStd)); return; }
-    onUpdateStandardWorkDays?.(v);
+  const [stdNote, setStdNote] = useState('');
+  const openStdModal = () => { setStdDraft(String(sheetStd)); setStdNote(''); setStdModal(true); };
+
+  const stdNum = Number(stdDraft);
+  const stdError =
+    !Number.isFinite(stdNum) || stdNum <= 0 || stdNum > 31 ? 'Công chuẩn phải trong khoảng 1–31 ngày'
+    : stdNum === sheetStd ? 'Số ngày không đổi'
+    : !stdNote.trim() ? 'Phải nhập lý do'
+    : '';
+
+  const submitStd = () => {
+    if (stdError) return;
+    onUpdateStandardWorkDays?.(stdNum, stdNote);
+    setStdModal(false);
   };
 
   // Chỉ cho phép "Đã trả lương" khi tất cả NV đã xác nhận hoặc đã giải quyết khiếu nại
@@ -139,23 +150,23 @@ const PayrollSheet: React.FC<Props> = ({
                   {sheet.status === 'draft' ? 'Nháp' : sheet.status === 'confirmed' ? 'Đã xác nhận' : 'Đã trả'}
                 </span>
                 <span className="text-neutral-medium text-xs">{records.length} nhân viên</span>
-                <span className="text-neutral-medium text-xs flex items-center gap-1">
-                  · Công chuẩn:
-                  {isDraft && onUpdateStandardWorkDays ? (
-                    <input
-                      type="number" step="0.5" min="1" max="31"
-                      value={stdDraft}
-                      onChange={e => setStdDraft(e.target.value)}
-                      onBlur={commitStd}
-                      onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                {/* Chìm mặc định, sáng lên khi hover — số tiền cả bảng treo vào con số này. */}
+                <span
+                  className="group inline-flex items-center gap-1.5 rounded-md bg-white/[0.03] border border-white/8 px-2 py-0.5 hover:border-white/15 transition-all"
+                  title={sheet.standard_work_days_note ? `Lý do: ${sheet.standard_work_days_note}` : undefined}
+                >
+                  <span className="text-[9px] font-black uppercase tracking-wider text-neutral-600">Công chuẩn</span>
+                  <b className="text-white text-xs font-black tabular-nums">{sheetStd}</b>
+                  <span className="text-[10px] text-neutral-600">ngày</span>
+                  {isDraft && onUpdateStandardWorkDays && (
+                    <button
+                      onClick={openStdModal}
                       disabled={loading}
-                      title="Sửa khi tháng có lễ (2/9) hoặc có buổi làm T7. Lưu xong tính lại cả bảng."
-                      className="w-14 bg-[#1a1a1a] border border-white/10 rounded-lg px-1.5 py-0.5 text-white font-bold text-xs text-right outline-none focus:border-primary/60 disabled:opacity-40"
-                    />
-                  ) : (
-                    <b className="text-white">{sheetStd}</b>
+                      className="text-[10px] font-black uppercase text-neutral-600 group-hover:text-primary transition-colors disabled:opacity-40"
+                    >
+                      Sửa
+                    </button>
                   )}
-                  ngày
                 </span>
                 {isPaid && sheet.paid_at && (
                   <span className="text-cyan-400/90 text-[10px] font-semibold">
@@ -664,6 +675,62 @@ const PayrollSheet: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {/* Sửa công chuẩn — portal vì header cha có backdrop-blur/transform */}
+      {stdModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setStdModal(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-[20px] border border-primary/10 bg-surface p-6 animate-scaleIn">
+            <h3 className="text-white font-black text-base uppercase tracking-tight">Sửa công chuẩn</h3>
+            <p className="text-neutral-medium text-xs mt-1 leading-relaxed">
+              Số tự tính chỉ đếm T2–T6. Sửa khi tháng có lễ (2/9) hoặc có buổi làm T7.
+              <b className="text-yellow-400"> Lưu xong sẽ tính lại lương cả {records.length} người.</b>
+            </p>
+
+            <label className="block mt-4 text-[10px] font-black text-neutral-600 uppercase tracking-wider">Số ngày công chuẩn</label>
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                type="number" step="0.5" min="1" max="31" autoFocus
+                value={stdDraft}
+                onChange={e => setStdDraft(e.target.value)}
+                className="w-24 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white font-black text-lg text-right outline-none focus:border-primary/60"
+              />
+              <span className="text-neutral-medium text-xs">ngày · hiện tại <b className="text-white">{sheetStd}</b></span>
+            </div>
+
+            <label className="block mt-4 text-[10px] font-black text-neutral-600 uppercase tracking-wider">
+              Lý do <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              rows={3}
+              value={stdNote}
+              onChange={e => setStdNote(e.target.value)}
+              placeholder="VD: Tháng 9 có lễ 2/9 + nửa ngày làm T7 05/09"
+              className="w-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-primary/60 resize-none"
+            />
+
+            <div className="flex items-center justify-between gap-3 mt-5">
+              <span className="text-[11px] text-red-400 font-semibold">{stdError && stdNote ? stdError : ''}</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setStdModal(false)}
+                  className="px-4 py-2 rounded-lg border border-white/10 text-neutral-medium hover:text-white text-xs font-black uppercase transition-all"
+                >
+                  Huỷ
+                </button>
+                <button
+                  onClick={submitStd}
+                  disabled={!!stdError || loading}
+                  className="px-4 py-2 rounded-lg bg-primary text-black text-xs font-black uppercase disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                >
+                  Xác nhận & tính lại
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* Pay Slip Overlay */}
       {paySlipRecord && (
