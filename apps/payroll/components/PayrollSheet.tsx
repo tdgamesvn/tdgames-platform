@@ -16,6 +16,8 @@ interface Props {
   onSaveRecord: (rec: PayPayrollRecord) => void;
   /** Sửa công chuẩn của bảng + tính lại toàn bộ record. Chỉ dùng khi bảng còn nháp. */
   onUpdateStandardWorkDays?: (std: number, note: string) => void;
+  /** Áp lại công thức hiện hành cho cả bảng (khi hệ số/công thức đổi sau lúc tạo bảng). */
+  onRecalcAll?: () => void;
   onConfirm: () => void;
   onMarkPaid?: () => void;
   onRollback?: () => void;
@@ -57,7 +59,7 @@ const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
 };
 
 const PayrollSheet: React.FC<Props> = ({
-  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onUpdateStandardWorkDays, onConfirm, onMarkPaid, onRollback, onResolveDispute, onRefresh,
+  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onUpdateStandardWorkDays, onRecalcAll, onConfirm, onMarkPaid, onRollback, onResolveDispute, onRefresh,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -182,6 +184,17 @@ const PayrollSheet: React.FC<Props> = ({
                 className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-medium hover:text-white border border-white/10 hover:border-white/20 transition-all"
                 title="Làm mới trạng thái xác nhận">
                 🔄
+              </button>
+            )}
+            {isDraft && onRecalcAll && (
+              <button
+                onClick={() => {
+                  if (confirm(`Tính lại lương của ${records.length} người theo công thức hiện hành?\n\nDùng khi công thức/hệ số đã đổi sau lúc tạo bảng. Số tiền có thể thay đổi.`)) onRecalcAll();
+                }}
+                disabled={loading}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-medium hover:text-white border border-white/10 hover:border-white/20 transition-all disabled:opacity-40"
+                title="Áp lại công thức hiện hành cho cả bảng (không đổi ngày công / công chuẩn)">
+                🧮 Tính lại
               </button>
             )}
             <button onClick={() => exportPayrollToExcel(sheet, records, formula)}

@@ -166,6 +166,26 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, [activeFormula, activeSheet]);
 
+  /** Áp lại công thức hiện hành cho cả bảng, không đổi tham số nào của bảng.
+   *  Cần khi công thức/hệ số đổi giữa chừng (VD đơn giá giờ OT đổi cách tính) — nếu không
+   *  có nút này thì số cũ nằm lại trong DB tới khi có ai đó vô tình chạm vào từng dòng. */
+  const recalcAllRecords = useCallback(async () => {
+    if (!activeSheet || activeSheet.status !== 'draft' || records.length === 0) return;
+    const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
+    setLoading(true);
+    try {
+      const recalced = await Promise.all(
+        records.map(r => svc.recalculateAndSave(r, f, activeSheet.standard_work_days)),
+      );
+      setRecords(recalced);
+      setToast({ message: `Đã tính lại ${recalced.length} người theo công thức hiện hành`, type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  }, [activeSheet, activeFormula, records]);
+
   /** Kế toán sửa công chuẩn của bảng (VD T9/2026: 22 T2-T6 + lễ 2/9 + nửa ngày T7 = 23).
    *  Đổi số xong phải tính lại HẾT record, không thì ratio cũ còn nguyên trong DB. */
   const updateStandardWorkDays = useCallback(async (std: number, note: string) => {
@@ -289,6 +309,6 @@ export function usePayrollState(initialTab?: string | null) {
   return {
     view, sheets: sheets.filter(s => matchesWorkspace((s as any).entity, workspace)), records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, updateStandardWorkDays, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, refreshRecords, backToSheets,
+    updateRecord, saveRecord, updateStandardWorkDays, recalcAllRecords, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, refreshRecords, backToSheets,
   };
 }
