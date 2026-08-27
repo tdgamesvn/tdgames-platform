@@ -114,6 +114,38 @@ try {
   failed++;
 }
 
+// CHINH SACH CONG TY (sep chot 2026-08-27): tien tang ca MIEN THUE TNCN HOAN TOAN.
+// Rong hon TT 111/2013 D.3 k.1 diem i (luat chi mien PHAN TRA CAO HON gio thuong, phan 100%
+// van chiu thue) — rui ro thue da duoc bao va sep chap nhan, xem DECISIONS.md 2026-08-27.
+// Test nay khoa hanh vi do lai: dung tang ca len bao nhieu thi thu nhap chiu thue va PIT
+// cung KHONG duoc doi. Ai "sua lai cho dung luat" se lam test nay do ngay.
+try {
+  const khongOt = calculatePayroll({ ...base, baseSalary: 40_000_000 }, FORMULA, 22);
+  const nhieuOt = calculatePayroll({
+    ...base, baseSalary: 40_000_000,
+    extraOtHours: 20, extraOtHoursWeekend: 16, extraOtHoursNightHoliday: 8,
+  }, FORMULA, 22);
+  assert.ok(nhieuOt.extraOt > 5_000_000, 'phai co tien OT dang ke de phep thu co nghia');
+  assert.equal(nhieuOt.taxableIncome, khongOt.taxableIncome);
+  assert.equal(nhieuOt.pit, khongOt.pit);
+  console.log(`  ok   tien OT mien thue hoan toan (OT ${nhieuOt.extraOt.toLocaleString('vi-VN')}d, PIT khong doi)`);
+} catch (e) {
+  console.error(`  FAIL tien OT da bi tinh vao thu nhap chiu thue: ${e.message}`);
+  failed++;
+}
+
+// Tang ca mac dinh (khoan co dinh hang thang) cung mien thue — cung chinh sach tren.
+try {
+  const khong = calculatePayroll({ ...base, baseSalary: 40_000_000 }, FORMULA, 22);
+  const co = calculatePayroll({ ...base, baseSalary: 40_000_000, defaultOt: 5_000_000 }, FORMULA, 22);
+  assert.equal(co.taxableIncome, khong.taxableIncome);
+  assert.ok(co.grossActual > khong.grossActual, 'tang ca mac dinh van phai vao gross thuc te');
+  console.log('  ok   tang ca mac dinh mien thue nhung van vao gross thuc te');
+} catch (e) {
+  console.error(`  FAIL tang ca mac dinh: ${e.message}`);
+  failed++;
+}
+
 if (failed) {
   console.error(`\n${failed} test FAIL`);
   process.exitCode = 1;
