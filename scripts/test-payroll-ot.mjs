@@ -59,14 +59,15 @@ const cases = [
     extraOtHours: 2, extraOtHoursWeekend: 2, extraOtHoursHoliday: 2,
     extraOtHoursNight: 2, extraOtHoursNightWeekend: 2, extraOtHoursNightHoliday: 2,
   }, HOURLY * (1.5 + 2.0 + 3.0 + 2.0 + 2.7 + 3.9) * 2],
-  // Don gia gio OT gom ca phu cap KPI/trach nhiem (ND 145/2020 D.55), khong chi luong CB.
+  // Don gia gio OT = TRON goi luong tham chieu (chinh sach cong ty 2026-08-27, cao hon san ND 145).
   // CB 22tr + KPI 4.4tr = 26.4tr / 22 / 8 = 150.000d/h
   ['don gia gio gom phu cap KPI', { kpiAllowance: 4_400_000, extraOtHours: 8 }, 150_000 * 1.5 * 8],
-  // ...nhung KHONG gom an trua / trang phuc / xang xe / dien thoai / tang ca mac dinh
-  ['don gia gio khong gom an trua-xang-DT-trang phuc-OT mac dinh', {
+  // ...VA gom ca an trua / trang phuc / xang xe / dien thoai / tang ca mac dinh
+  // CB 22tr + 5 khoan x 1tr = 27tr / 22 / 8 = 153.409,09d/h
+  ['don gia gio gom an trua-xang-DT-trang phuc-OT mac dinh', {
     lunchAllowance: 1_000_000, transportAllowance: 1_000_000, phoneAllowance: 1_000_000,
     clothingAllowance: 1_000_000, defaultOt: 1_000_000, extraOtHours: 8,
-  }, HOURLY * 1.5 * 8],
+  }, Math.round((27_000_000 / 22 / 8) * 1.5 * 8)],
 ];
 
 let failed = 0;

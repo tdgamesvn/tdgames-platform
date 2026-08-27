@@ -111,12 +111,15 @@ export function calculatePayroll(
     : input.defaultOt;
   const defaultOtActual = r(effectiveDefaultOt * ratio);
 
-  // Đơn giá giờ để tính OT (NĐ 145/2020 Đ.55): "tiền lương thực trả của công việc đang làm",
-  // gồm lương CB + phụ cấp gắn với công việc (KPI/trách nhiệm). KHÔNG gồm ăn ca, trang phục,
-  // xăng xe, điện thoại (hỗ trợ không gắn công việc) và không gồm chính tiền OT (defaultOt).
+  // Đơn giá giờ để tính OT — CHÍNH SÁCH CÔNG TY: lấy TRỌN gói lương tham chiếu (lương CB +
+  // mọi phụ cấp + KPI cố định + tăng ca mặc định), không chỉ CB + KPI.
+  // Cao hơn mức sàn NĐ 145/2020 Đ.55 (điều luật cho phép loại ăn ca/xăng xe/điện thoại khỏi
+  // đơn giá) — luật là mức TỐI THIỂU, trả cao hơn thì hợp lệ. Quyết định của sếp 2026-08-27.
   // Dùng effective* (đã blend mức cũ/mới) nên tháng chuyển giao thử việc→chính thức tính đúng
   // đơn giá của từng giai đoạn, không lấy nhầm mức lương chính thức cho cả tháng.
-  const hourlyRate = (effectiveBaseSalary + effectiveKpiAllowance) / std / hpd;
+  const hourlyRate = (effectiveBaseSalary + input.lunchAllowance + input.transportAllowance
+    + input.phoneAllowance + input.clothingAllowance + effectiveKpiAllowance + effectiveDefaultOt)
+    / std / hpd;
   // OT theo loại ngày (BLLĐ 2019 Đ.98): ngày thường 150%, ngày nghỉ tuần 200%, lễ/Tết 300%.
   // OT ban đêm (NĐ 145/2020 Đ.57 k.3): 200% / 270% / 390% tương ứng.
   // Hệ số lấy từ bảng công thức nên kế toán chỉnh được, không hardcode.
