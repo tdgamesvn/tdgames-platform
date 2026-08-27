@@ -298,6 +298,12 @@ async function applyChanges(req: HrChangeRequest): Promise<void> {
         effective_date: c.termination_date || effDate,
         reason: c.termination_reason || req.reason || 'Nghỉ việc (qua đề xuất)',
       });
+      // Khoá đăng nhập ngay khi duyệt — người đã nghỉ không được vào Portal nữa.
+      // CỐ Ý để lỗi ném ra: khoá hụt mà báo thành công thì tài khoản sống mà không ai hay.
+      // Ném ở đây KHÔNG gây ghi trùng lịch sử — approveChangeRequest đã set status='approved'
+      // trước khi gọi applyChanges, và query của nó có .eq('status','pending') nên bấm duyệt
+      // lần hai sẽ báo lỗi chứ không chạy lại nhánh này.
+      await hrSvc.disableEmployeeLogin(empId);
       break;
     }
   }

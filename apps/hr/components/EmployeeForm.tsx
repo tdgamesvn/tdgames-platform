@@ -408,7 +408,10 @@ const EmployeeForm: React.FC<Props> = ({
             </div>
             <div>
               <label className={labelCls}>Trạng thái</label>
-              <select className={inputCls} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value as any }))}>
+              <select className={inputCls + (isEdit ? ' opacity-60 cursor-not-allowed' : '')}
+                title={isEdit ? 'Nghỉ việc phải đi qua đơn đề xuất — duyệt xong hệ thống tự đổi trạng thái, ghi ngày nghỉ và khoá tài khoản.' : undefined}
+                value={form.status} disabled={isEdit}
+                onChange={e => !isEdit && setForm(f => ({ ...f, status: e.target.value as any }))}>
                 <option value="active">Đang làm việc</option>
                 <option value="inactive">Nghỉ việc</option>
                 <option value="offboarded">Offboarded</option>
@@ -686,7 +689,7 @@ const EmployeeForm: React.FC<Props> = ({
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-orange-500/20" style={{ background: 'rgba(255,149,0,0.04)' }}>
             <span className="text-orange-400 text-sm">🔒</span>
             <span className="text-orange-300/80 text-xs font-semibold flex-1">
-              Lương, chức vụ, phòng ban chỉ thay đổi qua đơn đề xuất.
+              Lương, chức vụ, phòng ban, trạng thái chỉ thay đổi qua đơn đề xuất.
             </span>
             <button type="button" onClick={() => setShowChangeRequestForm(true)}
               className="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">

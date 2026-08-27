@@ -453,6 +453,24 @@ export async function createPayrollSheet(
   // Tính số ngày T2-T6 thực tế của tháng (có thể là 21, 22, hoặc 23)
   const stdDays = countWeekdays(year, month);
 
+  // Bảng chấm công ĐÃ CHỐT là điều kiện bắt buộc — kiểm TRƯỚC khi insert sheet để
+  // không đẻ bảng lương mồ côi khi throw. Trước đây lấy attSheets[0] bất kể status
+  // (ăn cả bảng nháp điền dở) và `?? stdDays` khi thiếu ⇒ trả đủ công cho cả công ty, âm thầm.
+  const { data: attSheetRows } = await supabase
+    .from('att_monthly_sheets')
+    .select('id, status')
+    .eq('entity', getWorkspace())
+    .eq('month', month)
+    .eq('year', year);
+
+  const attSheet = (attSheetRows || []).find(s => s.status === 'finalized');
+  if (!attSheet) {
+    throw new Error(
+      `Chưa có bảng chấm công ĐÃ CHỐT cho Tháng ${month}/${year}. `
+      + `Vào Chấm công → Bảng công → "Tính từ chấm công" → "Chốt bảng" rồi quay lại.`
+    );
+  }
+
   const title = `Bảng lương Tháng ${month}/${year}`;
   const insertSheet: Record<string, unknown> = { month, year, title, standard_work_days: stdDays, entity: getWorkspace() };
   if (formulaRow?.id) insertSheet.formula_settings_id = formulaRow.id;
@@ -473,10 +491,31 @@ export async function createPayrollSheet(
     .eq('status', 'active')
     .neq('exclude_from_payroll', true);
 
+  // Người nghỉ việc GIỮA tháng vẫn phải nhận lương tháng cuối, nhưng query trên đã lọc
+  // status='active' nên họ rơi mất. Bù lại từ ngày nghỉ (đơn thôi việc đã duyệt).
+  const monthStartISO = `${year}-${String(month).padStart(2, '0')}-01`;
+  const { data: endRows } = await supabase
+    .from('hr_employee_end_dates')
+    .select('employee_id, end_date')
+    .gte('end_date', monthStartISO);
+
+  let leftDuring: any[] = [];
+  if (endRows?.length) {
+    const { data } = await supabase
+      .from('hr_employees')
+      .select('*')
+      .eq('entity', getWorkspace())
+      .eq('type', 'fulltime')
+      .neq('exclude_from_payroll', true)
+      .in('id', endRows.map(r => r.employee_id));
+    const seen = new Set((allEmployees || []).map(e => e.id));
+    leftDuring = (data || []).filter(e => !seen.has(e.id));
+  }
+
   // Loại nhân viên onboard SAU tháng lương (VD start_date 01/07 không vào bảng T6).
   // start_date null → giữ lại (dữ liệu cũ chưa nhập ngày).
   const monthEndISO = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
-  const employees = (allEmployees || []).filter(
+  const employees = [...(allEmployees || []), ...leftDuring].filter(
     e => !e.start_date || e.start_date <= monthEndISO
   );
 
@@ -488,22 +527,12 @@ export async function createPayrollSheet(
     .select('*, component:hr_salary_components(name)')
     .in('employee_id', employees.map(e => e.id));
 
-  // 4. Fetch monthly sheet records (attendance) for this month
-  const { data: attSheets } = await supabase
-    .from('att_monthly_sheets')
-    .select('id')
-    .eq('entity', getWorkspace())
-    .eq('month', month)
-    .eq('year', year);
-
-  let attRecords: any[] = [];
-  if (attSheets?.length) {
-    const { data } = await supabase
-      .from('att_monthly_records')
-      .select('*')
-      .eq('sheet_id', attSheets[0].id);
-    attRecords = data || [];
-  }
+  // 4. Fetch monthly sheet records (attendance) for this month — sheet đã kiểm ở trên
+  const { data: attRecordRows } = await supabase
+    .from('att_monthly_records')
+    .select('*')
+    .eq('sheet_id', attSheet.id);
+  const attRecords: any[] = attRecordRows || [];
 
   // 5. Fetch dependents count per employee
   const { data: dependents } = await supabase

@@ -954,6 +954,9 @@ export interface AttRecord {
   date: string;
   check_in: string | null;
   check_out: string | null;
+  // Tăng ca: bấm giờ sau khi đã check-out ca chính (chỉ theo dõi, chưa nối vào lương)
+  ot_check_in?: string | null;
+  ot_check_out?: string | null;
   method: 'manual' | 'qr' | 'wifi' | 'geo' | 'remote';
   shift_id: string | null;
   status: 'present' | 'late' | 'early_leave' | 'absent' | 'half_day';

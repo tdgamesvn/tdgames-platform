@@ -129,7 +129,7 @@ export function useHrState(initialTab?: string | null) {
   const handleDeleteEmployee = async (id: string) => {
     try {
       await svc.deleteEmployee(id);
-      setEmployees(prev => prev.map(e => e.id === id ? { ...e, status: 'terminated' } : e));
+      setEmployees(prev => prev.map(e => e.id === id ? { ...e, status: 'inactive' } : e));
       setToast({ message: 'Đã cho nghỉ việc (soft delete) — dữ liệu lịch sử được giữ lại', type: 'success' });
     } catch (e: any) {
       setToast({ message: e.message, type: 'error' });

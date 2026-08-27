@@ -22,6 +22,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const [createMonth, setCreateMonth] = useState(new Date().getMonth() + 1);
   const [createYear, setCreateYear] = useState(new Date().getFullYear());
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+  const [endDates, setEndDates] = useState<Record<string, string>>({});
+
+  useEffect(() => { svc.fetchEmployeeEndDates().then(setEndDates).catch(() => {}); }, []);
 
   // ── Load sheets ──
   const loadSheets = useCallback(async () => {
@@ -82,6 +87,25 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     }
   };
 
+  // ── Tính work_days từ chấm công hằng ngày ──
+  const handleSync = async () => {
+    if (!selectedSheet) return;
+    setIsSyncing(true);
+    try {
+      const { updated, missing_checkout } = await svc.syncMonthWorkDays(selectedSheet.id);
+      setRecords(await svc.fetchMonthlyRecords(selectedSheet.id));
+      setToast({
+        message: `Đã tính ${updated} nhân viên từ dữ liệu chấm công`
+          + (missing_checkout > 0 ? ` · ⚠️ ${missing_checkout} ngày thiếu giờ ra, phải sửa tay` : ''),
+        type: 'success',
+      });
+    } catch (e: any) {
+      setToast({ message: e.message, type: 'error' });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // ── Finalize / reopen sheet ──
   const handleToggleStatus = async () => {
     if (!selectedSheet) return;
@@ -124,6 +148,28 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
 
   const cardCls = 'rounded-[20px] border border-white/[0.06] bg-white/[0.03] p-6 backdrop-blur-xl';
   const inputCls = 'w-full px-3 py-2 rounded-lg bg-black/30 border border-primary/10 text-white text-sm text-center focus:border-orange-400/50 outline-none transition-colors';
+
+  // Nhân viên nghỉ việc / tích "không tính lương" thì bỏ khỏi bảng. Bộ lọc ở
+  // useAttendanceState chỉ chạy lúc TẠO bảng — ai đổi trạng thái sau đó vẫn còn dòng trong DB.
+  const isDropped = (r: AttMonthlyRecord) =>
+    !!r.employee && (r.employee.status !== 'active' || (r.employee as any).exclude_from_payroll === true);
+
+  // Nghỉ TRONG tháng của bảng này thì vẫn phải hiện — họ còn lương tháng cuối.
+  // Chỉ ẩn từ tháng SAU ngày nghỉ trở đi.
+  const monthStart = selectedSheet
+    ? `${selectedSheet.year}-${String(selectedSheet.month).padStart(2, '0')}-01` : '';
+  const leftBeforeThisMonth = (r: AttMonthlyRecord) => {
+    const end = endDates[r.employee_id];
+    // Không có ngày nghỉ (bị sửa tay ô Trạng thái, không qua đơn) ⇒ không dám khẳng định
+    // nghỉ từ bao giờ. Lùi về quy tắc phòng thủ: chỉ ẩn khi dòng còn trắng.
+    if (!end) return !(r.work_days || 0) && !(r.late_count || 0) && !(r.absent_days || 0)
+      && !OT_FIELDS.some(f => (r as any)[f.key] || 0);
+    return end < monthStart;
+  };
+
+  const isHidden = (r: AttMonthlyRecord) => isDropped(r) && leftBeforeThisMonth(r);
+  const hiddenCount = records.filter(isHidden).length;
+  const visibleRecords = showHidden ? records : records.filter(r => !isHidden(r));
 
   const totalWorkDays = records.reduce((s, r) => s + (r.work_days || 0), 0);
   const totalOT = records.reduce((s, r) => s + OT_FIELDS.reduce((a, f) => a + ((r as any)[f.key] || 0), 0), 0);
@@ -220,6 +266,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
               </span>
             </div>
             <div className="flex gap-2">
+              <button onClick={handleSync} disabled={isLocked || isSyncing}
+                title="Tính lại cột Ngày công từ dữ liệu check-in/check-out trong tháng. Ghi đè số đang có, sửa tay lại được."
+                className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 font-bold text-xs hover:bg-blue-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                {isSyncing ? '⏳ Đang tính...' : '🔄 Tính từ chấm công'}
+              </button>
               <button onClick={handleToggleStatus}
                 className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${isLocked ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}>
                 {isLocked ? '🔓 Mở lại' : '🔒 Chốt bảng'}
@@ -244,7 +295,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
           {/* Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Nhân viên', value: records.length, icon: '👥', color: '#0A84FF' },
+              { label: 'Nhân viên', value: visibleRecords.length, icon: '👥', color: '#0A84FF' },
               { label: 'Tổng ngày công', value: totalWorkDays.toFixed(2), icon: '📅', color: '#34C759' },
               { label: 'Tổng OT (h)', value: totalOT.toFixed(1), icon: '💪', color: '#AF52DE' },
               { label: 'Tổng nghỉ', value: totalAbsent.toFixed(2), icon: '🏖️', color: '#FF9500' },
@@ -259,6 +310,18 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
 
           {/* Records table */}
           <div className={cardCls}>
+            {hiddenCount > 0 && (
+              <div className="flex items-center justify-between mb-4 px-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                <span className="text-xs text-neutral-medium">
+                  Đã ẩn <span className="text-orange-400 font-bold">{hiddenCount}</span> nhân viên
+                  nghỉ việc / không tính lương (dòng chưa có số liệu)
+                </span>
+                <button onClick={() => setShowHidden(v => !v)}
+                  className="px-3 py-1 rounded-lg bg-white/[0.05] text-neutral-medium font-bold text-xs hover:bg-white/10 transition-all">
+                  {showHidden ? 'Ẩn lại' : 'Hiện'}
+                </button>
+              </div>
+            )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -279,8 +342,9 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r, idx) => (
-                    <tr key={r.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] group">
+                  {visibleRecords.map((r, idx) => (
+                    <tr key={r.id} className={`border-b border-white/[0.03] hover:bg-white/[0.02] group ${isDropped(r) ? 'opacity-50' : ''}`}
+                      title={isDropped(r) ? 'Nhân viên đã nghỉ việc hoặc không tính lương' : undefined}>
                       <td className="py-2 px-3 text-neutral-medium text-xs">{idx + 1}</td>
                       <td className="py-2 px-3 text-neutral-medium text-xs font-mono">{r.employee?.employee_code || '—'}</td>
                       <td className="py-2 px-3 text-white font-semibold">{r.employee?.full_name || '—'}</td>

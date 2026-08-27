@@ -360,10 +360,46 @@ export async function fetchMonthlySheets(): Promise<AttMonthlySheet[]> {
   return data || [];
 }
 
+/** Map employee_id → ngày nghỉ việc (YYYY-MM-DD). Thiếu key = chưa nghỉ hoặc không rõ ngày. */
+export async function fetchEmployeeEndDates(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.from('hr_employee_end_dates').select('employee_id, end_date');
+  if (error) throw error;
+  return Object.fromEntries((data || []).map(r => [r.employee_id, r.end_date]));
+}
+
+/**
+ * Nhân viên đã nghỉ nhưng ngày nghỉ rơi vào (hoặc sau) tháng này — vẫn phải có dòng
+ * trong bảng công để HR nhập công tháng cuối, nếu không là mất lương tháng đó.
+ * Ngày nghỉ lấy từ view `hr_employee_end_dates` (suy từ đơn thôi việc đã duyệt).
+ * Ai bị sửa tay ô Trạng thái thì không có ngày ⇒ không lấy được, đành chịu.
+ */
+async function fetchEmployeesLeftDuring(month: number, year: number): Promise<HrEmployee[]> {
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const { data: ends } = await supabase
+    .from('hr_employee_end_dates')
+    .select('employee_id, end_date')
+    .gte('end_date', monthStart);
+  if (!ends?.length) return [];
+
+  const { data } = await supabase
+    .from('hr_employees')
+    .select('*')
+    .eq('entity', getWorkspace())
+    .in('type', ['fulltime', 'parttime'])
+    .neq('exclude_from_payroll', true)
+    .in('id', ends.map(e => e.employee_id));
+  return data || [];
+}
+
 export async function createMonthlySheet(
   month: number, year: number, employees: HrEmployee[]
 ): Promise<{ sheet: AttMonthlySheet; records: AttMonthlyRecord[] }> {
   const title = `Bảng chấm công Tháng ${month}/${year}`;
+
+  // `employees` từ hook đã lọc status='active' ⇒ thiếu người nghỉ giữa tháng. Bù vào đây.
+  const leftDuring = await fetchEmployeesLeftDuring(month, year);
+  const seen = new Set(employees.map(e => e.id));
+  const allEmployees = [...employees, ...leftDuring.filter(e => !seen.has(e.id))];
 
   // Create the sheet
   const { data: sheet, error: sheetErr } = await supabase
@@ -374,7 +410,7 @@ export async function createMonthlySheet(
   if (sheetErr) throw sheetErr;
 
   // Auto-populate employee records
-  const rows = employees.map(e => ({
+  const rows = allEmployees.map(e => ({
     sheet_id: sheet.id,
     employee_id: e.id,
     work_days: 0,
@@ -411,6 +447,19 @@ export async function fetchMonthlyRecords(sheetId: string): Promise<AttMonthlyRe
 export async function updateMonthlyRecord(id: string, updates: Partial<AttMonthlyRecord>) {
   const { error } = await supabase.from('att_monthly_records').update(updates).eq('id', id);
   if (error) throw error;
+}
+
+/**
+ * Tổng hợp att_records (chấm công hằng ngày) → work_days của bảng công tháng.
+ * Công thức nằm trong SQL `att_work_days()` — dùng chung với thông báo Discord,
+ * không chép lại ở client để khỏi lệch số. HR vẫn sửa tay đè lên được sau khi tính.
+ */
+export async function syncMonthWorkDays(
+  sheetId: string
+): Promise<{ updated: number; missing_checkout: number }> {
+  const { data, error } = await supabase.rpc('att_sync_month_workdays', { _sheet_id: sheetId });
+  if (error) throw error;
+  return data as { updated: number; missing_checkout: number };
 }
 
 export async function updateMonthlySheet(id: string, updates: Partial<AttMonthlySheet>) {
@@ -534,16 +583,19 @@ export async function selfCheckIn(
 }
 
 /**
- * Self check-out: set check_out timestamp on an existing att_record.
- * Vị trí đã được widget chặn trước khi gọi (ngoài bán kính VP thì không cho check-out).
+ * Bấm giờ ra trên bản ghi hôm nay: `check_out` (mặc định) hoặc 2 cột tăng ca.
+ * Vị trí đã được widget chặn trước khi gọi (ngoài bán kính VP thì không cho bấm).
+ * ponytail: OT chỉ ghi timestamp — `overtime_minutes` vẫn do HR chốt tay theo tháng,
+ * nên bấm nhầm không đụng vào lương; Discord có thông báo để quản lý theo dõi.
  */
 export async function selfCheckOut(
-  recordId: string
+  recordId: string,
+  field: 'check_out' | 'ot_check_in' | 'ot_check_out' = 'check_out'
 ): Promise<AttRecord> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('att_records')
-    .update({ check_out: now })
+    .update({ [field]: now })
     .eq('id', recordId)
     .select('*')
     .single();

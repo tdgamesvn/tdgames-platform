@@ -46,7 +46,7 @@ export async function checkEmailConflict(email: string, excludeId?: string): Pro
 }
 
 /** Disable Auth user via edge function (ban - prevents login but keeps account) */
-async function disableAuthUser(email: string): Promise<void> {
+async function disableAuthUser(email: string): Promise<boolean> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -64,11 +64,13 @@ async function disableAuthUser(email: string): Promise<void> {
     const result = await res.json();
     if (result.success) {
       console.log(`[Auth] ${result.disabled ? 'Disabled' : 'No'} auth user for ${email}`);
-    } else {
-      console.warn(`[Auth] Failed to disable auth user for ${email}:`, result.error);
+      return true;
     }
+    console.warn(`[Auth] Failed to disable auth user for ${email}:`, result.error);
+    return false;
   } catch (err) {
     console.warn('[Auth] Failed to disable auth user:', err);
+    return false;
   }
 }
 
@@ -313,7 +315,9 @@ export async function updateEmployeeRole(email: string, newRole: string): Promis
   return result.message || `Đã cập nhật role thành ${newRole}`;
 }
 
-/** Soft-delete: set status to 'terminated' and disable Auth account */
+/** Soft-delete: set status to 'inactive' and disable Auth account.
+ *  ponytail: 'inactive' chứ không phải 'terminated' — CHECK constraint hr_employees_status_check
+ *  chỉ nhận active/inactive/offboarded/blacklist, và đơn thôi việc cũng ghi 'inactive'. */
 export async function deleteEmployee(id: string): Promise<void> {
   // Fetch employee first to get email
   const { data: emp } = await supabase
@@ -322,10 +326,10 @@ export async function deleteEmployee(id: string): Promise<void> {
     .eq('id', id)
     .single();
 
-  // Soft delete: set status to 'terminated'
+  // Soft delete: set status to 'inactive'
   const { error } = await supabase
     .from('hr_employees')
-    .update({ status: 'terminated', updated_at: new Date().toISOString() })
+    .update({ status: 'inactive', updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
 
@@ -405,6 +409,25 @@ export async function reactivateEmployee(id: string): Promise<void> {
       await enableAuthUser(authEmail);
     }
   }
+}
+
+/**
+ * Khoá đăng nhập của nhân viên (ban tài khoản, KHÔNG xoá — dữ liệu/lịch sử giữ nguyên).
+ * Dùng khi duyệt đơn thôi việc. Trước đó chỉ `softDeleteEmployee` mới khoá, nên người
+ * nghỉ việc qua đơn vẫn đăng nhập Portal được.
+ */
+export async function disableEmployeeLogin(employeeId: string): Promise<void> {
+  const { data: emp } = await supabase
+    .from('hr_employees')
+    .select('type, email, work_email')
+    .eq('id', employeeId)
+    .single();
+  const authEmail = emp?.type === 'freelancer' ? emp?.email : emp?.work_email;
+  if (!authEmail) return;   // chưa từng được mời ⇒ không có tài khoản để khoá
+  const ok = await disableAuthUser(authEmail);
+  // disableAuthUser nuốt mọi lỗi (chỉ console.warn) ⇒ phải tự ném, không thì HR duyệt xong
+  // thấy báo thành công trong khi tài khoản người nghỉ vẫn đăng nhập được.
+  if (!ok) throw new Error(`Không khoá được tài khoản ${authEmail}`);
 }
 
 /** Resend invite email to an employee's work_email */

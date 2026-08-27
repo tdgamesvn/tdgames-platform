@@ -55,7 +55,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const [outOfRangeDistance, setOutOfRangeDistance] = useState<number>(0);
   // Màn "ngoài vùng"/"chưa cấp quyền" dùng chung cho cả check-in lẫn check-out, nên phải nhớ
   // bấm "Thử lại" thì quay về trạng thái nào.
-  const [retryTo, setRetryTo] = useState<'not_checked_in' | 'checked_in'>('not_checked_in');
+  const [retryTo, setRetryTo] = useState<'not_checked_in' | 'checked_in' | 'checked_out'>('not_checked_in');
   const [remoteStatus, setRemoteStatus] = useState<'approved' | 'pending' | null>(null);
   const [liveTimer, setLiveTimer] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -154,35 +154,43 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
     );
   };
 
-  const saveCheckOut = async () => {
+  type StampField = 'check_out' | 'ot_check_in' | 'ot_check_out';
+
+  const saveStamp = async (field: StampField, back: WidgetState) => {
     if (!record) return;
     try {
-      const r = await selfCheckOut(record.id);
+      const r = await selfCheckOut(record.id, field);
       setRecord(r);
       setState('checked_out');
-      const { hm, dayFraction } = formatDuration(r.check_in!, r.check_out!);
-      onToast(`✅ Check out — ${hm} (${dayFraction} ngày công)`, 'success');
+      if (field === 'check_out') {
+        const { hm, dayFraction } = formatDuration(r.check_in!, r.check_out!);
+        onToast(`✅ Check out — ${hm} (${dayFraction} ngày công)`, 'success');
+      } else if (field === 'ot_check_in') {
+        onToast('🟠 Bắt đầu tăng ca', 'success');
+      } else {
+        onToast(`🟣 Kết thúc tăng ca — ${formatDuration(r.ot_check_in!, r.ot_check_out!).hm}`, 'success');
+      }
     } catch {
-      onToast('Lỗi khi lưu check out. Thử lại sau.', 'error');
-      setState('checked_in');
+      onToast('Lỗi khi lưu. Thử lại sau.', 'error');
+      setState(back);
     }
   };
 
   /**
-   * Check-out cũng phải ở trong bán kính VP — về nhà rồi mới bấm thì không tính.
+   * Check-out và bấm giờ OT đều phải ở trong bán kính VP — về nhà rồi mới bấm thì không tính.
    * Quên bấm ⇒ hôm sau làm đơn giải trình cho Admin duyệt (không mở cửa sau ở đây).
    */
-  const handleCheckOut = async () => {
+  const handleStamp = async (field: StampField) => {
     if (!record) return;
+    const back: WidgetState = field === 'check_out' ? 'checked_in' : 'checked_out';
     // Ngày WFH đã được duyệt thì không có VP nào để đứng gần.
-    if (remoteStatus === 'approved' || record.method === 'remote') return saveCheckOut();
+    if (remoteStatus === 'approved' || record.method === 'remote') return saveStamp(field, back);
 
+    setRetryTo(back);
     if (!officeConfig || !navigator.geolocation) {
-      setRetryTo('checked_in');
       setState('gps_denied');
       return;
     }
-    setRetryTo('checked_in');
     setState('gps_requesting');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -194,7 +202,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
           setState('out_of_range');
           return;
         }
-        saveCheckOut();
+        saveStamp(field, back);
       },
       () => setState('gps_denied'),
       { enableHighAccuracy: true, timeout: 10000 },
@@ -337,7 +345,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
           </div>
           {isMobileDevice ? (
             <button
-              onClick={handleCheckOut}
+              onClick={() => handleStamp('check_out')}
               style={{
                 background: 'transparent', border: '1px solid #FF9500', borderRadius: '12px',
                 color: '#FF9500', padding: '12px 32px', fontSize: '14px', fontWeight: 800,
@@ -384,6 +392,52 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
               </p>
             </div>
           </div>
+
+          {/* Tăng ca — chỉ hiện sau khi đã chốt ca chính.
+              ponytail: 1 lượt OT/ngày. Bấm xong là khoá, muốn sửa thì làm đơn cho HR. */}
+          {isMobileDevice && (
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
+              {!record.ot_check_in && (
+                <button
+                  onClick={() => handleStamp('ot_check_in')}
+                  style={{
+                    background: 'transparent', border: '1px solid #FF9500', borderRadius: '12px',
+                    color: '#FF9500', padding: '12px 32px', fontSize: '14px', fontWeight: 800,
+                    cursor: 'pointer', width: '100%', letterSpacing: '-0.01em',
+                  }}
+                >
+                  🟠 CHECK IN OT
+                </button>
+              )}
+
+              {record.ot_check_in && !record.ot_check_out && (
+                <>
+                  <p style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
+                    🟠 Tăng ca từ <strong style={{ color: '#F5F5F5' }}>{formatTime(record.ot_check_in)}</strong>
+                  </p>
+                  <button
+                    onClick={() => handleStamp('ot_check_out')}
+                    style={{
+                      background: 'transparent', border: '1px solid #9B59B6', borderRadius: '12px',
+                      color: '#9B59B6', padding: '12px 32px', fontSize: '14px', fontWeight: 800,
+                      cursor: 'pointer', width: '100%', letterSpacing: '-0.01em',
+                    }}
+                  >
+                    🟣 CHECK OUT OT
+                  </button>
+                </>
+              )}
+
+              {record.ot_check_in && record.ot_check_out && (
+                <p style={{ fontSize: '12px', color: '#888' }}>
+                  🟣 Tăng ca {formatTime(record.ot_check_in)} → {formatTime(record.ot_check_out)}
+                  {' '}<strong style={{ color: '#9B59B6' }}>
+                    ({formatDuration(record.ot_check_in, record.ot_check_out).hm})
+                  </strong>
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
