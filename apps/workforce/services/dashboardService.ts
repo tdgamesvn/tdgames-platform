@@ -94,19 +94,20 @@ export interface ProjectedSummary {
   grossProfit: number;
   taskCount: number;          // số task tính vào doanh thu dự kiến
   tasksWithoutPrice: number;  // task đủ điều kiện nhưng CHƯA nhập giá khách → doanh thu bị thiếu
+  tasksWithoutDate: number;   // task xong nhưng KHÔNG có ngày nào → rơi khỏi mọi tháng, mất hẳn
   payrollSource: 'sheet-thang-nay' | 'sheet-thang-truoc' | 'uoc-tinh-nhap' | 'khong-co';
 }
 
-// Trạng thái ClickUp coi là CHƯA làm xong ⇒ không tính doanh thu dự kiến.
-// Sếp chốt: mới / đang làm / pending / cancelled thì bỏ, còn lại (review, fix,
-// complete, approved, Closed...) đều tính.
-// lead_check = làm xong, chờ lead duyệt nội bộ ⇒ là REVIEW, phải tính. Trước đây bị
-// xếp nhầm vào nhóm bỏ nên 4 task T8 ($1.150) không vào hiệu suất của ai.
-const NOT_YET_DONE = new Set([
-  'new', 'new request', 'to do', 'todo', 'open', 'backlog', 'planning',
-  // 'in progess' = lỗi chính tả có thật trên ClickUp (thiếu chữ r). Không có dòng này
-  // thì task đang làm dở lọt vào doanh thu dự kiến.
-  'in progress', 'in progess', 'in_progress', 'pending', 'cancelled', 'canceled',
+// Trạng thái ClickUp được tính vào doanh thu dự kiến. Sếp chốt 2026-08-27: WHITELIST —
+// chỉ 4 nhóm này, mọi trạng thái khác (kể cả lạ/mới thêm trên ClickUp) đều bỏ.
+// Trước đây là blacklist (liệt kê cái CHƯA xong) ⇒ ClickUp thêm status mới là nó tự lọt
+// vào dự kiến mà không ai biết. Whitelist thì rủi ro ngược lại — thiếu tiền chứ không
+// thừa tiền — và badge "task chưa nhập giá / chưa có ngày" sẽ lộ ra.
+// ClickUp KHÔNG có status 'done' thật (sếp nêu 'done' = 'completed'/'complete');
+// giữ cả 'done' phòng khi ClickUp thêm sau.
+// Cố tình LOẠI: fix (đang sửa lại, chưa xong), internal review, lead_check.
+const DONE_STATUSES = new Set([
+  'client_review', 'approved', 'closed', 'done', 'completed', 'complete',
 ]);
 
 /** Lưu config KPI: employeeId=null → global, ngược lại → override per nhân viên */
@@ -266,11 +267,11 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     .from('wf_space_settings').select('space_name').eq('is_internal', true);
   const internalSpaces = new Set((spaceRows || []).map((r: any) => r.space_name));
 
-  let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0;
+  let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0, tasksWithoutDate = 0;
   const projTaskMap = new Map<string, any>();
   (openTasks || []).forEach((t: any) => {
     if (inAcceptance.has(t.id)) return;
-    if (NOT_YET_DONE.has(String(t.clickup_status || '').toLowerCase().trim())) return;
+    if (!DONE_STATUSES.has(String(t.clickup_status || '').toLowerCase().trim())) return;
     // Chỉ task LÀM XONG TRONG THÁNG đang xem (trước đây không lọc ngày nên tháng nào
     // cũng gộp cả task tồn từ 2025).
     // Task chờ khách duyệt (client_review…) chưa đóng nên ClickUp KHÔNG trả date_done ⇒
@@ -280,8 +281,12 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     // một phát là cả task từ tháng 4 nhảy vào tháng hiện tại. start_date cũng không dùng
     // (kéo task về tháng bắt đầu, task xong tháng này mà khởi động tháng trước sẽ mất).
     const doneAt = t.completed_at || t.closed_date || t.clickup_updated_at;
-    if (!doneAt || doneAt < startOfMonth || doneAt > endOfMonth) return;
     const isInternal = internalSpaces.has(t.clickup_space_name);
+    // Trống cả 3 cột ngày ⇒ task rơi khỏi MỌI tháng, không ai thấy, tiền mất im lặng.
+    // Không đoán ngày thay (start_date/created_at kéo task về sai tháng) — đếm để cảnh báo,
+    // sếp sửa trên ClickUp rồi sync là số tự về đúng.
+    if (!doneAt) { if (!isInternal) tasksWithoutDate++; return; }
+    if (doneAt < startOfMonth || doneAt > endOfMonth) return;
     if (!isInternal) projTaskCount++;
     const cp = Number(t.client_price || 0);
     if (cp > 0) projRevenueUSD += cp;
@@ -378,6 +383,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     grossProfit: projRevenueUSD * exchangeRate - projTotalCost,
     taskCount: projTaskCount,
     tasksWithoutPrice,
+    tasksWithoutDate,
     payrollSource,
   };
 
@@ -673,6 +679,7 @@ export async function getDashboardDataRange(
       grossProfit: sum(p => p.projected.grossProfit),
       taskCount: sum(p => p.projected.taskCount),
       tasksWithoutPrice: sum(p => p.projected.tasksWithoutPrice),
+      tasksWithoutDate: sum(p => p.projected.tasksWithoutDate),
       payrollSource: last.projected.payrollSource,
     },
   };

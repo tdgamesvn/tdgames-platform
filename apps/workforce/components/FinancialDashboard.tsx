@@ -177,6 +177,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
               {data.projected.tasksWithoutPrice > 0 && (
                 <p className="text-[11px] text-amber-400/80 mt-1">⚠️ {data.projected.tasksWithoutPrice} task chưa nhập giá khách</p>
               )}
+              {data.projected.tasksWithoutDate > 0 && (
+                <p className="text-[11px] text-amber-400/80 mt-1" title="Task xong nhưng ClickUp không có ngày hoàn thành / ngày đóng ⇒ không rơi vào tháng nào, không tính cho ai.">
+                  ⚠️ {data.projected.tasksWithoutDate} task thiếu ngày hoàn thành · không vào tháng nào
+                </p>
+              )}
             </div>
             
             <div className="p-5 rounded-2xl border border-primary/10 bg-surface relative overflow-hidden group">
