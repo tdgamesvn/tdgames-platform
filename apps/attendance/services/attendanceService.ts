@@ -555,23 +555,30 @@ export async function selfCheckOut(
  * Check if employee has an approved remote leave request covering today.
  * Used to bypass geofence on WFH days.
  */
-export async function checkRemoteApproved(
+/**
+ * Trạng thái đơn WFH phủ ngày `date`: 'approved' | 'pending' | null (không có đơn).
+ * Trả status thay vì boolean để widget phân biệt "chưa có đơn" với "đơn chờ duyệt" —
+ * cùng 1 query, không thêm round-trip.
+ */
+export async function fetchRemoteStatus(
   employeeId: string,
   date: string
-): Promise<boolean> {
+): Promise<'approved' | 'pending' | null> {
   const { data, error } = await supabase
     .from('att_requests')
-    .select('id')
+    .select('status')
     .eq('employee_id', employeeId)
     .eq('request_type', 'leave')
     .eq('leave_type', 'remote')
-    .eq('status', 'approved')
+    .in('status', ['approved', 'pending'])
     .lte('date_from', date)
     .gte('date_to', date)
+    // Có cả 2 đơn phủ cùng ngày thì 'approved' phải thắng — sort chữ cái đặt nó trước 'pending'.
+    .order('status', { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data !== null;
+  return (data?.status as 'approved' | 'pending') ?? null;
 }
 
 // ══════════════════════════════════════════════════════════

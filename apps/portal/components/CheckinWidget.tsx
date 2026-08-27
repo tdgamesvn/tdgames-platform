@@ -6,7 +6,7 @@ import {
   fetchMyTodayRecord,
   selfCheckIn,
   selfCheckOut,
-  checkRemoteApproved,
+  fetchRemoteStatus,
   haversineDistance,
 } from '@/apps/attendance/services/attendanceService';
 
@@ -56,7 +56,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   // Màn "ngoài vùng"/"chưa cấp quyền" dùng chung cho cả check-in lẫn check-out, nên phải nhớ
   // bấm "Thử lại" thì quay về trạng thái nào.
   const [retryTo, setRetryTo] = useState<'not_checked_in' | 'checked_in'>('not_checked_in');
-  const [isRemoteDay, setIsRemoteDay] = useState(false);
+  const [remoteStatus, setRemoteStatus] = useState<'approved' | 'pending' | null>(null);
   const [liveTimer, setLiveTimer] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -66,10 +66,10 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
     Promise.all([
       fetchOfficeConfig(),
       fetchMyTodayRecord(employeeId),
-      checkRemoteApproved(employeeId, today),
-    ]).then(([config, todayRecord, isRemote]) => {
+      fetchRemoteStatus(employeeId, today),
+    ]).then(([config, todayRecord, remote]) => {
       setOfficeConfig(config);
-      setIsRemoteDay(isRemote);
+      setRemoteStatus(remote);
       if (todayRecord) {
         setRecord(todayRecord);
         setState(todayRecord.check_out ? 'checked_out' : 'checked_in');
@@ -97,8 +97,15 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const handleCheckIn = async () => {
     if (!officeConfig) return;
 
-    // Remote day: bypass geo
-    if (isRemoteDay) {
+    // Đơn WFH có thể vừa được duyệt sau khi trang đã mở ⇒ hỏi lại DB đúng lúc bấm thay vì đọc
+    // state cache từ lúc mount. Không có dòng này thì duyệt xong vẫn phải F5 mới bỏ qua GPS.
+    // ponytail: 1 query mỗi lần bấm, rẻ hơn realtime subscription hay polling nền.
+    const remoteToday = await fetchRemoteStatus(employeeId, new Date().toISOString().split('T')[0])
+      .catch(() => remoteStatus);
+    setRemoteStatus(remoteToday);
+
+    // Remote day: bypass geo (đơn còn 'pending' thì vẫn phải đứng ở VP — RLS cũng chặn)
+    if (remoteToday === 'approved') {
       setState('gps_requesting');
       try {
         const r = await selfCheckIn(employeeId, 0, 0, 'remote');
@@ -168,7 +175,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const handleCheckOut = async () => {
     if (!record) return;
     // Ngày WFH đã được duyệt thì không có VP nào để đứng gần.
-    if (isRemoteDay || record.method === 'remote') return saveCheckOut();
+    if (remoteStatus === 'approved' || record.method === 'remote') return saveCheckOut();
 
     if (!officeConfig || !navigator.geolocation) {
       setRetryTo('checked_in');
@@ -216,12 +223,13 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
           </p>
           <p style={{ fontSize: '14px', fontWeight: 700, color: '#ccc', marginTop: '2px' }}>{today}</p>
         </div>
-        {isRemoteDay && (
+        {remoteStatus && (
           <span style={{
             fontSize: '10px', fontWeight: 800, padding: '4px 10px', borderRadius: '6px',
-            background: 'rgba(6,182,212,0.1)', color: '#06B6D4', textTransform: 'uppercase',
+            background: remoteStatus === 'approved' ? 'rgba(6,182,212,0.1)' : 'rgba(255,149,0,0.1)',
+            color: remoteStatus === 'approved' ? '#06B6D4' : '#FF9500', textTransform: 'uppercase',
           }}>
-            🏠 Remote
+            {remoteStatus === 'approved' ? '🏠 Remote' : '⏳ Đơn WFH chờ duyệt'}
           </span>
         )}
       </div>
