@@ -430,6 +430,24 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                         }}
                       />
                     </div>
+                    {/* Tổng muộn/sớm tháng — chỉ hiện khi có, tháng sạch thì không bôi đỏ vô cớ */}
+                    {(() => {
+                      const lateD = dailyRecords.filter(r => (r.late_minutes || 0) > 0);
+                      const earlyD = dailyRecords.filter(r => (r.early_minutes || 0) > 0);
+                      if (!lateD.length && !earlyD.length) return null;
+                      const sum = (rs: typeof dailyRecords, k: 'late_minutes' | 'early_minutes') =>
+                        rs.reduce((s, r) => s + (r[k] || 0), 0);
+                      return (
+                        <p style={{ fontSize: '12px', fontWeight: 700, margin: '0 0 12px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          {lateD.length > 0 && (
+                            <span style={{ color: '#FF9500' }}>⏰ Muộn {lateD.length} ngày · {sum(lateD, 'late_minutes')} phút</span>
+                          )}
+                          {earlyD.length > 0 && (
+                            <span style={{ color: '#FF453A' }}>🏃 Về sớm {earlyD.length} ngày · {sum(earlyD, 'early_minutes')} phút</span>
+                          )}
+                        </p>
+                      );
+                    })()}
                     {isLoading ? (
                       <p className="animate-pulse" style={{ color: '#666', fontSize: '13px', textAlign: 'center', padding: '24px' }}>Đang tải...</p>
                     ) : dailyRecords.length === 0 ? (
@@ -474,9 +492,19 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                               padding: '10px 16px', borderBottom: '1px solid #111', alignItems: 'center',
                             }}>
                               <span style={{ fontSize: '13px', fontWeight: 700, color: '#ccc' }}>{fmtDate(rec.date)}</span>
-                              <span style={{ fontSize: '13px', color: '#F5F5F5' }}>{fmtTime(checkIn)}</span>
+                              {/* ponytail: nhét phút muộn/sớm cạnh giờ, không thêm cột — bảng này
+                                  đọc trên điện thoại, 6 cột đã sát mép */}
+                              <span style={{ fontSize: '13px', color: '#F5F5F5' }}>
+                                {fmtTime(checkIn)}
+                                {(rec.late_minutes || 0) > 0 && (
+                                  <span style={{ color: '#FF9500', fontWeight: 700, fontSize: '11px' }}> +{rec.late_minutes}p</span>
+                                )}
+                              </span>
                               <span style={{ fontSize: '13px', color: checkOut ? '#F5F5F5' : '#555' }}>
                                 {checkOut ? fmtTime(checkOut) : 'Chưa ra'}
+                                {(rec.early_minutes || 0) > 0 && (
+                                  <span style={{ color: '#FF453A', fontWeight: 700, fontSize: '11px' }}> −{rec.early_minutes}p</span>
+                                )}
                               </span>
                               <span style={{ fontSize: '13px', color: totalMs > 0 ? '#FF9500' : '#555' }}>{hm}</span>
                               <span style={{ fontSize: '13px', fontWeight: 800, color: totalMs > 0 ? '#34C759' : '#555' }}>{dayFrac}</span>

@@ -58,12 +58,13 @@ const AttendanceReport: React.FC<Props> = ({ employees, shifts }) => {
     const presentDays = empRecords.filter(r => r.status === 'present').length;
     const lateDays = empRecords.filter(r => r.status === 'late').length;
     const totalLateMinutes = empRecords.reduce((sum, r) => sum + (r.late_minutes || 0), 0);
+    const totalEarlyMinutes = empRecords.reduce((sum, r) => sum + (r.early_minutes || 0), 0);
     const totalOTMinutes = empRecords.reduce((sum, r) => sum + (r.overtime_minutes || 0), 0);
     const totalWorkHours = empRecords.reduce((sum, r) => {
       if (!r.check_in || !r.check_out) return sum;
       return sum + (new Date(r.check_out).getTime() - new Date(r.check_in).getTime()) / 3600000;
     }, 0);
-    return { emp, totalDays, presentDays, lateDays, totalLateMinutes, totalOTMinutes, totalWorkHours };
+    return { emp, totalDays, presentDays, lateDays, totalLateMinutes, totalEarlyMinutes, totalOTMinutes, totalWorkHours };
   });
 
   // Summary
@@ -130,12 +131,13 @@ const AttendanceReport: React.FC<Props> = ({ employees, shifts }) => {
                   <th className="text-center py-3 px-2">Đúng giờ</th>
                   <th className="text-center py-3 px-2">Đi muộn</th>
                   <th className="text-center py-3 px-2">Muộn (phút)</th>
+                  <th className="text-center py-3 px-2">Về sớm (phút)</th>
                   <th className="text-center py-3 px-2">OT (phút)</th>
                   <th className="text-center py-3 px-2">Tổng giờ</th>
                 </tr>
               </thead>
               <tbody>
-                {empStats.map(({ emp, totalDays, presentDays, lateDays, totalLateMinutes, totalOTMinutes, totalWorkHours }) => (
+                {empStats.map(({ emp, totalDays, presentDays, lateDays, totalLateMinutes, totalEarlyMinutes, totalOTMinutes, totalWorkHours }) => (
                   <tr key={emp.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
                     <td className="py-3 px-2">
                       <div className="text-white font-semibold">{emp.full_name}</div>
@@ -145,6 +147,7 @@ const AttendanceReport: React.FC<Props> = ({ employees, shifts }) => {
                     <td className="py-3 px-2 text-center text-green-400 font-bold">{presentDays}</td>
                     <td className="py-3 px-2 text-center text-orange-400 font-bold">{lateDays}</td>
                     <td className="py-3 px-2 text-center text-orange-400">{totalLateMinutes > 0 ? `${totalLateMinutes}p` : '—'}</td>
+                    <td className="py-3 px-2 text-center text-red-400">{totalEarlyMinutes > 0 ? `${totalEarlyMinutes}p` : '—'}</td>
                     <td className="py-3 px-2 text-center text-purple-400">{totalOTMinutes > 0 ? `${totalOTMinutes}p` : '—'}</td>
                     <td className="py-3 px-2 text-center text-white font-bold">{Math.round(totalWorkHours * 10) / 10}h</td>
                   </tr>

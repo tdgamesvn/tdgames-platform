@@ -127,21 +127,9 @@ export async function checkIn(employeeId: string, method: string = 'manual', shi
     note: note || '',
   };
 
-  // Calculate late status if shift provided
-  if (shiftId) {
-    const { data: shift } = await supabase.from('att_shifts').select('*').eq('id', shiftId).single();
-    if (shift) {
-      const [sh, sm] = shift.start_time.split(':').map(Number);
-      const checkInTime = new Date(now);
-      const scheduledStart = new Date(now);
-      scheduledStart.setHours(sh, sm, 0, 0);
-      const diffMins = Math.round((checkInTime.getTime() - scheduledStart.getTime()) / 60000);
-      if (diffMins > (shift.late_threshold_minutes || 15)) {
-        record.status = 'late';
-        record.late_minutes = diffMins;
-      }
-    }
-  }
+  // Đi muộn / về sớm do trigger `att_records_zz_late_early` tính (migration 20260828140000).
+  // Bỏ bản tính ở client: nó chỉ chạy khi có shiftId (thực tế 0/25 bản ghi gắn ca) và dùng
+  // `new Date()` theo đồng hồ máy khách — máy lệch timezone là số phút muộn lệch theo.
 
   const { data, error } = await supabase
     .from('att_records')
