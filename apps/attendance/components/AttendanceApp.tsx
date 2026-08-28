@@ -132,8 +132,8 @@ const AttendanceApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => 
             requests={state.requests}
             employees={state.employees}
             onSave={state.handleSaveRequest}
-            onApprove={state.handleApproveRequest}
-            onReject={state.handleRejectRequest}
+            onApprove={(id, note) => state.handleApproveRequest(id, currentUser.username, note)}
+            onReject={(id, note) => state.handleRejectRequest(id, currentUser.username, note)}
           />
         )}
 
