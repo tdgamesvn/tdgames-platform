@@ -868,3 +868,91 @@ export async function recalculateAndSave(
   await updatePayrollRecord(updated.id, clean);
   return updated;
 }
+
+// ── Đồng bộ lại chấm công ────────────────────────────────
+// Ngày công + OT trong bảng lương là ẢNH CHỤP lúc `createPayrollSheet` — nó đọc
+// `att_monthly_records` đúng MỘT lần rồi thôi. `recalculateRecord` sau đó chỉ đọc
+// `rec.work_days` của chính bảng lương, không bao giờ ngó lại chấm công. Nên kế toán
+// sửa bảng chấm công rồi bấm "Tính lại" thì số không nhúc nhích — đúng như thiết kế cũ,
+// nhưng không ai hiểu như vậy.
+// Ảnh chụp là cố ý (kế toán sửa tay được ngày công/OT ngay trên bảng lương), nên việc
+// kéo lại số mới phải là hành động rõ ràng, có cảnh báo ghi đè — không âm thầm.
+
+const ATT_SYNC_FIELDS = [
+  'work_days',
+  'extra_ot_hours',
+  'extra_ot_hours_weekend',
+  'extra_ot_hours_holiday',
+  'extra_ot_hours_night',
+  'extra_ot_hours_night_weekend',
+  'extra_ot_hours_night_holiday',
+] as const;
+
+/** Ảnh chụp ngày công/OT từ bảng chấm công ĐÃ CHỐT của đúng tháng + đúng sổ.
+ *  `null` = không có bảng chốt ⇒ tuyệt đối không ghi đè gì (thà giữ số cũ còn hơn
+ *  set 0 giờ OT cho cả công ty vì bảng chấm công đang mở lại để sửa). */
+export async function fetchAttendanceSnapshot(
+  month: number,
+  year: number,
+  entity?: string | null,
+): Promise<Map<string, Record<string, number>> | null> {
+  const { data: attSheetRows } = await supabase
+    .from('att_monthly_sheets')
+    .select('id, status')
+    .eq('entity', entity || getWorkspace())
+    .eq('month', month)
+    .eq('year', year);
+
+  const attSheet = (attSheetRows || []).find(s => s.status === 'finalized');
+  if (!attSheet) return null;
+
+  const { data: rows } = await supabase
+    .from('att_monthly_records')
+    .select('employee_id, work_days, ot_hours, ot_hours_weekend, ot_hours_holiday,'
+      + ' ot_hours_night, ot_hours_night_weekend, ot_hours_night_holiday')
+    .eq('sheet_id', attSheet.id);
+
+  const map = new Map<string, Record<string, number>>();
+  (rows || []).forEach((r: any) => {
+    // Number() bắt buộc: PostgREST trả cột `numeric` về dạng CHUỖI ("20.00"). Nhét thẳng
+    // chuỗi vào calculatePayroll là chỗ nào dùng `+` sẽ nối chuỗi thay vì cộng số.
+    const patch: Record<string, number> = {
+      extra_ot_hours: Number(r.ot_hours ?? 0),
+      extra_ot_hours_weekend: Number(r.ot_hours_weekend ?? 0),
+      extra_ot_hours_holiday: Number(r.ot_hours_holiday ?? 0),
+      extra_ot_hours_night: Number(r.ot_hours_night ?? 0),
+      extra_ot_hours_night_weekend: Number(r.ot_hours_night_weekend ?? 0),
+      extra_ot_hours_night_holiday: Number(r.ot_hours_night_holiday ?? 0),
+    };
+    // work_days null (chấm công chưa tính) → giữ nguyên số đang có, không hạ về 0.
+    if (r.work_days != null) patch.work_days = Number(r.work_days);
+    map.set(r.employee_id, patch);
+  });
+  return map;
+}
+
+/** Kéo lại ngày công/OT từ chấm công rồi tính lại cả bảng.
+ *  `attendanceFound=false` ⇒ chỉ áp lại công thức, ngày công giữ nguyên (phải báo kế toán). */
+export async function resyncAttendanceAndRecalc(
+  sheet: PayPayrollSheet,
+  records: PayPayrollRecord[],
+  formula: PayrollFormulaConfig = FALLBACK_PAYROLL_FORMULA,
+): Promise<{ records: PayPayrollRecord[]; attendanceFound: boolean; changed: number }> {
+  const snap = await fetchAttendanceSnapshot(sheet.month, sheet.year, (sheet as any).entity);
+  let changed = 0;
+
+  const out = await Promise.all(records.map(rec => {
+    const patch = snap?.get(rec.employee_id);
+    let next = rec;
+    if (patch) {
+      const merged = { ...rec, ...patch } as PayPayrollRecord;
+      if (ATT_SYNC_FIELDS.some(k => Number((merged as any)[k] ?? 0) !== Number((rec as any)[k] ?? 0))) {
+        changed++;
+        next = merged;
+      }
+    }
+    return recalculateAndSave(next, formula, sheet.standard_work_days);
+  }));
+
+  return { records: out, attendanceFound: snap !== null, changed };
+}

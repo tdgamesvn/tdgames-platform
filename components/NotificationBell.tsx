@@ -7,6 +7,7 @@ const TYPE_ICONS: Record<string, string> = {
   leave_rejected:  '❌',
   leave_new:       '📋',
   payslip_created: '💰',
+  payslip_withdrawn: '↩️',
   expense_approved:'✅',
   expense_rejected:'❌',
   invoice_overdue: '⚠️',

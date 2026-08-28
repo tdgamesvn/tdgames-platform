@@ -91,6 +91,10 @@ const PayrollSheet: React.FC<Props> = ({
     setStdModal(false);
   };
 
+  // Xác nhận bảng lương = khoá số liệu + phiếu lương hiện cho toàn bộ NV trên Portal
+  // (portalService lọc sheet `confirmed|paid`) ⇒ bắt bấm 2 lần, không cho ấn nhầm 1 phát.
+  const [confirmModal, setConfirmModal] = useState(false);
+
   // Chỉ cho phép "Đã trả lương" khi tất cả NV đã xác nhận hoặc đã giải quyết khiếu nại
   const canMarkPaid = records.length > 0 && records.every(r =>
     r.employee_status === 'confirmed' || r.employee_status === 'resolved',
@@ -189,11 +193,16 @@ const PayrollSheet: React.FC<Props> = ({
             {isDraft && onRecalcAll && (
               <button
                 onClick={() => {
-                  if (confirm(`Tính lại lương của ${records.length} người theo công thức hiện hành?\n\nDùng khi công thức/hệ số đã đổi sau lúc tạo bảng. Số tiền có thể thay đổi.`)) onRecalcAll();
+                  if (confirm(
+                    `Đồng bộ chấm công + tính lại lương của ${records.length} người?\n\n`
+                    + `• Ngày công và giờ OT sẽ lấy lại từ BẢNG CHẤM CÔNG ĐÃ CHỐT của tháng này.\n`
+                    + `• Ai đang được sửa tay ngày công/OT trên bảng lương sẽ bị GHI ĐÈ.\n`
+                    + `• Công thức/hệ số hiện hành cũng được áp lại. Số tiền có thể thay đổi.`,
+                  )) onRecalcAll();
                 }}
                 disabled={loading}
                 className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-medium hover:text-white border border-white/10 hover:border-white/20 transition-all disabled:opacity-40"
-                title="Áp lại công thức hiện hành cho cả bảng (không đổi ngày công / công chuẩn)">
+                title="Kéo lại ngày công/OT từ chấm công đã chốt + áp lại công thức (không đổi công chuẩn)">
                 🧮 Tính lại
               </button>
             )}
@@ -203,7 +212,7 @@ const PayrollSheet: React.FC<Props> = ({
               📥 Export Excel
             </button>
             {isDraft && (
-              <button onClick={onConfirm}
+              <button onClick={() => setConfirmModal(true)}
                 className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
                 style={{ background: 'linear-gradient(135deg, #34D399, #059669)' }}>
                 ✅ Xác nhận bảng lương
@@ -688,6 +697,52 @@ const PayrollSheet: React.FC<Props> = ({
           </div>
         )}
       </div>
+
+      {/* Xác nhận bảng lương — bước 2, tránh ấn nhầm nút ở header */}
+      {confirmModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmModal(false)} />
+          <div className="relative z-10 w-full max-w-md rounded-[20px] border border-primary/10 bg-surface p-6 animate-scaleIn">
+            <h3 className="text-white font-black text-base uppercase tracking-tight">Xác nhận bảng lương?</h3>
+            <p className="text-neutral-medium text-xs mt-1 leading-relaxed">
+              Sau khi xác nhận, <b className="text-yellow-400">phiếu lương sẽ hiện cho toàn bộ nhân viên</b> trên
+              Portal để họ xác nhận/khiếu nại. Muốn sửa lại phải bấm “Huỷ xác nhận”.
+            </p>
+
+            <div className="mt-4 rounded-xl bg-white/[0.03] border border-white/8 p-3 space-y-1.5">
+              <div className="flex justify-between text-xs">
+                <span className="text-neutral-600 font-black uppercase tracking-wider text-[10px]">Bảng</span>
+                <b className="text-white">{sheet.title}</b>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-neutral-600 font-black uppercase tracking-wider text-[10px]">Số người</span>
+                <b className="text-white tabular-nums">{records.length}</b>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-neutral-600 font-black uppercase tracking-wider text-[10px]">Tổng net</span>
+                <b className="text-emerald-400 tabular-nums">{fmt(totalNet)}</b>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setConfirmModal(false)}
+                className="px-4 py-2 rounded-lg border border-white/10 text-neutral-medium hover:text-white text-xs font-black uppercase transition-all"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => { setConfirmModal(false); onConfirm?.(); }}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg bg-primary text-black text-xs font-black uppercase disabled:opacity-30 transition-all"
+              >
+                Xác nhận & gửi phiếu lương
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* Sửa công chuẩn — portal vì header cha có backdrop-blur/transform */}
       {stdModal && createPortal(

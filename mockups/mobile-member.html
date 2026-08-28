@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — Giao diện mobile cho nhân viên</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: {
+  colors: {
+    primary: { DEFAULT:'#FF9500', dark:'#FF7A00', deep:'#E86800' },
+    bg:'#0F0F0F', surface:'#1A1A1A',
+    neutral:{ light:'#F2F2F2', medium:'#9D9C9D', dark:'#404040' },
+    status:{ success:'#4CAF50', error:'#F44336', warning:'#FFA726', info:'#2196F3' },
+  },
+  fontFamily:{ montserrat:['Montserrat','sans-serif'] },
+}}}
+</script>
+<style>
+  body { font-family:'Montserrat',sans-serif; background:#050505; }
+  .phone { width:390px; height:844px; border-radius:44px; background:#0F0F0F;
+           border:1px solid rgba(255,255,255,.10); overflow:hidden; position:relative;
+           box-shadow:0 24px 64px rgba(0,0,0,.6); flex:0 0 auto; }
+  .screen { height:100%; overflow-y:auto; overflow-x:hidden; padding-bottom:92px; }
+  .screen::-webkit-scrollbar { display:none; }
+  .caption { color:#9D9C9D; font-size:11px; font-weight:900; text-transform:uppercase;
+             letter-spacing:.12em; text-align:center; margin-top:14px; }
+</style>
+</head>
+<body class="p-10">
+
+<div class="mb-8">
+  <h1 class="text-white font-black text-2xl">Giao diện mobile — vai trò Nhân viên</h1>
+  <p class="text-neutral-medium text-sm mt-1">Bản dựng thử. Dữ liệu là giả. Chưa đụng vào code của app.</p>
+</div>
+
+<div class="flex gap-8 items-start overflow-x-auto pb-6">
+
+<!-- ═══════════ 1. TRANG CHỦ ═══════════ -->
+<div>
+<div class="phone"><div class="screen">
+
+  <!-- status bar -->
+  <div class="flex justify-between items-center px-6 pt-3 pb-1 text-white text-[13px] font-bold">
+    <span>9:41</span>
+    <div class="flex gap-1.5 items-center opacity-90">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="white"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+      <svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x=".5" y=".5" width="21" height="11" rx="3" stroke="white" stroke-opacity=".5"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="white"/><path d="M23 4v4a2 2 0 0 0 0-4z" fill="white" fill-opacity=".5"/></svg>
+    </div>
+  </div>
+
+  <!-- header -->
+  <div class="px-5 pt-4 pb-5 flex items-center justify-between">
+    <div>
+      <p class="text-neutral-medium text-[13px] font-semibold">Chào buổi sáng,</p>
+      <h1 class="text-white text-[26px] font-black leading-tight mt-0.5">Nguyễn Minh Anh</h1>
+      <p class="text-neutral-dark text-[11px] font-bold uppercase tracking-wider mt-1">Thiết kế · Phòng Sản phẩm</p>
+    </div>
+    <div class="relative">
+      <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary-deep flex items-center justify-center text-black font-black text-lg">MA</div>
+      <span class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-status-error border-2 border-bg text-[9px] font-black text-white flex items-center justify-center">2</span>
+    </div>
+  </div>
+
+  <!-- checkin hero -->
+  <div class="mx-5 rounded-3xl p-5 relative overflow-hidden"
+       style="background:linear-gradient(135deg,#FF9500 0%,#E86800 100%);box-shadow:0 12px 32px rgba(255,149,0,.28)">
+    <div class="absolute -right-8 -bottom-10 w-40 h-40 rounded-full bg-white/10"></div>
+    <div class="relative">
+      <p class="text-black/60 text-[10px] font-black uppercase tracking-widest">Hôm nay · Thứ 6, 22/08</p>
+      <div class="flex items-end gap-2.5 mt-2">
+        <span class="text-black text-[40px] font-black leading-none">08:32</span>
+        <span class="text-black/60 text-[13px] font-bold mb-1.5">đã vào ca</span>
+      </div>
+      <button class="mt-4 w-full bg-black/85 text-white rounded-2xl py-3.5 font-black text-[15px] tracking-wide">
+        CHECK-OUT
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="grid grid-cols-3 gap-2.5 px-5 mt-5">
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5">
+      <p class="text-neutral-dark text-[9px] font-black uppercase tracking-wider">Công tháng</p>
+      <p class="text-white text-[22px] font-black mt-1.5 leading-none">18<span class="text-neutral-dark text-sm">/22</span></p>
+    </div>
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5">
+      <p class="text-neutral-dark text-[9px] font-black uppercase tracking-wider">Phép còn</p>
+      <p class="text-status-success text-[22px] font-black mt-1.5 leading-none">6.5</p>
+    </div>
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5">
+      <p class="text-neutral-dark text-[9px] font-black uppercase tracking-wider">Đi muộn</p>
+      <p class="text-status-warning text-[22px] font-black mt-1.5 leading-none">1</p>
+    </div>
+  </div>
+
+  <!-- quick actions -->
+  <p class="px-5 mt-7 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Thao tác nhanh</p>
+  <div class="grid grid-cols-4 gap-2.5 px-5">
+    <div class="flex flex-col items-center gap-2">
+      <div class="w-full aspect-square rounded-2xl bg-surface border border-white/[.08] flex items-center justify-center text-[22px]">🌴</div>
+      <span class="text-neutral-medium text-[10px] font-bold text-center leading-tight">Xin nghỉ</span>
+    </div>
+    <div class="flex flex-col items-center gap-2">
+      <div class="w-full aspect-square rounded-2xl bg-surface border border-white/[.08] flex items-center justify-center text-[22px]">📝</div>
+      <span class="text-neutral-medium text-[10px] font-bold text-center leading-tight">Đề xuất</span>
+    </div>
+    <div class="flex flex-col items-center gap-2">
+      <div class="w-full aspect-square rounded-2xl bg-surface border border-white/[.08] flex items-center justify-center text-[22px]">📖</div>
+      <span class="text-neutral-medium text-[10px] font-bold text-center leading-tight">Nội quy</span>
+    </div>
+    <div class="flex flex-col items-center gap-2">
+      <div class="w-full aspect-square rounded-2xl bg-surface border border-white/[.08] flex items-center justify-center text-[22px]">👥</div>
+      <span class="text-neutral-medium text-[10px] font-bold text-center leading-tight">Danh bạ</span>
+    </div>
+  </div>
+
+  <!-- cần bạn xử lý -->
+  <div class="flex items-center justify-between px-5 mt-7 mb-3">
+    <p class="text-neutral-dark text-[10px] font-black uppercase tracking-widest">Cần bạn xử lý</p>
+    <span class="bg-status-error/15 text-status-error text-[10px] font-black px-2 py-0.5 rounded-full">2</span>
+  </div>
+  <div class="px-5 space-y-2.5">
+    <div class="bg-surface border border-primary/30 rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-lg shrink-0">💰</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">Xác nhận phiếu lương T7</p>
+        <p class="text-neutral-medium text-[11px] font-semibold mt-0.5">Chờ bạn ký từ 3 ngày trước</p>
+      </div>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" class="shrink-0"><path d="M1 1l5 5-5 5" stroke="#FF9500" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-status-info/15 flex items-center justify-center text-lg shrink-0">⭐</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">Đánh giá quý 3/2026</p>
+        <p class="text-neutral-medium text-[11px] font-semibold mt-0.5">Hạn 31/08 · còn 9 ngày</p>
+      </div>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" class="shrink-0"><path d="M1 1l5 5-5 5" stroke="#404040" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+  </div>
+
+  <!-- hoạt động -->
+  <p class="px-5 mt-7 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Gần đây</p>
+  <div class="px-5 space-y-2.5">
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-status-success/15 flex items-center justify-center text-lg shrink-0">✅</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">Nghỉ phép 19/08 được duyệt</p>
+        <p class="text-neutral-medium text-[11px] font-semibold mt-0.5">HR duyệt · 2 ngày trước</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- tab bar -->
+  <div class="absolute bottom-0 left-0 right-0 border-t border-white/[.08]"
+       style="background:rgba(15,15,15,.94);backdrop-filter:blur(20px)">
+    <div class="grid grid-cols-5 pt-2.5 pb-6">
+      <div class="flex flex-col items-center gap-1"><span class="text-[19px]">🏠</span><span class="text-primary text-[9px] font-black">Trang chủ</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">📅</span><span class="text-white text-[9px] font-black">Chấm công</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">💰</span><span class="text-white text-[9px] font-black">Lương</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏢</span><span class="text-white text-[9px] font-black">Công ty</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">👤</span><span class="text-white text-[9px] font-black">Cá nhân</span></div>
+    </div>
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full bg-white/25"></div>
+  </div>
+
+</div></div>
+<p class="caption">1 · Trang chủ</p>
+</div>
+
+<!-- ═══════════ 2. CHẤM CÔNG ═══════════ -->
+<div>
+<div class="phone"><div class="screen">
+
+  <div class="flex justify-between items-center px-6 pt-3 pb-1 text-white text-[13px] font-bold">
+    <span>9:41</span><span class="opacity-60">▮▮▮ ▰</span>
+  </div>
+
+  <div class="px-5 pt-4 pb-4">
+    <h1 class="text-white text-[26px] font-black">Chấm công</h1>
+  </div>
+
+  <!-- month switcher -->
+  <div class="mx-5 bg-surface border border-white/[.08] rounded-2xl px-4 py-3 flex items-center justify-between">
+    <button class="text-neutral-dark text-xl font-black leading-none">‹</button>
+    <span class="text-white text-[14px] font-black">Tháng 8 · 2026</span>
+    <button class="text-neutral-dark text-xl font-black leading-none">›</button>
+  </div>
+
+  <!-- summary ring -->
+  <div class="mx-5 mt-4 bg-surface border border-white/[.08] rounded-3xl p-5 flex items-center gap-5">
+    <div class="relative w-24 h-24 shrink-0">
+      <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#262626" stroke-width="11"/>
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#FF9500" stroke-width="11"
+                stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="48"/>
+      </svg>
+      <div class="absolute inset-0 flex flex-col items-center justify-center">
+        <span class="text-white text-[24px] font-black leading-none">18</span>
+        <span class="text-neutral-dark text-[10px] font-black">/ 22 công</span>
+      </div>
+    </div>
+    <div class="flex-1 space-y-2.5">
+      <div class="flex justify-between items-center">
+        <span class="text-neutral-medium text-[11px] font-bold">Đủ công</span>
+        <span class="text-status-success text-[15px] font-black">17</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-neutral-medium text-[11px] font-bold">Đi muộn</span>
+        <span class="text-status-warning text-[15px] font-black">1</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-neutral-medium text-[11px] font-bold">Nghỉ phép</span>
+        <span class="text-status-info text-[15px] font-black">1</span>
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="text-neutral-medium text-[11px] font-bold">Tăng ca</span>
+        <span class="text-white text-[15px] font-black">4.5<span class="text-neutral-dark text-[11px]">h</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- day list -->
+  <p class="px-5 mt-7 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Chi tiết theo ngày</p>
+  <div class="px-5 space-y-2">
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5 flex items-center gap-3.5">
+      <div class="w-11 text-center shrink-0">
+        <p class="text-white text-[19px] font-black leading-none">22</p>
+        <p class="text-neutral-dark text-[9px] font-black uppercase mt-0.5">Th 6</p>
+      </div>
+      <div class="w-px h-9 bg-white/[.08]"></div>
+      <div class="flex-1">
+        <p class="text-white text-[13px] font-black">08:32 → <span class="text-neutral-dark">đang làm</span></p>
+        <p class="text-neutral-medium text-[11px] font-semibold mt-0.5">Ca hành chính</p>
+      </div>
+      <span class="bg-primary/15 text-primary text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Hôm nay</span>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5 flex items-center gap-3.5">
+      <div class="w-11 text-center shrink-0">
+        <p class="text-white text-[19px] font-black leading-none">21</p>
+        <p class="text-neutral-dark text-[9px] font-black uppercase mt-0.5">Th 5</p>
+      </div>
+      <div class="w-px h-9 bg-white/[.08]"></div>
+      <div class="flex-1">
+        <p class="text-white text-[13px] font-black">08:01 → 18:30</p>
+        <p class="text-neutral-medium text-[11px] font-semibold mt-0.5">Tăng ca 1.5h</p>
+      </div>
+      <span class="bg-status-success/15 text-status-success text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đủ công</span>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5 flex items-center gap-3.5">
+      <div class="w-11 text-center shrink-0">
+        <p class="text-white text-[19px] font-black leading-none">20</p>
+        <p class="text-neutral-dark text-[9px] font-black uppercase mt-0.5">Th 4</p>
+      </div>
+      <div class="w-px h-9 bg-white/[.08]"></div>
+      <div class="flex-1">
+        <p class="text-white text-[13px] font-black">08:47 → 17:35</p>
+        <p class="text-status-warning text-[11px] font-bold mt-0.5">Muộn 17 phút</p>
+      </div>
+      <span class="bg-status-warning/15 text-status-warning text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đi muộn</span>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5 flex items-center gap-3.5">
+      <div class="w-11 text-center shrink-0">
+        <p class="text-white text-[19px] font-black leading-none">19</p>
+        <p class="text-neutral-dark text-[9px] font-black uppercase mt-0.5">Th 3</p>
+      </div>
+      <div class="w-px h-9 bg-white/[.08]"></div>
+      <div class="flex-1">
+        <p class="text-neutral-medium text-[13px] font-black">Nghỉ phép năm</p>
+        <p class="text-neutral-dark text-[11px] font-semibold mt-0.5">Cả ngày · đã duyệt</p>
+      </div>
+      <span class="bg-status-info/15 text-status-info text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Nghỉ</span>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-3.5 flex items-center gap-3.5">
+      <div class="w-11 text-center shrink-0">
+        <p class="text-white text-[19px] font-black leading-none">18</p>
+        <p class="text-neutral-dark text-[9px] font-black uppercase mt-0.5">Th 2</p>
+      </div>
+      <div class="w-px h-9 bg-white/[.08]"></div>
+      <div class="flex-1">
+        <p class="text-white text-[13px] font-black">07:58 → 17:32</p>
+        <p class="text-neutral-medium text-[11px] font-semibold mt-0.5">Ca hành chính</p>
+      </div>
+      <span class="bg-status-success/15 text-status-success text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đủ công</span>
+    </div>
+
+  </div>
+
+  <div class="absolute bottom-0 left-0 right-0 border-t border-white/[.08]"
+       style="background:rgba(15,15,15,.94);backdrop-filter:blur(20px)">
+    <div class="grid grid-cols-5 pt-2.5 pb-6">
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏠</span><span class="text-white text-[9px] font-black">Trang chủ</span></div>
+      <div class="flex flex-col items-center gap-1"><span class="text-[19px]">📅</span><span class="text-primary text-[9px] font-black">Chấm công</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">💰</span><span class="text-white text-[9px] font-black">Lương</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏢</span><span class="text-white text-[9px] font-black">Công ty</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">👤</span><span class="text-white text-[9px] font-black">Cá nhân</span></div>
+    </div>
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full bg-white/25"></div>
+  </div>
+
+</div></div>
+<p class="caption">2 · Bảng chấm công</p>
+</div>
+
+<!-- ═══════════ 3. PHIẾU LƯƠNG ═══════════ -->
+<div>
+<div class="phone"><div class="screen">
+
+  <div class="flex justify-between items-center px-6 pt-3 pb-1 text-white text-[13px] font-bold">
+    <span>9:41</span><span class="opacity-60">▮▮▮ ▰</span>
+  </div>
+
+  <div class="px-5 pt-4 pb-4 flex items-center justify-between">
+    <h1 class="text-white text-[26px] font-black">Phiếu lương</h1>
+    <button class="w-9 h-9 rounded-xl bg-surface border border-white/[.08] flex items-center justify-center text-[15px]">⬇</button>
+  </div>
+
+  <!-- month chips -->
+  <div class="flex gap-2 px-5 overflow-x-auto pb-1">
+    <span class="bg-primary text-black text-[11px] font-black px-3.5 py-1.5 rounded-full shrink-0">T7/2026</span>
+    <span class="bg-surface border border-white/[.08] text-neutral-medium text-[11px] font-black px-3.5 py-1.5 rounded-full shrink-0">T6</span>
+    <span class="bg-surface border border-white/[.08] text-neutral-medium text-[11px] font-black px-3.5 py-1.5 rounded-full shrink-0">T5</span>
+    <span class="bg-surface border border-white/[.08] text-neutral-medium text-[11px] font-black px-3.5 py-1.5 rounded-full shrink-0">T4</span>
+    <span class="bg-surface border border-white/[.08] text-neutral-medium text-[11px] font-black px-3.5 py-1.5 rounded-full shrink-0">T3</span>
+  </div>
+
+  <!-- hero net -->
+  <div class="mx-5 mt-5 rounded-3xl p-6 text-center relative overflow-hidden"
+       style="background:linear-gradient(160deg,#1F1F1F 0%,#141414 100%);border:1px solid rgba(255,149,0,.25)">
+    <div class="absolute -top-16 left-1/2 -translate-x-1/2 w-56 h-32 rounded-full blur-3xl" style="background:rgba(255,149,0,.16)"></div>
+    <div class="relative">
+      <p class="text-neutral-dark text-[10px] font-black uppercase tracking-widest">Thực nhận tháng 7</p>
+      <p class="text-white text-[38px] font-black mt-2 leading-none tracking-tight">18.427.500</p>
+      <p class="text-neutral-dark text-[12px] font-bold mt-1">VNĐ</p>
+      <div class="inline-flex items-center gap-1.5 mt-3 bg-status-warning/15 px-3 py-1.5 rounded-full">
+        <span class="w-1.5 h-1.5 rounded-full bg-status-warning"></span>
+        <span class="text-status-warning text-[10px] font-black uppercase tracking-wider">Chờ bạn xác nhận</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- breakdown -->
+  <p class="px-5 mt-7 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Các khoản thu nhập</p>
+  <div class="mx-5 bg-surface border border-white/[.08] rounded-2xl divide-y divide-white/[.06]">
+    <div class="flex justify-between items-center px-4 py-3.5">
+      <span class="text-neutral-light text-[13px] font-semibold">Lương cơ bản</span>
+      <span class="text-white text-[14px] font-black">16.000.000</span>
+    </div>
+    <div class="flex justify-between items-center px-4 py-3.5">
+      <span class="text-neutral-light text-[13px] font-semibold">Phụ cấp KPI</span>
+      <span class="text-white text-[14px] font-black">3.000.000</span>
+    </div>
+    <div class="flex justify-between items-center px-4 py-3.5">
+      <span class="text-neutral-light text-[13px] font-semibold">Ăn trưa · Xăng xe</span>
+      <span class="text-white text-[14px] font-black">1.500.000</span>
+    </div>
+    <div class="flex justify-between items-center px-4 py-3.5">
+      <span class="text-neutral-light text-[13px] font-semibold">Tăng ca <span class="text-neutral-dark text-[11px]">4.5h</span></span>
+      <span class="text-white text-[14px] font-black">1.022.700</span>
+    </div>
+    <div class="flex justify-between items-center px-4 py-3.5 bg-white/[.02]">
+      <span class="text-neutral-medium text-[11px] font-black uppercase tracking-wider">Tổng thu nhập</span>
+      <span class="text-primary text-[15px] font-black">21.522.700</span>
+    </div>
+  </div>
+
+  <p class="px-5 mt-6 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Các khoản khấu trừ</p>
+  <div class="mx-5 bg-surface border border-white/[.08] rounded-2xl divide-y divide-white/[.06]">
+    <div class="flex justify-between items-center px-4 py-3.5">
+      <span class="text-neutral-light text-[13px] font-semibold">BHXH, BHYT, BHTN <span class="text-neutral-dark text-[11px]">10.5%</span></span>
+      <span class="text-status-error text-[14px] font-black">−1.680.000</span>
+    </div>
+    <div class="flex justify-between items-center px-4 py-3.5">
+      <span class="text-neutral-light text-[13px] font-semibold">Thuế TNCN</span>
+      <span class="text-status-error text-[14px] font-black">−1.415.200</span>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="px-5 mt-6">
+    <button class="w-full bg-primary text-black rounded-2xl py-4 font-black text-[15px] tracking-wide"
+            style="box-shadow:0 8px 24px rgba(255,149,0,.35)">
+      XÁC NHẬN ĐÃ NHẬN LƯƠNG
+    </button>
+    <p class="text-neutral-dark text-[11px] font-semibold text-center mt-3 leading-relaxed">
+      Có sai sót? Gửi đề xuất để HR kiểm tra lại.
+    </p>
+  </div>
+
+  <div class="absolute bottom-0 left-0 right-0 border-t border-white/[.08]"
+       style="background:rgba(15,15,15,.94);backdrop-filter:blur(20px)">
+    <div class="grid grid-cols-5 pt-2.5 pb-6">
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏠</span><span class="text-white text-[9px] font-black">Trang chủ</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">📅</span><span class="text-white text-[9px] font-black">Chấm công</span></div>
+      <div class="flex flex-col items-center gap-1"><span class="text-[19px]">💰</span><span class="text-primary text-[9px] font-black">Lương</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏢</span><span class="text-white text-[9px] font-black">Công ty</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">👤</span><span class="text-white text-[9px] font-black">Cá nhân</span></div>
+    </div>
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full bg-white/25"></div>
+  </div>
+
+</div></div>
+<p class="caption">3 · Phiếu lương</p>
+</div>
+
+<!-- ═══════════ 4. NGHỈ PHÉP ═══════════ -->
+<div>
+<div class="phone"><div class="screen">
+
+  <div class="flex justify-between items-center px-6 pt-3 pb-1 text-white text-[13px] font-bold">
+    <span>9:41</span><span class="opacity-60">▮▮▮ ▰</span>
+  </div>
+
+  <div class="px-5 pt-4 pb-4">
+    <h1 class="text-white text-[26px] font-black">Nghỉ phép</h1>
+  </div>
+
+  <!-- balance -->
+  <div class="mx-5 bg-surface border border-white/[.08] rounded-3xl p-5">
+    <div class="flex items-end justify-between mb-4">
+      <div>
+        <p class="text-neutral-dark text-[10px] font-black uppercase tracking-widest">Phép còn lại 2026</p>
+        <p class="text-white text-[36px] font-black leading-none mt-1.5">6.5<span class="text-neutral-dark text-[16px] font-black"> / 12 ngày</span></p>
+      </div>
+      <span class="bg-status-success/15 text-status-success text-[9px] font-black uppercase px-2.5 py-1.5 rounded-md">+1/tháng</span>
+    </div>
+    <div class="h-2.5 rounded-full bg-white/[.06] overflow-hidden">
+      <div class="h-full rounded-full" style="width:54%;background:linear-gradient(90deg,#FF9500,#E86800)"></div>
+    </div>
+    <div class="flex justify-between mt-2.5">
+      <span class="text-neutral-dark text-[10px] font-bold">Đã dùng 5.5</span>
+      <span class="text-neutral-dark text-[10px] font-bold">Hết hạn 31/03/2027</span>
+    </div>
+  </div>
+
+  <!-- segmented -->
+  <div class="mx-5 mt-5 bg-surface border border-white/[.08] rounded-xl p-1 grid grid-cols-3 gap-1">
+    <span class="text-black text-[11px] font-black text-center py-2 rounded-lg bg-primary">Tất cả</span>
+    <span class="text-neutral-medium text-[11px] font-black text-center py-2 rounded-lg">Chờ duyệt</span>
+    <span class="text-neutral-medium text-[11px] font-black text-center py-2 rounded-lg">Đã duyệt</span>
+  </div>
+
+  <!-- list -->
+  <div class="px-5 mt-4 space-y-2.5">
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-white text-[14px] font-black">Nghỉ phép năm</p>
+          <p class="text-neutral-medium text-[12px] font-semibold mt-1">28/08 → 29/08 · 2 ngày</p>
+        </div>
+        <span class="bg-status-warning/15 text-status-warning text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Chờ duyệt</span>
+      </div>
+      <p class="text-neutral-dark text-[11px] font-semibold mt-2.5 leading-relaxed">Về quê giỗ tổ họ</p>
+      <div class="flex gap-2 mt-3.5">
+        <button class="flex-1 border border-white/10 text-neutral-light text-[12px] font-black py-2.5 rounded-xl">Sửa</button>
+        <button class="flex-1 border border-status-error/25 text-status-error text-[12px] font-black py-2.5 rounded-xl">Huỷ đơn</button>
+      </div>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-white text-[14px] font-black">Nghỉ phép năm</p>
+          <p class="text-neutral-medium text-[12px] font-semibold mt-1">19/08 · 1 ngày</p>
+        </div>
+        <span class="bg-status-success/15 text-status-success text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đã duyệt</span>
+      </div>
+      <p class="text-neutral-dark text-[11px] font-semibold mt-2.5">HR duyệt lúc 17/08 · 14:22</p>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-white text-[14px] font-black">Nghỉ không lương</p>
+          <p class="text-neutral-medium text-[12px] font-semibold mt-1">02/07 → 03/07 · 2 ngày</p>
+        </div>
+        <span class="bg-status-error/15 text-status-error text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Từ chối</span>
+      </div>
+      <p class="text-neutral-dark text-[11px] font-semibold mt-2.5 leading-relaxed">Lý do: trùng lịch bàn giao dự án</p>
+    </div>
+
+  </div>
+
+  <!-- FAB -->
+  <button class="absolute right-5 bottom-[104px] w-14 h-14 rounded-full bg-primary flex items-center justify-center"
+          style="box-shadow:0 10px 28px rgba(255,149,0,.45)">
+    <span class="text-black text-[28px] font-black leading-none mb-1">+</span>
+  </button>
+
+  <div class="absolute bottom-0 left-0 right-0 border-t border-white/[.08]"
+       style="background:rgba(15,15,15,.94);backdrop-filter:blur(20px)">
+    <div class="grid grid-cols-5 pt-2.5 pb-6">
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏠</span><span class="text-white text-[9px] font-black">Trang chủ</span></div>
+      <div class="flex flex-col items-center gap-1"><span class="text-[19px]">📅</span><span class="text-primary text-[9px] font-black">Chấm công</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">💰</span><span class="text-white text-[9px] font-black">Lương</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏢</span><span class="text-white text-[9px] font-black">Công ty</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">👤</span><span class="text-white text-[9px] font-black">Cá nhân</span></div>
+    </div>
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full bg-white/25"></div>
+  </div>
+
+</div></div>
+<p class="caption">4 · Xin nghỉ phép</p>
+</div>
+
+<!-- ═══════════ 5. ĐỀ XUẤT ═══════════ -->
+<div>
+<div class="phone"><div class="screen">
+
+  <div class="flex justify-between items-center px-6 pt-3 pb-1 text-white text-[13px] font-bold">
+    <span>9:41</span><span class="opacity-60">▮▮▮ ▰</span>
+  </div>
+
+  <div class="flex items-center gap-3 px-5 pt-4 pb-4">
+    <button class="w-9 h-9 rounded-xl bg-surface border border-white/[.08] flex items-center justify-center">
+      <svg width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M7 1L1 7l6 6" stroke="#F2F2F2" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <h1 class="text-white text-[22px] font-black">Đề xuất của tôi</h1>
+  </div>
+
+  <div class="px-5 space-y-3">
+
+    <!-- item with timeline -->
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3 mb-4">
+        <div class="min-w-0">
+          <p class="text-white text-[14px] font-black">Đề xuất tăng lương</p>
+          <p class="text-neutral-medium text-[11px] font-semibold mt-1">Gửi 15/08/2026</p>
+        </div>
+        <span class="bg-status-warning/15 text-status-warning text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đang xử lý</span>
+      </div>
+
+      <div class="relative pl-6">
+        <div class="absolute left-[5px] top-2 bottom-2 w-px bg-white/10"></div>
+
+        <div class="relative pb-4">
+          <span class="absolute -left-6 top-1 w-[11px] h-[11px] rounded-full bg-status-success border-2 border-surface"></span>
+          <p class="text-white text-[12px] font-black">Đã gửi</p>
+          <p class="text-neutral-dark text-[10px] font-semibold mt-0.5">15/08 · 09:12</p>
+        </div>
+        <div class="relative pb-4">
+          <span class="absolute -left-6 top-1 w-[11px] h-[11px] rounded-full bg-status-success border-2 border-surface"></span>
+          <p class="text-white text-[12px] font-black">Quản lý trực tiếp đồng ý</p>
+          <p class="text-neutral-dark text-[10px] font-semibold mt-0.5">17/08 · 14:40 · Trần Hải</p>
+        </div>
+        <div class="relative pb-4">
+          <span class="absolute -left-6 top-1 w-[11px] h-[11px] rounded-full bg-primary border-2 border-surface"
+                style="box-shadow:0 0 0 4px rgba(255,149,0,.18)"></span>
+          <p class="text-primary text-[12px] font-black">Chờ HR duyệt</p>
+          <p class="text-neutral-dark text-[10px] font-semibold mt-0.5">Đang ở bước này</p>
+        </div>
+        <div class="relative opacity-35">
+          <span class="absolute -left-6 top-1 w-[11px] h-[11px] rounded-full bg-neutral-dark border-2 border-surface"></span>
+          <p class="text-white text-[12px] font-black">Áp dụng vào hồ sơ</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-white text-[14px] font-black">Chuyển phòng ban</p>
+          <p class="text-neutral-medium text-[11px] font-semibold mt-1">Sản phẩm → Marketing</p>
+          <p class="text-neutral-dark text-[11px] font-semibold mt-1">Gửi 02/07/2026</p>
+        </div>
+        <span class="bg-status-success/15 text-status-success text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đã duyệt</span>
+      </div>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-white text-[14px] font-black">Kết thúc thử việc</p>
+          <p class="text-neutral-medium text-[11px] font-semibold mt-1">Gửi 01/03/2026</p>
+        </div>
+        <span class="bg-status-success/15 text-status-success text-[9px] font-black uppercase px-2 py-1 rounded-md shrink-0">Đã duyệt</span>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="absolute right-5 bottom-[104px] w-14 h-14 rounded-full bg-primary flex items-center justify-center"
+          style="box-shadow:0 10px 28px rgba(255,149,0,.45)">
+    <span class="text-black text-[28px] font-black leading-none mb-1">+</span>
+  </button>
+
+  <div class="absolute bottom-0 left-0 right-0 border-t border-white/[.08]"
+       style="background:rgba(15,15,15,.94);backdrop-filter:blur(20px)">
+    <div class="grid grid-cols-5 pt-2.5 pb-6">
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏠</span><span class="text-white text-[9px] font-black">Trang chủ</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">📅</span><span class="text-white text-[9px] font-black">Chấm công</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">💰</span><span class="text-white text-[9px] font-black">Lương</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏢</span><span class="text-white text-[9px] font-black">Công ty</span></div>
+      <div class="flex flex-col items-center gap-1"><span class="text-[19px]">👤</span><span class="text-primary text-[9px] font-black">Cá nhân</span></div>
+    </div>
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full bg-white/25"></div>
+  </div>
+
+</div></div>
+<p class="caption">5 · Đề xuất (timeline duyệt)</p>
+</div>
+
+<!-- ═══════════ 6. COMPANY HUB ═══════════ -->
+<div>
+<div class="phone"><div class="screen">
+
+  <div class="flex justify-between items-center px-6 pt-3 pb-1 text-white text-[13px] font-bold">
+    <span>9:41</span><span class="opacity-60">▮▮▮ ▰</span>
+  </div>
+
+  <div class="px-5 pt-4 pb-4">
+    <h1 class="text-white text-[26px] font-black">Công ty</h1>
+    <p class="text-neutral-medium text-[12px] font-semibold mt-1">Nội quy, chính sách & danh bạ</p>
+  </div>
+
+  <!-- search -->
+  <div class="mx-5 bg-surface border border-white/[.08] rounded-2xl px-4 py-3 flex items-center gap-3">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="#404040" stroke-width="2"/><path d="M11 11l4 4" stroke="#404040" stroke-width="2" stroke-linecap="round"/></svg>
+    <span class="text-neutral-dark text-[13px] font-semibold">Tìm nội quy, chính sách...</span>
+  </div>
+
+  <!-- segmented -->
+  <div class="mx-5 mt-4 bg-surface border border-white/[.08] rounded-xl p-1 grid grid-cols-2 gap-1">
+    <span class="text-black text-[11px] font-black text-center py-2 rounded-lg bg-primary">Nội quy</span>
+    <span class="text-neutral-medium text-[11px] font-black text-center py-2 rounded-lg">Danh bạ</span>
+  </div>
+
+  <!-- pinned -->
+  <p class="px-5 mt-6 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Bắt buộc đọc</p>
+  <div class="px-5">
+    <div class="rounded-2xl p-4 relative overflow-hidden"
+         style="background:linear-gradient(135deg,rgba(255,149,0,.12),rgba(255,149,0,.03));border:1px solid rgba(255,149,0,.28)">
+      <div class="flex items-start gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-lg shrink-0">📌</div>
+        <div class="min-w-0 flex-1">
+          <p class="text-white text-[13px] font-black">Nội quy lao động 2026</p>
+          <p class="text-neutral-medium text-[11px] font-semibold mt-1">Cập nhật 01/08 · chưa xác nhận đọc</p>
+        </div>
+      </div>
+      <button class="mt-3.5 w-full bg-primary text-black rounded-xl py-2.5 font-black text-[12px]">ĐỌC & XÁC NHẬN</button>
+    </div>
+  </div>
+
+  <!-- categories -->
+  <p class="px-5 mt-6 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Danh mục</p>
+  <div class="px-5 space-y-2">
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-status-info/15 flex items-center justify-center text-lg shrink-0">🕐</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">Giờ làm & chấm công</p>
+        <p class="text-neutral-dark text-[11px] font-semibold mt-0.5">4 bài viết</p>
+      </div>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" class="shrink-0"><path d="M1 1l5 5-5 5" stroke="#404040" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-status-success/15 flex items-center justify-center text-lg shrink-0">🌴</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">Nghỉ phép & chế độ</p>
+        <p class="text-neutral-dark text-[11px] font-semibold mt-0.5">6 bài viết</p>
+      </div>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" class="shrink-0"><path d="M1 1l5 5-5 5" stroke="#404040" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-lg shrink-0">💰</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">Lương, thưởng & phúc lợi</p>
+        <p class="text-neutral-dark text-[11px] font-semibold mt-0.5">5 bài viết</p>
+      </div>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" class="shrink-0"><path d="M1 1l5 5-5 5" stroke="#404040" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="bg-surface border border-white/[.08] rounded-2xl p-4 flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-status-warning/15 flex items-center justify-center text-lg shrink-0">🛡️</div>
+      <div class="min-w-0 flex-1">
+        <p class="text-white text-[13px] font-black">An toàn & bảo mật</p>
+        <p class="text-neutral-dark text-[11px] font-semibold mt-0.5">3 bài viết</p>
+      </div>
+      <svg width="7" height="12" viewBox="0 0 7 12" fill="none" class="shrink-0"><path d="M1 1l5 5-5 5" stroke="#404040" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+
+  </div>
+
+  <!-- recent -->
+  <p class="px-5 mt-6 mb-3 text-neutral-dark text-[10px] font-black uppercase tracking-widest">Mới cập nhật</p>
+  <div class="px-5 space-y-2">
+    <div class="bg-surface border border-white/[.08] rounded-2xl px-4 py-3.5">
+      <p class="text-white text-[13px] font-black">Quy định làm việc từ xa</p>
+      <p class="text-neutral-dark text-[11px] font-semibold mt-1">Cập nhật 3 ngày trước</p>
+    </div>
+    <div class="bg-surface border border-white/[.08] rounded-2xl px-4 py-3.5">
+      <p class="text-white text-[13px] font-black">Chính sách tăng ca mới</p>
+      <p class="text-neutral-dark text-[11px] font-semibold mt-1">Cập nhật 1 tuần trước</p>
+    </div>
+  </div>
+
+  <div class="absolute bottom-0 left-0 right-0 border-t border-white/[.08]"
+       style="background:rgba(15,15,15,.94);backdrop-filter:blur(20px)">
+    <div class="grid grid-cols-5 pt-2.5 pb-6">
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">🏠</span><span class="text-white text-[9px] font-black">Trang chủ</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">📅</span><span class="text-white text-[9px] font-black">Chấm công</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">💰</span><span class="text-white text-[9px] font-black">Lương</span></div>
+      <div class="flex flex-col items-center gap-1"><span class="text-[19px]">🏢</span><span class="text-primary text-[9px] font-black">Công ty</span></div>
+      <div class="flex flex-col items-center gap-1 opacity-40"><span class="text-[19px]">👤</span><span class="text-white text-[9px] font-black">Cá nhân</span></div>
+    </div>
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 rounded-full bg-white/25"></div>
+  </div>
+
+</div></div>
+<p class="caption">6 · Company Hub</p>
+</div>
+
+</div>
+</body>
+</html>

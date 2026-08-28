@@ -166,19 +166,30 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, [activeFormula, activeSheet]);
 
-  /** Áp lại công thức hiện hành cho cả bảng, không đổi tham số nào của bảng.
-   *  Cần khi công thức/hệ số đổi giữa chừng (VD đơn giá giờ OT đổi cách tính) — nếu không
-   *  có nút này thì số cũ nằm lại trong DB tới khi có ai đó vô tình chạm vào từng dòng. */
+  /** Kéo lại ngày công/OT từ bảng chấm công đã chốt + áp lại công thức hiện hành cho cả bảng.
+   *  Ngày công là ảnh chụp lúc tạo bảng, nên sửa chấm công xong KHÔNG tự vào bảng lương —
+   *  đây là chỗ duy nhất kéo lại. Cũng dùng khi công thức/hệ số đổi giữa chừng. */
   const recalcAllRecords = useCallback(async () => {
     if (!activeSheet || activeSheet.status !== 'draft' || records.length === 0) return;
     const f = activeFormula ?? FALLBACK_PAYROLL_FORMULA;
     setLoading(true);
     try {
-      const recalced = await Promise.all(
-        records.map(r => svc.recalculateAndSave(r, f, activeSheet.standard_work_days)),
-      );
+      const { records: recalced, attendanceFound, changed } =
+        await svc.resyncAttendanceAndRecalc(activeSheet, records, f);
       setRecords(recalced);
-      setToast({ message: `Đã tính lại ${recalced.length} người theo công thức hiện hành`, type: 'success' });
+      setToast(attendanceFound
+        ? {
+            message: changed > 0
+              ? `Đã đồng bộ chấm công + tính lại ${recalced.length} người · ${changed} người đổi ngày công/OT`
+              : `Đã tính lại ${recalced.length} người · ngày công/OT khớp sẵn với chấm công`,
+            type: 'success',
+          }
+        : {
+            message: `Đã áp lại công thức cho ${recalced.length} người, NHƯNG không thấy bảng chấm công`
+              + ` đã chốt T${activeSheet.month}/${activeSheet.year} — ngày công giữ nguyên số cũ.`
+              + ` Vào Chấm công → Chốt bảng rồi bấm lại.`,
+            type: 'error',
+          });
     } catch (err: any) {
       setToast({ message: err.message, type: 'error' });
     } finally {
