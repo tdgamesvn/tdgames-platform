@@ -1,5 +1,5 @@
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Worker, WorkerContract, WorkforceTask, Settlement, ProjectAcceptance } from '@/types';
 import * as svc from '../services/workforceService';
 import * as paSvc from '../services/projectAcceptanceService';
@@ -21,6 +21,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
     setHashTab(tab);
   }, []);
   const [isLoading, setIsLoading] = useState(true);
+  const loadedOnce = useRef(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   // ── Data ──
@@ -41,7 +42,9 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
 
   // ── Load ──
   const loadAll = useCallback(async () => {
-    setIsLoading(true);
+    // ponytail: chỉ hiện spinner lần đầu — refresh sau khi toggle TT / sync không được
+    // xoá trắng list (mất task vài giây rồi hiện lại = "load đi load lại").
+    if (!loadedOnce.current) setIsLoading(true);
     try {
       const [w, t, s, pa] = await Promise.all([
         svc.fetchWorkers(),
@@ -65,6 +68,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
     } catch (e: any) {
       setToast({ message: e.message || 'Lỗi tải dữ liệu', type: 'error' });
     } finally {
+      loadedOnce.current = true;
       setIsLoading(false);
     }
   }, []);
@@ -86,7 +90,9 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wf_tasks' }, (payload) => {
         console.log('[Realtime] Task updated:', payload.new);
-        setTasks(prev => prev.map(t => t.id === payload.new.id ? (payload.new as WorkforceTask) : t));
+        // Merge, KHÔNG thay thế: payload là dòng wf_tasks thô, không có `assignees` (join)
+        // ⇒ thay thế làm task rớt khỏi filter workspace (lọc theo assignees) → "mất task sau update".
+        setTasks(prev => prev.map(t => t.id === payload.new.id ? { ...t, ...(payload.new as WorkforceTask) } : t));
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'wf_tasks' }, (payload) => {
         console.log('[Realtime] Task deleted:', payload.old);

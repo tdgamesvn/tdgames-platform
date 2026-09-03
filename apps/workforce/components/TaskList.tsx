@@ -46,6 +46,9 @@ const TaskList: React.FC<TaskListProps> = ({
   const [filterList, setFilterList] = useState('');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('unpaid');
   const [filterAcceptance, setFilterAcceptance] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
+  // preset: 'pay' = đã đóng + chưa TT (cần trả tiền) | 'accept' = đã TT + chưa NT (cần nghiệm thu)
+  const [preset, setPreset] = useState<'' | 'pay' | 'accept'>('');
   const [acceptedTaskIds, setAcceptedTaskIds] = useState<Set<string>>(new Set());
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
@@ -74,11 +77,12 @@ const TaskList: React.FC<TaskListProps> = ({
     if (filterSpace && t.clickup_space_name !== filterSpace) return false;
     if (filterFolder && t.clickup_folder_name !== filterFolder) return false;
     if (filterList && t.clickup_list_name !== filterList) return false;
-    if (filterPaymentStatus) {
+    // preset thay thế 2 filter TT/NT (tránh mặc định "Chưa TT" làm preset "Cần nghiệm thu" rỗng)
+    if (filterPaymentStatus && !preset) {
       if (filterPaymentStatus === 'unpaid' && t.payment_status === 'paid') return false;
       if (filterPaymentStatus === 'paid' && t.payment_status !== 'paid') return false;
     }
-    if (filterAcceptance) {
+    if (filterAcceptance && !preset) {
       const accepted = !!t.id && acceptedTaskIds.has(t.id);
       if (filterAcceptance === 'unaccepted' && accepted) return false;
       if (filterAcceptance === 'accepted' && !accepted) return false;
@@ -88,8 +92,44 @@ const TaskList: React.FC<TaskListProps> = ({
         return false;
       }
     }
+    if (filterSearch && !t.title.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+    if (preset === 'pay' && !(t.closed_date && t.payment_status !== 'paid')) return false;
+    if (preset === 'accept' && !(t.payment_status === 'paid' && !(t.id && acceptedTaskIds.has(t.id)))) return false;
     return true;
   });
+
+  // ── Chip "đang lọc" ──
+  const activeChips: { label: string; clear: () => void }[] = [
+    ...(preset ? [{ label: preset === 'pay' ? '⚡ Cần trả tiền' : '⚡ Cần nghiệm thu', clear: () => setPreset('') }] : []),
+    ...(filterSearch ? [{ label: `🔍 "${filterSearch}"`, clear: () => setFilterSearch('') }] : []),
+    ...(selectedStatuses.length ? [{ label: `Trạng thái: ${selectedStatuses.join(', ')}`, clear: () => setSelectedStatuses([]) }] : []),
+    ...(filterPaymentStatus && !preset ? [{ label: filterPaymentStatus === 'paid' ? 'Đã TT' : 'Chưa TT', clear: () => setFilterPaymentStatus('') }] : []),
+    ...(filterAcceptance && !preset ? [{ label: filterAcceptance === 'accepted' ? 'Đã nghiệm thu' : 'Chưa nghiệm thu', clear: () => setFilterAcceptance('') }] : []),
+    ...(filterWorker ? [{ label: `👤 ${workers.find(w => w.id === filterWorker)?.full_name || ''}`, clear: () => setFilterWorker('') }] : []),
+    ...(filterSpace || filterFolder || filterList
+      ? [{ label: `📁 ${[filterSpace, filterFolder, filterList].filter(Boolean).join(' › ')}`, clear: () => { setFilterSpace(''); setFilterFolder(''); setFilterList(''); } }]
+      : []),
+  ];
+  const clearAll = () => activeChips.forEach(c => c.clear());
+
+  // ── 1 select phân cấp Khách › Project › List (thay 3 select) ──
+  // ponytail: native <select> với option thụt đầu dòng; value = JSON [space, folder, list].
+  const hierarchyOptions = (() => {
+    const out: { value: string; label: string }[] = [];
+    const spaces = [...new Set(tasks.map(t => t.clickup_space_name).filter(Boolean))].sort() as string[];
+    for (const sp of spaces) {
+      out.push({ value: JSON.stringify([sp, '', '']), label: sp });
+      const inSpace = tasks.filter(t => t.clickup_space_name === sp);
+      const folders = [...new Set(inSpace.map(t => t.clickup_folder_name || ''))].sort();
+      for (const f of folders) {
+        if (f) out.push({ value: JSON.stringify([sp, f, '']), label: `   └ ${f}` });
+        const lists = [...new Set(inSpace.filter(t => (t.clickup_folder_name || '') === f).map(t => t.clickup_list_name).filter(Boolean))].sort() as string[];
+        for (const l of lists) out.push({ value: JSON.stringify([sp, f, l]), label: `${f ? '      ' : '   '}└ ${l}` });
+      }
+    }
+    return out;
+  })();
+  const hierarchyValue = filterSpace ? JSON.stringify([filterSpace, filterFolder, filterList]) : '';
 
   const totalPrice = filteredDisplayTasks.reduce((s, t) => s + (t.price || 0), 0);
   const totalClientUSD = filteredDisplayTasks.filter(t => (t.client_currency || 'USD') === 'USD').reduce((s, t) => s + (t.client_price || 0), 0);
@@ -457,6 +497,27 @@ const TaskList: React.FC<TaskListProps> = ({
         </div>
       </div>
 
+      {/* Preset + Search */}
+      <div className="flex gap-3 items-center flex-wrap">
+        {([['pay', '⚡ Cần trả tiền', 'đã đóng + chưa thanh toán'], ['accept', '⚡ Cần nghiệm thu', 'đã thanh toán + chưa nghiệm thu']] as const).map(([k, label, hint]) => (
+          <button
+            key={k}
+            onClick={() => setPreset(preset === k ? '' : k)}
+            title={hint}
+            className={`px-4 h-[44px] rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+              preset === k ? 'bg-primary/20 text-primary border-primary/40' : 'bg-surface text-neutral-medium border-primary/10 hover:border-primary/40 hover:text-white'
+            }`}
+          >{label}</button>
+        ))}
+        <input
+          type="search"
+          value={filterSearch}
+          onChange={e => setFilterSearch(e.target.value)}
+          placeholder="🔍 Tìm tên task..."
+          className="flex-1 min-w-[220px] bg-surface border border-primary/10 text-white rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all"
+        />
+      </div>
+
       {/* Filters */}
       <div className="flex gap-3 items-center flex-wrap">
         {/* Custom Multi-Select for Status */}
@@ -524,17 +585,16 @@ const TaskList: React.FC<TaskListProps> = ({
           <option value="">Tất cả nhân sự</option>
           {workers.map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}
         </select>
-        <select className="bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all" value={filterSpace} onChange={e => { setFilterSpace(e.target.value); setFilterFolder(''); setFilterList(''); }}>
-          <option value="">Tất cả khách hàng</option>
-          {[...new Set(tasks.map(t => t.clickup_space_name).filter(Boolean))].sort().map(s => <option key={s} value={s!}>{s}</option>)}
-        </select>
-        <select className="bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all" value={filterFolder} onChange={e => { setFilterFolder(e.target.value); setFilterList(''); }}>
-          <option value="">Tất cả project</option>
-          {[...new Set(tasks.filter(t => !filterSpace || t.clickup_space_name === filterSpace).map(t => t.clickup_folder_name).filter(Boolean))].sort().map(f => <option key={f} value={f!}>{f}</option>)}
-        </select>
-        <select className="bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all" value={filterList} onChange={e => setFilterList(e.target.value)}>
-          <option value="">Tất cả list</option>
-          {[...new Set(tasks.filter(t => (!filterSpace || t.clickup_space_name === filterSpace) && (!filterFolder || t.clickup_folder_name === filterFolder)).map(t => t.clickup_list_name).filter(Boolean))].sort().map(l => <option key={l} value={l!}>{l}</option>)}
+        <select
+          className="bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all max-w-[320px]"
+          value={hierarchyValue}
+          onChange={e => {
+            const [s, f, l] = e.target.value ? JSON.parse(e.target.value) : ['', '', ''];
+            setFilterSpace(s); setFilterFolder(f); setFilterList(l);
+          }}
+        >
+          <option value="">Tất cả khách hàng › project › list</option>
+          {hierarchyOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <span className="text-neutral-medium text-xs ml-auto mr-3">{filteredDisplayTasks.length} / {tasks.length} tasks</span>
         {/* View Toggle */}
@@ -558,6 +618,22 @@ const TaskList: React.FC<TaskListProps> = ({
         </div>
       </div>
 
+      {/* Chip đang lọc */}
+      {activeChips.length > 0 && (
+        <div className="flex gap-2 items-center flex-wrap -mt-4">
+          <span className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Đang lọc:</span>
+          {activeChips.map(c => (
+            <button
+              key={c.label}
+              onClick={c.clear}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary text-xs font-bold hover:bg-primary/20 transition-all"
+              title="Bỏ bộ lọc này"
+            >{c.label} <span className="text-primary/60">×</span></button>
+          ))}
+          <button onClick={clearAll} className="text-xs font-bold text-red-400 hover:text-red-300 ml-1">Xoá hết</button>
+        </div>
+      )}
+
       {/* Loading */}
       {isLoading && (
         <div className="flex justify-center py-20">
@@ -573,6 +649,14 @@ const TaskList: React.FC<TaskListProps> = ({
           </div>
           <p className="text-neutral-medium text-sm">Chưa có task nào</p>
           <p className="text-neutral-medium/60 text-xs mt-2">Nhấn "🔄 Sync ClickUp" để đồng bộ task từ ClickUp</p>
+        </div>
+      )}
+
+      {/* Có task nhưng filter không khớp */}
+      {!isLoading && tasks.length > 0 && filteredDisplayTasks.length === 0 && (
+        <div className="text-center py-16">
+          <p className="text-neutral-medium text-sm">Không có task khớp bộ lọc</p>
+          <button onClick={clearAll} className="text-xs font-bold text-primary hover:text-primary/80 mt-2">Xoá hết bộ lọc</button>
         </div>
       )}
 
