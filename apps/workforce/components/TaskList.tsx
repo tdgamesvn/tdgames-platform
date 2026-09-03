@@ -47,7 +47,7 @@ const TaskList: React.FC<TaskListProps> = ({
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('unpaid');
   const [filterAcceptance, setFilterAcceptance] = useState('');
   const [filterSearch, setFilterSearch] = useState('');
-  // preset: 'pay' = đã đóng + chưa TT (cần trả tiền) | 'accept' = đã TT + chưa NT (cần nghiệm thu)
+  // preset: 'pay' = đã đóng + chưa TT (cần trả tiền) | 'accept' = chưa nghiệm thu + không bị loại khỏi NT
   const [preset, setPreset] = useState<'' | 'pay' | 'accept'>('');
   const [acceptedTaskIds, setAcceptedTaskIds] = useState<Set<string>>(new Set());
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
@@ -94,7 +94,9 @@ const TaskList: React.FC<TaskListProps> = ({
     }
     if (filterSearch && !t.title.toLowerCase().includes(filterSearch.toLowerCase())) return false;
     if (preset === 'pay' && !(t.closed_date && t.payment_status !== 'paid')) return false;
-    if (preset === 'accept' && !(t.payment_status === 'paid' && !(t.id && acceptedTaskIds.has(t.id)))) return false;
+    // 'accept' = đúng tập task màn "Tạo nghiệm thu" đang lấy (AcceptanceCreateView.availableTasks):
+    // chưa nằm trong nghiệm thu nào + không bị loại khỏi nghiệm thu. KHÔNG dính thanh toán người làm.
+    if (preset === 'accept' && ((t.id && acceptedTaskIds.has(t.id)) || t.exclude_from_acceptance)) return false;
     return true;
   });
 
@@ -499,7 +501,7 @@ const TaskList: React.FC<TaskListProps> = ({
 
       {/* Preset + Search */}
       <div className="flex gap-3 items-center flex-wrap">
-        {([['pay', '⚡ Cần trả tiền', 'đã đóng + chưa thanh toán'], ['accept', '⚡ Cần nghiệm thu', 'đã thanh toán + chưa nghiệm thu']] as const).map(([k, label, hint]) => (
+        {([['pay', '⚡ Cần trả tiền', 'đã đóng + chưa thanh toán'], ['accept', '⚡ Cần nghiệm thu', 'chưa nằm trong nghiệm thu nào (giống danh sách ở màn Tạo nghiệm thu)']] as const).map(([k, label, hint]) => (
           <button
             key={k}
             onClick={() => setPreset(preset === k ? '' : k)}
