@@ -3,6 +3,7 @@ import { Worker, WorkforceTask } from '@/types';
 import * as clickup from '../services/clickupService';
 import { ClickUpConfig, ListContext } from '../services/clickupService';
 import * as wfSvc from '../services/workforceService';
+import { fetchAcceptedTaskIds } from '../services/projectAcceptanceService';
 import { supabase } from '@/services/supabaseClient';
 
 interface TaskListProps {
@@ -44,6 +45,8 @@ const TaskList: React.FC<TaskListProps> = ({
   const [filterFolder, setFilterFolder] = useState('');
   const [filterList, setFilterList] = useState('');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState('unpaid');
+  const [filterAcceptance, setFilterAcceptance] = useState('');
+  const [acceptedTaskIds, setAcceptedTaskIds] = useState<Set<string>>(new Set());
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
@@ -57,18 +60,28 @@ const TaskList: React.FC<TaskListProps> = ({
   const [editClientCurrency, setEditClientCurrency] = useState('USD');
   const [editShares, setEditShares] = useState<{ worker_id: string; share_pct: number }[]>([]);
 
+  const [exclusions, setExclusions] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     clickup.loadConfig().then(c => setConfig(c)).catch(() => {});
+    clickup.loadExclusions().then(setExclusions).catch(() => {});
+    fetchAcceptedTaskIds().then(setAcceptedTaskIds).catch(() => {});
   }, []);
 
   // Apply local hierarchy filters
   const filteredDisplayTasks = tasks.filter(t => {
+    if (clickup.isExcluded(exclusions, { space: t.clickup_space_name, folder: t.clickup_folder_name, list: t.clickup_list_name })) return false;
     if (filterSpace && t.clickup_space_name !== filterSpace) return false;
     if (filterFolder && t.clickup_folder_name !== filterFolder) return false;
     if (filterList && t.clickup_list_name !== filterList) return false;
     if (filterPaymentStatus) {
       if (filterPaymentStatus === 'unpaid' && t.payment_status === 'paid') return false;
       if (filterPaymentStatus === 'paid' && t.payment_status !== 'paid') return false;
+    }
+    if (filterAcceptance) {
+      const accepted = !!t.id && acceptedTaskIds.has(t.id);
+      if (filterAcceptance === 'unaccepted' && accepted) return false;
+      if (filterAcceptance === 'accepted' && !accepted) return false;
     }
     if (selectedStatuses.length > 0) {
       if (!t.clickup_status || !selectedStatuses.includes(t.clickup_status.toLowerCase())) {
@@ -226,11 +239,15 @@ const TaskList: React.FC<TaskListProps> = ({
       
       const allListContexts: ListContext[] = [];
       const allListIds: string[] = [];
-      
+      const ex = await clickup.loadExclusions();
+      setExclusions(ex);
+
       for (const sp of allSpaces) {
+        if (ex.has(`space:${sp.name}`)) continue;
         const listsData = await clickup.fetchLists(config.api_token, sp.id);
         const lists = listsData.lists || [];
         for (const l of lists) {
+          if (clickup.isExcluded(ex, { space: sp.name, folder: l.folder, list: l.name })) continue;
           allListIds.push(l.id);
           allListContexts.push({
             list_id: l.id,
@@ -497,6 +514,11 @@ const TaskList: React.FC<TaskListProps> = ({
           <option value="">Tất cả thanh toán</option>
           <option value="unpaid">Chưa thanh toán</option>
           <option value="paid">Đã thanh toán</option>
+        </select>
+        <select className="bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all" value={filterAcceptance} onChange={e => setFilterAcceptance(e.target.value)}>
+          <option value="">Tất cả nghiệm thu</option>
+          <option value="unaccepted">Chưa nghiệm thu</option>
+          <option value="accepted">Đã nghiệm thu</option>
         </select>
         <select className="bg-surface border border-primary/10 text-neutral-light rounded-xl px-4 h-[44px] text-sm focus:outline-none focus:border-primary/40 transition-all" value={filterWorker} onChange={e => setFilterWorker(e.target.value)}>
           <option value="">Tất cả nhân sự</option>

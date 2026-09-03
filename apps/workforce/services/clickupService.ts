@@ -149,6 +149,26 @@ export async function fetchClickUpNames(): Promise<{ spaces: string[]; folders: 
   return { spaces: spaces.sort(), folders: folders.sort() };
 }
 
+// ── Loại trừ sync theo tên space/folder/list (bảng wf_sync_exclusions) ──
+export type ExclusionKind = 'space' | 'folder' | 'list';
+export async function loadExclusions(): Promise<Set<string>> {
+  const { data } = await supabase.from('wf_sync_exclusions').select('kind, name');
+  return new Set((data || []).map((r: any) => `${r.kind}:${r.name}`));
+}
+export async function setExclusion(kind: ExclusionKind, name: string, excluded: boolean): Promise<void> {
+  const q = excluded
+    ? supabase.from('wf_sync_exclusions').upsert({ kind, name })
+    : supabase.from('wf_sync_exclusions').delete().eq('kind', kind).eq('name', name);
+  const { error } = await q;
+  if (error) throw error;
+}
+export function isExcluded(
+  ex: Set<string>,
+  t: { space?: string | null; folder?: string | null; list?: string | null },
+): boolean {
+  return ex.has(`space:${t.space}`) || ex.has(`folder:${t.folder}`) || ex.has(`list:${t.list}`);
+}
+
 export async function fetchCrmOptions(): Promise<{
   clients: { id: string; name: string }[];
   projects: { id: string; name: string }[];

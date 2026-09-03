@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/services/supabaseClient';
+import * as clickup from '../services/clickupService';
 
 export interface PriceRule {
   id?: string;
@@ -34,21 +35,45 @@ const PriceRulesPanel: React.FC<Props> = ({ onToast }) => {
   const [rules, setRules] = useState<PriceRule[]>([]);
   const [spaces, setSpaces] = useState<string[]>([]);
   const [internal, setInternal] = useState<Set<string>>(new Set());
+  const [folders, setFolders] = useState<string[]>([]);
+  const [lists, setLists] = useState<string[]>([]);
+  const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<PriceRule | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: rows }, { data: sp }, { data: settings }] = await Promise.all([
+    const [{ data: rows }, { data: sp }, { data: settings }, ex] = await Promise.all([
       supabase.from('wf_price_rules').select('*').order('priority', { ascending: false }),
-      supabase.from('wf_tasks').select('clickup_space_name').not('clickup_space_name', 'is', null),
+      supabase.from('wf_tasks').select('clickup_space_name, clickup_folder_name, clickup_list_name'),
       supabase.from('wf_space_settings').select('space_name, is_internal'),
+      clickup.loadExclusions(),
     ]);
     setRules((rows || []) as PriceRule[]);
-    setSpaces([...new Set((sp || []).map((r: any) => r.clickup_space_name))].sort());
+    const uniq = (k: string) => [...new Set((sp || []).map((r: any) => r[k]).filter(Boolean))].sort() as string[];
+    setSpaces(uniq('clickup_space_name'));
+    setFolders(uniq('clickup_folder_name'));
+    setLists(uniq('clickup_list_name'));
     setInternal(new Set((settings || []).filter((s: any) => s.is_internal).map((s: any) => s.space_name)));
+    setExcluded(ex);
     setLoading(false);
+  };
+
+  const toggleExcluded = async (kind: clickup.ExclusionKind, name: string) => {
+    const key = `${kind}:${name}`;
+    const next = !excluded.has(key);
+    try {
+      await clickup.setExclusion(kind, name, next);
+    } catch (e: any) {
+      return onToast(`Lỗi: ${e.message}`, 'error');
+    }
+    setExcluded(prev => {
+      const s = new Set(prev);
+      next ? s.add(key) : s.delete(key);
+      return s;
+    });
+    onToast(next ? `“${name}” → loại khỏi sync` : `“${name}” → sync lại`, 'success');
   };
 
   const toggleInternal = async (space: string) => {
@@ -149,6 +174,34 @@ const PriceRulesPanel: React.FC<Props> = ({ onToast }) => {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Loại trừ khỏi sync: sync bỏ qua + tab Task ẩn task cũ (không xoá data) */}
+      {spaces.length > 0 && (
+        <div className="border-t border-white/5 pt-3 space-y-3">
+          <p className="text-[10px] font-black text-neutral-600 uppercase tracking-wider">
+            Loại trừ khỏi sync ClickUp (bấm để bật/tắt — 🚫 = bị loại)
+          </p>
+          {([['space', 'Space', spaces], ['folder', 'Folder', folders], ['list', 'List', lists]] as const).map(([kind, label, names]) => names.length > 0 && (
+            <div key={kind}>
+              <p className="text-[10px] font-bold text-neutral-500 uppercase mb-1">{label}</p>
+              <div className="flex flex-wrap gap-2">
+                {names.map(n => {
+                  const off = excluded.has(`${kind}:${n}`);
+                  return (
+                    <button key={n} onClick={() => toggleExcluded(kind, n)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider border transition-all ${
+                        off ? 'bg-red-500/10 text-red-400 border-red-500/25 line-through'
+                            : 'bg-white/5 text-neutral-300 border-white/10'
+                      }`}>
+                      {off ? '🚫' : '✓'} {n}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
