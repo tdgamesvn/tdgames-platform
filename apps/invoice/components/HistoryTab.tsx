@@ -155,7 +155,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
               ) : (inv.einvoice_status === 'draft' || inv.einvoice_status === 'issued') ? (
-                <button onClick={() => onDownloadEInvoice(inv)} title="Tải PDF" className={`p-2 rounded-lg transition-colors text-emerald-400 ${theme === 'dark' ? 'hover:bg-emerald-500/10' : 'hover:bg-emerald-50'}`}>
+                <button onClick={() => onDownloadEInvoice(inv)} title="Tải PDF eInvoice (SePay)" className={`p-2 rounded-lg transition-colors text-emerald-400 ${theme === 'dark' ? 'hover:bg-emerald-500/10' : 'hover:bg-emerald-50'}`}>
                   <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </button>
               ) : null}
