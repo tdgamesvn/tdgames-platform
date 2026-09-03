@@ -52,6 +52,13 @@ async function convertLogoToBase64(logoPath: string): Promise<string> {
   }
 }
 
+/** Ngày nghiệm thu = ngày cuối tháng của period 'YYYY-MM'. Chứng từ theo kỳ, không dùng ngày đóng task nội bộ. */
+export const periodEndDate = (period?: string): string => {
+  if (!period) return '';
+  const [y, m] = period.split('-').map(Number);
+  return `${period}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+};
+
 export async function exportAcceptancePdf(
   acceptance: {
     project_name: string;
@@ -89,7 +96,7 @@ export async function exportAcceptancePdf(
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;color:#666">${rowIdx}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;max-width:380px">${t.title}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap"><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;background:${ss.hex}15;color:${ss.hex};text-transform:capitalize">${cs}</span></td>
-        <td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap">${t.closed_date || ''}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;white-space:nowrap">${periodEndDate(acceptance.period) || t.closed_date || ''}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${price > 0 ? '$' + price.toLocaleString('en-US') : ''}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;color:#888;font-size:11px">${t.acceptance_note || ''}</td>
       </tr>`;
@@ -151,7 +158,7 @@ export async function exportAcceptancePdf(
   </div>
   <table>
     <thead><tr>
-      <th style="text-align:center">#</th><th>Task Description</th><th>Status</th><th>Completed</th>
+      <th style="text-align:center">#</th><th>Task Description</th><th>Status</th><th>Accepted</th>
       <th style="text-align:right">Amount (USD)</th><th>Notes</th>
     </tr></thead>
     <tbody>${taskRows}</tbody>

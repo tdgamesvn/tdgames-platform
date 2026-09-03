@@ -5,7 +5,7 @@ import { BackButton } from '../shared/BackButton';
 import { CompanySelector, CompanyId } from '../shared/CompanySelector';
 import { StatusBadge } from '../shared/StatusBadge';
 import { SignedScanButton } from '../shared/SignedScanButton';
-import { getClickupStatusStyle, exportAcceptancePdf } from './acceptancePdfExport';
+import { getClickupStatusStyle, exportAcceptancePdf, periodEndDate } from './acceptancePdfExport';
 
 type AcceptanceTask = WorkforceTask & { client_price: number; acceptance_note: string };
 
@@ -160,7 +160,7 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
                 <th className="text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium w-8">#</th>
                 <th className="text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium min-w-[250px]">Task Description</th>
                 <th className="text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium whitespace-nowrap">Status</th>
-                <th className="text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium whitespace-nowrap">Completed</th>
+                <th className="text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium whitespace-nowrap">Accepted</th>
                 <th className="text-right px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium">Client Price (USD)</th>
                 <th className="text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest text-neutral-medium min-w-[150px]">Notes</th>
               </tr>
@@ -204,7 +204,7 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
                             <td className="px-4 py-3 whitespace-nowrap">
                               <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md capitalize ${style.className}`}>{clickupStatus}</span>
                             </td>
-                            <td className="px-4 py-3 text-neutral-medium text-xs whitespace-nowrap">{t.closed_date || '\u2014'}</td>
+                            <td className="px-4 py-3 text-neutral-medium text-xs whitespace-nowrap">{periodEndDate(a.period) || t.closed_date || '\u2014'}</td>
                             <td className="px-4 py-2 text-right">
                               <div className="inline-flex items-center gap-1.5 justify-end">
                                 <span className="text-neutral-medium/40 text-xs">$</span>
