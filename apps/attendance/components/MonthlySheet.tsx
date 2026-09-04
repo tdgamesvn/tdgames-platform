@@ -92,10 +92,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     if (!selectedSheet) return;
     setIsSyncing(true);
     try {
-      const { updated, missing_checkout } = await svc.syncMonthWorkDays(selectedSheet.id);
+      const { updated, missing_checkout, holiday_days } = await svc.syncMonthWorkDays(selectedSheet.id);
       setRecords(await svc.fetchMonthlyRecords(selectedSheet.id));
       setToast({
         message: `Đã tính ${updated} nhân viên từ dữ liệu chấm công`
+          + (holiday_days > 0 ? ` · +${holiday_days} công lễ cho NV chính thức (thử việc không cộng)` : '')
           + (missing_checkout > 0 ? ` · ⚠️ ${missing_checkout} ngày thiếu giờ ra, phải sửa tay` : ''),
         type: 'success',
       });

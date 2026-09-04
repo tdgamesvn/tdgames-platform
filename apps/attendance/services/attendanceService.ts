@@ -444,10 +444,10 @@ export async function updateMonthlyRecord(id: string, updates: Partial<AttMonthl
  */
 export async function syncMonthWorkDays(
   sheetId: string
-): Promise<{ updated: number; missing_checkout: number }> {
+): Promise<{ updated: number; missing_checkout: number; holiday_days: number }> {
   const { data, error } = await supabase.rpc('att_sync_month_workdays', { _sheet_id: sheetId });
   if (error) throw error;
-  return data as { updated: number; missing_checkout: number };
+  return data as { updated: number; missing_checkout: number; holiday_days: number };
 }
 
 export async function updateMonthlySheet(id: string, updates: Partial<AttMonthlySheet>) {
