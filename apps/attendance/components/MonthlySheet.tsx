@@ -340,6 +340,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                     <th className="text-center py-3 px-3 w-24 bg-indigo-500/5" title="Tăng ca ban đêm T7/CN — 270%">OT đêm T7/CN</th>
                     <th className="text-center py-3 px-3 w-24 bg-indigo-500/5" title="Tăng ca ban đêm lễ/Tết — 390%">OT đêm lễ/Tết</th>
                     <th className="text-center py-3 px-3 w-24 bg-orange-500/5">Đi muộn</th>
+                    <th className="text-center py-3 px-3 w-24 bg-orange-500/5" title="Số ngày về sớm hơn giờ ca quá ngưỡng. Chỉ theo dõi, không trừ lương.">Về sớm</th>
                     <th className="text-center py-3 px-3 w-28 bg-red-500/5">Ngày nghỉ</th>
                     <th className="text-left py-3 px-3">Ghi chú</th>
                   </tr>
@@ -398,6 +399,21 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                           placeholder="0"
                         />
                       </td>
+                      <td className="py-2 px-3 bg-orange-500/[0.02]">
+                        <input
+                          type="number"
+                          step="1"
+                          disabled={isLocked}
+                          value={r.early_count || ''}
+                          onChange={e => {
+                            const v = parseInt(e.target.value) || 0;
+                            setRecords(prev => prev.map(x => x.id === r.id ? { ...x, early_count: v } : x));
+                          }}
+                          onBlur={e => handleUpdateField(r.id, 'early_count', parseInt(e.target.value) || 0)}
+                          className={inputCls + ' text-orange-300 disabled:opacity-50'}
+                          placeholder="0"
+                        />
+                      </td>
                       <td className="py-2 px-3 bg-red-500/[0.02]">
                         <input
                           type="number"
@@ -435,6 +451,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                     <td className="py-3 px-3 text-center text-green-400 text-lg">{totalWorkDays.toFixed(2)}</td>
                     <td colSpan={OT_FIELDS.length} className="py-3 px-3 text-center text-purple-400 text-lg">{totalOT.toFixed(1)}</td>
                     <td className="py-3 px-3 text-center text-orange-400 text-lg">{records.reduce((s, r) => s + (r.late_count || 0), 0)}</td>
+                    <td className="py-3 px-3 text-center text-orange-300 text-lg">{records.reduce((s, r) => s + (r.early_count || 0), 0)}</td>
                     <td className="py-3 px-3 text-center text-red-400 text-lg">{totalAbsent.toFixed(2)}</td>
                     <td></td>
                   </tr>

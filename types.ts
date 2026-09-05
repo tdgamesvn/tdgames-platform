@@ -1045,6 +1045,8 @@ export interface AttMonthlyRecord {
   /** OT ban đêm lễ/Tết — hệ số ot_rate_night_holiday (390%) */
   ot_hours_night_holiday?: number;
   late_count: number;
+  /** Số ngày về sớm — chỉ theo dõi, chưa có chính sách phạt, payroll không đọc */
+  early_count?: number;
   absent_days: number;
   note: string;
   created_at: string;
