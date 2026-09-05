@@ -8,6 +8,7 @@ import {
   selfCheckOut,
   fetchRemoteStatus,
   haversineDistance,
+  todayVN,
 } from '@/apps/attendance/services/attendanceService';
 
 interface Props {
@@ -62,7 +63,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
 
   // Load office config + today's record on mount
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayVN();
     Promise.all([
       fetchOfficeConfig(),
       fetchMyTodayRecord(employeeId),
@@ -100,7 +101,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
     // Đơn WFH có thể vừa được duyệt sau khi trang đã mở ⇒ hỏi lại DB đúng lúc bấm thay vì đọc
     // state cache từ lúc mount. Không có dòng này thì duyệt xong vẫn phải F5 mới bỏ qua GPS.
     // ponytail: 1 query mỗi lần bấm, rẻ hơn realtime subscription hay polling nền.
-    const remoteToday = await fetchRemoteStatus(employeeId, new Date().toISOString().split('T')[0])
+    const remoteToday = await fetchRemoteStatus(employeeId, todayVN())
       .catch(() => remoteStatus);
     setRemoteStatus(remoteToday);
 

@@ -43,8 +43,11 @@ const ForgotCheckinForm: React.FC<Props> = ({ employeeId, onToast }) => {
     ])
       .then(([records, holidays, reqs, profile]) => {
         const startDate: string = (profile as { start_date?: string })?.start_date || '';
+        // Làm bù (kind='makeup') KHÔNG che ngày: hôm đó vẫn phải chấm công như ngày thường.
+        const inKind = (d: string, kind: 'makeup' | 'other') =>
+          holidays.some(h => (kind === 'makeup') === (h.kind === 'makeup') && d >= h.date_from && d <= h.date_to);
         const covered = (d: string) =>
-          holidays.some(h => d >= h.date_from && d <= h.date_to) ||
+          inKind(d, 'other') ||
           reqs.some(r =>
             r.status !== 'rejected' && d >= r.date_from && d <= r.date_to &&
             // Đơn remote vẫn phải chấm công (chỉ miễn GPS) nên không tính là được che.
@@ -57,7 +60,7 @@ const ForgotCheckinForm: React.FC<Props> = ({ employeeId, onToast }) => {
           if (d < GO_LIVE) continue;
           if (startDate && d < startDate) continue;
           const dow = new Date(`${d}T00:00:00`).getDay();
-          if (dow === 0 || dow === 6) continue;
+          if ((dow === 0 || dow === 6) && !inKind(d, 'makeup')) continue;
           if (covered(d)) continue;
           const rec = records.find(r => r.date === d);
           if (rec?.check_in && rec?.check_out) continue;

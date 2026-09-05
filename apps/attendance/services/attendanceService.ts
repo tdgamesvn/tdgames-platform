@@ -93,8 +93,11 @@ export async function fetchRecordsByRange(from: string, to: string): Promise<Att
   return data || [];
 }
 
+/** Ngày hiện tại theo giờ VN (YYYY-MM-DD). toISOString() là UTC ⇒ 00:00–06:59 VN rơi sang hôm trước. */
+export const todayVN = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+
 export async function checkIn(employeeId: string, method: string = 'manual', shiftId?: string, note?: string): Promise<AttRecord> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayVN();
   const now = new Date().toISOString();
 
   // Check if record exists for today
@@ -444,7 +447,7 @@ export async function updateMonthlyRecord(id: string, updates: Partial<AttMonthl
  */
 export async function syncMonthWorkDays(
   sheetId: string
-): Promise<{ updated: number; missing_checkout: number; holiday_days: number }> {
+): Promise<{ updated: number; missing_checkout: number; holiday_days: number; ot_weekend_updated: number }> {
   const { data, error } = await supabase.rpc('att_sync_month_workdays', { _sheet_id: sheetId });
   if (error) throw error;
   return data as { updated: number; missing_checkout: number; holiday_days: number };
@@ -508,7 +511,7 @@ export async function updateOfficeConfig(
 export async function fetchMyTodayRecord(
   employeeId: string
 ): Promise<AttRecord | null> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayVN();
   const { data, error } = await supabase
     .from('att_records')
     .select('*')
@@ -547,7 +550,7 @@ export async function selfCheckIn(
   lng: number,
   method: 'geo' | 'remote'
 ): Promise<AttRecord> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayVN();
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('att_records')
@@ -630,6 +633,7 @@ export interface AttHoliday {
   name: string;
   date_from: string;
   date_to: string;
+  kind: 'holiday' | 'makeup' | 'ot'; // holiday: nghỉ lễ · makeup: làm bù (tính như ngày thường) · ot: lịch OT
   created_at?: string;
 }
 
@@ -642,10 +646,10 @@ export async function fetchHolidays(): Promise<AttHoliday[]> {
   return data || [];
 }
 
-export async function saveHoliday(name: string, dateFrom: string, dateTo: string): Promise<AttHoliday> {
+export async function saveHoliday(name: string, dateFrom: string, dateTo: string, kind: AttHoliday['kind'] = 'holiday'): Promise<AttHoliday> {
   const { data, error } = await supabase
     .from('att_holidays')
-    .insert({ name, date_from: dateFrom, date_to: dateTo })
+    .insert({ name, date_from: dateFrom, date_to: dateTo, kind })
     .select('*')
     .single();
   if (error) throw error;

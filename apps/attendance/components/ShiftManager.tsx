@@ -35,7 +35,7 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
   const [officeForm, setOfficeForm] = useState({ office_name: '', lat: '', lng: '', radius_meters: '' });
   const [savingOffice, setSavingOffice] = useState(false);
   const [holidays, setHolidays] = useState<AttHoliday[]>([]);
-  const [holidayForm, setHolidayForm] = useState({ name: '', date_from: '', date_to: '' });
+  const [holidayForm, setHolidayForm] = useState({ name: '', date_from: '', date_to: '', kind: 'holiday' as AttHoliday['kind'] });
   const [saveOfficeError, setSaveOfficeError] = useState<string>('');
 
   React.useEffect(() => { fetchHolidays().then(setHolidays).catch(() => {}); }, []);
@@ -46,9 +46,9 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
     // Nghỉ 1 ngày thì HR chỉ cần điền ô đầu, khỏi bắt gõ 2 lần cùng một ngày.
     const to = date_to || date_from;
     try {
-      const h = await saveHoliday(name.trim(), date_from, to);
+      const h = await saveHoliday(name.trim(), date_from, to, holidayForm.kind);
       setHolidays(prev => [h, ...prev]);
-      setHolidayForm({ name: '', date_from: '', date_to: '' });
+      setHolidayForm({ name: '', date_from: '', date_to: '', kind: 'holiday' });
     } catch { /* RLS chặn người không phải staff — nút này chỉ hiện trong app HR */ }
   };
 
@@ -316,10 +316,16 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
       <div className="rounded-[20px] border border-white/[0.06] bg-white/[0.03] p-6">
         <h3 className="text-sm font-black text-primary uppercase tracking-wider mb-1">🎉 Ngày nghỉ lễ / Tết</h3>
         <p className="text-neutral-500 text-[11px] font-semibold mb-4">
-          Những ngày này hệ thống không nhắc chấm công. Nghỉ nhiều ngày liền thì điền một dòng theo khoảng.
+          Nghỉ lễ: không nhắc chấm công, NV chính thức được +1 công/ngày. Làm bù (T7/CN): nhắc và tính công như ngày thường. Lịch OT: giờ làm vào OT cuối tuần. T7/CN không có lịch thì không tính công. Nhiều ngày liền thì điền một dòng theo khoảng.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+          <select value={holidayForm.kind} onChange={e => setHolidayForm(f => ({ ...f, kind: e.target.value as AttHoliday['kind'] }))}
+            className="bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm">
+            <option value="holiday">🏖 Nghỉ lễ</option>
+            <option value="makeup">🔁 Làm bù (tính công thường)</option>
+            <option value="ot">⏱ Lịch OT (tính giờ OT)</option>
+          </select>
           <input
             placeholder="Tên dịp nghỉ (VD: Tết Nguyên đán)" value={holidayForm.name}
             onChange={e => setHolidayForm(f => ({ ...f, name: e.target.value }))}
@@ -351,7 +357,7 @@ const ShiftManager: React.FC<Props> = ({ shifts, employees, employeeShifts, onSa
             {holidays.map(h => (
               <div key={h.id} className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
                 <div>
-                  <p className="text-white text-[13px] font-black">{h.name}</p>
+                  <p className="text-white text-[13px] font-black">{h.name}{h.kind === 'makeup' ? ' · 🔁 Làm bù' : h.kind === 'ot' ? ' · ⏱ Lịch OT' : ''}</p>
                   <p className="text-neutral-500 text-[11px] font-semibold">
                     {h.date_from === h.date_to ? h.date_from : `${h.date_from} → ${h.date_to}`}
                   </p>

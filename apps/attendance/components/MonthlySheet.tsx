@@ -90,13 +90,15 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   // ── Tính work_days từ chấm công hằng ngày ──
   const handleSync = async () => {
     if (!selectedSheet) return;
+    if (!window.confirm('Tính lại sẽ GHI ĐÈ cột Ngày công (và OT cuối tuần của ngày có lịch OT) kể cả số đã sửa tay. Tiếp tục?')) return;
     setIsSyncing(true);
     try {
-      const { updated, missing_checkout, holiday_days } = await svc.syncMonthWorkDays(selectedSheet.id);
+      const { updated, missing_checkout, holiday_days, ot_weekend_updated } = await svc.syncMonthWorkDays(selectedSheet.id);
       setRecords(await svc.fetchMonthlyRecords(selectedSheet.id));
       setToast({
         message: `Đã tính ${updated} nhân viên từ dữ liệu chấm công`
           + (holiday_days > 0 ? ` · +${holiday_days} công lễ cho NV chính thức (thử việc không cộng)` : '')
+          + (ot_weekend_updated > 0 ? ` · ${ot_weekend_updated} NV có giờ OT cuối tuần theo lịch OT` : '')
           + (missing_checkout > 0 ? ` · ⚠️ ${missing_checkout} ngày thiếu giờ ra, phải sửa tay` : ''),
         type: 'success',
       });
