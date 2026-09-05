@@ -86,13 +86,12 @@ export async function resolvePayslipDispute(recordId: string): Promise<void> {
   if (error) throw error;
 }
 
-// Fetch my monthly attendance records — only from FINALIZED attendance sheets
+// Fetch my monthly attendance records — bảng đã chốt, hoặc bảng nháp HR đã gửi yêu cầu xác nhận
 export async function fetchMyAttendance(employeeId: string): Promise<AttendanceWithSheet[]> {
-  // 1. Get finalized sheet IDs
   const { data: finalizedSheets } = await supabase
     .from('att_monthly_sheets')
     .select('id')
-    .eq('status', 'finalized');
+    .or('status.eq.finalized,review_sent_at.not.is.null');
 
   if (!finalizedSheets || finalizedSheets.length === 0) return [];
 
@@ -107,6 +106,14 @@ export async function fetchMyAttendance(employeeId: string): Promise<AttendanceW
     .order('created_at', { ascending: false });
   if (error && error.code !== '42P01') throw error;
   return (data as AttendanceWithSheet[]) || [];
+}
+
+// NV xác nhận bảng công của mình. RLS + trigger guard chỉ cho đổi confirmed_at trên dòng của chính mình.
+export async function confirmMyAttendance(recordId: string): Promise<string> {
+  const at = new Date().toISOString();
+  const { error } = await supabase.from('att_monthly_records').update({ confirmed_at: at }).eq('id', recordId);
+  if (error) throw error;
+  return at;
 }
 
 // Fetch full profile for the logged-in employee

@@ -1025,6 +1025,8 @@ export interface AttMonthlySheet {
   status: 'draft' | 'finalized';
   notes: string;
   created_at: string;
+  /** HR đã gửi yêu cầu NV xác nhận (null = chưa gửi). Gửi lại thì xoá confirmed_at của mọi dòng. */
+  review_sent_at?: string | null;
 }
 
 export interface AttMonthlyRecord {
@@ -1047,6 +1049,8 @@ export interface AttMonthlyRecord {
   late_count: number;
   /** Số ngày về sớm — chỉ theo dõi, chưa có chính sách phạt, payroll không đọc */
   early_count?: number;
+  /** NV đã bấm xác nhận bảng công của mình ở Portal */
+  confirmed_at?: string | null;
   absent_days: number;
   note: string;
   created_at: string;

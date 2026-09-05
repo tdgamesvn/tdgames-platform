@@ -109,10 +109,30 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     }
   };
 
+  // ── Gửi NV xác nhận ──
+  const handleRequestConfirm = async () => {
+    if (!selectedSheet) return;
+    if (!window.confirm('Gửi thông báo cho từng nhân viên vào Portal kiểm tra và xác nhận bảng công? Gửi lại sẽ xoá các xác nhận cũ.')) return;
+    try {
+      const n = await svc.requestSheetConfirm(selectedSheet.id);
+      const updated = { ...selectedSheet, review_sent_at: new Date().toISOString() };
+      setSelectedSheet(updated);
+      setSheets(prev => prev.map(s => s.id === updated.id ? updated : s));
+      setRecords(await svc.fetchMonthlyRecords(selectedSheet.id));
+      setToast({ message: `Đã gửi yêu cầu xác nhận tới ${n} nhân viên`, type: 'success' });
+    } catch (e: any) {
+      setToast({ message: e.message, type: 'error' });
+    }
+  };
+
   // ── Finalize / reopen sheet ──
   const handleToggleStatus = async () => {
     if (!selectedSheet) return;
     const newStatus = selectedSheet.status === 'draft' ? 'finalized' : 'draft';
+    if (newStatus === 'finalized') {
+      const pending = records.filter(r => !r.confirmed_at && !(r.employee && (r.employee.status !== 'active' || (r.employee as any).exclude_from_payroll)));
+      if (pending.length > 0 && !window.confirm(`${pending.length} nhân viên chưa xác nhận bảng công. Vẫn chốt?`)) return;
+    }
     try {
       await svc.updateMonthlySheet(selectedSheet.id, { status: newStatus });
       const updated = { ...selectedSheet, status: newStatus as 'draft' | 'finalized' };
@@ -274,6 +294,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                 className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 font-bold text-xs hover:bg-blue-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {isSyncing ? '⏳ Đang tính...' : '🔄 Tính từ chấm công'}
               </button>
+              <button onClick={handleRequestConfirm} disabled={isLocked}
+                title={selectedSheet.review_sent_at ? `Đã gửi ${new Date(selectedSheet.review_sent_at).toLocaleString('vi-VN')} · ${records.filter(r => r.confirmed_at).length}/${records.length} đã xác nhận` : 'Thông báo từng NV vào Portal kiểm tra và xác nhận bảng công'}
+                className="px-4 py-2 rounded-xl bg-primary/20 text-primary font-bold text-xs hover:bg-primary/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                📣 Gửi NV xác nhận{selectedSheet.review_sent_at ? ` (${records.filter(r => r.confirmed_at).length}/${records.length})` : ''}
+              </button>
               <button onClick={handleToggleStatus}
                 className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${isLocked ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}>
                 {isLocked ? '🔓 Mở lại' : '🔒 Chốt bảng'}
@@ -343,6 +368,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                     <th className="text-center py-3 px-3 w-24 bg-orange-500/5" title="Số ngày về sớm hơn giờ ca quá ngưỡng. Chỉ theo dõi, không trừ lương.">Về sớm</th>
                     <th className="text-center py-3 px-3 w-28 bg-red-500/5">Ngày nghỉ</th>
                     <th className="text-left py-3 px-3">Ghi chú</th>
+                    <th className="text-center py-3 px-3 w-28" title="NV bấm xác nhận ở Portal sau khi HR gửi yêu cầu">Xác nhận</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -441,6 +467,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                           className="w-full px-3 py-2 rounded-lg bg-black/30 border border-primary/10 text-neutral-medium text-sm focus:border-orange-400/50 outline-none transition-colors disabled:opacity-50"
                           placeholder="Ghi chú..."
                         />
+                      </td>
+                      <td className="py-2 px-3 text-center text-xs font-bold">
+                        {r.confirmed_at
+                          ? <span className="text-green-400" title={new Date(r.confirmed_at).toLocaleString('vi-VN')}>✅ Đã xác nhận</span>
+                          : selectedSheet.review_sent_at ? <span className="text-yellow-400">⏳ Chờ</span> : <span className="text-neutral-600">–</span>}
                       </td>
                     </tr>
                   ))}

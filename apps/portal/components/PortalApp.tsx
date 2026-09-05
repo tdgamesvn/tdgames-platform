@@ -15,6 +15,7 @@ import { isMemberOnly } from '@/config/apps';
 import {
   fetchMyPayslips,
   fetchMyAttendance,
+  confirmMyAttendance,
   fetchMyProfile,
 } from '../services/portalService';
 import PayslipAcknowledgeModal from './PayslipAcknowledgeModal';
@@ -536,7 +537,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                                   background: sheet.status === 'finalized' ? 'rgba(52,199,89,0.1)' : 'rgba(255,149,0,0.1)',
                                   color: sheet.status === 'finalized' ? '#34C759' : '#FF9500',
                                 }}>
-                                  {sheet.status === 'finalized' ? '✅ Đã chốt' : '📝 Nháp'}
+                                  {sheet.status === 'finalized' ? '✅ Đã chốt' : att.confirmed_at ? '👍 Bạn đã xác nhận' : '🔎 Chờ bạn xác nhận'}
                                 </span>
                               </div>
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
@@ -553,6 +554,23 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                                 ))}
                               </div>
                               {att.note && <p style={{ fontSize: '12px', color: '#888', marginTop: '10px', fontStyle: 'italic' }}>📝 {att.note}</p>}
+                              {sheet.status !== 'finalized' && sheet.review_sent_at && !att.confirmed_at && (
+                                <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                  <button
+                                    onClick={() => confirmMyAttendance(att.id)
+                                      .then(at => setAttendance(prev => prev.map(a => a.id === att.id ? { ...a, confirmed_at: at } : a)))
+                                      .catch(() => {})}
+                                    style={{ background: '#FF9500', color: '#000', border: 'none', borderRadius: '8px', padding: '10px 18px', fontWeight: 900, fontSize: '13px', cursor: 'pointer' }}>
+                                    ✅ Số liệu đúng — Xác nhận
+                                  </button>
+                                  <span style={{ fontSize: '12px', color: '#888' }}>Sai thì báo HR sửa trước khi chốt, đừng bấm.</span>
+                                </div>
+                              )}
+                              {att.confirmed_at && (
+                                <p style={{ fontSize: '11px', color: '#34C759', marginTop: '10px' }}>
+                                  Đã xác nhận {new Date(att.confirmed_at).toLocaleString('vi-VN')}
+                                </p>
+                              )}
                             </div>
                           );
                         })}

@@ -660,3 +660,10 @@ export async function deleteHoliday(id: string): Promise<void> {
   const { error } = await supabase.from('att_holidays').delete().eq('id', id);
   if (error) throw error;
 }
+
+/** HR gửi yêu cầu NV xác nhận bảng công (notification cho từng người). Trả về số NV được báo. */
+export async function requestSheetConfirm(sheetId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('att_request_sheet_confirm', { _sheet_id: sheetId });
+  if (error) throw error;
+  return (data as number) || 0;
+}
