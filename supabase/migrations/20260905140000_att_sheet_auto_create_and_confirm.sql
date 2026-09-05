@@ -92,7 +92,7 @@ BEGIN
   SELECT e.auth_user_id, 'attendance_confirm',
          '📋 Xác nhận bảng công Tháng ' || _s.month || '/' || _s.year,
          'Kiểm tra ngày công / OT / đi muộn của bạn trong Portal. Đúng thì bấm Xác nhận, sai thì báo HR trước khi chốt.',
-         '#portal'
+         '#portal/tasks'  -- deep-link tab chấm công của Portal
   FROM   att_monthly_records mr
   JOIN   hr_employees e ON e.id = mr.employee_id
   WHERE  mr.sheet_id = _sheet_id AND e.auth_user_id IS NOT NULL AND e.status = 'active';
