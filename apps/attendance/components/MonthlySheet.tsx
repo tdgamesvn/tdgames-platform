@@ -198,6 +198,9 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const totalOT = records.reduce((s, r) => s + OT_FIELDS.reduce((a, f) => a + ((r as any)[f.key] || 0), 0), 0);
   const totalAbsent = records.reduce((s, r) => s + (r.absent_days || 0), 0);
   const isLocked = selectedSheet?.status === 'finalized';
+  // Gửi NV xác nhận chỉ từ ngày cuối tháng — giữa tháng số liệu dở dang, NV thấy sẽ khó hiểu. DB cũng chặn.
+  const lastDayOfSheet = selectedSheet ? new Date(selectedSheet.year, selectedSheet.month, 0) : null;
+  const monthEnded = !!lastDayOfSheet && new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()) + 'T00:00:00') >= lastDayOfSheet;
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -294,8 +297,10 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                 className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 font-bold text-xs hover:bg-blue-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {isSyncing ? '⏳ Đang tính...' : '🔄 Tính từ chấm công'}
               </button>
-              <button onClick={handleRequestConfirm} disabled={isLocked}
-                title={selectedSheet.review_sent_at ? `Đã gửi ${new Date(selectedSheet.review_sent_at).toLocaleString('vi-VN')} · ${records.filter(r => r.confirmed_at).length}/${records.length} đã xác nhận` : 'Thông báo từng NV vào Portal kiểm tra và xác nhận bảng công'}
+              <button onClick={handleRequestConfirm} disabled={isLocked || !monthEnded}
+                title={!monthEnded && lastDayOfSheet
+                  ? `Tháng chưa kết thúc — gửi được từ ${lastDayOfSheet.getDate()}/${selectedSheet.month}. Bảng đang tự cập nhật mỗi đêm.`
+                  : selectedSheet.review_sent_at ? `Đã gửi ${new Date(selectedSheet.review_sent_at).toLocaleString('vi-VN')} · ${records.filter(r => r.confirmed_at).length}/${records.length} đã xác nhận` : 'Thông báo từng NV vào Portal kiểm tra và xác nhận bảng công'}
                 className="px-4 py-2 rounded-xl bg-primary/20 text-primary font-bold text-xs hover:bg-primary/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 📣 Gửi NV xác nhận{selectedSheet.review_sent_at ? ` (${records.filter(r => r.confirmed_at).length}/${records.length})` : ''}
               </button>
