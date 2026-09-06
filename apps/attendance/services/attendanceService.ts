@@ -624,6 +624,13 @@ export async function fetchRemoteStatus(
   return (data?.status as 'approved' | 'pending') ?? null;
 }
 
+/** Loại ngày theo lịch Admin (att_day_kind): holiday | makeup | ot | work | off. Nút OT chỉ hiện khi 'ot'. */
+export async function fetchDayKind(date: string): Promise<'holiday' | 'makeup' | 'ot' | 'work' | 'off'> {
+  const { data, error } = await supabase.rpc('att_day_kind', { _d: date });
+  if (error) throw error;
+  return data;
+}
+
 // ══════════════════════════════════════════════════════════
 // ── Ngày nghỉ lễ (HR nhập tay) ────────────────────────────
 // ══════════════════════════════════════════════════════════

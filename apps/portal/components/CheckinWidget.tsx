@@ -7,6 +7,7 @@ import {
   selfCheckIn,
   selfCheckOut,
   fetchRemoteStatus,
+  fetchDayKind,
   haversineDistance,
   todayVN,
 } from '@/apps/attendance/services/attendanceService';
@@ -58,6 +59,8 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   // bấm "Thử lại" thì quay về trạng thái nào.
   const [retryTo, setRetryTo] = useState<'not_checked_in' | 'checked_in' | 'checked_out'>('not_checked_in');
   const [remoteStatus, setRemoteStatus] = useState<'approved' | 'pending' | null>(null);
+  // Nút OT chỉ hiện khi Admin đã tạo lịch OT (att_holidays.kind='ot') — DB trigger cũng chặn.
+  const [isOtDay, setIsOtDay] = useState(false);
   const [liveTimer, setLiveTimer] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -68,9 +71,11 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
       fetchOfficeConfig(),
       fetchMyTodayRecord(employeeId),
       fetchRemoteStatus(employeeId, today),
-    ]).then(([config, todayRecord, remote]) => {
+      fetchDayKind(today).catch(() => 'work' as const),
+    ]).then(([config, todayRecord, remote, dayKind]) => {
       setOfficeConfig(config);
       setRemoteStatus(remote);
+      setIsOtDay(dayKind === 'ot');
       if (todayRecord) {
         setRecord(todayRecord);
         setState(todayRecord.check_out ? 'checked_out' : 'checked_in');
@@ -171,8 +176,9 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
       } else {
         onToast(`🟣 Kết thúc tăng ca — ${formatDuration(r.ot_check_in!, r.ot_check_out!).hm}`, 'success');
       }
-    } catch {
-      onToast('Lỗi khi lưu. Thử lại sau.', 'error');
+    } catch (e) {
+      // Trigger att_records_guard_ot ném lý do (không có lịch OT) — hiện thẳng cho nhân viên.
+      onToast((e as { message?: string })?.message || 'Lỗi khi lưu. Thử lại sau.', 'error');
       setState(back);
     }
   };
@@ -394,9 +400,10 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
             </div>
           </div>
 
-          {/* Tăng ca — chỉ hiện sau khi đã chốt ca chính.
+          {/* Tăng ca — chỉ hiện sau khi đã chốt ca chính VÀ hôm nay có lịch OT của Admin.
+              Đã bấm OT rồi (HR nhập tay / lịch bị xoá sau) thì vẫn hiện để không mất số liệu.
               ponytail: 1 lượt OT/ngày. Bấm xong là khoá, muốn sửa thì làm đơn cho HR. */}
-          {isMobileDevice && (
+          {isMobileDevice && (isOtDay || record.ot_check_in) && (
             <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,.08)' }}>
               {!record.ot_check_in && (
                 <button
