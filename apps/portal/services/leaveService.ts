@@ -8,8 +8,9 @@ import { LeaveBalance, AttRequest } from '@/types';
 // daily cron refresh_leave_balances): +1 day per calendar month where the
 // employee has been official for >= 2/3 of that month's days (>= 50% for
 // official_date before 2026-09-10 — grandfathered; counted from official_date,
-// fallback probation_end+1), quarter=0, reset every year — NO carry-over to
-// next year. See migration 20260910110000. Frontend
+// fallback probation_end+1), quarter=0. Leftover at year end carries over to
+// quarter=1 of next year, usable until 31/3 then expired (migration
+// 20260910120000; accrual rule 20260910110000). Frontend
 // only reads; it must not calculate or write accrual anymore.
 
 // quarter=0: phép năm nay; quarter=1: phép năm trước chuyển sang, dùng đến 31/3

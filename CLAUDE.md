@@ -111,7 +111,7 @@ Bảng: `hr_change_requests` — auto-apply khi HR duyệt
 | HR | `hr_employees`, `hr_departments`, `hr_contracts`, `hr_position_history`, `hr_employee_salary`, `hr_change_requests`, `hr_evaluation_cycles`, `hr_evaluation_submissions` |
 | Attendance | `att_monthly_records`, `att_requests` (leave), `att_shifts` |
 | Payroll | `pay_payroll_sheets`, `pay_payroll_records`, `pay_payroll_formula_settings` |
-| Leave | `leave_balances` (fulltime official: 1 ngày/tháng cộng NGAY đầu tháng; tháng lên chính thức chỉ tính nếu ≥2/3 tháng (official_date < 10/9/2026 giữ quy tắc cũ ≥50%); không carry-over — `count_official_months_in_year`), `leave_balance_summary` (view) |
+| Leave | `leave_balances` (fulltime official: 1 ngày/tháng cộng NGAY đầu tháng; tháng lên chính thức chỉ tính nếu ≥2/3 tháng (official_date < 10/9/2026 giữ quy tắc cũ ≥50%) — `count_official_months_in_year`; phép thừa cuối năm → dòng `quarter=1` năm sau, dùng đến 31/3 rồi `expired_days` — cron `refresh_leave_balances`), `leave_balance_summary` (view, có `carried_days`) |
 | Invoice | `invoice_invoices`, `invoice_line_items` |
 | Expense | `expense_expenses`, `expense_categories`, `expense_recurring` |
 | Workforce | `workforce_workers`, `workforce_tasks`, `workforce_settlements` |
