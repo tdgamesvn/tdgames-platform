@@ -111,7 +111,7 @@ Bảng: `hr_change_requests` — auto-apply khi HR duyệt
 | HR | `hr_employees`, `hr_departments`, `hr_contracts`, `hr_position_history`, `hr_employee_salary`, `hr_change_requests`, `hr_evaluation_cycles`, `hr_evaluation_submissions` |
 | Attendance | `att_monthly_records`, `att_requests` (leave), `att_shifts` |
 | Payroll | `pay_payroll_sheets`, `pay_payroll_records`, `pay_payroll_formula_settings` |
-| Leave | `leave_balances` (accrual 1 ngày/tháng cho fulltime official), `leave_balance_summary` (view) |
+| Leave | `leave_balances` (fulltime official: 1 ngày/tháng cộng NGAY đầu tháng; tháng lên chính thức chỉ tính nếu ≥50% tháng; không carry-over — `count_official_months_in_year`), `leave_balance_summary` (view) |
 | Invoice | `invoice_invoices`, `invoice_line_items` |
 | Expense | `expense_expenses`, `expense_categories`, `expense_recurring` |
 | Workforce | `workforce_workers`, `workforce_tasks`, `workforce_settlements` |
@@ -133,7 +133,7 @@ Bảng: `hr_change_requests` — auto-apply khi HR duyệt
 | `outreach-proxy` | Proxy gửi email outreach đơn lẻ |
 | `platform-data` | API data cho CEO Dashboard |
 
-**pg_cron jobs:** refresh-leave-balances (monthly), expire-leave-balances (1/4 hàng năm), AI agent runs (scheduled), email reminders
+**pg_cron jobs:** refresh-leave-balances-daily (00:10 UTC), AI agent runs (scheduled), email reminders
 
 ---
 
@@ -251,7 +251,7 @@ Sau mỗi session có code thay đổi, PHẢI cập nhật:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **tdgames-platform** (5287 symbols, 10455 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **tdgames-platform** (5289 symbols, 10457 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
