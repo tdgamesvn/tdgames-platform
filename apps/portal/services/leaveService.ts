@@ -12,16 +12,27 @@ import { LeaveBalance, AttRequest } from '@/types';
 // next year. See migration 20260910110000. Frontend
 // only reads; it must not calculate or write accrual anymore.
 
+// quarter=0: phép năm nay; quarter=1: phép năm trước chuyển sang, dùng đến 31/3
+// (migration 20260910120000). Gộp 2 dòng thành 1 để UI/available tính chung.
 export async function fetchYearlyBalance(employeeId: string, year: number): Promise<LeaveBalance | null> {
   const { data, error } = await supabase
     .from('leave_balances')
     .select('*')
     .eq('employee_id', employeeId)
     .eq('year', year)
-    .eq('quarter', 0)
-    .maybeSingle();
+    .in('quarter', [0, 1]);
   if (error && error.code !== '42P01') throw error;
-  return data || null;
+  const rows = data || [];
+  const base = rows.find(r => r.quarter === 0);
+  if (!base) return null;
+  const co = rows.find(r => r.quarter === 1);
+  if (!co) return base;
+  return {
+    ...base,
+    accrued_days: Number(base.accrued_days || 0) + Number(co.accrued_days || 0),
+    used_days:    Number(base.used_days || 0)    + Number(co.used_days || 0),
+    expired_days: Number(base.expired_days || 0) + Number(co.expired_days || 0),
+  };
 }
 
 /**

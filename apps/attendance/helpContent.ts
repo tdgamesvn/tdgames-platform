@@ -142,7 +142,7 @@ export const ATTENDANCE_HELP: HelpContent[] = [
         title: 'Loại phép',
         type: 'tips',
         items: [
-          '<strong>Phép năm</strong> — 1 ngày/tháng chính thức, cộng dồn, hết năm không dùng hết bị reset.',
+          '<strong>Phép năm</strong> — 1 ngày/tháng chính thức, cộng dồn. Phép thừa cuối năm dùng được đến hết 31/3 năm sau, qua đó xoá bỏ.',
           '<strong>Nghỉ không lương</strong> — Không trừ phép năm nhưng trừ lương ngày tương ứng.',
           '<strong>🎂 Nghỉ sinh nhật</strong> — Chính thức đủ 6 tháng, 1 ngày/năm, có lương.',
           '<strong>🏠 Làm remote</strong> — 1 ngày/tuần, chỉ áp dụng sau khi chính thức.',
