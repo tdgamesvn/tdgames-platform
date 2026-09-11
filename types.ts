@@ -326,8 +326,6 @@ export interface CrmDocument {
   contract_value?: number | null;
   contract_currency?: 'USD' | 'VND' | null;
   created_at: string;
-  contract_value?: number | null;
-  contract_currency?: 'USD' | 'VND' | null;
 }
 
 export interface CrmProject {
@@ -482,10 +480,10 @@ export interface CrmOutreachLead {
   followup2_sent_at: string | null;
   replied_at: string | null;
   source: string;
-  trigger_source: 'generic' | 'hiring_signal' | 'intent_signal' | 'funded' | 'csv_import' | 'crm_import' | 'discovery' | 'batch_discovery' | 'manual';
-  lead_score: number; // 0–100: intent=90, hiring=85, generic T1=50/T2=40/T3=30
-  open_count: number;  // tăng mỗi khi Resend webhook email.opened
-  click_count: number; // tăng mỗi khi Resend webhook email.clicked
+  trigger_source?: 'generic' | 'hiring_signal' | 'intent_signal' | 'funded' | 'csv_import' | 'crm_import' | 'discovery' | 'batch_discovery' | 'manual'; // DB default 'generic'
+  lead_score?: number; // 0–100: intent=90, hiring=85, generic T1=50/T2=40/T3=30
+  open_count?: number;  // tăng mỗi khi Resend webhook email.opened
+  click_count?: number; // tăng mỗi khi Resend webhook email.clicked
   tags: string[];
   notes: string;
   created_at: string;

@@ -58,7 +58,7 @@ interface AddFormProps {
 
 const BLANK_FORM = {
   bank_account_id: '', bank_name: '', account_number: '', principal: '',
-  currency: 'VND' as const, interest_rate: '', term_months: '3',
+  currency: 'VND' as 'VND' | 'USD', interest_rate: '', term_months: '3',
   start_date: today, notes: '',
 };
 

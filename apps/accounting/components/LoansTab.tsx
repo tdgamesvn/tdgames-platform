@@ -44,7 +44,7 @@ interface AddFormProps {
 }
 
 const BLANK = {
-  lender_name: '', principal: '', currency: 'VND' as const,
+  lender_name: '', principal: '', currency: 'VND' as 'VND' | 'USD',
   interest_rate: '', term_months: '12', start_date: today, notes: '',
 };
 

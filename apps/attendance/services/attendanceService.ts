@@ -450,7 +450,7 @@ export async function syncMonthWorkDays(
 ): Promise<{ updated: number; missing_checkout: number; holiday_days: number; ot_weekend_updated: number }> {
   const { data, error } = await supabase.rpc('att_sync_month_workdays', { _sheet_id: sheetId });
   if (error) throw error;
-  return data as { updated: number; missing_checkout: number; holiday_days: number };
+  return data as { updated: number; missing_checkout: number; holiday_days: number; ot_weekend_updated: number };
 }
 
 export async function updateMonthlySheet(id: string, updates: Partial<AttMonthlySheet>) {

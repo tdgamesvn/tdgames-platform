@@ -39,7 +39,7 @@ const LeaveApproval: React.FC<LeaveApprovalProps> = ({ currentUser, onToast }) =
   const [form, setForm] = useState({
     dateFrom: '',
     dateTo: '',
-    leaveType: 'annual' as 'annual' | 'unpaid' | 'sick',
+    leaveType: 'annual' as 'annual' | 'unpaid',
     leaveDays: 1,
     reason: '',
   });
@@ -223,12 +223,11 @@ const LeaveApproval: React.FC<LeaveApprovalProps> = ({ currentUser, onToast }) =
                 <p style={{ fontSize: '10px', fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: '6px' }}>Loại nghỉ</p>
                 <select
                   value={form.leaveType}
-                  onChange={e => setForm(prev => ({ ...prev, leaveType: e.target.value as 'annual' | 'unpaid' | 'sick' }))}
+                  onChange={e => setForm(prev => ({ ...prev, leaveType: e.target.value as 'annual' | 'unpaid' }))}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #333', background: '#0F0F0F', color: '#F5F5F5', fontSize: '13px' }}
                 >
                   <option value="annual">Phép năm</option>
                   <option value="unpaid">Không lương</option>
-                  <option value="sick">Nghỉ ốm</option>
                 </select>
               </div>
               <div>

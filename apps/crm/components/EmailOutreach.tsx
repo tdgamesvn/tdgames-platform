@@ -1305,7 +1305,7 @@ const DiscoveryTab: React.FC<{ onRefresh: () => void; leads: CrmOutreachLead[]; 
             if (!grouped[key]) grouped[key] = [];
             grouped[key].push(c);
           }
-          const groupedArr = Object.entries(grouped).map(([company, contacts]) => ({
+          const groupedArr: { company: string; contacts: any[]; status: 'ok' | 'error' }[] = Object.entries(grouped).map(([company, contacts]) => ({
             company, contacts, status: 'ok' as const,
           }));
           for (const e of status.errors ?? []) {

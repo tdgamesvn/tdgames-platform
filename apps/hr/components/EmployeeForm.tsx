@@ -28,8 +28,9 @@ const sectionCls = "rounded-[20px] border border-primary/10 bg-surface p-8 space
 const SPECIALIZATION_OPTIONS = ['2D', '3D', 'VFX', 'Concept Art', 'Animation', 'Storyboard', 'Compositing', 'Rigging', 'Modeling', 'Texturing', 'Lighting', 'Motion Graphics'];
 
 const emptyEmployee = {
-  type: 'fulltime' as const,
-  status: 'active' as const,
+  type: 'fulltime' as HrEmployee['type'],
+  status: 'active' as HrEmployee['status'],
+  exclude_from_payroll: false, is_hidden: false,
   full_name: '', avatar_url: '', email: '', work_email: '', phone: '',
   date_of_birth: null as string | null, gender: '', nationality: 'Vietnam', address: '', temp_address: '',
   // FT
@@ -240,6 +241,10 @@ const EmployeeForm: React.FC<Props> = ({
         bank_name: editingEmployee.bank_name || '',
         bank_account: editingEmployee.bank_account || '',
         bank_branch: editingEmployee.bank_branch || '',
+        vehicle_type: editingEmployee.vehicle_type || '',
+        license_plate: editingEmployee.license_plate || '',
+        vehicle_brand: editingEmployee.vehicle_brand || '',
+        vehicle_color: editingEmployee.vehicle_color || '',
         notes: editingEmployee.notes || '',
         tags: editingEmployee.tags || [],
         exclude_from_payroll: editingEmployee.exclude_from_payroll || false,

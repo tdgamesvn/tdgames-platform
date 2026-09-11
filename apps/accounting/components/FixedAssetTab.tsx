@@ -43,7 +43,7 @@ const EMPTY_FORM = (): Omit<FixedAsset, 'id' | 'created_at' | 'updated_at'> => (
 
 interface Props {
   assets: FixedAsset[];
-  onAdd: (a: Omit<FixedAsset, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  onAdd: (a: Omit<FixedAsset, 'id' | 'created_at' | 'updated_at'>) => Promise<unknown>;
   onEdit: (id: string, u: Partial<FixedAsset>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onToast: (msg: string, type?: 'success' | 'error') => void;

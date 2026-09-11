@@ -66,7 +66,7 @@ export default function VatTab({ invoices, vcbAvgRate }: Props) {
       // Chỉ kê khai TD GAMES — loại bỏ TD Consulting, Cá nhân, etc.
       const entity = inv.billing_entity || 'TD GAMES';
       if (entity !== 'TD GAMES') return false;
-      if (inv.status === 'cancelled' || inv.status === 'draft') return false;
+      if (inv.status === 'cancelled') return false;
       const d = inv.issueDate;
       if (!d) return false;
       const date = new Date(d);

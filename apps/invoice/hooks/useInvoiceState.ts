@@ -506,7 +506,7 @@ export function useInvoiceState(initialTab?: string | null) {
       if (!wasUpdate) {
         getNextInvoiceNumber().then(nextNum => { setInvoice(prev => ({ ...prev, invoiceNumber: nextNum })); });
       }
-      if (!pendingInvoiceToSave.einvoice_status || pendingInvoiceToSave.einvoice_status === 'none' || pendingInvoiceToSave.einvoice_status === '' || pendingInvoiceToSave.einvoice_status === 'failed') {
+      if (!pendingInvoiceToSave.einvoice_status || pendingInvoiceToSave.einvoice_status === 'none' || pendingInvoiceToSave.einvoice_status === 'failed') {
         setEInvoiceTargetInvoice(savedInvoice);
         setShowEInvoicePrompt(true);
       }

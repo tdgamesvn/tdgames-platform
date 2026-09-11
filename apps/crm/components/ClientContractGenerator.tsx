@@ -101,7 +101,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   const [clientTaxCode, setClientTaxCode] = useState(client.tax_code || '');
   const [clientEmail, setClientEmail] = useState(client.email || contacts[0]?.email || '');
   const [clientRep, setClientRep] = useState(client.contact_person || contacts[0]?.name || '');
-  const [clientRepTitle, setClientRepTitle] = useState(contacts[0]?.position || '');
+  const [clientRepTitle, setClientRepTitle] = useState(contacts[0]?.role || '');
 
   // ── Project ──
   const [selectedProjectId, setSelectedProjectId] = useState('');
@@ -230,7 +230,7 @@ const ClientContractGenerator: React.FC<Props> = ({ initialData, editingDocId, c
   // ── Auto-switch bank when company changes ──
   useEffect(() => {
     if (skipBankAutoSwitch.current) { skipBankAutoSwitch.current = false; return; }
-    const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES' };
+    const entityMap: Record<CompanyKey, string> = { tdgames: 'TD GAMES', tdconsulting: 'TD CONSULTING' };
     const sameEntity = bankAccounts.filter(a => a.entity === entityMap[companyKey]);
     // ponytail: uu tien tai khoan dung loai tien - HD VND ma tra ve TK USD la sai chung tu
     const match = sameEntity.find(a => a.currency === currency) || sameEntity[0];

@@ -100,7 +100,7 @@ export async function deleteProjectAcceptance(id: string): Promise<void> {
 // ── Fetch tasks for a project acceptance (includes client_price) ──
 export async function fetchProjectAcceptanceTasks(
   acceptanceId: string
-): Promise<(WorkforceTask & { client_price: number })[]> {
+): Promise<(WorkforceTask & { client_price: number; acceptance_note: string })[]> {
   const { data, error } = await supabase
     .from('wf_project_acceptance_tasks')
     .select('client_price, note, task:wf_tasks(*, worker:wf_workers(*))')

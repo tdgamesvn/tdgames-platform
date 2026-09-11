@@ -3,11 +3,11 @@ import { AccountUser } from '@/types';
 /**
  * Get all roles for a user (primary + secondary).
  */
-export function getUserRoles(user: AccountUser): string[] {
-  const roles = [user.role];
+export function getUserRoles(user: AccountUser): AccountUser['role'][] {
+  const roles: AccountUser['role'][] = [user.role];
   if (user.secondary_roles?.length) {
     for (const r of user.secondary_roles) {
-      if (!roles.includes(r)) roles.push(r);
+      if (!roles.includes(r as AccountUser['role'])) roles.push(r as AccountUser['role']);
     }
   }
   return roles;

@@ -10,7 +10,7 @@ const SalaryComponentManager: React.FC = () => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const emptyForm = {
-    name: '', code: '', category: 'fixed' as const, is_bhxh: false,
+    name: '', code: '', category: 'fixed' as HrSalaryComponent['category'], is_bhxh: false,
     is_taxable: false, is_tax_exempt: false, tax_cap_yearly: 0,
     description: '', sort_order: 0, is_active: true,
   };

@@ -84,7 +84,6 @@ const PortalEvalList: React.FC<PortalEvalListProps> = ({ employeeId, userId, onT
         onSubmitted={handleFormSubmitted}
         onBack={handleBack}
         onToast={onToast}
-        initialSubmission={selfSub} // pre-fill when editing existing submission
       />
     );
 

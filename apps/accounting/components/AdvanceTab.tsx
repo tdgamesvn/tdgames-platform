@@ -31,7 +31,7 @@ const EMPTY_SETTLE = () => ({
 interface Props {
   advances: Advance[];
   openTotal: number;
-  onAdd: (a: Omit<Advance, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  onAdd: (a: Omit<Advance, 'id' | 'created_at' | 'updated_at'>) => Promise<unknown>;
   onSettle: (id: string, p: { settled_amount: number; returned_amount: number; settlement_date: string; settlement_notes?: string }) => Promise<void>;
   onCancel: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;

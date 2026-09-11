@@ -19,7 +19,7 @@ const DAYS = [
 ];
 
 const emptyShift = {
-  name: '', shift_type: 'fixed' as const, start_time: '08:00', end_time: '17:00',
+  name: '', shift_type: 'fixed' as AttShift['shift_type'], start_time: '08:00', end_time: '17:00',
   break_minutes: 60, late_threshold_minutes: 15, early_threshold_minutes: 15,
   overtime_after_minutes: 0, applicable_days: ['mon', 'tue', 'wed', 'thu', 'fri'], is_active: true,
 };
