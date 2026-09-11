@@ -23,10 +23,16 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
   const [showProj, setShowProj] = useState(false);
   const [multInput, setMultInput] = useState('3');
   const [pctInput, setPctInput] = useState('20');
+  const [fixStepInput, setFixStepInput] = useState('5');
+  const [fixFreeInput, setFixFreeInput] = useState('1');
+  const [fixCapInput, setFixCapInput] = useState('30');
 
   const saveKpi = async () => {
     try {
-      await saveKpiSettings(null, Number(multInput) || 3, Number(pctInput) || 20);
+      await saveKpiSettings(null, {
+        multiplier: Number(multInput) || 3, bonusPercent: Number(pctInput) || 20,
+        fixPenaltyStep: Number(fixStepInput) || 0, fixPenaltyFree: Number(fixFreeInput) || 0, fixPenaltyCap: Number(fixCapInput) || 0,
+      });
       setEditKpi(false);
       loadData();
     } catch (err: any) {
@@ -271,7 +277,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                   <div className="flex rounded-lg border border-white/10 overflow-hidden text-[10px] font-black uppercase tracking-wider">
                     {[
                       { key: false, label: 'Thực tế', hint: 'Phiếu nghiệm thu đã chốt + bảng lương tháng này' },
-                      { key: true, label: 'Dự kiến', hint: 'Task đã xong chưa nghiệm thu + lương nháp tính theo hợp đồng (giả định đủ công), tự thay bằng số thật khi chốt bảng lương' },
+                      { key: true, label: 'Dự kiến', hint: 'Đã nghiệm thu + task đã xong (client review…) chờ nghiệm thu, so với lương cả tháng đủ công theo hợp đồng; tự thay bằng số thật khi chốt bảng lương' },
                     ].map(o => (
                       <button
                         key={String(o.key)}
@@ -291,17 +297,31 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                       <span className="text-neutral-medium font-bold">lương · Thưởng</span>
                       <input type="number" step="1" min="0" max="100" value={pctInput} onChange={e => setPctInput(e.target.value)}
                         className="w-14 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-white font-bold focus:outline-none focus:border-primary/50" />
-                      <span className="text-neutral-medium font-bold">% dư</span>
+                      <span className="text-neutral-medium font-bold">% dư · FIX: miễn</span>
+                      <input type="number" step="1" min="0" value={fixFreeInput} onChange={e => setFixFreeInput(e.target.value)}
+                        className="w-12 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-white font-bold focus:outline-none focus:border-primary/50" />
+                      <span className="text-neutral-medium font-bold">lần, trừ</span>
+                      <input type="number" step="1" min="0" max="100" value={fixStepInput} onChange={e => setFixStepInput(e.target.value)}
+                        className="w-12 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-white font-bold focus:outline-none focus:border-primary/50" />
+                      <span className="text-neutral-medium font-bold">%/lần, trần</span>
+                      <input type="number" step="1" min="0" max="100" value={fixCapInput} onChange={e => setFixCapInput(e.target.value)}
+                        className="w-12 bg-[#1a1a1a] border border-white/10 rounded-lg px-2 py-1 text-white font-bold focus:outline-none focus:border-primary/50" />
+                      <span className="text-neutral-medium font-bold">%</span>
                       <button onClick={saveKpi} className="px-2.5 py-1 rounded-lg bg-primary text-black text-[10px] font-black uppercase hover:opacity-90">Lưu</button>
                       <button onClick={() => setEditKpi(false)} className="px-2.5 py-1 rounded-lg border border-white/10 text-[10px] font-black uppercase text-neutral-medium hover:text-white">Hủy</button>
                     </div>
                   ) : (
                     <button
-                      onClick={() => { setMultInput(String(data.kpiSettings.multiplier)); setPctInput(String(data.kpiSettings.bonusPercent)); setEditKpi(true); }}
+                      onClick={() => {
+                        const s = data.kpiSettings;
+                        setMultInput(String(s.multiplier)); setPctInput(String(s.bonusPercent));
+                        setFixStepInput(String(s.fixPenaltyStep)); setFixFreeInput(String(s.fixPenaltyFree)); setFixCapInput(String(s.fixPenaltyCap));
+                        setEditKpi(true);
+                      }}
                       className="px-3 py-1.5 rounded-lg border border-white/10 text-[10px] font-black uppercase tracking-wider text-neutral-medium hover:text-white hover:border-primary/30 transition-colors"
-                      title="Chỉnh mục tiêu KPI (chỉ tham khảo, không ảnh hưởng bảng lương)"
+                      title={`Chỉnh mục tiêu KPI (chỉ tham khảo, không ảnh hưởng bảng lương). Task bị trả về FIX: miễn ${data.kpiSettings.fixPenaltyFree} lần, từ lần sau trừ ${data.kpiSettings.fixPenaltyStep}%/lần giá trị task, trần ${data.kpiSettings.fixPenaltyCap}%`}
                     >
-                      Target ×{data.kpiSettings.multiplier} lương · Thưởng {data.kpiSettings.bonusPercent}% dư ✎
+                      Target ×{data.kpiSettings.multiplier} lương · Thưởng {data.kpiSettings.bonusPercent}% dư · FIX −{data.kpiSettings.fixPenaltyStep}%/lần từ lần {data.kpiSettings.fixPenaltyFree + 1} ✎
                     </button>
                   )}
                 </div>
@@ -312,7 +332,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                       <tr className="text-[10px] font-black uppercase tracking-widest text-neutral-medium border-b border-primary/10">
                         <th className="pb-3 font-medium">Nhân sự</th>
                         <th className="pb-3 font-medium text-center">Tasks</th>
-                        <th className="pb-3 font-medium text-right">Doanh Thu</th>
+                        <th className="pb-3 font-medium text-center" title="Số lần task bị trả về FIX (ghi từ lúc bật tính năng)">FIX</th>
+                        <th className="pb-3 font-medium text-right" title="Giá trị hiệu suất = giá task × share − trừ FIX. Doanh thu công ty không đổi.">Doanh Thu</th>
                         <th className="pb-3 font-medium text-right">Chi Phí</th>
                         <th className="pb-3 font-medium text-right">Lãi/Lỗ</th>
                         <th className="pb-3 font-medium text-center">% KPI</th>
@@ -322,12 +343,19 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                     <tbody className="divide-y divide-primary/5 text-neutral-light">
                       {data.fulltimeBreakdown.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="py-8 text-center text-neutral-medium text-xs">
+                          <td colSpan={8} className="py-8 text-center text-neutral-medium text-xs">
                             Không có dữ liệu nhân sự fulltime trong tháng này
                           </td>
                         </tr>
                       ) : (
-                        data.fulltimeBreakdown.map(emp => {
+                        [...data.fulltimeBreakdown].sort((a, b) => {
+                          // Sort theo ROI của cột ĐANG XEM (thực tế / dự kiến), không phải luôn ROI thực tế
+                          const roi = (e: typeof a) => {
+                            const c = showProj ? e.projCost : e.totalCompanyCost;
+                            return c > 0 ? ((showProj ? e.projRevenueUSD : e.totalTaskRevenue) * exchangeRate - c) / c : 0;
+                          };
+                          return roi(b) - roi(a);
+                        }).map(emp => {
                           const revUSD = showProj ? emp.projRevenueUSD : emp.totalTaskRevenue;
                           const cost = showProj ? emp.projCost : emp.totalCompanyCost;
                           const gross = showProj ? emp.projGross : emp.grossActual;
@@ -342,6 +370,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                             gross,
                             tasks: showProj ? emp.projTasks : emp.tasks,
                           };
+                          const fixTotal = v.tasks.reduce((s, t) => s + t.fixCount, 0);
+                          const penalized = v.tasks.filter(t => t.penaltyPct > 0).length;
                           return (
                           <React.Fragment key={emp.employeeId}>
                           <tr
@@ -354,6 +384,13 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                               {emp.fullName}
                             </td>
                             <td className="py-3 text-center">{v.count}</td>
+                            <td className="py-3 text-center">
+                              {fixTotal === 0 ? <span className="text-neutral-medium">—</span> : (
+                                <span className={`text-xs font-black ${penalized > 0 ? 'text-orange-400' : 'text-neutral-light'}`} title={penalized > 0 ? `${penalized} task bị trừ giá trị` : 'Chưa vượt số lần miễn'}>
+                                  {fixTotal}
+                                </span>
+                              )}
+                            </td>
                             <td className="py-3 text-right font-mono text-emerald-400">{formatVND(v.revVND)}</td>
                             <td className="py-3 text-right font-mono text-red-400">{formatVND(v.cost)}</td>
                             <td className="py-3 text-right font-mono">
@@ -390,7 +427,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                           </tr>
                           {expandedEmp === emp.employeeId && (
                             <tr>
-                              <td colSpan={7} className="py-3 px-4 bg-white/[0.02]">
+                              <td colSpan={8} className="py-3 px-4 bg-white/[0.02]">
                                 {v.tasks.length === 0 ? (
                                   <p className="text-xs text-neutral-medium">{showProj ? 'Chưa có task xong chờ nghiệm thu' : 'Chưa có task nghiệm thu trong tháng này'}</p>
                                 ) : (
@@ -401,6 +438,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                           <th className="pb-2 text-left font-medium">Task</th>
                                           <th className="pb-2 text-left font-medium">Dự án</th>
                                           <th className="pb-2 text-left font-medium">Khách hàng</th>
+                                          <th className="pb-2 text-center font-medium">FIX</th>
                                           <th className="pb-2 text-right font-medium">Số tiền</th>
                                         </tr>
                                       </thead>
@@ -410,6 +448,13 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                             <td className="py-1.5 pr-3 text-white">{t.title}</td>
                                             <td className="py-1.5 pr-3 text-neutral-light">{t.project || '—'}</td>
                                             <td className="py-1.5 pr-3 text-neutral-light">{t.client || '—'}</td>
+                                            <td className="py-1.5 pr-3 text-center">
+                                              {t.fixCount === 0 ? <span className="text-neutral-medium">—</span> : (
+                                                <span className={t.penaltyPct > 0 ? 'text-orange-400 font-bold' : 'text-neutral-light'}>
+                                                  {t.fixCount}{t.penaltyPct > 0 && <span className="ml-1 text-[9px]">(−{t.penaltyPct}%)</span>}
+                                                </span>
+                                              )}
+                                            </td>
                                             <td className="py-1.5 text-right font-mono">
                                               <span className="text-emerald-400 font-bold">{formatUSD(t.priceUSD)}</span>
                                               <span className="text-neutral-medium ml-2">≈ {formatVND(t.priceUSD * exchangeRate)}</span>

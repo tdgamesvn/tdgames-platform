@@ -337,7 +337,7 @@ const TaskList: React.FC<TaskListProps> = ({
         // 1 clickup_task_id = 1 dòng wf_tasks (không còn tra kèm worker_id)
         const { data: existingRows } = await supabase
           .from('wf_tasks')
-          .select('id')
+          .select('id, clickup_status')
           .eq('clickup_task_id', ct.clickup_task_id);
         // ponytail: dữ liệu prod đã dọn hết dòng trùng (2026-08-19). Guard này chỉ để sync
         // không tự chọn bừa nếu lại có 2 dòng cùng clickup_task_id — dọn tay rồi sync lại.
@@ -360,6 +360,14 @@ const TaskList: React.FC<TaskListProps> = ({
         const clickupUpdatedAt = ct.date_updated ? ct.date_updated.split('T')[0] : null;
 
         if (existing) {
+          // Lịch sử status: đếm số lần bị trả về FIX ⇒ trừ hiệu suất nhân sự (dashboardService).
+          // ponytail: chỉ thấy thay đổi GIỮA 2 lần Sync — FIX→review→FIX trong 1 khoảng đếm 1.
+          // Nâng cấp: ClickUp task history API / webhook khi số lệch thật.
+          if ((existing.clickup_status || null) !== (ct.clickup_status || null)) {
+            await supabase.from('wf_task_status_log').insert({
+              task_id: existing.id, from_status: existing.clickup_status, to_status: ct.clickup_status,
+            });
+          }
           // Update existing — also update project name in case folder was renamed on ClickUp
           await wfSvc.updateTask(existing.id, {
             title: ct.title,

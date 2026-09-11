@@ -37,12 +37,17 @@ export interface FulltimeTaskDetail {
   title: string;
   project: string;
   client: string;
-  priceUSD: number;
+  priceUSD: number;     // giá trị hiệu suất (đã trừ FIX, đã chia share)
+  fixCount: number;     // số lần task bị trả về FIX (log từ lúc deploy)
+  penaltyPct: number;   // % đã trừ
 }
 
 export interface KpiSettings {
   multiplier: number;
   bonusPercent: number;
+  fixPenaltyStep: number;  // % trừ mỗi lần FIX (sau số lần miễn)
+  fixPenaltyFree: number;  // số lần FIX đầu không trừ
+  fixPenaltyCap: number;   // trần % trừ
 }
 
 export interface FreelancerPaymentSummary {
@@ -113,8 +118,12 @@ const DONE_STATUSES = new Set([
 ]);
 
 /** Lưu config KPI: employeeId=null → global, ngược lại → override per nhân viên */
-export async function saveKpiSettings(employeeId: string | null, multiplier: number, bonusPercent: number): Promise<void> {
-  const payload = { multiplier, bonus_percent: bonusPercent, updated_at: new Date().toISOString() };
+export async function saveKpiSettings(employeeId: string | null, s: KpiSettings): Promise<void> {
+  const payload = {
+    multiplier: s.multiplier, bonus_percent: s.bonusPercent,
+    fix_penalty_step: s.fixPenaltyStep, fix_penalty_free: s.fixPenaltyFree, fix_penalty_cap: s.fixPenaltyCap,
+    updated_at: new Date().toISOString(),
+  };
   if (employeeId) {
     const { error } = await supabase.from('wf_kpi_settings')
       .upsert({ employee_id: employeeId, ...payload }, { onConflict: 'employee_id' });
@@ -170,15 +179,22 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       .in('sheet_id', sheetIds);
 
     if (payrollRecords) {
+      // Per-nhân-viên: CỘNG DỒN (2 sổ TD GAMES / TD CONSULTING = 2 sheet cùng tháng),
+      // ưu tiên nhóm sheet confirmed/paid, không có mới lấy nhóm draft — giống loadSheetCosts.
+      const draftCost = new Map<string, number>();
+      const draftGross = new Map<string, number>();
       payrollRecords.forEach(r => {
         const cost = Number(r.total_company_cost || 0);
         const isConfirmed = confirmedSheetIds.has(r.sheet_id);
         if (isConfirmed) fulltimePayroll += cost; // P&L công ty: chỉ số thực
-        // Per-nhân-viên: ưu tiên record từ sheet confirmed/paid, fallback draft
-        if (isConfirmed || !fulltimeCostsMap.has(r.employee_id)) {
-          fulltimeCostsMap.set(r.employee_id, cost);
-          fulltimeGrossMap.set(r.employee_id, Number(r.gross_actual || 0));
-        }
+        const [cm, gm] = isConfirmed ? [fulltimeCostsMap, fulltimeGrossMap] : [draftCost, draftGross];
+        cm.set(r.employee_id, (cm.get(r.employee_id) || 0) + cost);
+        gm.set(r.employee_id, (gm.get(r.employee_id) || 0) + Number(r.gross_actual || 0));
+      });
+      draftCost.forEach((c, id) => {
+        if (fulltimeCostsMap.has(id)) return;
+        fulltimeCostsMap.set(id, c);
+        fulltimeGrossMap.set(id, draftGross.get(id) || 0);
       });
     }
   }
@@ -186,14 +202,26 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // 2b. KPI settings (global + override per nhân viên)
   const { data: kpiRows } = await supabase
     .from('wf_kpi_settings')
-    .select('employee_id, multiplier, bonus_percent');
-  let kpiSettings: KpiSettings = { multiplier: 3, bonusPercent: 20 };
+    .select('employee_id, multiplier, bonus_percent, fix_penalty_step, fix_penalty_free, fix_penalty_cap');
+  let kpiSettings: KpiSettings = { multiplier: 3, bonusPercent: 20, fixPenaltyStep: 5, fixPenaltyFree: 1, fixPenaltyCap: 30 };
   const kpiOverrides = new Map<string, KpiSettings>();
   (kpiRows || []).forEach((r: any) => {
-    const s = { multiplier: Number(r.multiplier), bonusPercent: Number(r.bonus_percent) };
+    const s: KpiSettings = {
+      multiplier: Number(r.multiplier), bonusPercent: Number(r.bonus_percent),
+      fixPenaltyStep: Number(r.fix_penalty_step ?? 5), fixPenaltyFree: Number(r.fix_penalty_free ?? 1), fixPenaltyCap: Number(r.fix_penalty_cap ?? 30),
+    };
     if (r.employee_id) kpiOverrides.set(r.employee_id, s);
     else kpiSettings = s;
   });
+
+  // 2c. Số lần task bị trả về FIX (log ghi lúc Sync ClickUp) ⇒ trừ giá trị hiệu suất của
+  // người làm. Doanh thu công ty (P&L, phiếu nghiệm thu) KHÔNG đổi — chỉ bảng KPI per NV.
+  const { data: fixLogs } = await supabase
+    .from('wf_task_status_log').select('task_id').ilike('to_status', 'fix');
+  const fixCountMap = new Map<string, number>();
+  (fixLogs || []).forEach((r: any) => fixCountMap.set(r.task_id, (fixCountMap.get(r.task_id) || 0) + 1));
+  const fixPenaltyPct = (taskId: string) =>
+    Math.min(kpiSettings.fixPenaltyCap, Math.max(0, (fixCountMap.get(taskId) || 0) - kpiSettings.fixPenaltyFree) * kpiSettings.fixPenaltyStep);
 
   // 3. Get Freelancer Payments (Settlements)
   let settlementQuery = supabase
@@ -231,7 +259,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // 4. Get Operational Expenses (manual + invoice only, exclude auto-synced payroll/settlement to avoid double-counting)
   // Assuming expense_date is like "YYYY-MM-DD"
   const startOfMonth = `${year}-${month.toString().padStart(2, '0')}-01`;
-  const endOfMonth = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
+  // getDate() chứ KHÔNG toISOString(): máy múi giờ +7 thì toISOString lùi 1 ngày ⇒ ngày 30/31 rớt khỏi tháng.
+  const endOfMonth = `${startOfMonth.slice(0, 8)}${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
   
   let expenseQuery = supabase
     .from('expense_expenses')
@@ -327,7 +356,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const t = projTaskMap.get(a.task_id);
       if (!t) return;
       const cur = projByWorker.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
-      const price = Number(t.client_price || 0) * Number(a.share_pct || 0) / 100;
+      const penaltyPct = fixPenaltyPct(t.id);
+      const price = Number(t.client_price || 0) * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
       cur.count += 1;
       cur.revenue += price;
       cur.tasks.push({
@@ -335,6 +365,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         project: t.project || t.clickup_folder_name || '',
         client: t.client_name || t.clickup_space_name || '',
         priceUSD: price,
+        fixCount: fixCountMap.get(t.id) || 0,
+        penaltyPct,
       });
       projByWorker.set(a.worker_id, cur);
     });
@@ -392,13 +424,17 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     }
   }
 
-  const projTotalCost = projFulltime + projFreelancer + operationalExpenses;
+  // Dự kiến = số sẽ về nếu tháng chạy trọn = ĐÃ chốt + CHỜ chốt (sếp chốt 2026-09-10).
+  // Lương thì luôn cả tháng đủ công; doanh thu / freelancer cộng thực tế vào phần chờ.
+  const projRevenueTotalVND = revenueVND + projRevenueUSD * exchangeRate;
+  const projFreelancerTotal = freelancerPayments + projFreelancer;
+  const projTotalCost = projFulltime + projFreelancerTotal + operationalExpenses;
   const projected: ProjectedSummary = {
-    revenueVND: projRevenueUSD * exchangeRate,
+    revenueVND: projRevenueTotalVND,
     fulltimeCost: projFulltime,
-    freelancerCost: projFreelancer,
+    freelancerCost: projFreelancerTotal,
     totalCost: projTotalCost,
-    grossProfit: projRevenueUSD * exchangeRate - projTotalCost,
+    grossProfit: projRevenueTotalVND - projTotalCost,
     taskCount: projTaskCount,
     tasksWithoutPrice,
     tasksWithoutDate,
@@ -409,11 +445,12 @@ export async function getDashboardData(month: number, year: number, exchangeRate
 
   // 6. Calculate Fulltime KPI
   // We need tasks completed by fulltime workers in this period, and their client_price
+  // Không lọc status=active: NV đã nghỉ vẫn phải hiện ở tháng họ còn lương / task,
+  // không thì xem lại tháng cũ mất dòng, cộng các dòng ≠ tổng công ty. Lọc ở dưới.
   const { data: hrEmployees } = await supabase
     .from('hr_employees')
     .select('id, full_name, type, status, worker_id')
-    .eq('type', 'fulltime')
-    .eq('status', 'active');
+    .eq('type', 'fulltime');
     
   const fulltimeBreakdown: FulltimeKPI[] = [];
   
@@ -426,11 +463,16 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     
     if (acceptances && acceptances.length > 0 && fulltimeWorkerIds.length > 0) {
       const acceptanceIds = acceptances.map(a => a.id);
-      
+      // Discount của phiếu phân bổ theo tỷ lệ vào từng task ⇒ cộng các dòng NV = tổng công ty.
+      // (Phiếu chỉ có draft/sent/accepted — không có trạng thái huỷ để loại.)
+      const discountFactor = new Map(acceptances.map(a => [
+        a.id, Number(a.total_amount) > 0 ? acceptanceNetAmount(a) / Number(a.total_amount) : 1,
+      ]));
+
       // Get acceptance tasks
       const { data: accTasks } = await supabase
         .from('wf_project_acceptance_tasks')
-        .select('task_id, client_price')
+        .select('acceptance_id, task_id, client_price')
         .in('acceptance_id', acceptanceIds);
         
       if (accTasks && accTasks.length > 0) {
@@ -458,7 +500,9 @@ export async function getDashboardData(month: number, year: number, exchangeRate
             if (!info) return;
             for (const a of byTask.get(at.task_id) || []) {
               const current = taskRevenues.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
-              const price = Number(at.client_price || 0) * Number(a.share_pct || 0) / 100;
+              const penaltyPct = fixPenaltyPct(at.task_id);
+              const price = Number(at.client_price || 0) * (discountFactor.get(at.acceptance_id) ?? 1)
+                * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
               current.count += 1;
               current.revenue += price;
               current.tasks.push({
@@ -466,6 +510,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
                 project: info.project || info.clickup_folder_name || '',
                 client: info.client_name || info.clickup_space_name || '',
                 priceUSD: price,
+                fixCount: fixCountMap.get(at.task_id) || 0,
+                penaltyPct,
               });
               taskRevenues.set(a.worker_id, current);
             }
@@ -502,24 +548,26 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const kpiPercent = kpiTargetVND > 0 ? (revVND / kpiTargetVND) * 100 : null;
       const kpiBonusVND = kpiTargetVND > 0 ? Math.max(0, revVND - kpiTargetVND) * s.bonusPercent / 100 : 0;
 
-      // Dự kiến per nhân viên: doanh thu task đã xong chưa nghiệm thu + lương ước
+      // Dự kiến per nhân viên: đã nghiệm thu + task xong chờ nghiệm thu, so với lương cả tháng
       const projData = workerId ? projByWorker.get(workerId) : null;
-      const projRevUSD = projData?.revenue || 0;
+      const projRevUSD = revUSD + (projData?.revenue || 0);
       const projRevVND = projRevUSD * exchangeRate;
       const projCost = projCostMap.get(emp.id) ?? cost;
+      // NV đã nghỉ mà tháng này không có lương, không có task ⇒ bỏ qua
+      if (emp.status !== 'active' && cost === 0 && count === 0 && projRevUSD === 0 && projCost === 0) return;
       const projGross = projGrossMap.get(emp.id) ?? gross;
       const projTarget = projGross * s.multiplier;
       const projKpiPercent = projTarget > 0 ? (projRevVND / projTarget) * 100 : null;
       const projBonusVND = projTarget > 0 ? Math.max(0, projRevVND - projTarget) * s.bonusPercent / 100 : 0;
 
       fulltimeBreakdown.push({
-        projTaskCount: projData?.count || 0,
+        projTaskCount: count + (projData?.count || 0),
         projRevenueUSD: projRevUSD,
         projCost,
         projGross,
         projKpiPercent,
         projBonusVND,
-        projTasks: (projData?.tasks || []).slice().sort((a, b) => b.priceUSD - a.priceUSD),
+        projTasks: [...(taskData?.tasks || []), ...(projData?.tasks || [])].sort((a, b) => b.priceUSD - a.priceUSD),
         employeeId: emp.id,
         workerId: workerId || '',
         fullName: emp.full_name,
