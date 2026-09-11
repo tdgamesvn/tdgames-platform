@@ -28,37 +28,40 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   rejected: { label: 'Từ chối',   color: '#FF3B30', bg: 'rgba(255,59,48,0.1)' },
 };
 
-// ── Ca làm việc cố định: 08:30–17:30, nghỉ trưa 12:00–13:00 = 8h/ngày ──
-const WORK_START  = 8 * 60 + 30;
-const WORK_END    = 17 * 60 + 30;
+// ── Ca làm việc: lấy theo phân ca của NV (att_resolve_shift), mặc định hành chính 08:30–17:30 ──
+type Shift = { start: string; end: string; breakMins: number };
+const DEFAULT_SHIFT: Shift = { start: '08:30', end: '17:30', breakMins: 60 };
+// ponytail: nghỉ giữa ca luôn tính từ 12:00 kéo dài break_minutes; thêm cột lunch_start vào att_shifts nếu có ca lệch trưa.
 const LUNCH_START = 12 * 60;
-const LUNCH_END   = 13 * 60;
-const HOURS_PER_DAY = 8;
 
 function toMins(t: string) {
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
 }
-function effectiveHours(tf: string, tt: string) {
-  const from  = Math.max(toMins(tf), WORK_START);
-  const to    = Math.min(toMins(tt), WORK_END);
+function hoursPerDay(s: Shift) {
+  return (toMins(s.end) - toMins(s.start) - s.breakMins) / 60;
+}
+function effectiveHours(s: Shift, tf: string, tt: string) {
+  const from  = Math.max(toMins(tf), toMins(s.start));
+  const to    = Math.min(toMins(tt), toMins(s.end));
   if (from >= to) return 0;
-  const lunch = Math.max(0, Math.min(to, LUNCH_END) - Math.max(from, LUNCH_START));
+  const lunch = Math.max(0, Math.min(to, LUNCH_START + s.breakMins) - Math.max(from, LUNCH_START));
   return Math.round(((to - from - lunch) / 60) * 100) / 100;
 }
-function calcLeave(df: string, dt: string, tf: string, tt: string) {
+function calcLeave(s: Shift, df: string, dt: string, tf: string, tt: string) {
   if (!df || !dt || !tf || !tt) return { hours: 0, days: 0 };
   const d1 = new Date(df), d2 = new Date(dt);
   if (d2 < d1) return { hours: 0, days: 0 };
   const dayCount = Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1;
+  const perDay = hoursPerDay(s);
   let totalH: number;
   if (dayCount === 1) {
-    totalH = effectiveHours(tf, tt);
+    totalH = effectiveHours(s, tf, tt);
   } else {
-    totalH = effectiveHours(tf, '17:30') + (dayCount - 2) * HOURS_PER_DAY + effectiveHours('08:30', tt);
+    totalH = effectiveHours(s, tf, s.end) + (dayCount - 2) * perDay + effectiveHours(s, s.start, tt);
   }
   const hours = Math.round(totalH * 100) / 100;
-  const days  = Math.round((totalH / HOURS_PER_DAY) * 100) / 100;
+  const days  = Math.round((totalH / perDay) * 100) / 100;
   return { hours, days };
 }
 
@@ -91,8 +94,9 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   // Form
   const [dateFrom,  setDateFrom]  = useState('');
   const [dateTo,    setDateTo]    = useState('');
-  const [timeFrom,  setTimeFrom]  = useState('08:30');
-  const [timeTo,    setTimeTo]    = useState('17:30');
+  const [shift,     setShift]     = useState<Shift>(DEFAULT_SHIFT);
+  const [timeFrom,  setTimeFrom]  = useState(DEFAULT_SHIFT.start);
+  const [timeTo,    setTimeTo]    = useState(DEFAULT_SHIFT.end);
   const [leaveType, setLeaveType] = useState<AttRequest['leave_type']>('annual');
   const [reason,    setReason]    = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -114,6 +118,15 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
         .eq('id', currentUser.employee_id).single();
       setEmployee(emp);
       if (emp) {
+        // Ca làm việc thật của NV (part-time 08:00–12:00...) — cùng helper DB dùng cho chấm công.
+        const { data: sh } = await supabase.rpc('att_resolve_shift', {
+          _employee_id: emp.id, _date: new Date().toISOString().slice(0, 10),
+        });
+        const row = Array.isArray(sh) ? sh[0] : sh;
+        if (row?.start_time && row?.end_time) {
+          const s = { start: row.start_time.slice(0, 5), end: row.end_time.slice(0, 5), breakMins: row.break_minutes ?? 0 };
+          setShift(s); setTimeFrom(s.start); setTimeTo(s.end);
+        }
         // accrued_days do DB trigger/cron tự tính (xem leaveService.ts) — chỉ đọc, không tạo/ghi.
         try {
           setYearlyBalance(await fetchYearlyBalance(emp.id, currentYear));
@@ -137,10 +150,10 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   );
 
   const { hours: leaveHours, days: leaveDays } = useMemo(
-    () => calcLeave(dateFrom, dateTo, timeFrom, timeTo),
-    [dateFrom, dateTo, timeFrom, timeTo]
+    () => calcLeave(shift, dateFrom, dateTo, timeFrom, timeTo),
+    [shift, dateFrom, dateTo, timeFrom, timeTo]
   );
-  const isFullWorkday = leaveHours === HOURS_PER_DAY && dateFrom === dateTo;
+  const isFullWorkday = leaveHours === hoursPerDay(shift) && dateFrom === dateTo;
 
   // ── Eligibility ──
   const officialDate   = employee ? getOfficialDate(employee) : null;
@@ -178,7 +191,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
   // ── Available leave type options ──
   const leaveTypeOptions: { value: AttRequest['leave_type']; label: string; why?: string }[] = [
     {
-      value: 'annual',
+      value: 'annual' as const,
       label: '🏖️ Phép năm',
       why: !isOfficial
         ? 'Chỉ áp dụng sau khi chính thức'
@@ -186,9 +199,9 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
           ? 'Hết ngày phép năm'
           : undefined,
     },
-    { value: 'unpaid', label: '💸 Nghỉ không lương' },
+    { value: 'unpaid' as const, label: '💸 Nghỉ không lương' },
     {
-      value: 'birthday',
+      value: 'birthday' as const,
       label: '🎂 Nghỉ sinh nhật',
       why: !isOfficial
         ? 'Chỉ áp dụng sau khi chính thức'
@@ -199,7 +212,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
             : undefined,
     },
     {
-      value: 'remote',
+      value: 'remote' as const,
       label: '🏠 Làm remote',
       why: !isOfficial
         ? 'Chỉ áp dụng sau khi chính thức'
@@ -208,7 +221,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
           : undefined,
     },
     {
-      value: 'hieu_hi',
+      value: 'hieu_hi' as const,
       label: '🎊 Hiếu hỉ',
       why: !isOfficial
         ? 'Chỉ áp dụng sau khi chính thức'
@@ -256,7 +269,7 @@ const LeaveTab: React.FC<LeaveTabProps> = ({ currentUser, onToast }) => {
       onToast('Đã gửi đơn thành công!', 'success');
       setShowForm(false);
       setDateFrom(''); setDateTo('');
-      setTimeFrom('08:30'); setTimeTo('17:30');
+      setTimeFrom(shift.start); setTimeTo(shift.end);
       setReason('');
       await loadData();
     } catch (err: any) {
