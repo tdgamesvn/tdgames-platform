@@ -163,6 +163,18 @@ export async function rejectChangeRequest(
   return data;
 }
 
+/**
+ * Thu hồi đơn ĐÃ DUYỆT: RPC đảo ngược lương/official_date/chức vụ/phòng ban/lịch sử
+ * về snapshot lúc tạo đơn, rồi chuyển status → rejected với note "[Thu hồi] ...".
+ * Từ chối nếu đã có thay đổi lương sau đơn, hoặc là đơn nghỉ việc (migration 20260911100000).
+ */
+export async function revokeChangeRequest(id: string, revokedBy: string, note: string): Promise<void> {
+  const { error } = await supabase.rpc('hr_revoke_change_request', {
+    p_id: id, p_revoked_by: revokedBy, p_note: note,
+  });
+  if (error) throw error;
+}
+
 // ══════════════════════════════════════════════════════════
 // ── Direct Salary Adjust (no change request) ─────────────
 // ══════════════════════════════════════════════════════════

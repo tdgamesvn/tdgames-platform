@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { HrChangeRequest, HrEmployee, HrDepartment, AccountUser, HrChangeRequestType } from '@/types';
-import { approveChangeRequest, rejectChangeRequest, deleteChangeRequest, updateChangeRequestChanges, editApprovedSalary } from '../services/changeRequestService';
+import { approveChangeRequest, rejectChangeRequest, deleteChangeRequest, updateChangeRequestChanges, editApprovedSalary, revokeChangeRequest } from '../services/changeRequestService';
 import { hasAnyRole } from '@/utils/roleUtils';
 import ChangeRequestForm from './ChangeRequestForm';
 import SalaryEditor from './SalaryEditor';
@@ -214,6 +214,22 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
       onRefresh();
     } catch (e: any) {
       onToast(e.message || 'Lỗi từ chối', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    const note = prompt('Lý do thu hồi đơn đã duyệt (bắt buộc):')?.trim();
+    if (!note) return;
+    if (!confirm('Thu hồi sẽ đảo ngược lương / ngày chính thức / chức vụ / phòng ban về trước lúc duyệt. Tiếp tục?')) return;
+    setSaving(true);
+    try {
+      await revokeChangeRequest(req.id, currentUser.id, note);
+      onToast('Đã thu hồi đề xuất', 'success');
+      onRefresh();
+    } catch (e: any) {
+      onToast(e.message || 'Lỗi thu hồi', 'error');
     } finally {
       setSaving(false);
     }
@@ -467,6 +483,20 @@ const RequestCard: React.FC<CardProps> = ({ req, currentUser, departments, onRef
               </>
             )}
           </div>
+
+          {/* ── Thu hồi đơn đã duyệt (admin/hr, trừ nghỉ việc) ── */}
+          {req.status === 'approved' && isAdmin && req.request_type !== 'termination' && (
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={handleRevoke}
+                disabled={saving}
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-red-400 border border-red-500/30 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                title="Đảo ngược thay đổi đã áp dụng, chuyển đơn sang Từ chối"
+              >
+                {saving ? '...' : '↩ Thu hồi'}
+              </button>
+            </div>
+          )}
 
           {/* ── Action buttons for pending ── */}
           {req.status === 'pending' && (
