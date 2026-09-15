@@ -20,15 +20,16 @@ BEGIN
   SELECT COALESCE(full_name, 'Nhân viên') INTO _emp_name
   FROM hr_employees WHERE id = NEW.employee_id LIMIT 1;
 
+  -- Emoji đứng đầu tiêu đề, động từ đi sau tên
   _kind := CASE NEW.leave_type
-    WHEN 'remote'   THEN '🏠 xin làm remote'
-    WHEN 'annual'   THEN '🏖️ xin nghỉ phép năm'
-    WHEN 'unpaid'   THEN '💸 xin nghỉ không lương'
-    WHEN 'birthday' THEN '🎂 xin nghỉ sinh nhật'
-    WHEN 'hieu_hi'  THEN '🎊 xin nghỉ hiếu hỉ'
-    ELSE '📅 xin nghỉ phép'
+    WHEN 'remote'   THEN '🏠|xin làm remote'
+    WHEN 'annual'   THEN '🏖️|xin nghỉ phép năm'
+    WHEN 'unpaid'   THEN '💸|xin nghỉ không lương'
+    WHEN 'birthday' THEN '🎂|xin nghỉ sinh nhật'
+    WHEN 'hieu_hi'  THEN '🎊|xin nghỉ hiếu hỉ'
+    ELSE '📅|xin nghỉ phép'
   END;
-  _title := _emp_name || ' ' || _kind;
+  _title := split_part(_kind, '|', 1) || ' ' || _emp_name || ' ' || split_part(_kind, '|', 2);
 
   -- Khoảng thời gian: có giờ thì ghi giờ, không thì chỉ ngày
   IF NEW.time_from IS NOT NULL AND NEW.time_to IS NOT NULL THEN
