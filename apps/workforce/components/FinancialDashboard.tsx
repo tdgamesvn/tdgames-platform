@@ -179,6 +179,11 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
               <p className="text-[11px] text-emerald-400/60 mt-2 border-t border-white/5 pt-2">
                 Dự kiến: <span className="font-black">{formatVND(data.projected.revenueVND)}</span>
                 <span className="text-neutral-medium"> · {data.projected.taskCount} task xong chưa nghiệm thu</span>
+                {data.projected.pendingAcceptanceCount > 0 && (
+                  <span className="text-neutral-medium" title="Phiếu nghiệm thu đã lập (nháp / đã gửi) nhưng khách chưa duyệt — đã cộng vào Dự kiến, chưa vào Thực tế.">
+                    {' '}· {data.projected.pendingAcceptanceCount} phiếu chờ duyệt ({formatVND(data.projected.pendingAcceptanceVND)})
+                  </span>
+                )}
               </p>
               {data.projected.tasksWithoutPrice > 0 && (
                 <p className="text-[11px] text-amber-400/80 mt-1">⚠️ {data.projected.tasksWithoutPrice} task chưa nhập giá khách</p>

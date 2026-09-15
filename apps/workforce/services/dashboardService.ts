@@ -11,6 +11,11 @@ export interface FulltimeKPI {
   totalCompanyCost: number; // Cost in VND
   totalTaskRevenue: number; // Revenue in USD
   totalTaskCount: number;
+  // Phiếu nghiệm thu draft/sent (khách chưa duyệt) — KHÔNG vào Thực tế, chỉ vào Dự kiến.
+  // Tách riêng để gộp kỳ: tháng đã qua vẫn giữ phần này trong Dự kiến (phiếu còn treo chờ khách).
+  pendingRevenueUSD: number;
+  pendingTaskCount: number;
+  pendingTasks: FulltimeTaskDetail[];
   profitLoss: number; // P&L in VND (assuming exchange rate)
   roiPercent: number;
   kpiScore: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
@@ -100,6 +105,8 @@ export interface ProjectedSummary {
   taskCount: number;          // số task tính vào doanh thu dự kiến
   tasksWithoutPrice: number;  // task đủ điều kiện nhưng CHƯA nhập giá khách → doanh thu bị thiếu
   tasksWithoutDate: number;   // task xong nhưng KHÔNG có ngày nào → rơi khỏi mọi tháng, mất hẳn
+  pendingAcceptanceCount: number; // phiếu nghiệm thu đã lập (draft/sent) chưa được khách duyệt
+  pendingAcceptanceVND: number;   // tiền của các phiếu đó — đã cộng vào revenueVND dự kiến
   duplicateTasks: number;         // task trùng tên trong cùng tháng → doanh thu dự kiến cộng đôi
   duplicateRevenueUSD: number;    // phần tiền thừa do trùng (tổng client_price của bản dư)
   payrollSource: 'sheet-thang-nay' | 'sheet-thang-truoc' | 'uoc-tinh-nhap' | 'khong-co';
@@ -138,8 +145,9 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const periodStr = `${year}-${month.toString().padStart(2, '0')}`;
   
   // 1. Get Revenue (Project Acceptances in this period)
-  // Lấy MỌI trạng thái: bảng KPI per-nhân-viên (tham khảo) cần số ngay từ khi phiếu
-  // nghiệm thu được TẠO; riêng P&L tổng công ty chỉ tính phiếu đã 'accepted'.
+  // Lấy MỌI trạng thái: accepted → Thực tế (công ty + từng NV); draft/sent → Dự kiến
+  // (công ty: pendingAcceptances; NV: projByWorker). Sếp chốt 2026-09-15: hai cột NV phải
+  // cộng lại đúng bằng tổng công ty, phiếu khách chưa duyệt không được tính vào Thực tế.
   let acceptanceQuery = supabase
     .from('wf_project_acceptances')
     .select('id, total_amount, currency, status, discount_type, discount_value')
@@ -288,8 +296,18 @@ export async function getDashboardData(month: number, year: number, exchangeRate
 
   // ── 5. DỰ KIẾN (tính TRƯỚC bảng KPI để mỗi nhân sự có số dự kiến của riêng mình) ──
   // Doanh thu dự kiến: task đã làm xong nhưng CHƯA nằm trong phiếu nghiệm thu nào.
-  const { data: acceptedTaskIds } = await supabase.from('wf_project_acceptance_tasks').select('task_id');
+  const [{ data: acceptedTaskIds }, { data: settledTaskIds }, { data: ftRows }] = await Promise.all([
+    supabase.from('wf_project_acceptance_tasks').select('task_id'),
+    // Task đã nằm trong phiếu thanh toán freelancer (mọi status, kể cả draft) ⇒ tiền đã
+    // tính ở freelancerPayments (dòng ~251) → không cộng lại vào projFreelancer (đếm đôi).
+    supabase.from('wf_settlement_tasks').select('task_id'),
+    // Worker là nhân viên fulltime ⇒ chi phí nằm ở payroll; task.price (nếu lỡ nhập) không
+    // phải chi phí freelancer.
+    supabase.from('hr_employees').select('worker_id').not('worker_id', 'is', null),
+  ]);
   const inAcceptance = new Set((acceptedTaskIds || []).map((r: any) => r.task_id));
+  const inSettlement = new Set((settledTaskIds || []).map((r: any) => r.task_id));
+  const fulltimeWorkerSet = new Set((ftRows || []).map((r: any) => r.worker_id as string));
   const { data: openTasks } = await supabase
     .from('wf_tasks')
     .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name, completed_at, closed_date, clickup_updated_at');
@@ -300,6 +318,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
 
   let projRevenueUSD = 0, projFreelancer = 0, projTaskCount = 0, tasksWithoutPrice = 0, tasksWithoutDate = 0;
   const projTaskMap = new Map<string, any>();
+  const internalTaskIds = new Set<string>();
+  const projFreelancerCandidates = new Map<string, number>(); // task_id → VND, chốt sau khi biết assignee
   (openTasks || []).forEach((t: any) => {
     if (inAcceptance.has(t.id)) return;
     if (!DONE_STATUSES.has(String(t.clickup_status || '').toLowerCase().trim())) return;
@@ -318,13 +338,18 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     // sếp sửa trên ClickUp rồi sync là số tự về đúng.
     if (!doneAt) { if (!isInternal) tasksWithoutDate++; return; }
     if (doneAt < startOfMonth || doneAt > endOfMonth) return;
-    if (!isInternal) projTaskCount++;
-    const cp = Number(t.client_price || 0);
-    if (cp > 0) projRevenueUSD += cp;
-    else if (!isInternal) tasksWithoutPrice++;
-    if (t.payment_status !== 'paid') {
+    // Space nội bộ: không bán cho khách ⇒ không có doanh thu dù client_price lỡ > 0
+    // (trước đây tiền cộng vào nhưng task không đếm ⇒ lệch). Chi phí freelancer thì vẫn thật.
+    if (isInternal) internalTaskIds.add(t.id);
+    else {
+      projTaskCount++;
+      const cp = Number(t.client_price || 0);
+      if (cp > 0) projRevenueUSD += cp;
+      else tasksWithoutPrice++;
+    }
+    if (t.payment_status !== 'paid' && !inSettlement.has(t.id)) {
       const p = Number(t.price || 0);
-      projFreelancer += t.currency === 'USD' ? p * exchangeRate : p;
+      if (p > 0) projFreelancerCandidates.set(t.id, t.currency === 'USD' ? p * exchangeRate : p);
     }
     projTaskMap.set(t.id, t);
   });
@@ -352,9 +377,19 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       .from('wf_task_assignees')
       .select('task_id, worker_id, share_pct')
       .in('task_id', [...projTaskMap.keys()]);
+    // Chi phí freelancer dự kiến: bỏ task mà MỌI người làm đều là fulltime (đã có payroll).
+    // Task chưa gán ai thì vẫn tính (không biết ai làm ⇒ giữ nguyên hành vi cũ).
+    const assgByTask = new Map<string, string[]>();
+    (projAssg || []).forEach((a: any) =>
+      assgByTask.set(a.task_id, [...(assgByTask.get(a.task_id) || []), a.worker_id]));
+    projFreelancerCandidates.forEach((vnd, taskId) => {
+      const ws = assgByTask.get(taskId) || [];
+      if (ws.length > 0 && ws.every(w => fulltimeWorkerSet.has(w))) return;
+      projFreelancer += vnd;
+    });
     (projAssg || []).forEach((a: any) => {
       const t = projTaskMap.get(a.task_id);
-      if (!t) return;
+      if (!t || internalTaskIds.has(t.id)) return;
       const cur = projByWorker.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
       const penaltyPct = fixPenaltyPct(t.id);
       const price = Number(t.client_price || 0) * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
@@ -426,7 +461,14 @@ export async function getDashboardData(month: number, year: number, exchangeRate
 
   // Dự kiến = số sẽ về nếu tháng chạy trọn = ĐÃ chốt + CHỜ chốt (sếp chốt 2026-09-10).
   // Lương thì luôn cả tháng đủ công; doanh thu / freelancer cộng thực tế vào phần chờ.
-  const projRevenueTotalVND = revenueVND + projRevenueUSD * exchangeRate;
+  // CHỜ chốt gồm 2 lớp: (a) task xong chưa vào phiếu (projRevenueUSD) và (b) phiếu nghiệm
+  // thu đã lập nhưng khách chưa duyệt (draft/sent). Trước đây (b) rơi khỏi CẢ thực tế
+  // (chỉ accepted) LẪN dự kiến (task đã nằm trong phiếu bị loại ở vòng lặp trên) ⇒ tiền
+  // biến mất, còn bảng KPI nhân sự vẫn tính mọi phiếu nên cộng dòng ≠ tổng công ty.
+  const pendingAcceptances = (acceptances || []).filter(acc => acc.status !== 'accepted');
+  const pendingAcceptanceUSD = pendingAcceptances.reduce((sum, acc) => sum + acceptanceNetAmount(acc), 0);
+  const pendingAcceptanceVND = pendingAcceptanceUSD * exchangeRate;
+  const projRevenueTotalVND = revenueVND + pendingAcceptanceVND + projRevenueUSD * exchangeRate;
   const projFreelancerTotal = freelancerPayments + projFreelancer;
   const projTotalCost = projFulltime + projFreelancerTotal + operationalExpenses;
   const projected: ProjectedSummary = {
@@ -438,6 +480,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     taskCount: projTaskCount,
     tasksWithoutPrice,
     tasksWithoutDate,
+    pendingAcceptanceCount: pendingAcceptances.length,
+    pendingAcceptanceVND,
     duplicateTasks,
     duplicateRevenueUSD,
     payrollSource,
@@ -458,9 +502,13 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     const fulltimeWorkerIds = hrEmployees.map(e => e.worker_id).filter(Boolean) as string[];
     
     // Fetch tasks linked to acceptances in this period
-    // A task's revenue is recognized when its acceptance is approved in this period
+    // Thực tế NV = task trong phiếu ĐÃ DUYỆT (accepted) — cùng quy tắc với Thực tế công ty (dòng ~152).
+    // Phiếu draft/sent (khách chưa duyệt) → đẩy sang projByWorker (cột Dự kiến), cùng quy tắc với
+    // pendingAcceptances của tổng công ty. Trước 2026-09-15 Thực tế NV tính cả phiếu chưa duyệt
+    // ⇒ ROI/hạng KPI/thưởng trả trên tiền khách chưa chốt, cộng dòng NV ≠ tổng công ty.
     let taskRevenues = new Map<string, { count: number, revenue: number, tasks: FulltimeTaskDetail[] }>();
-    
+    const pendingRevenues = new Map<string, { count: number, revenue: number, tasks: FulltimeTaskDetail[] }>();
+
     if (acceptances && acceptances.length > 0 && fulltimeWorkerIds.length > 0) {
       const acceptanceIds = acceptances.map(a => a.id);
       // Discount của phiếu phân bổ theo tỷ lệ vào từng task ⇒ cộng các dòng NV = tổng công ty.
@@ -468,6 +516,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const discountFactor = new Map(acceptances.map(a => [
         a.id, Number(a.total_amount) > 0 ? acceptanceNetAmount(a) / Number(a.total_amount) : 1,
       ]));
+      const accStatus = new Map(acceptances.map(a => [a.id, a.status]));
 
       // Get acceptance tasks
       const { data: accTasks } = await supabase
@@ -498,8 +547,9 @@ export async function getDashboardData(month: number, year: number, exchangeRate
           accTasks.forEach(at => {
             const info = taskInfoMap.get(at.task_id);
             if (!info) return;
+            const target = accStatus.get(at.acceptance_id) === 'accepted' ? taskRevenues : pendingRevenues;
             for (const a of byTask.get(at.task_id) || []) {
-              const current = taskRevenues.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
+              const current = target.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
               const penaltyPct = fixPenaltyPct(at.task_id);
               const price = Number(at.client_price || 0) * (discountFactor.get(at.acceptance_id) ?? 1)
                 * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
@@ -513,7 +563,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
                 fixCount: fixCountMap.get(at.task_id) || 0,
                 penaltyPct,
               });
-              taskRevenues.set(a.worker_id, current);
+              target.set(a.worker_id, current);
             }
           });
         }
@@ -548,9 +598,12 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const kpiPercent = kpiTargetVND > 0 ? (revVND / kpiTargetVND) * 100 : null;
       const kpiBonusVND = kpiTargetVND > 0 ? Math.max(0, revVND - kpiTargetVND) * s.bonusPercent / 100 : 0;
 
-      // Dự kiến per nhân viên: đã nghiệm thu + task xong chờ nghiệm thu, so với lương cả tháng
+      // Dự kiến per nhân viên: đã nghiệm thu + phiếu chờ khách duyệt + task xong chưa vào phiếu,
+      // so với lương cả tháng — cùng 3 lớp với Dự kiến công ty.
       const projData = workerId ? projByWorker.get(workerId) : null;
-      const projRevUSD = revUSD + (projData?.revenue || 0);
+      const pendData = workerId ? pendingRevenues.get(workerId) : null;
+      const pendingRevenueUSD = pendData?.revenue || 0;
+      const projRevUSD = revUSD + pendingRevenueUSD + (projData?.revenue || 0);
       const projRevVND = projRevUSD * exchangeRate;
       const projCost = projCostMap.get(emp.id) ?? cost;
       // NV đã nghỉ mà tháng này không có lương, không có task ⇒ bỏ qua
@@ -561,13 +614,16 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const projBonusVND = projTarget > 0 ? Math.max(0, projRevVND - projTarget) * s.bonusPercent / 100 : 0;
 
       fulltimeBreakdown.push({
-        projTaskCount: count + (projData?.count || 0),
+        projTaskCount: count + (pendData?.count || 0) + (projData?.count || 0),
         projRevenueUSD: projRevUSD,
         projCost,
         projGross,
         projKpiPercent,
         projBonusVND,
-        projTasks: [...(taskData?.tasks || []), ...(projData?.tasks || [])].sort((a, b) => b.priceUSD - a.priceUSD),
+        projTasks: [...(taskData?.tasks || []), ...(pendData?.tasks || []), ...(projData?.tasks || [])].sort((a, b) => b.priceUSD - a.priceUSD),
+        pendingRevenueUSD,
+        pendingTaskCount: pendData?.count || 0,
+        pendingTasks: pendData?.tasks || [],
         employeeId: emp.id,
         workerId: workerId || '',
         fullName: emp.full_name,
@@ -637,23 +693,25 @@ export async function getDashboardDataRange(
     if (!isPast) return p;
     return {
       ...p,
+      // Riêng phiếu nghiệm thu đã LẬP cho tháng đó mà khách chưa duyệt thì vẫn là tiền sắp về
+      // (vd 2 phiếu sent period 2026-08 lập ngày 3/9) ⇒ giữ trong Dự kiến, không gập mất.
       projected: {
         ...p.projected,
-        revenueVND: p.revenueVND,
+        revenueVND: p.revenueVND + p.projected.pendingAcceptanceVND,
         fulltimeCost: p.fulltimePayroll,
         freelancerCost: p.freelancerPayments,
         totalCost: p.totalCost,
-        grossProfit: p.grossProfit,
+        grossProfit: p.revenueVND + p.projected.pendingAcceptanceVND - p.totalCost,
         taskCount: 0,
         tasksWithoutPrice: 0,
       },
       fulltimeBreakdown: p.fulltimeBreakdown.map(k => ({
         ...k,
-        projTaskCount: k.totalTaskCount,
-        projRevenueUSD: k.totalTaskRevenue,
+        projTaskCount: k.totalTaskCount + k.pendingTaskCount,
+        projRevenueUSD: k.totalTaskRevenue + k.pendingRevenueUSD,
         projCost: k.totalCompanyCost,
         projGross: k.grossActual,
-        projTasks: k.tasks,
+        projTasks: [...k.tasks, ...k.pendingTasks],
       })),
     };
   });
@@ -676,6 +734,9 @@ export async function getDashboardDataRange(
     cur.projRevenueUSD += k.projRevenueUSD;
     cur.projCost += k.projCost;
     cur.projGross += k.projGross;
+    cur.pendingRevenueUSD += k.pendingRevenueUSD;
+    cur.pendingTaskCount += k.pendingTaskCount;
+    cur.pendingTasks.push(...k.pendingTasks);
     cur.tasks.push(...k.tasks);
     cur.projTasks.push(...k.projTasks);
   }));
@@ -747,7 +808,10 @@ export async function getDashboardDataRange(
       grossProfit: sum(p => p.projected.grossProfit),
       taskCount: sum(p => p.projected.taskCount),
       tasksWithoutPrice: sum(p => p.projected.tasksWithoutPrice),
-      tasksWithoutDate: sum(p => p.projected.tasksWithoutDate),
+      // Đếm toàn cục (task không có ngày thì không thuộc tháng nào) ⇒ lấy 1 lần, không cộng dồn N tháng.
+      tasksWithoutDate: last.projected.tasksWithoutDate,
+      pendingAcceptanceCount: sum(p => p.projected.pendingAcceptanceCount),
+      pendingAcceptanceVND: sum(p => p.projected.pendingAcceptanceVND),
       duplicateTasks: sum(p => p.projected.duplicateTasks),
       duplicateRevenueUSD: sum(p => p.projected.duplicateRevenueUSD),
       payrollSource: last.projected.payrollSource,
