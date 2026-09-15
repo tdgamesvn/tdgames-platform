@@ -140,16 +140,19 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
           officeConfig.lat,
           officeConfig.lng
         );
-        if (dist > officeConfig.radius_meters) {
-          setOutOfRangeDistance(Math.round(dist));
-          setState('out_of_range');
-          return;
-        }
+        // Ngoài bán kính VP vẫn cho chấm (chưa cần đơn Remote duyệt) — toạ độ được lưu để HR
+        // đối chiếu; RLS (att_selfcheckin_valid) cũng không kiểm bán kính nữa.
+        const outside = dist > officeConfig.radius_meters;
         try {
           const r = await selfCheckIn(employeeId, pos.coords.latitude, pos.coords.longitude, 'geo');
           setRecord(r);
           setState('checked_in');
-          onToast('✅ Chấm công thành công!', 'success');
+          onToast(
+            outside
+              ? `✅ Đã chấm công — ngoài VP ~${Math.round(dist)}m`
+              : '✅ Chấm công thành công!',
+            'success',
+          );
         } catch {
           onToast('Lỗi khi lưu check in. Thử lại sau.', 'error');
           setState('not_checked_in');
@@ -204,10 +207,9 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
         const dist = haversineDistance(
           pos.coords.latitude, pos.coords.longitude, officeConfig.lat, officeConfig.lng,
         );
+        // Ngoài bán kính VP vẫn cho bấm (cùng quy tắc với check-in).
         if (dist > officeConfig.radius_meters) {
-          setOutOfRangeDistance(Math.round(dist));
-          setState('out_of_range');
-          return;
+          onToast(`📍 Ngoài VP ~${Math.round(dist)}m — vẫn ghi nhận`, 'success');
         }
         saveStamp(field, back);
       },
