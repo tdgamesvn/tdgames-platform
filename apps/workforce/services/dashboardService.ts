@@ -222,7 +222,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     else kpiSettings = s;
   });
 
-  // 2c. Số lần task bị trả về FIX (log ghi lúc Sync ClickUp) ⇒ trừ giá trị hiệu suất của
+  // 2c. Số lần task bị trả về FIX (log do trigger DB trên wf_tasks ghi — mọi nguồn: webhook/cron/Sync tay) ⇒ trừ giá trị hiệu suất của
   // người làm. Doanh thu công ty (P&L, phiếu nghiệm thu) KHÔNG đổi — chỉ bảng KPI per NV.
   const { data: fixLogs } = await supabase
     .from('wf_task_status_log').select('task_id').ilike('to_status', 'fix');

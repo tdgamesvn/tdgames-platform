@@ -360,14 +360,9 @@ const TaskList: React.FC<TaskListProps> = ({
         const clickupUpdatedAt = ct.date_updated ? ct.date_updated.split('T')[0] : null;
 
         if (existing) {
-          // Lịch sử status: đếm số lần bị trả về FIX ⇒ trừ hiệu suất nhân sự (dashboardService).
-          // ponytail: chỉ thấy thay đổi GIỮA 2 lần Sync — FIX→review→FIX trong 1 khoảng đếm 1.
-          // Nâng cấp: ClickUp task history API / webhook khi số lệch thật.
-          if ((existing.clickup_status || null) !== (ct.clickup_status || null)) {
-            await supabase.from('wf_task_status_log').insert({
-              task_id: existing.id, from_status: existing.clickup_status, to_status: ct.clickup_status,
-            });
-          }
+          // Lịch sử status (đếm lần FIX ⇒ trừ hiệu suất NV) do trigger DB `trg_log_wf_task_status` ghi —
+          // KHÔNG insert wf_task_status_log ở đây: webhook/cron đổi status trước nên client không thấy
+          // chênh lệch, và insert thêm sẽ ghi trùng (migration 20260917100000).
           // Update existing — also update project name in case folder was renamed on ClickUp
           await wfSvc.updateTask(existing.id, {
             title: ct.title,
