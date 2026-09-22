@@ -261,14 +261,18 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                 
                 <div className="space-y-4">
                   {[
-                    { label: 'Fulltime Payroll', hint: 'Lương & bảo hiểm (gross)', actual: data.fulltimePayroll, proj: data.projected.fulltimeCost },
-                    { label: 'Freelancer Payments', hint: 'Thanh toán nghiệm thu', actual: data.freelancerPayments, proj: data.projected.freelancerCost },
-                    { label: 'Operational Expenses', hint: 'Chi phí vận hành khác', actual: data.operationalExpenses, proj: data.operationalExpenses },
+                    { label: 'Bảng lương (Payroll)', hint: 'Lương & bảo hiểm (gross) — mọi người trong bảng lương', actual: data.fulltimePayroll, proj: data.projected.fulltimeCost,
+                      // Freelancer/parttime trả qua bảng lương: có trong tổng nhưng KHÔNG có dòng ở bảng
+                      // Hiệu suất fulltime ⇒ nói rõ để cộng các dòng NV + số này = tổng.
+                      sub: data.payrollNonFulltime > 0 ? `Trong đó ${formatVND(data.payrollNonFulltime)} là freelancer/parttime trả qua bảng lương (không ở bảng fulltime)` : null },
+                    { label: 'Freelancer Payments', hint: 'Thanh toán nghiệm thu', actual: data.freelancerPayments, proj: data.projected.freelancerCost, sub: null },
+                    { label: 'Operational Expenses', hint: 'Chi phí vận hành khác', actual: data.operationalExpenses, proj: data.operationalExpenses, sub: null },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between items-end border-b border-white/5 pb-3">
                       <div>
                         <p className="text-sm font-bold text-white">{row.label}</p>
                         <p className="text-[10px] text-neutral-medium mt-0.5">{row.hint}</p>
+                        {row.sub && <p className="text-[10px] text-amber-400/80 mt-0.5">{row.sub}</p>}
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-mono font-bold">{formatVND(row.actual)}</p>

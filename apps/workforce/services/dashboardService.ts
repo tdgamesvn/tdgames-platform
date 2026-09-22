@@ -81,7 +81,11 @@ export interface MonthlyFinancialSummary {
   revenueVND: number;              // Converted to VND
   
   // Costs
-  fulltimePayroll: number;         // Total fulltime cost (VND)
+  fulltimePayroll: number;         // Tổng bảng lương confirmed/paid (VND) — MỌI người trong sheet
+  // Phần của fulltimePayroll thuộc người KHÔNG phải fulltime (freelancer/parttime trả qua bảng
+  // lương, hoặc employee_id không còn trong hr_employees). Bảng "Hiệu suất nhân sự fulltime"
+  // chỉ hiện type=fulltime ⇒ cộng cột chi phí các dòng + số này = fulltimePayroll.
+  payrollNonFulltime: number;
   freelancerPayments: number;      // Total freelancer cost (VND)
   operationalExpenses: number;     // Other expenses (VND)
   totalCost: number;               // Total cost (VND)
@@ -122,11 +126,15 @@ export interface ProjectedSummary {
 // Trước đây là blacklist (liệt kê cái CHƯA xong) ⇒ ClickUp thêm status mới là nó tự lọt
 // vào dự kiến mà không ai biết. Whitelist thì rủi ro ngược lại — thiếu tiền chứ không
 // thừa tiền — và badge "task chưa nhập giá / chưa có ngày" sẽ lộ ra.
-// ClickUp KHÔNG có status 'done' thật (sếp nêu 'done' = 'completed'/'complete');
-// giữ cả 'done' phòng khi ClickUp thêm sau.
+// Giữ 'done' phòng khi ClickUp thêm sau.
 // Cố tình LOẠI: fix (đang sửa lại, chưa xong), internal review, lead_check.
+// 2026-09-22 sếp chốt LOẠI 'completed'/'complete': đối chiếu DB, 100% task mang status này
+// (69 task T7–T9) là folder "Marketing Team" nội bộ (client TDGAMES_Team), không có giá khách
+// ⇒ chỉ làm phình badge "task xong chưa nghiệm thu / chưa nhập giá" mà không có tiền thật.
+// Task khách chốt bằng client_review/approved/closed. Nếu sau này space khách dùng 'completed'
+// thì thêm lại kèm điều kiện lọc client nội bộ.
 const DONE_STATUSES = new Set([
-  'client_review', 'approved', 'closed', 'done', 'completed', 'complete',
+  'client_review', 'approved', 'closed', 'done',
 ]);
 
 /** Lưu config KPI: employeeId=null → global, ngược lại → override per nhân viên */
@@ -180,6 +188,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   let fulltimePayroll = 0;
   const fulltimeCostsMap = new Map<string, number>(); // employee_id -> cost
   const fulltimeGrossMap = new Map<string, number>(); // employee_id -> gross_actual
+  const confirmedCostByEmp = new Map<string, number>(); // chỉ sheet confirmed/paid — để tách payrollNonFulltime khớp fulltimePayroll
 
   if (sheets && sheets.length > 0) {
     const confirmedSheetIds = new Set(
@@ -199,7 +208,10 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       payrollRecords.forEach(r => {
         const cost = Number(r.total_company_cost || 0);
         const isConfirmed = confirmedSheetIds.has(r.sheet_id);
-        if (isConfirmed) fulltimePayroll += cost; // P&L công ty: chỉ số thực
+        if (isConfirmed) {
+          fulltimePayroll += cost; // P&L công ty: chỉ số thực
+          confirmedCostByEmp.set(r.employee_id, (confirmedCostByEmp.get(r.employee_id) || 0) + cost);
+        }
         const [cm, gm] = isConfirmed ? [fulltimeCostsMap, fulltimeGrossMap] : [draftCost, draftGross];
         cm.set(r.employee_id, (cm.get(r.employee_id) || 0) + cost);
         gm.set(r.employee_id, (gm.get(r.employee_id) || 0) + Number(r.gross_actual || 0));
@@ -499,11 +511,19 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // We need tasks completed by fulltime workers in this period, and their client_price
   // Không lọc status=active: NV đã nghỉ vẫn phải hiện ở tháng họ còn lương / task,
   // không thì xem lại tháng cũ mất dòng, cộng các dòng ≠ tổng công ty. Lọc ở dưới.
-  const { data: hrEmployees } = await supabase
+  // Lấy MỌI type rồi tách: bảng KPI chỉ hiện fulltime, phần lương của freelancer/parttime
+  // trả qua payroll (vd Quỳnh Châu, Tiến Đạt, Phương Anh T7–T8/2026 ≈ 40M) tách ra
+  // payrollNonFulltime để sếp thấy vì sao tổng bảng lương ≠ cộng các dòng NV.
+  const { data: allEmployees } = await supabase
     .from('hr_employees')
-    .select('id, full_name, type, status, worker_id')
-    .eq('type', 'fulltime');
-    
+    .select('id, full_name, type, status, worker_id');
+  const hrEmployees = (allEmployees || []).filter(e => e.type === 'fulltime');
+  const fulltimeIds = new Set(hrEmployees.map(e => e.id));
+  let payrollNonFulltime = 0;
+  confirmedCostByEmp.forEach((cost, empId) => {
+    if (!fulltimeIds.has(empId)) payrollNonFulltime += cost;
+  });
+
   const fulltimeBreakdown: FulltimeKPI[] = [];
   
   if (hrEmployees) {
@@ -666,6 +686,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     revenueCurrency: 'USD',
     revenueVND,
     fulltimePayroll,
+    payrollNonFulltime,
     freelancerPayments,
     operationalExpenses,
     totalCost,
@@ -803,6 +824,7 @@ export async function getDashboardDataRange(
     revenueCurrency: last.revenueCurrency,
     revenueVND: sum(p => p.revenueVND),
     fulltimePayroll: sum(p => p.fulltimePayroll),
+    payrollNonFulltime: sum(p => p.payrollNonFulltime),
     freelancerPayments: sum(p => p.freelancerPayments),
     operationalExpenses: sum(p => p.operationalExpenses),
     totalCost,
