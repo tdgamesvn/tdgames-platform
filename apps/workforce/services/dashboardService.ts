@@ -45,6 +45,11 @@ export interface FulltimeTaskDetail {
   priceUSD: number;     // giá trị hiệu suất (đã trừ FIX, đã chia share)
   fixCount: number;     // số lần task bị trả về FIX (log từ lúc deploy)
   penaltyPct: number;   // % đã trừ
+  taskId: string;
+  clientPrice: number;  // giá khách GỐC (chưa chia share / trừ FIX) — số hiện trong ô nhập
+  // true = giá lấy từ wf_tasks.client_price (Dự kiến) ⇒ sửa ngay trong Tổng quan được, y như tab Task.
+  // false = giá đã chốt trên phiếu nghiệm thu ⇒ sửa ở phiếu, không sửa ở đây.
+  editable: boolean;
 }
 
 export interface KpiSettings {
@@ -402,6 +407,9 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         priceUSD: price,
         fixCount: fixCountMap.get(t.id) || 0,
         penaltyPct,
+        taskId: t.id,
+        clientPrice: Number(t.client_price || 0),
+        editable: true,
       });
       projByWorker.set(a.worker_id, cur);
     });
@@ -562,6 +570,9 @@ export async function getDashboardData(month: number, year: number, exchangeRate
                 priceUSD: price,
                 fixCount: fixCountMap.get(at.task_id) || 0,
                 penaltyPct,
+                taskId: at.task_id,
+                clientPrice: Number(at.client_price || 0),
+                editable: false,
               });
               target.set(a.worker_id, current);
             }

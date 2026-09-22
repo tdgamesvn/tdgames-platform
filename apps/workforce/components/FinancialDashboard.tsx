@@ -3,9 +3,26 @@ import { MonthlyFinancialSummary, getDashboardData, getDashboardDataRange, saveK
 
 interface FinancialDashboardProps {
   vcbAvgRate: number;
+  // Cùng handler với tab Task (useWorkforceState.handleUpdateTask) ⇒ state tasks + toast đồng bộ.
+  onUpdateTask?: (id: string, updates: { client_price: number }) => Promise<void>;
 }
 
-export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRate }) => {
+export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRate, onUpdateTask }) => {
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+
+  /** Nhập giá khách ngay trong drill-down (Dự kiến) — ghi wf_tasks.client_price rồi tính lại bảng. */
+  const saveClientPrice = async (taskId: string, raw: string, current: number) => {
+    if (!onUpdateTask) return;
+    const v = parseFloat(raw) || 0;
+    if (v < 0 || v === current) return;
+    setSavingTaskId(taskId);
+    try {
+      await onUpdateTask(taskId, { client_price: v });
+      await loadData();
+    } finally {
+      setSavingTaskId(null);
+    }
+  };
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [year, setYear] = useState<number>(new Date().getFullYear());
   // Tháng bắt đầu của khoảng xem (YYYY-MM). Rỗng/sau tháng Đến ⇒ chỉ xem 1 tháng.
@@ -461,7 +478,24 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                               )}
                                             </td>
                                             <td className="py-1.5 text-right font-mono">
-                                              <span className="text-emerald-400 font-bold">{formatUSD(t.priceUSD)}</span>
+                                              {t.editable && onUpdateTask ? (
+                                                <span className="inline-flex items-center gap-1" title="Giá khách (USD) — giống ô Giá khách ở tab Task. Enter/click ra ngoài để lưu.">
+                                                  <span className="text-neutral-medium">$</span>
+                                                  <input
+                                                    key={`${t.taskId}-${t.clientPrice}`}
+                                                    type="number" min="0" step="1"
+                                                    defaultValue={t.clientPrice || ''}
+                                                    placeholder="0"
+                                                    disabled={savingTaskId === t.taskId}
+                                                    onClick={e => e.stopPropagation()}
+                                                    onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                                    onBlur={e => saveClientPrice(t.taskId, e.target.value, t.clientPrice)}
+                                                    className={`w-24 bg-[#1a1a1a] border rounded-lg px-2 py-1 text-right text-xs font-bold text-emerald-400 focus:outline-none focus:border-primary disabled:opacity-50 ${t.clientPrice > 0 ? 'border-white/10' : 'border-amber-400/40'}`}
+                                                  />
+                                                </span>
+                                              ) : (
+                                                <span className="text-emerald-400 font-bold">{formatUSD(t.priceUSD)}</span>
+                                              )}
                                               <span className="text-neutral-medium ml-2">≈ {formatVND(t.priceUSD * exchangeRate)}</span>
                                             </td>
                                           </tr>
