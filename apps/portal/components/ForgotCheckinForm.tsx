@@ -64,6 +64,8 @@ const ForgotCheckinForm: React.FC<Props> = ({ employeeId, onToast }) => {
           if (covered(d)) continue;
           const rec = records.find(r => r.date === d);
           if (rec?.check_in && rec?.check_out) continue;
+          // Ngày sự kiện công ty: có check-in là đủ công, không cần check-out.
+          if (rec?.check_in && holidays.some(h => h.kind === 'event' && d >= h.date_from && d <= h.date_to)) continue;
           gaps.push(d);
         }
         setGapDays(gaps.reverse()); // gần nhất lên đầu

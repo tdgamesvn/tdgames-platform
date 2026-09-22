@@ -624,8 +624,8 @@ export async function fetchRemoteStatus(
   return (data?.status as 'approved' | 'pending') ?? null;
 }
 
-/** Loại ngày theo lịch Admin (att_day_kind): holiday | makeup | ot | work | off. Nút OT chỉ hiện khi 'ot'. */
-export async function fetchDayKind(date: string): Promise<'holiday' | 'makeup' | 'ot' | 'work' | 'off'> {
+/** Loại ngày theo lịch Admin (att_day_kind): holiday | makeup | ot | event | work | off. Nút OT chỉ hiện khi 'ot'. */
+export async function fetchDayKind(date: string): Promise<'holiday' | 'makeup' | 'ot' | 'event' | 'work' | 'off'> {
   const { data, error } = await supabase.rpc('att_day_kind', { _d: date });
   if (error) throw error;
   return data;
@@ -640,7 +640,9 @@ export interface AttHoliday {
   name: string;
   date_from: string;
   date_to: string;
-  kind: 'holiday' | 'makeup' | 'ot'; // holiday: nghỉ lễ · makeup: làm bù (tính như ngày thường) · ot: lịch OT
+  // holiday: nghỉ lễ · makeup: làm bù (tính như ngày thường) · ot: lịch OT
+  // event: sự kiện công ty — có check-in là đủ 1 công, không tính muộn/sớm, không cần/nhắc check-out
+  kind: 'holiday' | 'makeup' | 'ot' | 'event';
   created_at?: string;
 }
 
