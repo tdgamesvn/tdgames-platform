@@ -169,10 +169,18 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   if (accountTypeFilter !== 'all') acceptanceQuery = acceptanceQuery.eq('account_type', accountTypeFilter);
   const { data: acceptances } = await acceptanceQuery;
 
+  // Phiếu nghiệm thu có cột currency (USD/VND). Mọi số dưới đây gom theo USD rồi × tỷ giá ⇒
+  // phiếu VND phải ÷ tỷ giá trước, không thì bị nhân tỷ giá thêm lần nữa (cùng lỗi với
+  // client_currency của task, sửa 2026-09-24). Tỷ giá 0 ⇒ trả 0 thay vì Infinity.
+  const toUSD = (amount: number, currency?: string | null) =>
+    currency === 'VND' ? (exchangeRate > 0 ? amount / exchangeRate : 0) : amount;
+  const acceptanceNetUSD = (a: { total_amount: number; currency?: string | null; discount_type?: string; discount_value?: number }) =>
+    toUSD(acceptanceNetAmount(a), a.currency);
+
   // P&L tổng: chỉ phiếu accepted (số thực)
   const totalRevenueUSD = (acceptances || [])
     .filter(acc => acc.status === 'accepted')
-    .reduce((sum, acc) => sum + acceptanceNetAmount(acc), 0);
+    .reduce((sum, acc) => sum + acceptanceNetUSD(acc), 0);
   const revenueVND = totalRevenueUSD * exchangeRate;
 
   // 2. Get Fulltime Payroll Cost
@@ -496,7 +504,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // (chỉ accepted) LẪN dự kiến (task đã nằm trong phiếu bị loại ở vòng lặp trên) ⇒ tiền
   // biến mất, còn bảng KPI nhân sự vẫn tính mọi phiếu nên cộng dòng ≠ tổng công ty.
   const pendingAcceptances = (acceptances || []).filter(acc => acc.status !== 'accepted');
-  const pendingAcceptanceUSD = pendingAcceptances.reduce((sum, acc) => sum + acceptanceNetAmount(acc), 0);
+  const pendingAcceptanceUSD = pendingAcceptances.reduce((sum, acc) => sum + acceptanceNetUSD(acc), 0);
   const pendingAcceptanceVND = pendingAcceptanceUSD * exchangeRate;
   const projRevenueTotalVND = revenueVND + pendingAcceptanceVND + projRevenueUSD * exchangeRate;
   const projFreelancerTotal = freelancerPayments + projFreelancer;
@@ -555,6 +563,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         a.id, Number(a.total_amount) > 0 ? acceptanceNetAmount(a) / Number(a.total_amount) : 1,
       ]));
       const accStatus = new Map(acceptances.map(a => [a.id, a.status]));
+      // client_price trên dòng phiếu ghi theo currency của phiếu ⇒ quy USD theo phiếu cha.
+      const accCurrency = new Map(acceptances.map(a => [a.id, a.currency === 'VND' ? 'VND' as const : 'USD' as const]));
 
       // Get acceptance tasks
       const { data: accTasks } = await supabase
@@ -589,7 +599,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
             for (const a of byTask.get(at.task_id) || []) {
               const current = target.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
               const penaltyPct = fixPenaltyPct(at.task_id);
-              const price = Number(at.client_price || 0) * (discountFactor.get(at.acceptance_id) ?? 1)
+              const accCur = accCurrency.get(at.acceptance_id) || 'USD';
+              const price = toUSD(Number(at.client_price || 0), accCur) * (discountFactor.get(at.acceptance_id) ?? 1)
                 * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
               current.count += 1;
               current.revenue += price;
@@ -602,7 +613,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
                 penaltyPct,
                 taskId: at.task_id,
                 clientPrice: Number(at.client_price || 0),
-                clientCurrency: 'USD', // giá trên phiếu nghiệm thu: nhánh Thực tế vẫn coi là USD (chưa đọc currency phiếu)
+                clientCurrency: accCur, // giá trên dòng phiếu ghi theo currency của phiếu nghiệm thu
                 editable: false,
               });
               target.set(a.worker_id, current);
