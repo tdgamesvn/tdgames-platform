@@ -5,9 +5,11 @@ interface FinancialDashboardProps {
   vcbAvgRate: number;
   // Cùng handler với tab Task (useWorkforceState.handleUpdateTask) ⇒ state tasks + toast đồng bộ.
   onUpdateTask?: (id: string, updates: { client_price: number }) => Promise<void>;
+  // Bấm tên task (Dự kiến) ⇒ nhảy sang tab Task mở đúng task đó — bên đó có toggle USD↔VND.
+  onOpenTask?: (taskId: string) => void;
 }
 
-export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRate, onUpdateTask }) => {
+export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRate, onUpdateTask, onOpenTask }) => {
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
 
   /** Nhập giá khách ngay trong drill-down (Dự kiến) — ghi wf_tasks.client_price rồi tính lại bảng. */
@@ -471,7 +473,16 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                       <tbody className="divide-y divide-white/5">
                                         {v.tasks.map((t, i) => (
                                           <tr key={i}>
-                                            <td className="py-1.5 pr-3 text-white">{t.title}</td>
+                                            <td className="py-1.5 pr-3 text-white">
+                                              {onOpenTask && t.editable ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={e => { e.stopPropagation(); onOpenTask(t.taskId); }}
+                                                  title="Mở task này ở tab Task để sửa giá khách / đổi USD↔VND"
+                                                  className="text-left hover:text-primary hover:underline underline-offset-2 transition-colors"
+                                                >{t.title}</button>
+                                              ) : t.title}
+                                            </td>
                                             <td className="py-1.5 pr-3 text-neutral-light">{t.project || '—'}</td>
                                             <td className="py-1.5 pr-3 text-neutral-light">{t.client || '—'}</td>
                                             <td className="py-1.5 pr-3 text-center">
@@ -483,8 +494,8 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                                             </td>
                                             <td className="py-1.5 text-right font-mono">
                                               {t.editable && onUpdateTask ? (
-                                                <span className="inline-flex items-center gap-1" title="Giá khách (USD) — giống ô Giá khách ở tab Task. Enter/click ra ngoài để lưu.">
-                                                  <span className="text-neutral-medium">$</span>
+                                                <span className="inline-flex items-center gap-1" title={`Giá khách (${t.clientCurrency}) — giống ô Giá khách ở tab Task. Enter/click ra ngoài để lưu. Đổi USD↔VND: bấm tên task.`}>
+                                                  <span className="text-neutral-medium">{t.clientCurrency === 'VND' ? '₫' : '$'}</span>
                                                   <input
                                                     key={`${t.taskId}-${t.clientPrice}`}
                                                     type="number" min="0" step="1"

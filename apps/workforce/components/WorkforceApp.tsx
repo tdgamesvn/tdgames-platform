@@ -139,6 +139,8 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
             onRefresh={state.loadAll}
             onToast={showToast}
             vcbSellRate={vcbRate ? avgUsdVnd : 0}
+            focusTaskId={state.focusTaskId}
+            onFocusConsumed={() => state.setFocusTaskId(null)}
           />
         )}
         {state.activeTab === 'settlements' && (
@@ -164,7 +166,7 @@ const WorkforceApp: React.FC<WorkforceAppProps> = ({ currentUser, onBack, initia
         )}
 
         {state.activeTab === 'financials' && (
-          <FinancialDashboard vcbAvgRate={avgUsdVnd} onUpdateTask={state.handleUpdateTask} />
+          <FinancialDashboard vcbAvgRate={avgUsdVnd} onUpdateTask={state.handleUpdateTask} onOpenTask={state.openTaskInTab} />
         )}
 
         {state.activeTab === 'config' && (

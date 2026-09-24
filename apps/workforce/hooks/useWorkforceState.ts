@@ -39,6 +39,12 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
   const [filterWorkerType, setFilterWorkerType] = useState('');
   const [filterTaskStatus, setFilterTaskStatus] = useState('');
   const [filterTaskWorker, setFilterTaskWorker] = useState('');
+  // Task cần mở sẵn ở tab Task (bấm từ bảng hiệu suất ở Tổng quan). TaskList tiêu thụ rồi xoá.
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  const openTaskInTab = useCallback((taskId: string) => {
+    setFocusTaskId(taskId);
+    setActiveTab('tasks');
+  }, [setActiveTab]);
 
   // ── Load ──
   const loadAll = useCallback(async () => {
@@ -354,6 +360,7 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
     filterWorkerType, setFilterWorkerType,
     filterTaskStatus, setFilterTaskStatus,
     filterTaskWorker, setFilterTaskWorker,
+    focusTaskId, setFocusTaskId, openTaskInTab,
     handleSaveWorker, handleUpdateWorker, handleDeleteWorker, handleSyncFromHR,
     handleSaveContract, handleUpdateContract, handleDeleteContract,
     handleSaveTask, handleUpdateTask, handleDeleteTask,

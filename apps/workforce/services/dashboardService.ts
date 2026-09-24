@@ -47,6 +47,7 @@ export interface FulltimeTaskDetail {
   penaltyPct: number;   // % đã trừ
   taskId: string;
   clientPrice: number;  // giá khách GỐC (chưa chia share / trừ FIX) — số hiện trong ô nhập
+  clientCurrency: 'USD' | 'VND'; // tiền tệ của clientPrice (tab Task chọn ₫) — priceUSD đã quy về USD
   // true = giá lấy từ wf_tasks.client_price (Dự kiến) ⇒ sửa ngay trong Tổng quan được, y như tab Task.
   // false = giá đã chốt trên phiếu nghiệm thu ⇒ sửa ở phiếu, không sửa ở đây.
   editable: boolean;
@@ -327,7 +328,15 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   const fulltimeWorkerSet = new Set((ftRows || []).map((r: any) => r.worker_id as string));
   const { data: openTasks } = await supabase
     .from('wf_tasks')
-    .select('id, title, project, client_name, clickup_folder_name, client_price, price, currency, clickup_status, payment_status, clickup_space_name, completed_at, closed_date, clickup_updated_at');
+    .select('id, title, project, client_name, clickup_folder_name, client_price, client_currency, price, currency, clickup_status, payment_status, clickup_space_name, completed_at, closed_date, clickup_updated_at');
+  // Giá khách nhập ₫ (tab Task chọn VND) ⇒ quy về USD TRƯỚC khi cộng — trước 2026-09-24 cột
+  // client_currency bị bỏ qua nên 5 triệu ₫ bị nhân tỷ giá thêm lần nữa thành ~130 tỷ.
+  // Tỷ giá 0 (VCB chưa tải) ⇒ trả 0 thay vì Infinity.
+  const clientPriceUSD = (t: any) => {
+    const cp = Number(t.client_price || 0);
+    if (t.client_currency !== 'VND') return cp;
+    return exchangeRate > 0 ? cp / exchangeRate : 0;
+  };
   // Space nội bộ (marketing/BD/R&D): có task nhưng không bán cho khách ⇒ không đòi giá.
   const { data: spaceRows } = await supabase
     .from('wf_space_settings').select('space_name').eq('is_internal', true);
@@ -360,7 +369,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
     if (isInternal) internalTaskIds.add(t.id);
     else {
       projTaskCount++;
-      const cp = Number(t.client_price || 0);
+      const cp = clientPriceUSD(t);
       if (cp > 0) projRevenueUSD += cp;
       else tasksWithoutPrice++;
     }
@@ -384,7 +393,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   byTitle.forEach(list => {
     if (list.length < 2) return;
     duplicateTasks += list.length - 1;
-    duplicateRevenueUSD += list.slice(1).reduce((s, t) => s + Number(t.client_price || 0), 0);
+    duplicateRevenueUSD += list.slice(1).reduce((s, t) => s + clientPriceUSD(t), 0);
   });
 
   // Chia doanh thu dự kiến cho người làm theo share_pct (cùng quy tắc với số thực tế)
@@ -409,7 +418,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       if (!t || internalTaskIds.has(t.id)) return;
       const cur = projByWorker.get(a.worker_id) || { count: 0, revenue: 0, tasks: [] as FulltimeTaskDetail[] };
       const penaltyPct = fixPenaltyPct(t.id);
-      const price = Number(t.client_price || 0) * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
+      const price = clientPriceUSD(t) * Number(a.share_pct || 0) / 100 * (1 - penaltyPct / 100);
       cur.count += 1;
       cur.revenue += price;
       cur.tasks.push({
@@ -421,6 +430,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         penaltyPct,
         taskId: t.id,
         clientPrice: Number(t.client_price || 0),
+        clientCurrency: t.client_currency === 'VND' ? 'VND' : 'USD',
         editable: true,
       });
       projByWorker.set(a.worker_id, cur);
@@ -592,6 +602,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
                 penaltyPct,
                 taskId: at.task_id,
                 clientPrice: Number(at.client_price || 0),
+                clientCurrency: 'USD', // giá trên phiếu nghiệm thu: nhánh Thực tế vẫn coi là USD (chưa đọc currency phiếu)
                 editable: false,
               });
               target.set(a.worker_id, current);

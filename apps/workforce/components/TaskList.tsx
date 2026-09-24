@@ -18,6 +18,9 @@ interface TaskListProps {
   onRefresh: () => void;
   onToast: (msg: string, type: 'success' | 'error') => void;
   vcbSellRate: number;
+  // Mở sẵn editor của task này khi vào tab (bấm tên task từ Tổng quan). Gọi onFocusConsumed sau khi xử lý.
+  focusTaskId?: string | null;
+  onFocusConsumed?: () => void;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -36,6 +39,7 @@ const TaskList: React.FC<TaskListProps> = ({
   filterStatus, setFilterStatus,
   filterWorker, setFilterWorker,
   onUpdate, onRefresh, onToast, vcbSellRate,
+  focusTaskId, onFocusConsumed,
 }) => {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; skipped: number; total: number } | null>(null);
@@ -70,6 +74,26 @@ const TaskList: React.FC<TaskListProps> = ({
     clickup.loadExclusions().then(setExclusions).catch(() => {});
     fetchAcceptedTaskIds().then(setAcceptedTaskIds).catch(() => {});
   }, []);
+
+  // Mở từ Tổng quan (bấm tên task ở bảng hiệu suất): xoá mọi bộ lọc, lọc đúng tên task,
+  // chuyển sang dạng danh sách rồi mở editor — sếp đổi giá khách / USD↔VND tại đây.
+  useEffect(() => {
+    if (!focusTaskId || isLoading) return;
+    const t = tasks.find(x => x.id === focusTaskId);
+    if (!t) {
+      // `tasks` đã qua bộ lọc trạng thái/người làm của hook — xoá rồi đợi render sau.
+      if (filterStatus || filterWorker) { setFilterStatus(''); setFilterWorker(''); return; }
+      onFocusConsumed?.();
+      onToast('Không tìm thấy task trong danh sách (khác sổ công ty hoặc chưa gán người làm)', 'error');
+      return;
+    }
+    onFocusConsumed?.();
+    setPreset(''); setFilterSpace(''); setFilterFolder(''); setFilterList('');
+    setFilterPaymentStatus(''); setFilterAcceptance(''); setSelectedStatuses([]);
+    setFilterSearch(t.title);
+    setViewMode('list');
+    openEditor(t);
+  }, [focusTaskId, isLoading, tasks, filterStatus, filterWorker]);
 
   // Apply local hierarchy filters
   const filteredDisplayTasks = tasks.filter(t => {
