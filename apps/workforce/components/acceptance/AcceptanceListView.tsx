@@ -26,13 +26,34 @@ interface AcceptanceListViewProps {
   onDelete: (id: string) => void;
 }
 
-const fmtUSD = (n: number) => `$${n.toLocaleString('en-US')}`;
+// Phiếu có currency riêng (USD/VND) — tab này không có tỷ giá nên KHÔNG quy đổi,
+// hiển thị theo đúng đơn vị của phiếu; tổng tách riêng từng currency.
+const fmtMoney = (n: number, currency?: string | null) =>
+  currency === 'VND' ? `${Math.round(n).toLocaleString('vi-VN')}₫` : `$${n.toLocaleString('en-US')}`;
+
+const sumByCurrency = (list: ProjectAcceptance[]) => list.reduce(
+  (acc, a) => {
+    const key = a.currency === 'VND' ? 'vnd' : 'usd';
+    acc[key] += acceptanceNetAmount(a);
+    return acc;
+  },
+  { usd: 0, vnd: 0 },
+);
+
+const MoneyTotal: React.FC<{ total: { usd: number; vnd: number }; className: string }> = ({ total, className }) => (
+  <>
+    <p className={`text-2xl font-black ${className}`}>{fmtMoney(total.usd, 'USD')}</p>
+    {total.vnd > 0 && (
+      <p className={`text-sm font-black mt-0.5 ${className}`}>+ {fmtMoney(total.vnd, 'VND')}</p>
+    )}
+  </>
+);
 
 const AcceptanceListView: React.FC<AcceptanceListViewProps> = ({
   acceptances, onOpenDetail, onCreateNew, onDelete,
 }) => {
-  const totalAccepted = acceptances.filter(a => a.status === 'accepted').reduce((s, a) => s + acceptanceNetAmount(a), 0);
-  const totalPending = acceptances.filter(a => a.status !== 'accepted').reduce((s, a) => s + acceptanceNetAmount(a), 0);
+  const totalAccepted = sumByCurrency(acceptances.filter(a => a.status === 'accepted'));
+  const totalPending = sumByCurrency(acceptances.filter(a => a.status !== 'accepted'));
 
   return (
     <div className="animate-fadeInUp space-y-8">
@@ -60,11 +81,11 @@ const AcceptanceListView: React.FC<AcceptanceListViewProps> = ({
         </div>
         <div className="p-5 rounded-[20px] border border-blue-500/10 bg-surface">
           <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">Accepted Value</p>
-          <p className="text-2xl font-black text-blue-400">{fmtUSD(totalAccepted)}</p>
+          <MoneyTotal total={totalAccepted} className="text-blue-400" />
         </div>
         <div className="p-5 rounded-[20px] border border-blue-500/10 bg-surface">
           <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">Pending</p>
-          <p className="text-2xl font-black text-amber-400">{fmtUSD(totalPending)}</p>
+          <MoneyTotal total={totalPending} className="text-amber-400" />
         </div>
       </div>
 
@@ -104,7 +125,7 @@ const AcceptanceListView: React.FC<AcceptanceListViewProps> = ({
                   </span>
                 </div>
                 <p className="text-neutral-medium text-xs">{a.total_tasks} tasks</p>
-                <p className="text-blue-400 font-black text-2xl mt-3">{fmtUSD(acceptanceNetAmount(a))}</p>
+                <p className="text-blue-400 font-black text-2xl mt-3">{fmtMoney(acceptanceNetAmount(a), a.currency)}</p>
                 {a.notes && <p className="text-neutral-medium/60 text-[11px] mt-2 line-clamp-1 italic">📝 {a.notes}</p>}
                 <p className="text-neutral-medium/30 text-[9px] mt-2">🔄 {a.created_at ? new Date(a.created_at).toLocaleString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}</p>
               </div>
