@@ -575,18 +575,24 @@ export async function selfCheckIn(
 
 /**
  * Bấm giờ ra trên bản ghi hôm nay: `check_out` (mặc định) hoặc 2 cột tăng ca.
- * Vị trí đã được widget chặn trước khi gọi (ngoài bán kính VP thì không cho bấm).
+ * Toạ độ gửi kèm để trigger `att_records_guard_stamp_geo` kiểm bán kính VP phía server
+ * (miễn khi ngày Remote / Sự kiện — lúc đó truyền null).
  * ponytail: OT chỉ ghi timestamp — `overtime_minutes` vẫn do HR chốt tay theo tháng,
  * nên bấm nhầm không đụng vào lương; Discord có thông báo để quản lý theo dõi.
  */
 export async function selfCheckOut(
   recordId: string,
-  field: 'check_out' | 'ot_check_in' | 'ot_check_out' = 'check_out'
+  field: 'check_out' | 'ot_check_in' | 'ot_check_out' = 'check_out',
+  coords: { lat: number; lng: number } | null = null,
 ): Promise<AttRecord> {
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('att_records')
-    .update({ [field]: now })
+    .update({
+      [field]: now,
+      last_stamp_lat: coords?.lat ?? null,
+      last_stamp_lng: coords?.lng ?? null,
+    })
     .eq('id', recordId)
     .select('*')
     .single();

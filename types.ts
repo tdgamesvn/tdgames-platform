@@ -967,6 +967,8 @@ export interface AttRecord {
   // GPS audit (geo check-in only)
   check_in_lat?: number;
   check_in_lng?: number;
+  last_stamp_lat?: number | null;
+  last_stamp_lng?: number | null;
   // joined
   employee?: HrEmployee;
   shift?: AttShift;

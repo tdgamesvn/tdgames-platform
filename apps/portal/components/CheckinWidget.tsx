@@ -61,6 +61,8 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const [remoteStatus, setRemoteStatus] = useState<'approved' | 'pending' | null>(null);
   // Nút OT chỉ hiện khi Admin đã tạo lịch OT (att_holidays.kind='ot') — DB trigger cũng chặn.
   const [isOtDay, setIsOtDay] = useState(false);
+  // Ngày "Sự kiện công ty" (att_holidays.kind='event') — đi sự kiện bên ngoài nên miễn bán kính VP.
+  const [isEventDay, setIsEventDay] = useState(false);
   const [liveTimer, setLiveTimer] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -76,6 +78,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
       setOfficeConfig(config);
       setRemoteStatus(remote);
       setIsOtDay(dayKind === 'ot');
+      setIsEventDay(dayKind === 'event');
       if (todayRecord) {
         setRecord(todayRecord);
         setState(todayRecord.check_out ? 'checked_out' : 'checked_in');
@@ -110,8 +113,9 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
       .catch(() => remoteStatus);
     setRemoteStatus(remoteToday);
 
-    // Remote day: bypass geo (đơn còn 'pending' thì vẫn phải đứng ở VP — RLS cũng chặn)
-    if (remoteToday === 'approved') {
+    // Có đơn Remote (đã duyệt HOẶC đang chờ — quản lý duyệt muộn không được làm mất công):
+    // bỏ qua GPS. RLS att_selfcheckin_valid cũng chấp nhận cả 2 trạng thái.
+    if (remoteToday) {
       setState('gps_requesting');
       try {
         const r = await selfCheckIn(employeeId, 0, 0, 'remote');
@@ -140,19 +144,17 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
           officeConfig.lat,
           officeConfig.lng
         );
-        // Ngoài bán kính VP vẫn cho chấm (chưa cần đơn Remote duyệt) — toạ độ được lưu để HR
-        // đối chiếu; RLS (att_selfcheckin_valid) cũng không kiểm bán kính nữa.
-        const outside = dist > officeConfig.radius_meters;
+        // Ngoài bán kính VP ⇒ chặn (trừ ngày Sự kiện). RLS att_selfcheckin_valid kiểm lại y hệt.
+        if (dist > officeConfig.radius_meters && !isEventDay) {
+          setOutOfRangeDistance(Math.round(dist));
+          setState('out_of_range');
+          return;
+        }
         try {
           const r = await selfCheckIn(employeeId, pos.coords.latitude, pos.coords.longitude, 'geo');
           setRecord(r);
           setState('checked_in');
-          onToast(
-            outside
-              ? `✅ Đã chấm công — ngoài VP ~${Math.round(dist)}m`
-              : '✅ Chấm công thành công!',
-            'success',
-          );
+          onToast('✅ Chấm công thành công!', 'success');
         } catch {
           onToast('Lỗi khi lưu check in. Thử lại sau.', 'error');
           setState('not_checked_in');
@@ -165,10 +167,14 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
 
   type StampField = 'check_out' | 'ot_check_in' | 'ot_check_out';
 
-  const saveStamp = async (field: StampField, back: WidgetState) => {
+  const saveStamp = async (
+    field: StampField,
+    back: WidgetState,
+    coords: { lat: number; lng: number } | null,
+  ) => {
     if (!record) return;
     try {
-      const r = await selfCheckOut(record.id, field);
+      const r = await selfCheckOut(record.id, field, coords);
       setRecord(r);
       setState('checked_out');
       if (field === 'check_out') {
@@ -180,7 +186,7 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
         onToast(`🟣 Kết thúc tăng ca — ${formatDuration(r.ot_check_in!, r.ot_check_out!).hm}`, 'success');
       }
     } catch (e) {
-      // Trigger att_records_guard_ot ném lý do (không có lịch OT) — hiện thẳng cho nhân viên.
+      // Trigger att_records_guard_ot / att_records_guard_stamp_geo ném lý do — hiện thẳng cho NV.
       onToast((e as { message?: string })?.message || 'Lỗi khi lưu. Thử lại sau.', 'error');
       setState(back);
     }
@@ -188,13 +194,14 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
 
   /**
    * Check-out và bấm giờ OT đều phải ở trong bán kính VP — về nhà rồi mới bấm thì không tính.
-   * Quên bấm ⇒ hôm sau làm đơn giải trình cho Admin duyệt (không mở cửa sau ở đây).
+   * Miễn khi có đơn Remote (duyệt/chờ) hoặc ngày Sự kiện. Trigger att_records_guard_stamp_geo
+   * kiểm lại phía server. Quên bấm ⇒ hôm sau làm đơn giải trình cho Admin duyệt.
    */
   const handleStamp = async (field: StampField) => {
     if (!record) return;
     const back: WidgetState = field === 'check_out' ? 'checked_in' : 'checked_out';
-    // Ngày WFH đã được duyệt thì không có VP nào để đứng gần.
-    if (remoteStatus === 'approved' || record.method === 'remote') return saveStamp(field, back);
+    // Ngày WFH (đơn đã duyệt hoặc đang chờ) thì không có VP nào để đứng gần.
+    if (remoteStatus || record.method === 'remote') return saveStamp(field, back, null);
 
     setRetryTo(back);
     if (!officeConfig || !navigator.geolocation) {
@@ -207,11 +214,13 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
         const dist = haversineDistance(
           pos.coords.latitude, pos.coords.longitude, officeConfig.lat, officeConfig.lng,
         );
-        // Ngoài bán kính VP vẫn cho bấm (cùng quy tắc với check-in).
-        if (dist > officeConfig.radius_meters) {
-          onToast(`📍 Ngoài VP ~${Math.round(dist)}m — vẫn ghi nhận`, 'success');
+        // Cùng quy tắc với check-in: ngoài bán kính ⇒ chặn, trừ ngày Sự kiện.
+        if (dist > officeConfig.radius_meters && !isEventDay) {
+          setOutOfRangeDistance(Math.round(dist));
+          setState('out_of_range');
+          return;
         }
-        saveStamp(field, back);
+        saveStamp(field, back, { lat: pos.coords.latitude, lng: pos.coords.longitude });
       },
       () => setState('gps_denied'),
       { enableHighAccuracy: true, timeout: 10000 },
