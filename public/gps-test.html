@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Test GPS chấm công</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0F0F0F; color: #eee; font-family: -apple-system, system-ui, sans-serif; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: #888; font-size: 12px; margin-bottom: 16px; }
+  .card { background: #1A1A1A; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+  .label { font-size: 10px; font-weight: 900; color: #777; text-transform: uppercase; letter-spacing: .05em; }
+  .big { font-size: 34px; font-weight: 900; }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  .ok { color: #34C759; } .bad { color: #FF3B30; } .warn { color: #FF9500; }
+  .verdict { font-size: 20px; font-weight: 900; padding: 12px; border-radius: 10px; text-align: center; }
+  .verdict.ok { background: rgba(52,199,89,.12); } .verdict.bad { background: rgba(255,59,48,.12); }
+  input { width: 100%; background: #111; border: 1px solid rgba(255,255,255,.1); color: #eee; border-radius: 8px; padding: 8px; font-size: 14px; }
+  button { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: 900; font-size: 15px; margin-top: 8px; }
+  .primary { background: #FF9500; color: #000; }
+  .secondary { background: transparent; color: #eee; border: 1px solid rgba(255,255,255,.15); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td, th { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,.06); text-align: left; }
+  th { color: #777; font-size: 10px; text-transform: uppercase; }
+  .mono { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #aaa; }
+  .note { font-size: 12px; color: #999; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <h1>📍 Test độ chính xác GPS chấm công</h1>
+  <div class="sub">Trang test độc lập — không đăng nhập, không ghi dữ liệu. Công thức khoảng cách giống hệt app & server (Haversine, R = 6.371.000m).</div>
+
+  <div class="card">
+    <div class="label">Kết quả nếu bấm chấm công lúc này</div>
+    <div id="verdict" class="verdict" style="margin-top:8px">Đang lấy vị trí…</div>
+    <div class="row" style="margin-top:12px">
+      <div><div class="label">Khoảng cách tới VP</div><div class="big" id="dist">—</div></div>
+      <div><div class="label">Sai số GPS (±)</div><div class="big" id="acc">—</div></div>
+    </div>
+    <div class="note" id="range" style="margin-top:6px"></div>
+    <div class="mono" id="coords" style="margin-top:6px"></div>
+    <button class="primary" id="btnTry">Bấm thử chấm công (giống app)</button>
+    <div class="note" style="margin-top:6px">Nút trên dùng đúng cấu hình app: <code>enableHighAccuracy</code>, timeout 10 giây, lấy 1 lần. Số ở trên cập nhật liên tục.</div>
+  </div>
+
+  <div class="card">
+    <div class="label">Lịch sử bấm thử</div>
+    <table style="margin-top:8px">
+      <thead><tr><th>Giờ</th><th>Cách VP</th><th>±Sai số</th><th>Kết quả</th><th>Ghi chú</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table>
+    <button class="secondary" id="btnCopy">Copy lịch sử (gửi lại để phân tích)</button>
+  </div>
+
+  <div class="card">
+    <div class="label">Cấu hình văn phòng</div>
+    <div class="row" style="margin-top:8px">
+      <div><div class="label">Lat</div><input id="lat" inputmode="decimal" /></div>
+      <div><div class="label">Lng</div><input id="lng" inputmode="decimal" /></div>
+    </div>
+    <div style="margin-top:8px"><div class="label">Bán kính (m)</div><input id="radius" inputmode="numeric" /></div>
+    <div class="note" style="margin-top:6px">Mặc định = cấu hình đang chạy trên prod (bảng <code>att_office_config</code>). Sửa ở đây chỉ để thử, không lưu vào hệ thống.</div>
+    <button class="secondary" id="btnReset">Khôi phục cấu hình prod</button>
+  </div>
+
+<script>
+  const PROD = { lat: 21.0000443, lng: 105.8697537, radius: 150 };
+  const $ = (id) => document.getElementById(id);
+  const log = [];
+  let last = null;
+
+  function haversine(lat1, lng1, lat2, lng2) {
+    const R = 6371000, r = (d) => d * Math.PI / 180;
+    const dLat = r(lat2 - lat1), dLng = r(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(r(lat1)) * Math.cos(r(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  function cfg() { return { lat: +$('lat').value, lng: +$('lng').value, radius: +$('radius').value }; }
+  function setCfg(c) { $('lat').value = c.lat; $('lng').value = c.lng; $('radius').value = c.radius; render(); }
+
+  function evaluate(pos) {
+    const c = cfg();
+    const d = haversine(pos.coords.latitude, pos.coords.longitude, c.lat, c.lng);
+    return { d, acc: pos.coords.accuracy, pass: d <= c.radius, c };
+  }
+
+  function render() {
+    if (!last) return;
+    const { d, acc, pass, c } = evaluate(last);
+    $('dist').textContent = Math.round(d) + 'm';
+    $('acc').textContent = Math.round(acc) + 'm';
+    $('acc').className = 'big ' + (acc <= 20 ? 'ok' : acc <= 50 ? 'warn' : 'bad');
+    const v = $('verdict');
+    v.className = 'verdict ' + (pass ? 'ok' : 'bad');
+    v.textContent = pass ? `✅ CHẤM ĐƯỢC (≤ ${c.radius}m)` : `❌ BỊ CHẶN (> ${c.radius}m)`;
+    const lo = Math.max(0, Math.round(d - acc)), hi = Math.round(d + acc);
+    const unsure = lo <= c.radius && hi > c.radius;
+    $('range').innerHTML = `Vị trí thật có thể cách VP từ <b>${lo}m</b> đến <b>${hi}m</b>` +
+      (unsure ? ' — <span class="warn">đang ở vùng biên, bấm có thể lúc được lúc không</span>' : '');
+    $('coords').textContent = `${last.coords.latitude.toFixed(7)}, ${last.coords.longitude.toFixed(7)} · cập nhật ${new Date(last.timestamp).toLocaleTimeString('vi-VN')}`;
+  }
+
+  function geoError(e) {
+    const msg = { 1: 'Chưa cho phép quyền vị trí', 2: 'Không xác định được vị trí', 3: 'Hết thời gian chờ GPS (10s)' }[e.code] || e.message;
+    return msg;
+  }
+
+  if (!('geolocation' in navigator)) {
+    $('verdict').textContent = 'Trình duyệt không hỗ trợ GPS';
+  } else {
+    navigator.geolocation.watchPosition(
+      (p) => { last = p; render(); },
+      (e) => { $('verdict').className = 'verdict bad'; $('verdict').textContent = '⚠️ ' + geoError(e); },
+      { enableHighAccuracy: true, maximumAge: 0 }
+    );
+  }
+
+  $('btnTry').onclick = () => {
+    const btn = $('btnTry'); btn.disabled = true; btn.textContent = 'Đang lấy vị trí…';
+    const note = prompt('Ghi chú vị trí đang đứng (vd: cổng tòa nhà, quán cafe đối diện) — có thể bỏ trống:') || '';
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        const { d, acc, pass } = evaluate(p);
+        log.unshift({ t: new Date().toLocaleTimeString('vi-VN'), d: Math.round(d), acc: Math.round(acc), pass, note,
+                      lat: p.coords.latitude.toFixed(7), lng: p.coords.longitude.toFixed(7) });
+        drawLog(); done();
+      },
+      (e) => { log.unshift({ t: new Date().toLocaleTimeString('vi-VN'), d: '—', acc: '—', pass: null, note: note + ' [' + geoError(e) + ']' }); drawLog(); done(); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+    function done() { btn.disabled = false; btn.textContent = 'Bấm thử chấm công (giống app)'; }
+  };
+
+  function drawLog() {
+    $('log').innerHTML = log.map(r => `<tr><td>${r.t}</td><td>${r.d}${r.d === '—' ? '' : 'm'}</td><td>${r.acc}${r.acc === '—' ? '' : 'm'}</td>` +
+      `<td class="${r.pass ? 'ok' : 'bad'}">${r.pass === null ? 'Lỗi' : r.pass ? '✅ Được' : '❌ Chặn'}</td><td>${r.note}</td></tr>`).join('');
+  }
+
+  $('btnCopy').onclick = async () => {
+    const c = cfg();
+    const text = `VP ${c.lat},${c.lng} bán kính ${c.radius}m\n` +
+      log.slice().reverse().map(r => `${r.t}\t${r.d}m\t±${r.acc}m\t${r.pass === null ? 'Lỗi' : r.pass ? 'ĐƯỢC' : 'CHẶN'}\t${r.lat || ''},${r.lng || ''}\t${r.note}`).join('\n');
+    try { await navigator.clipboard.writeText(text); alert('Đã copy ' + log.length + ' lần bấm'); }
+    catch { prompt('Copy đoạn này:', text); }
+  };
+
+  $('btnReset').onclick = () => setCfg(PROD);
+  ['lat', 'lng', 'radius'].forEach(id => $(id).addEventListener('input', render));
+  setCfg(PROD);
+</script>
+</body>
+</html>
