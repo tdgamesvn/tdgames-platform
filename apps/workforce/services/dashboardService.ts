@@ -8,7 +8,12 @@ export interface FulltimeKPI {
   workerId: string;
   fullName: string;
   period: string; // "YYYY-MM"
-  totalCompanyCost: number; // Cost in VND
+  totalCompanyCost: number; // Cost in VND — lương + BH công ty (từ bảng lương), CHƯA gồm gián tiếp
+  // Chi phí gián tiếp (operationalExpenses của tháng) chia ĐỀU cho NV fulltime có lương trong tháng.
+  // Sếp chốt 2026-09-30: tính vào Lãi/Lỗ + ROI + hạng A–F; KHÔNG vào target/thưởng KPI (vẫn theo gross).
+  // Cộng các dòng NV = operationalExpenses (trừ tháng không NV fulltime nào có lương ⇒ không chia).
+  overheadCost: number;
+  projOverheadCost: number;
   totalTaskRevenue: number; // Revenue in USD
   totalTaskCount: number;
   // Phiếu nghiệm thu draft/sent (khách chưa duyệt) — KHÔNG vào Thực tế, chỉ vào Dự kiến.
@@ -543,7 +548,14 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   });
 
   const fulltimeBreakdown: FulltimeKPI[] = [];
-  
+
+  // Chi phí gián tiếp / đầu người — mẫu số là NV fulltime CÓ lương trong tháng (thực tế theo
+  // bảng lương, dự kiến theo lương ước) nên người vào/nghỉ giữa kỳ không làm lệch tổng.
+  const actualHeads = hrEmployees.filter(e => (fulltimeCostsMap.get(e.id) || 0) > 0).length;
+  const projHeads = hrEmployees.filter(e => (projCostMap.get(e.id) ?? fulltimeCostsMap.get(e.id) ?? 0) > 0).length;
+  const overheadPerHead = actualHeads > 0 ? operationalExpenses / actualHeads : 0;
+  const projOverheadPerHead = projHeads > 0 ? operationalExpenses / projHeads : 0;
+
   if (hrEmployees) {
     const fulltimeWorkerIds = hrEmployees.map(e => e.worker_id).filter(Boolean) as string[];
     
@@ -625,15 +637,17 @@ export async function getDashboardData(month: number, year: number, exchangeRate
 
     hrEmployees.forEach(emp => {
       const cost = fulltimeCostsMap.get(emp.id) || 0;
+      const overheadCost = cost > 0 ? overheadPerHead : 0;
       const workerId = emp.worker_id;
       const taskData = workerId ? taskRevenues.get(workerId) : null;
-      
+
       const revUSD = taskData?.revenue || 0;
       const revVND = revUSD * exchangeRate;
       const count = taskData?.count || 0;
-      
-      const pnl = revVND - cost;
-      const roi = cost > 0 ? (pnl / cost) * 100 : 0;
+
+      const fullCost = cost + overheadCost;
+      const pnl = revVND - fullCost;
+      const roi = fullCost > 0 ? (pnl / fullCost) * 100 : 0;
       
       let kpiScore: FulltimeKPI['kpiScore'] = 'N/A';
       if (cost > 0 || revUSD > 0) {
@@ -659,6 +673,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const projRevUSD = revUSD + pendingRevenueUSD + (projData?.revenue || 0);
       const projRevVND = projRevUSD * exchangeRate;
       const projCost = projCostMap.get(emp.id) ?? cost;
+      const projOverheadCost = projCost > 0 ? projOverheadPerHead : 0;
       // NV đã nghỉ mà tháng này không có lương, không có task ⇒ bỏ qua
       if (emp.status !== 'active' && cost === 0 && count === 0 && projRevUSD === 0 && projCost === 0) return;
       const projGross = projGrossMap.get(emp.id) ?? gross;
@@ -682,6 +697,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
         fullName: emp.full_name,
         period: periodStr,
         totalCompanyCost: cost,
+        overheadCost,
+        projOverheadCost,
         totalTaskRevenue: revUSD,
         totalTaskCount: count,
         profitLoss: pnl,
@@ -764,6 +781,7 @@ export async function getDashboardDataRange(
         projTaskCount: k.totalTaskCount + k.pendingTaskCount,
         projRevenueUSD: k.totalTaskRevenue + k.pendingRevenueUSD,
         projCost: k.totalCompanyCost,
+        projOverheadCost: k.overheadCost,
         projGross: k.grossActual,
         projTasks: [...k.tasks, ...k.pendingTasks],
       })),
@@ -781,6 +799,8 @@ export async function getDashboardDataRange(
     const cur = empMap.get(k.employeeId);
     if (!cur) { empMap.set(k.employeeId, { ...k, tasks: [...k.tasks], projTasks: [...k.projTasks] }); return; }
     cur.totalCompanyCost += k.totalCompanyCost;
+    cur.overheadCost += k.overheadCost;
+    cur.projOverheadCost += k.projOverheadCost;
     cur.totalTaskRevenue += k.totalTaskRevenue;
     cur.totalTaskCount += k.totalTaskCount;
     cur.grossActual += k.grossActual;
@@ -797,10 +817,11 @@ export async function getDashboardDataRange(
   const fulltimeBreakdown = [...empMap.values()].map(k => {
     const revVND = k.totalTaskRevenue * exchangeRate;
     const projRevVND = k.projRevenueUSD * exchangeRate;
-    const pnl = revVND - k.totalCompanyCost;
-    const roi = k.totalCompanyCost > 0 ? (pnl / k.totalCompanyCost) * 100 : 0;
+    const fullCost = k.totalCompanyCost + k.overheadCost;
+    const pnl = revVND - fullCost;
+    const roi = fullCost > 0 ? (pnl / fullCost) * 100 : 0;
     let kpiScore: FulltimeKPI['kpiScore'] = 'N/A';
-    if (k.totalCompanyCost > 0) {
+    if (fullCost > 0) {
       if (roi >= 150) kpiScore = 'A';
       else if (roi >= 100) kpiScore = 'B';
       else if (roi >= 50) kpiScore = 'C';

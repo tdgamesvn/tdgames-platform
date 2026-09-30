@@ -268,7 +268,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                       // Hiệu suất fulltime ⇒ nói rõ để cộng các dòng NV + số này = tổng.
                       sub: data.payrollNonFulltime > 0 ? `Trong đó ${formatVND(data.payrollNonFulltime)} là freelancer/parttime trả qua bảng lương (không ở bảng fulltime)` : null },
                     { label: 'Freelancer Payments', hint: 'Thanh toán nghiệm thu', actual: data.freelancerPayments, proj: data.projected.freelancerCost, sub: null },
-                    { label: 'Operational Expenses', hint: 'Chi phí vận hành khác', actual: data.operationalExpenses, proj: data.operationalExpenses, sub: null },
+                    { label: 'Operational Expenses', hint: 'Chi phí vận hành khác — chia đều cho NV fulltime ở bảng hiệu suất', actual: data.operationalExpenses, proj: data.operationalExpenses, sub: null },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between items-end border-b border-white/5 pb-3">
                       <div>
@@ -362,7 +362,7 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                         <th className="pb-3 font-medium text-center">Tasks</th>
                         <th className="pb-3 font-medium text-center" title="Số lần task bị trả về FIX (ghi từ lúc bật tính năng)">FIX</th>
                         <th className="pb-3 font-medium text-right" title="Giá trị hiệu suất = giá task × share − trừ FIX. Doanh thu công ty không đổi.">Doanh Thu</th>
-                        <th className="pb-3 font-medium text-right">Chi Phí</th>
+                        <th className="pb-3 font-medium text-right" title="Lương + BH công ty đóng (bảng lương) + chi phí gián tiếp chia đều đầu người">Chi Phí</th>
                         <th className="pb-3 font-medium text-right">Lãi/Lỗ</th>
                         <th className="pb-3 font-medium text-center">% KPI</th>
                         <th className="pb-3 font-medium text-right">Thưởng (tham khảo)</th>
@@ -379,13 +379,15 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                         [...data.fulltimeBreakdown].sort((a, b) => {
                           // Sort theo ROI của cột ĐANG XEM (thực tế / dự kiến), không phải luôn ROI thực tế
                           const roi = (e: typeof a) => {
-                            const c = showProj ? e.projCost : e.totalCompanyCost;
+                            const c = showProj ? e.projCost + e.projOverheadCost : e.totalCompanyCost + e.overheadCost;
                             return c > 0 ? ((showProj ? e.projRevenueUSD : e.totalTaskRevenue) * exchangeRate - c) / c : 0;
                           };
                           return roi(b) - roi(a);
                         }).map(emp => {
                           const revUSD = showProj ? emp.projRevenueUSD : emp.totalTaskRevenue;
-                          const cost = showProj ? emp.projCost : emp.totalCompanyCost;
+                          // Chi phí thật = lương + BH (bảng lương) + phần chi phí gián tiếp chia đầu người
+                          const overhead = showProj ? emp.projOverheadCost : emp.overheadCost;
+                          const cost = (showProj ? emp.projCost : emp.totalCompanyCost) + overhead;
                           const gross = showProj ? emp.projGross : emp.grossActual;
                           const v = {
                             count: showProj ? emp.projTaskCount : emp.totalTaskCount,
@@ -420,7 +422,14 @@ export const FinancialDashboard: React.FC<FinancialDashboardProps> = ({ vcbAvgRa
                               )}
                             </td>
                             <td className="py-3 text-right font-mono text-emerald-400">{formatVND(v.revVND)}</td>
-                            <td className="py-3 text-right font-mono text-red-400">{formatVND(v.cost)}</td>
+                            <td className="py-3 text-right font-mono text-red-400">
+                              {formatVND(v.cost)}
+                              {overhead > 0 && (
+                                <p className="text-[10px] text-neutral-medium" title="Chi phí vận hành của tháng (văn phòng, phần mềm, điện nước…) chia đều cho NV fulltime có lương">
+                                  gồm {formatVND(overhead)} gián tiếp
+                                </p>
+                              )}
+                            </td>
                             <td className="py-3 text-right font-mono">
                               <span className={v.pnl >= 0 ? 'text-blue-400' : 'text-orange-400'}>
                                 {v.pnl >= 0 ? '+' : ''}{formatVND(v.pnl)}
