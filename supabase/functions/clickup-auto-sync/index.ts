@@ -19,7 +19,7 @@ function getSupabaseAdmin() {
 /**
  * Auth: x-cron-secret (pg_cron) HOẶC Bearer JWT hợp lệ. Thiếu cả hai → 401.
  * Mẫu copy từ outreach-auto-batch. Không có client nào trong app gọi hàm này,
- * chỉ 2 cron job clickup-auto-sync-morning/-evening (đã thêm secret vào cron.job).
+ * chỉ cron clickup-auto-sync-hourly (0 * * * *, từ 2026-09-30; secret đọc runtime trong cron.job).
  * Trả về null nếu hợp lệ, Response 401 nếu không.
  */
 async function requireCronOrUser(req: Request): Promise<Response | null> {
@@ -121,7 +121,7 @@ async function getListTasks(token: string, listId: string): Promise<any[]> {
  * Đồng bộ người làm sang wf_task_assignees (nguồn sự thật từ 2026-08-19).
  * Giữ nguyên share_pct + payment_status đã có; người mới chỉ nhận phần % còn trống.
  */
-async function syncAssignees(supabase: any, taskId: string, workerIds: string[]) {
+async function syncAssignees(supabase: any, taskId: string, workerIds: string[], allMatched = false) {
   if (workerIds.length === 0) return;
   const { data: cur } = await supabase
     .from("wf_task_assignees").select("worker_id, share_pct, payment_status").eq("task_id", taskId);
@@ -135,6 +135,19 @@ async function syncAssignees(supabase: any, taskId: string, workerIds: string[])
   const rest = Math.max(0, 100 - kept.reduce((s, id) => s + (shareOf.get(id) || 0), 0));
   const n = added.length;
   const base = n > 0 ? Math.floor(rest / n) : 0;
+
+  // Xoá bớt người trên ClickUp, không ai được thêm ⇒ phần % của người bị xoá chia lại cho người
+  // còn lại theo tỷ lệ đang có (trước 30/9 bị bỏ trống: Amanda Waller còn 1 người mà 50%).
+  // CHỈ khi mọi assignee ClickUp đều khớp worker — còn người ngoài app (vd Châu FL-010 đã nghỉ)
+  // thì phần trống là của họ, không dồn cho người khác.
+  const keptSum = kept.reduce((s, id) => s + (shareOf.get(id) || 0), 0);
+  if (n === 0 && kept.length > 0 && keptSum < 100 && allMatched) {
+    kept.forEach((id) => shareOf.set(id, keptSum > 0
+      ? Math.floor((shareOf.get(id) || 0) * 100 / keptSum)
+      : Math.floor(100 / kept.length)));
+    const diff = 100 - kept.reduce((s, id) => s + (shareOf.get(id) || 0), 0);
+    shareOf.set(kept[0], (shareOf.get(kept[0]) || 0) + diff);
+  }
 
   const rows = [
     ...kept.map((id) => ({ task_id: taskId, worker_id: id, share_pct: shareOf.get(id) })),
@@ -151,6 +164,69 @@ async function syncAssignees(supabase: any, taskId: string, workerIds: string[])
   await supabase.from("wf_task_assignees").delete().eq("task_id", taskId);
   const { error } = await supabase.from("wf_task_assignees").insert(rows);
   if (error) console.error(`[clickup-auto-sync] assignee insert failed task=${taskId}:`, error.message);
+}
+
+/**
+ * email ClickUp → worker. wf_workers.email ưu tiên; email + work_email của hồ sơ HR (worker
+ * ĐANG HOẠT ĐỘNG) chỉ bổ sung khi email đó chưa có worker nào (freelancer có wf_workers.email =
+ * email cá nhân ≠ email ClickUp — Đạt FL-011 thiếu task 30/9).
+ *
+ * 1 email ↔ NHIỀU worker: NV nghỉ fulltime rồi hợp tác freelancer, dùng lại email công ty
+ * trên ClickUp (Linh FT-014 → hồ sơ freelancer từ 26/9, sếp chốt 30/9). Chọn:
+ *   1. task đã gán cho 1 trong các worker đó (kể cả gán tay) ⇒ GIỮ — nhờ vậy sửa tay ngoại lệ
+ *      (task Amanda Waller tạo 18/9 nhưng làm dưới dạng freelancer) không bị sync đè.
+ *   2. chưa gán ⇒ theo ngày tạo task: hồ sơ có start_date gần nhất mà ≤ ngày tạo.
+ */
+function buildResolver(workers: any[], hrRows: any[]) {
+  const startOf = new Map<string, string>();
+  for (const h of hrRows) if (h.start_date) startOf.set(h.worker_id, String(h.start_date));
+  const byEmail = new Map<string, { id: string; from: string }[]>();
+  const add = (email: string | null, id: string) => {
+    const k = (email || "").trim().toLowerCase();
+    if (!k) return;
+    const list = byEmail.get(k) || [];
+    if (!list.some((c) => c.id === id)) list.push({ id, from: startOf.get(id) || "0000-00-00" });
+    byEmail.set(k, list);
+  };
+  const active = new Set<string>();
+  for (const w of workers) {
+    add(w.email, w.id);
+    if (w.is_active) active.add(w.id);
+  }
+  for (const h of hrRows) {
+    if (!active.has(h.worker_id)) continue; // không kéo task cũ của người đã nghỉ
+    for (const e of [h.email, h.work_email]) {
+      const k = (e || "").trim().toLowerCase();
+      if (k && !byEmail.has(k)) add(k, h.worker_id);
+    }
+  }
+
+  const resolve = async (emails: string[], dateCreated: string | undefined, getCur: () => Promise<Set<string>>) => {
+    const day = dateCreated ? new Date(parseInt(dateCreated)).toISOString().slice(0, 10) : "9999-12-31";
+    const out = new Set<string>();
+    let cur: Set<string> | null = null;
+    for (const e of emails) {
+      const c = byEmail.get(e);
+      if (!c?.length) continue;
+      if (c.length === 1) { out.add(c[0].id); continue; }
+      cur ??= await getCur();
+      const kept = c.find((x) => cur!.has(x.id));
+      if (kept) { out.add(kept.id); continue; }
+      const sorted = [...c].sort((a, b) => a.from.localeCompare(b.from));
+      out.add((sorted.filter((x) => x.from <= day).pop() || sorted[0]).id);
+    }
+    return [...out];
+  };
+  // true ⇔ mọi assignee trên ClickUp đều khớp được 1 worker trong app
+  const allMatched = (task: any, emails: string[]) =>
+    emails.length === (task.assignees || []).length && emails.every((e) => byEmail.has(e));
+  return Object.assign(resolve, { allMatched });
+}
+
+async function currentAssignees(supabase: any, clickupTaskId: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("wf_tasks").select("wf_task_assignees(worker_id)").eq("clickup_task_id", clickupTaskId);
+  return new Set((data || []).flatMap((r: any) => (r.wf_task_assignees || []).map((a: any) => a.worker_id)));
 }
 
 async function runAutoSync() {
@@ -176,11 +252,15 @@ async function runAutoSync() {
   }
   log.push(`Team members: ${emailMap.size}`);
 
-  const { data: workers } = await supabase.from("wf_workers").select("id, email");
-  const emailToWorkerId = new Map<string, string>();
-  for (const w of workers || []) {
-    if (w.email) emailToWorkerId.set(w.email.toLowerCase(), w.id);
-  }
+  // Ghép theo wf_workers.email TRƯỚC, rồi thêm email + work_email của hồ sơ HR đã liên kết —
+  // freelancer có wf_workers.email = email cá nhân ≠ email ClickUp (xem clickup-webhook).
+  const [{ data: workers }, { data: hrRows }] = await Promise.all([
+    supabase.from("wf_workers").select("id, email, is_active"),
+    supabase.from("hr_employees").select("worker_id, email, work_email, start_date").not("worker_id", "is", null),
+  ]);
+  const resolver = buildResolver(workers || [], hrRows || []);
+  // Email ClickUp không khớp ai ⇒ log 1 lần/lượt để lần sau thiếu task là thấy ngay.
+  const unmatched = new Set<string>();
 
   let synced = 0;
   let skipped = 0;
@@ -197,11 +277,13 @@ async function runAutoSync() {
           .filter(Boolean);
 
         // TẤT CẢ người khớp, không dừng ở người đầu tiên.
-        const workerIds = [
-          ...new Set(assigneeEmails.map((e: string) => emailToWorkerId.get(e)).filter(Boolean)),
-        ] as string[];
+        const workerIds = await resolver(assigneeEmails, task.date_created, () => currentAssignees(supabase, task.id));
 
-        if (workerIds.length === 0) { skipped++; continue; }
+        if (workerIds.length === 0) {
+          assigneeEmails.forEach((e: string) => unmatched.add(e));
+          skipped++;
+          continue;
+        }
 
         const clickupStatus = task.status?.status || "";
         const ourStatus = mapStatus(clickupStatus);
@@ -228,7 +310,7 @@ async function runAutoSync() {
         const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
 
         if (existing) {
-          await supabase.from("wf_tasks").update({
+          const { error: updErr } = await supabase.from("wf_tasks").update({
             title: task.name,
             clickup_status: clickupStatus,
             status: ourStatus,
@@ -242,7 +324,13 @@ async function runAutoSync() {
             clickup_list_id: list.id,
             synced_at: new Date().toISOString(),
           }).eq("id", existing.id);
-          await syncAssignees(supabase, existing.id, workerIds);
+          // Trước đây không check ⇒ update lỗi vẫn đếm synced, log báo errors=0.
+          if (updErr) {
+            console.error(`[clickup-auto-sync] update failed task=${task.id}:`, updErr.message);
+            errors++;
+            continue;
+          }
+          await syncAssignees(supabase, existing.id, workerIds, resolver.allMatched(task, assigneeEmails));
         } else {
           // ponytail: upsert — auto-sync có thể chạy trùng lúc webhook bắn, cả hai cùng
           // thấy "chưa có" rồi cùng chèn (11 task trùng, migration 20260827180000).
@@ -278,7 +366,7 @@ async function runAutoSync() {
             errors++;
             continue;
           }
-          await syncAssignees(supabase, inserted.id, workerIds);
+          await syncAssignees(supabase, inserted.id, workerIds, resolver.allMatched(task, assigneeEmails));
         }
         synced++;
       }
@@ -293,6 +381,7 @@ async function runAutoSync() {
     .update({ last_synced: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq("id", config.id);
 
+  if (unmatched.size) log.push(`Email ClickUp không khớp worker/HR nào: ${[...unmatched].join(", ")}`);
   log.push(`Done: synced=${synced}, skipped=${skipped}, dupes=${dupes}, errors=${errors}`);
   return { ok: true, synced, skipped, dupes, errors, lists: allLists.length, log };
 }

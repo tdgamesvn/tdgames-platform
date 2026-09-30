@@ -43,7 +43,7 @@ async function clickupFetch(path: string, token: string) {
  * Giữ nguyên share_pct + payment_status của người đã có; người mới chỉ nhận phần %
  * còn trống. wf_tasks.payment_status do trigger sync_task_payment_status lo.
  */
-async function syncAssignees(supabase: any, taskId: string, workerIds: string[]) {
+async function syncAssignees(supabase: any, taskId: string, workerIds: string[], allMatched = false) {
   if (workerIds.length === 0) return;
   const { data: cur } = await supabase
     .from("wf_task_assignees").select("worker_id, share_pct, payment_status").eq("task_id", taskId);
@@ -59,6 +59,19 @@ async function syncAssignees(supabase: any, taskId: string, workerIds: string[])
   const n = added.length;
   const base = n > 0 ? Math.floor(rest / n) : 0;
 
+  // Xoá bớt người trên ClickUp, không ai được thêm ⇒ phần % của người bị xoá chia lại cho người
+  // còn lại theo tỷ lệ đang có (trước 30/9 bị bỏ trống: Amanda Waller còn 1 người mà 50%).
+  // CHỈ khi mọi assignee ClickUp đều khớp worker — còn người ngoài app (vd Châu FL-010 đã nghỉ)
+  // thì phần trống là của họ, không dồn cho người khác.
+  const keptSum = kept.reduce((s, id) => s + (shareOf.get(id) || 0), 0);
+  if (n === 0 && kept.length > 0 && keptSum < 100 && allMatched) {
+    kept.forEach((id) => shareOf.set(id, keptSum > 0
+      ? Math.floor((shareOf.get(id) || 0) * 100 / keptSum)
+      : Math.floor(100 / kept.length)));
+    const diff = 100 - kept.reduce((s, id) => s + (shareOf.get(id) || 0), 0);
+    shareOf.set(kept[0], (shareOf.get(kept[0]) || 0) + diff);
+  }
+
   const rows = [
     ...kept.map((id) => ({ task_id: taskId, worker_id: id, share_pct: shareOf.get(id) })),
     ...added.map((id, i) => ({
@@ -71,6 +84,64 @@ async function syncAssignees(supabase: any, taskId: string, workerIds: string[])
   await supabase.from("wf_task_assignees").delete().eq("task_id", taskId);
   const { error } = await supabase.from("wf_task_assignees").insert(rows);
   if (error) console.error(`[clickup-webhook] assignee insert failed task=${taskId}:`, error.message);
+}
+
+/**
+ * email ClickUp → worker. BẢN SAO của clickup-auto-sync/buildResolver (2 edge function tách
+ * runtime, không share file) — sửa 1 chỗ phải sửa cả 2.
+ * 1 email ↔ nhiều worker: (1) task đã gán cho 1 trong số đó ⇒ giữ (sửa tay không bị đè);
+ * (2) chưa gán ⇒ hồ sơ có start_date gần nhất mà ≤ ngày tạo task.
+ */
+function buildResolver(workers: any[], hrRows: any[]) {
+  const startOf = new Map<string, string>();
+  for (const h of hrRows) if (h.start_date) startOf.set(h.worker_id, String(h.start_date));
+  const byEmail = new Map<string, { id: string; from: string }[]>();
+  const add = (email: string | null, id: string) => {
+    const k = (email || "").trim().toLowerCase();
+    if (!k) return;
+    const list = byEmail.get(k) || [];
+    if (!list.some((c) => c.id === id)) list.push({ id, from: startOf.get(id) || "0000-00-00" });
+    byEmail.set(k, list);
+  };
+  const active = new Set<string>();
+  for (const w of workers) {
+    add(w.email, w.id);
+    if (w.is_active) active.add(w.id);
+  }
+  for (const h of hrRows) {
+    if (!active.has(h.worker_id)) continue;
+    for (const e of [h.email, h.work_email]) {
+      const k = (e || "").trim().toLowerCase();
+      if (k && !byEmail.has(k)) add(k, h.worker_id);
+    }
+  }
+
+  const resolve = async (emails: string[], dateCreated: string | undefined, getCur: () => Promise<Set<string>>) => {
+    const day = dateCreated ? new Date(parseInt(dateCreated)).toISOString().slice(0, 10) : "9999-12-31";
+    const out = new Set<string>();
+    let cur: Set<string> | null = null;
+    for (const e of emails) {
+      const c = byEmail.get(e);
+      if (!c?.length) continue;
+      if (c.length === 1) { out.add(c[0].id); continue; }
+      cur ??= await getCur();
+      const kept = c.find((x) => cur!.has(x.id));
+      if (kept) { out.add(kept.id); continue; }
+      const sorted = [...c].sort((a, b) => a.from.localeCompare(b.from));
+      out.add((sorted.filter((x) => x.from <= day).pop() || sorted[0]).id);
+    }
+    return [...out];
+  };
+  // true ⇔ mọi assignee trên ClickUp đều khớp được 1 worker trong app
+  const allMatched = (task: any, emails: string[]) =>
+    emails.length === (task.assignees || []).length && emails.every((e) => byEmail.has(e));
+  return Object.assign(resolve, { allMatched });
+}
+
+async function currentAssignees(supabase: any, clickupTaskId: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from("wf_tasks").select("wf_task_assignees(worker_id)").eq("clickup_task_id", clickupTaskId);
+  return new Set((data || []).flatMap((r: any) => (r.wf_task_assignees || []).map((a: any) => a.worker_id)));
 }
 
 async function handleWebhookEvent(body: any) {
@@ -135,14 +206,19 @@ async function handleWebhookEvent(body: any) {
     .filter(Boolean);
 
   // TẤT CẢ người khớp, không dừng ở người đầu tiên (task nhiều người).
-  const { data: workers } = await supabase.from("wf_workers").select("id, email");
-  const emailToWorkerId = new Map<string, string>();
-  for (const w of workers || []) {
-    if (w.email) emailToWorkerId.set(w.email.toLowerCase(), w.id);
-  }
-  const matchedWorkerIds = [
-    ...new Set(assigneeEmails.map((e: string) => emailToWorkerId.get(e)).filter(Boolean)),
-  ] as string[];
+  // Ghép theo wf_workers.email TRƯỚC, rồi thêm email + work_email của hồ sơ HR đã liên kết.
+  // Freelancer: wf_workers.email = email CÁ NHÂN (hrService.syncEmployeeToWorkforce) trong khi
+  // ClickUp dùng email công việc ⇒ trước 2026-09-30 mọi task chỉ giao cho người đó bị bỏ qua
+  // ("khong khop worker nao") — Đạt FL-011 thiếu task, FL-010/FT-014 chưa từng được sync.
+  // Chỉ worker ĐANG HOẠT ĐỘNG mới được ghép thêm qua email HR — sếp chốt 30/9 không kéo
+  // task cũ của người đã nghỉ (FL-010, FT-014) vào app thành dòng "chưa thanh toán".
+  // 1 email ↔ nhiều worker (Linh fulltime → freelancer 26/9): xem buildResolver.
+  const [{ data: workers }, { data: hrRows }] = await Promise.all([
+    supabase.from("wf_workers").select("id, email, is_active"),
+    supabase.from("hr_employees").select("worker_id, email, work_email, start_date").not("worker_id", "is", null),
+  ]);
+  const resolver = buildResolver(workers || [], hrRows || []);
+  const matchedWorkerIds = await resolver(assigneeEmails, task.date_created, () => currentAssignees(supabase, taskId));
 
   if (matchedWorkerIds.length === 0) {
     console.log(`[clickup-webhook] skip task=${taskId} — khong khop worker nao. emails=${JSON.stringify(assigneeEmails)}`);
@@ -204,7 +280,7 @@ async function handleWebhookEvent(body: any) {
       clickup_list_name: listName || null,
       synced_at: new Date().toISOString(),
     }).eq("id", existing.id);
-    await syncAssignees(supabase, existing.id, matchedWorkerIds);
+    await syncAssignees(supabase, existing.id, matchedWorkerIds, resolver.allMatched(task, assigneeEmails));
     return { ok: true, action: "updated", taskId, title: task.name, assignees: matchedWorkerIds.length };
   }
 
@@ -241,7 +317,7 @@ async function handleWebhookEvent(body: any) {
     console.error(`[clickup-webhook] insert failed task=${taskId}:`, insErr?.message);
     return { ok: false, error: insErr?.message, taskId };
   }
-  await syncAssignees(supabase, inserted.id, matchedWorkerIds);
+  await syncAssignees(supabase, inserted.id, matchedWorkerIds, resolver.allMatched(task, assigneeEmails));
   return { ok: true, action: "inserted", taskId, title: task.name, assignees: matchedWorkerIds.length };
 }
 
