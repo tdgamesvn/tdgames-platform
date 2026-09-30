@@ -129,6 +129,23 @@ async function findAuthUserByEmail(supabaseAdmin: any, email: string) {
   };
 }
 
+/** Tìm user cho disable/enable/delete_user: ưu tiên `user_id` (= hr_employees.auth_user_id),
+ *  chỉ dùng `email` khi hồ sơ chưa gắn tài khoản. Đoán email từ hồ sơ (freelancer→email,
+ *  fulltime→work_email) sai khi người đăng nhập bằng email khác ⇒ khoá hụt tài khoản. */
+async function findTargetUser(supabaseAdmin: any, body: { user_id?: string; email?: string }) {
+  if (body.user_id) {
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(body.user_id);
+    if (error || !data?.user) return null;
+    return {
+      id: data.user.id,
+      email: data.user.email as string,
+      user_metadata: data.user.user_metadata || {},
+      banned_until: (data.user as any).banned_until,
+    };
+  }
+  return body.email ? findAuthUserByEmail(supabaseAdmin, body.email) : null;
+}
+
 Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -185,15 +202,15 @@ Deno.serve(async (req: Request) => {
 
     // ── DELETE_USER ACTION: Permanently delete auth user ──
     if (action === "delete_user") {
-      const { email } = body;
-      if (!email) {
+      if (!body.user_id && !body.email) {
         return new Response(
-          JSON.stringify({ success: false, error: "Missing email for delete_user action" }),
+          JSON.stringify({ success: false, error: "Missing user_id or email for delete_user action" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const user = await findAuthUserByEmail(supabaseAdmin, email);
+      const user = await findTargetUser(supabaseAdmin, body);
+      const email = user?.email || body.email || body.user_id;
       if (!user) {
         return new Response(
           JSON.stringify({ success: true, deleted: false, message: "No auth user found" }),
@@ -213,15 +230,15 @@ Deno.serve(async (req: Request) => {
 
     // ── DISABLE ACTION: Ban auth user (soft delete) ──
     if (action === "disable") {
-      const { email } = body;
-      if (!email) {
+      if (!body.user_id && !body.email) {
         return new Response(
-          JSON.stringify({ success: false, error: "Missing email for disable action" }),
+          JSON.stringify({ success: false, error: "Missing user_id or email for disable action" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const user = await findAuthUserByEmail(supabaseAdmin, email);
+      const user = await findTargetUser(supabaseAdmin, body);
+      const email = user?.email || body.email || body.user_id;
       if (!user) {
         return new Response(
           JSON.stringify({ success: true, disabled: false, message: "No auth user found" }),
@@ -244,15 +261,15 @@ Deno.serve(async (req: Request) => {
 
     // ── ENABLE ACTION: Unban auth user (reactivate) ──
     if (action === "enable") {
-      const { email } = body;
-      if (!email) {
+      if (!body.user_id && !body.email) {
         return new Response(
-          JSON.stringify({ success: false, error: "Missing email for enable action" }),
+          JSON.stringify({ success: false, error: "Missing user_id or email for enable action" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const user = await findAuthUserByEmail(supabaseAdmin, email);
+      const user = await findTargetUser(supabaseAdmin, body);
+      const email = user?.email || body.email || body.user_id;
       if (!user) {
         return new Response(
           JSON.stringify({ success: true, enabled: false, message: "No auth user found" }),

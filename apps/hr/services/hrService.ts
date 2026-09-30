@@ -45,8 +45,23 @@ export async function checkEmailConflict(email: string, excludeId?: string): Pro
   return null; // No conflict
 }
 
+/** Tài khoản đăng nhập của 1 hồ sơ: theo `auth_user_id` nếu đã gắn, chỉ đoán theo email
+ *  (freelancer→email, còn lại→work_email) khi chưa gắn. Đoán theo email không thôi thì khoá
+ *  hụt người đăng nhập bằng email khác (FL-010 nghỉ mà vẫn vào được, 2026-09-30). */
+type AuthTarget = { user_id?: string; email?: string };
+function authTargetOf(emp: {
+  auth_user_id?: string | null; type?: string | null; email?: string | null; work_email?: string | null;
+} | null): AuthTarget | null {
+  if (!emp) return null;
+  if (emp.auth_user_id) return { user_id: emp.auth_user_id };
+  const email = emp.type === 'freelancer' ? emp.email : emp.work_email;
+  return email ? { email } : null;
+}
+const targetLabel = (t: AuthTarget) => t.email || t.user_id;
+
 /** Disable Auth user via edge function (ban - prevents login but keeps account) */
-async function disableAuthUser(email: string): Promise<boolean> {
+async function disableAuthUser(target: AuthTarget): Promise<boolean> {
+  const email = targetLabel(target);
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -58,7 +73,7 @@ async function disableAuthUser(email: string): Promise<boolean> {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ action: 'disable', email }),
+        body: JSON.stringify({ action: 'disable', ...target }),
       }
     );
     const result = await res.json();
@@ -75,7 +90,8 @@ async function disableAuthUser(email: string): Promise<boolean> {
 }
 
 /** Re-enable Auth user via edge function (unban) */
-async function enableAuthUser(email: string): Promise<void> {
+async function enableAuthUser(target: AuthTarget): Promise<void> {
+  const email = targetLabel(target);
   try {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -87,7 +103,7 @@ async function enableAuthUser(email: string): Promise<void> {
           'Authorization': `Bearer ${session?.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ action: 'enable', email }),
+        body: JSON.stringify({ action: 'enable', ...target }),
       }
     );
     const result = await res.json();
@@ -322,7 +338,7 @@ export async function deleteEmployee(id: string): Promise<void> {
   // Fetch employee first to get email
   const { data: emp } = await supabase
     .from('hr_employees')
-    .select('work_email, email, type')
+    .select('work_email, email, type, auth_user_id')
     .eq('id', id)
     .single();
 
@@ -334,12 +350,8 @@ export async function deleteEmployee(id: string): Promise<void> {
   if (error) throw error;
 
   // Disable Auth user (ban, not delete)
-  if (emp) {
-    const authEmail = emp.type === 'freelancer' ? emp.email : emp.work_email;
-    if (authEmail) {
-      await disableAuthUser(authEmail);
-    }
-  }
+  const target = authTargetOf(emp);
+  if (target) await disableAuthUser(target);
 }
 
 /** Hard-delete: permanently remove employee record + delete auth account (ADMIN ONLY) */
@@ -347,7 +359,7 @@ export async function hardDeleteEmployee(id: string): Promise<void> {
   // Fetch employee first to get email for auth deletion
   const { data: emp } = await supabase
     .from('hr_employees')
-    .select('work_email, email, type')
+    .select('work_email, email, type, auth_user_id')
     .eq('id', id)
     .single();
 
@@ -366,25 +378,23 @@ export async function hardDeleteEmployee(id: string): Promise<void> {
   if (error) throw error;
 
   // Delete Auth user permanently
-  if (emp) {
-    const authEmail = emp.type === 'freelancer' ? emp.email : emp.work_email;
-    if (authEmail) {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-employee-auth`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`,
-              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            },
-            body: JSON.stringify({ action: 'delete_user', email: authEmail }),
-          }
-        );
-      } catch { /* ignore auth delete errors */ }
-    }
+  const target = authTargetOf(emp);
+  if (target) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-employee-auth`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ action: 'delete_user', ...target }),
+        }
+      );
+    } catch { /* ignore auth delete errors */ }
   }
 }
 
@@ -392,7 +402,7 @@ export async function hardDeleteEmployee(id: string): Promise<void> {
 export async function reactivateEmployee(id: string): Promise<void> {
   const { data: emp } = await supabase
     .from('hr_employees')
-    .select('work_email, email, type')
+    .select('work_email, email, type, auth_user_id')
     .eq('id', id)
     .single();
 
@@ -403,12 +413,8 @@ export async function reactivateEmployee(id: string): Promise<void> {
   if (error) throw error;
 
   // Re-enable Auth user
-  if (emp) {
-    const authEmail = emp.type === 'freelancer' ? emp.email : emp.work_email;
-    if (authEmail) {
-      await enableAuthUser(authEmail);
-    }
-  }
+  const target = authTargetOf(emp);
+  if (target) await enableAuthUser(target);
 }
 
 /**
@@ -419,15 +425,15 @@ export async function reactivateEmployee(id: string): Promise<void> {
 export async function disableEmployeeLogin(employeeId: string): Promise<void> {
   const { data: emp } = await supabase
     .from('hr_employees')
-    .select('type, email, work_email')
+    .select('type, email, work_email, auth_user_id')
     .eq('id', employeeId)
     .single();
-  const authEmail = emp?.type === 'freelancer' ? emp?.email : emp?.work_email;
-  if (!authEmail) return;   // chưa từng được mời ⇒ không có tài khoản để khoá
-  const ok = await disableAuthUser(authEmail);
+  const target = authTargetOf(emp);
+  if (!target) return;   // chưa từng được mời ⇒ không có tài khoản để khoá
+  const ok = await disableAuthUser(target);
   // disableAuthUser nuốt mọi lỗi (chỉ console.warn) ⇒ phải tự ném, không thì HR duyệt xong
   // thấy báo thành công trong khi tài khoản người nghỉ vẫn đăng nhập được.
-  if (!ok) throw new Error(`Không khoá được tài khoản ${authEmail}`);
+  if (!ok) throw new Error(`Không khoá được tài khoản ${targetLabel(target)}`);
 }
 
 /** Resend invite email to an employee's work_email */
