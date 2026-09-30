@@ -66,7 +66,6 @@ const ChangeRequestForm: React.FC<Props> = ({
   const [newPosition, setNewPosition] = useState('');
   const [newLevel, setNewLevel] = useState('');
   const [newDepartmentId, setNewDepartmentId] = useState('');
-  const [terminationDate, setTerminationDate] = useState('');
   const [terminationReason, setTerminationReason] = useState('');
 
   // Data loading
@@ -186,9 +185,10 @@ const ChangeRequestForm: React.FC<Props> = ({
         };
         break;
       case 'termination':
-        if (!terminationDate) { setError('Vui lòng chọn ngày nghỉ việc'); return null; }
+        // Nghỉ việc chỉ có 1 ngày: ngày làm việc cuối cùng = effective_date.
+        // Vẫn ghi termination_date để các chỗ đọc cũ (applyChanges, lịch sử, Portal) không đổi.
         changes = {
-          termination_date: terminationDate,
+          termination_date: effectiveDate,
           termination_reason: terminationReason,
         };
         break;
@@ -306,7 +306,9 @@ const ChangeRequestForm: React.FC<Props> = ({
           {/* ── 3. Effective date (all types) ── */}
           {requestType && (
             <div className="flex flex-col gap-1">
-              <label className={labelCls}>Ngày hiệu lực *</label>
+              <label className={labelCls}>
+                {requestType === 'termination' ? 'Ngày làm việc cuối cùng *' : 'Ngày hiệu lực *'}
+              </label>
               <input
                 type="date"
                 value={effectiveDate}
@@ -389,16 +391,6 @@ const ChangeRequestForm: React.FC<Props> = ({
           {/* Termination */}
           {requestType === 'termination' && (
             <div className="space-y-4">
-              <div className="flex flex-col gap-1">
-                <label className={labelCls}>Ngày nghỉ việc *</label>
-                <input
-                  type="date"
-                  value={terminationDate}
-                  onChange={e => setTerminationDate(e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
               <div className="flex flex-col gap-1">
                 <label className={labelCls}>Lý do nghỉ việc</label>
                 <textarea
