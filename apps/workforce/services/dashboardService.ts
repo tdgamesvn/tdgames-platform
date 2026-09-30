@@ -3,6 +3,9 @@ import { fetchEmployees } from '@/apps/hr/services/hrService';
 import { acceptanceNetAmount } from './projectAcceptanceService';
 import { estimateMonthlyPayroll } from '@/apps/payroll/services/payrollService';
 
+/** Tag HR: hồ sơ KHÔNG phải fulltime nhưng vẫn hiện ở bảng "Hiệu suất nhân sự" (có doanh thu). */
+export const PERF_TAG = 'Theo dõi hiệu suất';
+
 export interface FulltimeKPI {
   employeeId: string;
   workerId: string;
@@ -539,8 +542,12 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // payrollNonFulltime để sếp thấy vì sao tổng bảng lương ≠ cộng các dòng NV.
   const { data: allEmployees } = await supabase
     .from('hr_employees')
-    .select('id, full_name, type, status, worker_id');
-  const hrEmployees = (allEmployees || []).filter(e => e.type === 'fulltime');
+    .select('id, full_name, type, status, worker_id, tags');
+  // + hồ sơ gắn tag PERF_TAG (không phải fulltime) — vd FL-004 "Đặng Thế A" = tài khoản ClickUp
+  // tdgames.vn@gmail.com của sếp, sếp cần theo dõi doanh thu như 1 nhân sự (chốt 2026-09-30).
+  // Dùng tag thay vì đổi type: type=fulltime kéo theo chấm công, bảng lương, đánh giá…
+  const hrEmployees = (allEmployees || []).filter(e =>
+    e.type === 'fulltime' || (Array.isArray(e.tags) && e.tags.includes(PERF_TAG)));
   const fulltimeIds = new Set(hrEmployees.map(e => e.id));
   let payrollNonFulltime = 0;
   confirmedCostByEmp.forEach((cost, empId) => {
@@ -650,7 +657,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const roi = fullCost > 0 ? (pnl / fullCost) * 100 : 0;
       
       let kpiScore: FulltimeKPI['kpiScore'] = 'N/A';
-      if (cost > 0 || revUSD > 0) {
+      // Chi phí 0 (chưa có bảng lương / người không nhận lương) ⇒ ROI vô nghĩa ⇒ N/A, không chấm F.
+      if (fullCost > 0) {
         if (roi >= 150) kpiScore = 'A';
         else if (roi >= 100) kpiScore = 'B';
         else if (roi >= 50) kpiScore = 'C';
