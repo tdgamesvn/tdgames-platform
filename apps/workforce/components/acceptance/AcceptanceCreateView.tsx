@@ -199,8 +199,8 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                   ? 'border-blue-500/40 bg-blue-500/10 text-blue-400'
                   : 'border-primary/10 text-neutral-medium hover:border-primary/20'
               }`}>
-              🏢 TK Công ty
-              <span className="block text-[9px] mt-0.5 opacity-60">Xuất hoá đơn, tính thuế</span>
+              🏢 Company Account
+              <span className="block text-[9px] mt-0.5 opacity-60">Invoiced, taxable</span>
             </button>
             <button type="button"
               onClick={() => setSelAccountType('personal')}
@@ -209,8 +209,8 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                   ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400'
                   : 'border-primary/10 text-neutral-medium hover:border-primary/20'
               }`}>
-              👤 TK Cá nhân
-              <span className="block text-[9px] mt-0.5 opacity-60">Theo dõi nội bộ</span>
+              👤 Personal Account
+              <span className="block text-[9px] mt-0.5 opacity-60">Internal tracking</span>
             </button>
           </div>
         </div>
@@ -234,17 +234,17 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                     }`}
                   >
                     <span className="text-[10px]">{showAllMonths ? '✓' : '○'}</span>
-                    Hiện tất cả tháng
+                    Show all months
                   </button>
                 )}
                 {selPeriod && !showAllMonths && (
                   <span className="text-[10px] text-neutral-medium/50">
-                    💡 Chỉ hiện task có ngày đóng trong tháng {selPeriod}
+                    💡 Showing only tasks closed in {selPeriod}
                   </span>
                 )}
                 {showAllMonths && (
                   <span className="text-[10px] text-orange-400/60">
-                    ⚡ Bỏ giới hạn tháng — hiện tất cả task chưa nghiệm thu
+                    ⚡ Month filter off — showing all unaccepted tasks
                   </span>
                 )}
               </div>
@@ -374,7 +374,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleExcludeTask(t.id!, true); }}
                                   className="text-neutral-medium/30 hover:text-red-400 transition-colors ml-1"
-                                  title="Ẩn task khỏi nghiệm thu (không ảnh hưởng ClickUp)"
+                                  title="Hide task from acceptance (does not affect ClickUp)"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" /></svg>
                                 </button>
@@ -391,7 +391,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
 
             {/* Extra items (bonus khách / phát sinh — không gắn task) */}
             <div className="pt-4 border-t border-primary/10">
-              <p className={labelCls}>Khoản cộng thêm (không gắn task)</p>
+              <p className={labelCls}>Extra items (not linked to tasks)</p>
               <ExtraItemsEditor items={extraItems} onChange={setExtraItems} />
             </div>
 
@@ -402,7 +402,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                 <p className="text-2xl font-black text-blue-400">{fmtUSD(selectedTotal + extraItemsTotal(cleanExtraItems(extraItems)))}</p>
                 {extraItemsTotal(cleanExtraItems(extraItems)) !== 0 && (
                   <p className="text-[10px] text-neutral-medium/50 mt-0.5">
-                    Tasks: {fmtUSD(selectedTotal)} + Cộng thêm: {fmtUSD(extraItemsTotal(cleanExtraItems(extraItems)))}
+                    Tasks: {fmtUSD(selectedTotal)} + Extras: {fmtUSD(extraItemsTotal(cleanExtraItems(extraItems)))}
                   </p>
                 )}
               </div>
@@ -425,7 +425,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
           >
             <svg className={`w-4 h-4 text-neutral-medium transition-transform ${showExcluded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
             <span className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">
-              Ẩn khỏi nghiệm thu ({excludedTasks.length} tasks)
+              Hidden from acceptance ({excludedTasks.length} tasks)
             </span>
           </button>
           {showExcluded && (
@@ -440,7 +440,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
                     onClick={() => handleExcludeTask(t.id!, false)}
                     className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors px-2.5 py-1 rounded-lg border border-emerald-500/20 hover:bg-emerald-500/10"
                   >
-                    ↩ Khôi phục
+                    ↩ Restore
                   </button>
                 </div>
               ))}

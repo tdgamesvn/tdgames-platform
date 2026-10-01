@@ -98,7 +98,7 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
               ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
               : 'border-blue-500/20 text-blue-400/60 bg-blue-500/5'
           }`}>
-            {a.account_type === 'personal' ? '👤 Cá nhân' : '🏢 Công ty'}
+            {a.account_type === 'personal' ? '👤 Personal' : '🏢 Company'}
           </span>
         </div>
       </div>
@@ -147,7 +147,7 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
             <p className="text-[10px] text-neutral-medium/50 mt-0.5">
               Subtotal: {fmtUSD(totalClientPrice)}
               {(a.discount_value || 0) > 0 && <> − Discount: {fmtUSD(discountAmount)}</>}
-              {extraTotal !== 0 && <> + Cộng thêm: {fmtUSD(extraTotal)}</>}
+              {extraTotal !== 0 && <> + Extras: {fmtUSD(extraTotal)}</>}
             </p>
           )}
         </div>
@@ -258,8 +258,8 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
 
       {/* Extra items — bonus khách / phát sinh không gắn task */}
       <div className="rounded-[20px] border border-primary/10 bg-surface p-5">
-        <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Khoản cộng thêm</p>
-        <p className="text-[10px] text-neutral-medium/50 mb-4">Không gắn task, không bị discount, không chia vào doanh thu/KPI nhân viên.</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Extra Items</p>
+        <p className="text-[10px] text-neutral-medium/50 mb-4">Not linked to tasks, not discounted, not allocated to staff revenue/KPI.</p>
         <ExtraItemsEditor items={extraItems} onChange={setExtraItems} onCommit={handleCommitExtras} />
       </div>
 
@@ -295,7 +295,7 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
               )}
               {extraTotal !== 0 && (
                 <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">Cộng thêm</p>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">Extras</p>
                   <p className="text-emerald-400 font-bold text-lg">{extraTotal < 0 ? '-' : '+'}{fmtUSD(Math.abs(extraTotal))}</p>
                 </div>
               )}

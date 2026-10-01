@@ -152,7 +152,7 @@ export async function exportAcceptancePdf(
     <div style="text-align:right"><div style="font-size:11px;color:#666">Date</div>
       <div style="font-size:16px;font-weight:700">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
       ${acceptance.period ? `<div style="font-size:11px;color:#666;margin-top:4px">Period: ${acceptance.period}</div>` : ''}
-      <div style="font-size:11px;margin-top:4px;font-weight:600;color:${acceptance.account_type === 'personal' ? '#059669' : '#d97706'}">${acceptance.account_type === 'personal' ? '👤 TK Cá nhân' : '🏢 TK Công ty'}</div>
+      <div style="font-size:11px;margin-top:4px;font-weight:600;color:${acceptance.account_type === 'personal' ? '#059669' : '#d97706'}">${acceptance.account_type === 'personal' ? '👤 Personal Account' : '🏢 Company Account'}</div>
     </div>
   </div>
   <div class="meta">

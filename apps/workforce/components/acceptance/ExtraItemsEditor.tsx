@@ -33,7 +33,7 @@ export const ExtraItemsEditor: React.FC<ExtraItemsEditorProps> = ({ items, onCha
             value={it.label}
             onChange={e => update(idx, { label: e.target.value })}
             onBlur={commit}
-            placeholder="Lý do (vd. Client bonus — Sep 2026)"
+            placeholder="Description (e.g. Client bonus — Sep 2026)"
             className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/40 placeholder-neutral-medium/40"
           />
           <span className="text-neutral-medium/40 text-xs">$</span>
@@ -51,7 +51,7 @@ export const ExtraItemsEditor: React.FC<ExtraItemsEditorProps> = ({ items, onCha
           <button
             type="button"
             onClick={() => remove(idx)}
-            title="Xoá khoản này"
+            title="Remove this item"
             className="px-2 py-1 text-neutral-medium hover:text-red-400 transition-colors"
           >✕</button>
         </div>
@@ -60,7 +60,7 @@ export const ExtraItemsEditor: React.FC<ExtraItemsEditorProps> = ({ items, onCha
         type="button"
         onClick={() => onChange([...items, { label: '', amount: 0 }])}
         className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
-      >+ Thêm khoản cộng thêm (bonus / phát sinh)</button>
+      >+ Add extra item (bonus / additional charge)</button>
     </div>
   );
 };
