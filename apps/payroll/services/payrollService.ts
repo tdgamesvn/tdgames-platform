@@ -393,6 +393,14 @@ const SALARY_NAME_MAP: Record<string, keyof PayPayrollRecord> = {
  * thật được tạo, dashboard lấy sheet và số này biến mất. Không nhân bản công thức thuế/BHXH,
  * chỉ dựng input rồi gọi calculatePayroll như createPayrollSheet.
  */
+/**
+ * Loại hồ sơ hưởng lương tháng qua bảng lương. Part-time cũng nhận lương tháng (sếp chốt
+ * 2026-10-01) — trước đây chỉ lấy 'fulltime' nên part-time bị bỏ sót (Phương Anh FT-013 T9).
+ * Quy ước: lương cơ bản part-time nhập theo MỨC FULLTIME; chấm công tính công = giờ ÷ 8
+ * (ca sáng 4h = 0,5 công) ⇒ lương thực nhận tự ra đúng tỷ lệ thời gian làm.
+ */
+const PAYROLL_TYPES = ['fulltime', 'parttime'];
+
 export async function estimateMonthlyPayroll(
   month: number, year: number
 ): Promise<Map<string, { companyCost: number; grossActual: number }>> {
@@ -405,7 +413,7 @@ export async function estimateMonthlyPayroll(
 
   const { data: allEmployees } = await supabase
     .from('hr_employees').select('*')
-    .eq('entity', getWorkspace()).eq('type', 'fulltime').eq('status', 'active')
+    .eq('entity', getWorkspace()).in('type', PAYROLL_TYPES).eq('status', 'active')
     .neq('exclude_from_payroll', true);
   const employees = (allEmployees || []).filter(e => !e.start_date || e.start_date <= monthEndISO);
   if (!employees.length) return result;
@@ -499,12 +507,12 @@ export async function createPayrollSheet(
     .single();
   if (sheetErr) throw sheetErr;
 
-  // 2. Fetch all fulltime employees
+  // 2. Fetch nhân viên hưởng lương tháng (fulltime + part-time)
   const { data: allEmployees } = await supabase
     .from('hr_employees')
     .select('*')
     .eq('entity', getWorkspace()) // tách sổ: chỉ tính lương nhân viên sổ đang chọn
-    .eq('type', 'fulltime')
+    .in('type', PAYROLL_TYPES)
     .eq('status', 'active')
     .neq('exclude_from_payroll', true);
 
@@ -522,7 +530,7 @@ export async function createPayrollSheet(
       .from('hr_employees')
       .select('*')
       .eq('entity', getWorkspace())
-      .eq('type', 'fulltime')
+      .in('type', PAYROLL_TYPES)
       .neq('exclude_from_payroll', true)
       .in('id', endRows.map(r => r.employee_id));
     const seen = new Set((allEmployees || []).map(e => e.id));
