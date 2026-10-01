@@ -223,7 +223,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
         </div>
         <div className="p-4 rounded-[16px] border border-primary/10 bg-surface">
           <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium mb-1">
-            {(s.tax_rate || 0) > 0 ? `Thuế TNCN (${s.tax_rate}%)` : '👤 Cá nhân — Miễn thuế'}
+            {(s.tax_rate || 0) > 0 ? `Thuế TNCN (${s.tax_rate}%)` : (s.account_type === 'personal' ? '👤 Cá nhân — Miễn thuế' : 'Dưới 5tr/lần — không khấu trừ')}
           </p>
           <p className={`text-2xl font-black ${(s.tax_rate || 0) > 0 ? 'text-red-400' : 'text-emerald-400/60'}`}>{(s.tax_rate || 0) > 0 ? `-${fmt(s.tax_amount || 0)}` : '0'}</p>
         </div>
@@ -423,7 +423,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
                 )}
                 <tr>
                   <td colSpan={4} className={`px-4 py-2 text-right text-[10px] font-black uppercase tracking-widest ${(s.tax_rate || 0) > 0 ? 'text-red-400' : 'text-emerald-400/60'}`}>
-                    {(s.tax_rate || 0) > 0 ? `− Thuế TNCN (${s.tax_rate}%)` : '👤 Cá nhân — Miễn thuế'}
+                    {(s.tax_rate || 0) > 0 ? `− Thuế TNCN (${s.tax_rate}%)` : (s.account_type === 'personal' ? '👤 Cá nhân — Miễn thuế' : 'Dưới 5tr/lần — không khấu trừ')}
                   </td>
                   <td colSpan={2} className={`px-4 py-2 text-right font-bold ${(s.tax_rate || 0) > 0 ? 'text-red-400' : 'text-emerald-400/60'}`}>{(s.tax_rate || 0) > 0 ? `-${fmt(s.tax_amount || 0)}` : '0'} <span className="text-xs text-neutral-medium">{s.currency}</span></td>
                   <td colSpan={4}></td>
@@ -433,7 +433,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
                   <td colSpan={2} className="px-4 py-3 text-right">
                     <span className="text-emerald-400 font-black text-xl">{fmt(s.net_amount || 0)} <span className="text-xs text-neutral-medium">{s.currency}</span></span>
                     {s.currency !== 'VND' && totalVND > 0 && (
-                      <div className="text-neutral-medium text-xs mt-0.5">≈ {fmt(Math.round(totalVND * (1 - (s.tax_rate || 10) / 100)))} VNĐ</div>
+                      <div className="text-neutral-medium text-xs mt-0.5">≈ {fmt(Math.round(totalVND * (1 - (s.tax_rate ?? 0) / 100)))} VNĐ</div>
                     )}
                   </td>
                   <td colSpan={4}></td>

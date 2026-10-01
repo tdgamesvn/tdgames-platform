@@ -237,6 +237,15 @@ export async function fetchSettlements(): Promise<Settlement[]> {
   return data || [];
 }
 
+/**
+ * Ngưỡng khấu trừ 10% TNCN cho thu nhập vãng lai (cá nhân không ký HĐLĐ hoặc HĐLĐ < 3 tháng):
+ * từ 5.000.000đ/LẦN chi trả trở lên — Nghị định 253/2026/NĐ-CP, hiệu lực 01/7/2026 (trước: 2 triệu).
+ * Dưới ngưỡng: không bắt buộc khấu trừ (vẫn khấu trừ được nếu người nhận yêu cầu).
+ * Cá nhân nộp cam kết 08/CK-TNCN (có MST, thu nhập năm chưa tới mức chịu thuế) ⇒ tạm không khấu trừ.
+ * Bảng lương thử việc dùng cùng ngưỡng: PROBATION_PIT_WITHHOLD_MIN trong payrollService.
+ */
+export const WITHHOLD_THRESHOLD_VND = 5_000_000;
+
 export function computeSettlementTotals(
   totalAmount: number,
   bonusType: 'percent' | 'amount',

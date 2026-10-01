@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Worker, WorkforceTask } from '@/types';
-import { computeSettlementTotals, tasksForWorker } from '../../services/workforceService';
+import { computeSettlementTotals, tasksForWorker, WITHHOLD_THRESHOLD_VND } from '../../services/workforceService';
 import { BackButton } from '../shared/BackButton';
 
 const inputCls = "w-full bg-transparent border border-primary/10 rounded-xl px-4 py-3 text-white placeholder-neutral-medium/40 focus:outline-none focus:border-primary/40 transition-all text-sm";
@@ -42,7 +42,9 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const [selTaskIds, setSelTaskIds] = useState<string[]>([]);
   const [selBonusType, setSelBonusType] = useState<'percent' | 'amount'>('amount');
   const [selBonusValue, setSelBonusValue] = useState(0);
-  const [selTaxRate, setSelTaxRate] = useState(10);
+  const [selAccount, setSelAccount] = useState<'company' | 'personal'>('company');
+  // null = theo ngưỡng tự động; 0/10 = kế toán chọn tay (vd freelancer nộp cam kết 08/CK-TNCN)
+  const [taxOverride, setTaxOverride] = useState<0 | 10 | null>(null);
   const [includeAllStatuses, setIncludeAllStatuses] = useState(false);
   const [selectedClickupStatuses, setSelectedClickupStatuses] = useState<string[]>([]);
   const [showAllTasks, setShowAllTasks] = useState(false);
@@ -101,26 +103,34 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const selectedPriceTotal = selectedTasksData.reduce((s, t) => s + (t.price || 0), 0);
   const selectedBonusTotal = selectedTasksData.reduce((s, t) => s + (t.bonus || 0), 0);
   const selectedTotal = selectedPriceTotal + selectedBonusTotal;
+  // NĐ 253/2026/NĐ-CP (hiệu lực 01/7/2026): trả cho cá nhân không HĐLĐ / HĐLĐ < 3 tháng
+  // khấu trừ 10% khi mức chi trả TỪ 5.000.000đ/LẦN (trước đây 2 triệu). Mỗi phiếu = 1 lần trả.
+  const vndRateOf = (cur: string) => (cur === 'VND' ? 1 : vcbSellRate > 0 ? vcbSellRate : 0);
+  const beforeTax = selectedTotal + computeSettlementTotals(selectedTotal, selBonusType, selBonusValue, 0).bonusAmount;
+  const beforeTaxVND = beforeTax * vndRateOf(getDominantCurrency());
+  // Không quy đổi được (thiếu tỷ giá) ⇒ giữ 10% cho an toàn, kế toán tự chỉnh.
+  const autoTaxRate = beforeTaxVND > 0 && beforeTaxVND < WITHHOLD_THRESHOLD_VND ? 0 : 10;
+  const selTaxRate = selAccount === 'personal' ? 0 : (taxOverride ?? autoTaxRate);
   const previewCalc = computeSettlementTotals(selectedTotal, selBonusType, selBonusValue, selTaxRate);
 
   const toggleTask = (tid: string) => setSelTaskIds(prev => prev.includes(tid) ? prev.filter(i => i !== tid) : [...prev, tid]);
   const selectAll = () => setSelTaskIds(selTaskIds.length === eligibleTasks.length ? [] : eligibleTasks.map(t => t.id!));
 
   // Determine dominant currency from selected tasks that have a price > 0
-  const getDominantCurrency = () => {
+  function getDominantCurrency() {
     const pricedTasks = selectedTasksData.filter(t => (t.price || 0) > 0);
     if (pricedTasks.length === 0) return eligibleTasks[0]?.currency || 'VND';
     const counts: Record<string, number> = {};
     pricedTasks.forEach(t => { counts[t.currency] = (counts[t.currency] || 0) + 1; });
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
-  };
+  }
   const dominantCurrency = getDominantCurrency();
 
   const handleCreate = () => {
     if (!selWorkerId || !selProjectName || selTaskIds.length === 0) return;
     const currency = dominantCurrency;
-    const accountType = selTaxRate === 0 ? 'personal' : 'company';
-    onCreate(selWorkerId, selProjectName, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, accountType as 'company' | 'personal');
+    // Tài khoản trả KHÔNG còn suy ra từ thuế: trả qua công ty mà dưới 5tr thì thuế 0% vẫn là sổ công ty.
+    onCreate(selWorkerId, selProjectName, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, selAccount);
     onBack();
   };
 
@@ -320,19 +330,19 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                   <label className={labelCls}>Thanh toán qua</label>
                   <div className="flex gap-2">
                     <button type="button"
-                      onClick={() => setSelTaxRate(10)}
+                      onClick={() => setSelAccount('company')}
                       className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                        selTaxRate === 10
+                        selAccount === 'company'
                           ? 'border-primary/40 bg-primary/10 text-primary'
                           : 'border-primary/10 text-neutral-medium hover:border-primary/20'
                       }`}>
                       🏢 Công ty
-                      <span className="block text-[9px] mt-0.5 opacity-60">Trừ 10% TNCN</span>
+                      <span className="block text-[9px] mt-0.5 opacity-60">Từ 5tr/lần trừ 10% TNCN</span>
                     </button>
                     <button type="button"
-                      onClick={() => setSelTaxRate(0)}
+                      onClick={() => setSelAccount('personal')}
                       className={`flex-1 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
-                        selTaxRate === 0
+                        selAccount === 'personal'
                           ? 'border-emerald-400/40 bg-emerald-400/10 text-emerald-400'
                           : 'border-primary/10 text-neutral-medium hover:border-primary/20'
                       }`}>
@@ -340,6 +350,21 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                       <span className="block text-[9px] mt-0.5 opacity-60">Không trừ thuế</span>
                     </button>
                   </div>
+                  {selAccount === 'company' && selTaskIds.length > 0 && (
+                    <div className="mt-2 flex items-center justify-between gap-2 text-[10px]">
+                      <span className="text-neutral-medium">
+                        {beforeTaxVND > 0
+                          ? `Trước thuế ≈ ${fmt(Math.round(beforeTaxVND))} ₫ — ${autoTaxRate === 0 ? 'dưới 5tr/lần: không bắt buộc khấu trừ' : 'từ 5tr/lần: bắt buộc khấu trừ 10%'} (NĐ 253/2026)`
+                          : 'Chưa quy đổi được sang VNĐ (thiếu tỷ giá) — mặc định trừ 10%'}
+                      </span>
+                      <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-neutral-light">
+                        <input type="checkbox" className="w-3.5 h-3.5 accent-orange-500"
+                          checked={selTaxRate === 10}
+                          onChange={e => setTaxOverride(e.target.checked ? 10 : 0)} />
+                        Khấu trừ 10%
+                      </label>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -363,7 +388,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                     </div>
                   ) : (
                     <div className="flex justify-between text-emerald-400/60">
-                      <span>👤 TT cá nhân — Miễn thuế TNCN</span>
+                      <span>{selAccount === 'personal' ? '👤 TT cá nhân — Miễn thuế TNCN' : 'Dưới 5tr/lần — không khấu trừ TNCN'}</span>
                       <span className="font-bold">0</span>
                     </div>
                   )}

@@ -158,8 +158,8 @@ export async function exportSettlementPdf(
     ${totalVND > 0 ? `<div class="row"><span>Tổng quy đổi VNĐ:</span><b>${(totalVND + totalBonusVND).toLocaleString()} VNĐ</b></div>` : ''}
     ${(settlement.tax_rate || 0) > 0
       ? `<div class="row" style="color:#dc2626"><span>− Thuế TNCN (${settlement.tax_rate}%):</span><b>-${(settlement.tax_amount || 0).toLocaleString()} ${settlement.currency}</b></div>`
-      : `<div class="row" style="color:#059669"><span>👤 TT cá nhân — Miễn thuế TNCN:</span><b>0</b></div>`}
-    <div class="row grand" style="color:#059669"><span>THỰC NHẬN:</span><span>${(settlement.net_amount || 0).toLocaleString()} ${settlement.currency}${settlement.currency !== 'VND' && totalVND > 0 ? ` <span style="font-size:14px;color:#666;font-weight:400">(≈ ${Math.round((totalVND + totalBonusVND) * (1 - (settlement.tax_rate || 10) / 100)).toLocaleString()} VNĐ)</span>` : ''}</span></div>
+      : `<div class="row" style="color:#059669"><span>${settlement.account_type === 'personal' ? '👤 TT cá nhân — Miễn thuế TNCN' : 'Dưới 5tr/lần — không khấu trừ TNCN (NĐ 253/2026)'}:</span><b>0</b></div>`}
+    <div class="row grand" style="color:#059669"><span>THỰC NHẬN:</span><span>${(settlement.net_amount || 0).toLocaleString()} ${settlement.currency}${settlement.currency !== 'VND' && totalVND > 0 ? ` <span style="font-size:14px;color:#666;font-weight:400">(≈ ${Math.round((totalVND + totalBonusVND) * (1 - (settlement.tax_rate ?? 0) / 100)).toLocaleString()} VNĐ)</span>` : ''}</span></div>
   </div>
   <div class="footer">
     <div class="sig"><div class="sig-title">Đại diện Bên A</div><div class="sig-note">(Ký, ghi rõ họ tên)</div><div class="line">${company.representative}</div></div>
