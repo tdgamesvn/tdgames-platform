@@ -226,6 +226,7 @@ export interface Settlement {
   bonus_type: 'percent' | 'amount';
   bonus_value: number;
   bonus_amount: number;
+  bonus_reason?: string;   // lý do bonus nghiệm thu — hiện cạnh dòng + Bonus (phiếu + PDF)
   // Thuế TNCN
   tax_rate: number;
   tax_amount: number;
@@ -245,6 +246,11 @@ export interface SettlementTask {
 }
 
 // ── Project-Based Acceptance (Nghiệm thu theo dự án) ─────────
+export interface AcceptanceExtraItem {
+  label: string;
+  amount: number; // cùng currency với phiếu
+}
+
 export interface ProjectAcceptance {
   id?: string;
   project_name: string;
@@ -257,6 +263,8 @@ export interface ProjectAcceptance {
   notes: string;
   discount_type: 'amount' | 'percent';
   discount_value: number;
+  /** Khoản cộng thêm không gắn task (vd. khách bonus) — cộng sau discount, không chia cho NV */
+  extra_items?: AcceptanceExtraItem[];
   account_type?: 'company' | 'personal';
   signed_file_url?: string | null;
   client_id?: string | null;   // FK crm_clients (map từ ClickUp Space)

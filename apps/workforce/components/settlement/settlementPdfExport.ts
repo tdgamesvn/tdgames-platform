@@ -69,6 +69,10 @@ export async function exportSettlementPdf(
     return s;
   }, 0);
 
+  // Tỷ giá bình quân của phiếu (VNĐ/1 đơn vị tiền phiếu) — quy đổi bonus nghiệm thu + thực nhận.
+  // Trước 1/10/2026 dòng ≈VNĐ bỏ sót bonus nghiệm thu (phiếu Hưng T9: thiếu $20).
+  const avgRate = totalPrice > 0 ? totalVND / totalPrice : 0;
+
   // Worker info for BÊN B
   const w = settlement.worker || workers.find(wk => wk.id === settlement.worker_id);
 
@@ -154,12 +158,12 @@ export async function exportSettlementPdf(
   <div class="totals">
     <div class="row"><span>Tổng giá tasks:</span><b>${totalPrice.toLocaleString()} ${settlement.currency}</b></div>
     <div class="row"><span>Tổng bonus task:</span><b>${totalBonus.toLocaleString()} ${settlement.currency}</b></div>
-    ${(settlement.bonus_amount || 0) > 0 ? `<div class="row" style="color:#d97706"><span>+ Bonus nghiệm thu (${settlement.bonus_type === 'percent' ? settlement.bonus_value + '%' : 'cố định'}):</span><b>+${(settlement.bonus_amount || 0).toLocaleString()} ${settlement.currency}</b></div>` : ''}
-    ${totalVND > 0 ? `<div class="row"><span>Tổng quy đổi VNĐ:</span><b>${(totalVND + totalBonusVND).toLocaleString()} VNĐ</b></div>` : ''}
+    ${(settlement.bonus_amount || 0) > 0 ? `<div class="row" style="color:#d97706"><span>+ Bonus nghiệm thu (${settlement.bonus_type === 'percent' ? settlement.bonus_value + '%' : 'cố định'})${settlement.bonus_reason ? ` — ${settlement.bonus_reason}` : ''}:</span><b>+${(settlement.bonus_amount || 0).toLocaleString()} ${settlement.currency}</b></div>` : ''}
+    ${totalVND > 0 ? `<div class="row"><span>Tổng quy đổi VNĐ:</span><b>${Math.round(totalVND + totalBonusVND + (settlement.bonus_amount || 0) * avgRate).toLocaleString()} VNĐ</b></div>` : ''}
     ${(settlement.tax_rate || 0) > 0
       ? `<div class="row" style="color:#dc2626"><span>− Thuế TNCN (${settlement.tax_rate}%):</span><b>-${(settlement.tax_amount || 0).toLocaleString()} ${settlement.currency}</b></div>`
       : `<div class="row" style="color:#059669"><span>${settlement.account_type === 'personal' ? '👤 TT cá nhân — Miễn thuế TNCN' : 'Dưới 5tr/lần — không khấu trừ TNCN (NĐ 253/2026)'}:</span><b>0</b></div>`}
-    <div class="row grand" style="color:#059669"><span>THỰC NHẬN:</span><span>${(settlement.net_amount || 0).toLocaleString()} ${settlement.currency}${settlement.currency !== 'VND' && totalVND > 0 ? ` <span style="font-size:14px;color:#666;font-weight:400">(≈ ${Math.round((totalVND + totalBonusVND) * (1 - (settlement.tax_rate ?? 0) / 100)).toLocaleString()} VNĐ)</span>` : ''}</span></div>
+    <div class="row grand" style="color:#059669"><span>THỰC NHẬN:</span><span>${(settlement.net_amount || 0).toLocaleString()} ${settlement.currency}${settlement.currency !== 'VND' && totalVND > 0 ? ` <span style="font-size:14px;color:#666;font-weight:400">(≈ ${Math.round((settlement.net_amount || 0) * avgRate).toLocaleString()} VNĐ)</span>` : ''}</span></div>
   </div>
   <div class="footer">
     <div class="sig"><div class="sig-title">Đại diện Bên A</div><div class="sig-note">(Ký, ghi rõ họ tên)</div><div class="line">${company.representative}</div></div>

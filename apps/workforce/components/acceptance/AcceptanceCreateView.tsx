@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { WorkforceTask } from '@/types';
-import { fetchAcceptedTaskIds } from '../../services/projectAcceptanceService';
+import { WorkforceTask, AcceptanceExtraItem } from '@/types';
+import { fetchAcceptedTaskIds, extraItemsTotal } from '../../services/projectAcceptanceService';
+import { ExtraItemsEditor, cleanExtraItems } from './ExtraItemsEditor';
 import * as wfSvc from '../../services/workforceService';
 import { BackButton } from '../shared/BackButton';
 import { getClickupStatusStyle } from './acceptancePdfExport';
@@ -24,7 +25,7 @@ const labelCls = "text-[10px] font-black uppercase tracking-widest text-neutral-
 interface AcceptanceCreateViewProps {
   tasks: WorkforceTask[];
   onBack: () => void;
-  onCreate: (projectName: string, clientName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, clientPrices?: Record<string, number>, accountType?: 'company' | 'personal') => void;
+  onCreate: (projectName: string, clientName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, clientPrices?: Record<string, number>, accountType?: 'company' | 'personal', extraItems?: AcceptanceExtraItem[]) => void;
   onRefresh?: () => void;
 }
 
@@ -44,6 +45,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   const [localExcluded, setLocalExcluded] = useState<Set<string>>(new Set());
   const [selAccountType, setSelAccountType] = useState<'company' | 'personal'>('company');
   const [showAllMonths, setShowAllMonths] = useState(false);
+  const [extraItems, setExtraItems] = useState<AcceptanceExtraItem[]>([]);
 
   // Load task IDs that are already accepted (on mount)
   useEffect(() => {
@@ -149,7 +151,7 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
   const handleCreate = () => {
     if (!selProject || selTaskIds.length === 0) return;
     const clientName = selClient || selectedTasksData[0]?.clickup_space_name || '';
-    onCreate(selProject, clientName, selPeriod, selTaskIds, selectedTotal, 'USD', selNotes, customPrices, selAccountType);
+    onCreate(selProject, clientName, selPeriod, selTaskIds, selectedTotal, 'USD', selNotes, customPrices, selAccountType, cleanExtraItems(extraItems));
     onBack();
   };
 
@@ -387,11 +389,22 @@ const AcceptanceCreateView: React.FC<AcceptanceCreateViewProps> = ({ tasks, onBa
               </div>
             )}
 
+            {/* Extra items (bonus khách / phát sinh — không gắn task) */}
+            <div className="pt-4 border-t border-primary/10">
+              <p className={labelCls}>Khoản cộng thêm (không gắn task)</p>
+              <ExtraItemsEditor items={extraItems} onChange={setExtraItems} />
+            </div>
+
             {/* Submit */}
             <div className="flex items-center justify-between pt-4 border-t border-primary/10">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Total Client Amount</p>
-                <p className="text-2xl font-black text-blue-400">{fmtUSD(selectedTotal)}</p>
+                <p className="text-2xl font-black text-blue-400">{fmtUSD(selectedTotal + extraItemsTotal(cleanExtraItems(extraItems)))}</p>
+                {extraItemsTotal(cleanExtraItems(extraItems)) !== 0 && (
+                  <p className="text-[10px] text-neutral-medium/50 mt-0.5">
+                    Tasks: {fmtUSD(selectedTotal)} + Cộng thêm: {fmtUSD(extraItemsTotal(cleanExtraItems(extraItems)))}
+                  </p>
+                )}
               </div>
               <button
                 onClick={handleCreate}

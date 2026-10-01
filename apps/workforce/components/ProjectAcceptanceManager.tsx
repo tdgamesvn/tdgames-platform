@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WorkforceTask, ProjectAcceptance } from '@/types';
+import { WorkforceTask, ProjectAcceptance, AcceptanceExtraItem } from '@/types';
 import { ConfirmModal, useConfirmModal } from './shared/ConfirmModal';
 import AcceptanceListView from './acceptance/AcceptanceListView';
 import AcceptanceCreateView from './acceptance/AcceptanceCreateView';
@@ -9,7 +9,7 @@ interface ProjectAcceptanceManagerProps {
   acceptances: ProjectAcceptance[];
   tasks: WorkforceTask[];
   vcbSellRate: number;
-  onCreateAcceptance: (projectName: string, clientName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, clientPrices?: Record<string, number>, accountType?: 'company' | 'personal') => void;
+  onCreateAcceptance: (projectName: string, clientName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, clientPrices?: Record<string, number>, accountType?: 'company' | 'personal', extraItems?: AcceptanceExtraItem[]) => void;
   onUpdateAcceptance: (id: string, updates: Partial<ProjectAcceptance>) => void;
   onDeleteAcceptance: (id: string) => void;
 }

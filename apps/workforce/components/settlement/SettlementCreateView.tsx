@@ -11,7 +11,7 @@ interface SettlementCreateViewProps {
   tasks: WorkforceTask[];
   vcbSellRate: number;
   onBack: () => void;
-  onCreate: (workerId: string, projectName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, bonusType: 'percent' | 'amount', bonusValue: number, taxRate: number, accountType: 'company' | 'personal') => void;
+  onCreate: (workerId: string, projectName: string, period: string, taskIds: string[], totalAmount: number, currency: string, notes: string, bonusType: 'percent' | 'amount', bonusValue: number, taxRate: number, accountType: 'company' | 'personal', bonusReason?: string) => void;
 }
 
 const fmt = (n: number) => n.toLocaleString();
@@ -42,6 +42,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
   const [selTaskIds, setSelTaskIds] = useState<string[]>([]);
   const [selBonusType, setSelBonusType] = useState<'percent' | 'amount'>('amount');
   const [selBonusValue, setSelBonusValue] = useState(0);
+  const [selBonusReason, setSelBonusReason] = useState('');
   const [selAccount, setSelAccount] = useState<'company' | 'personal'>('company');
   // null = theo ngưỡng tự động; 0/10 = kế toán chọn tay (vd freelancer nộp cam kết 08/CK-TNCN)
   const [taxOverride, setTaxOverride] = useState<0 | 10 | null>(null);
@@ -130,7 +131,7 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
     if (!selWorkerId || !selProjectName || selTaskIds.length === 0) return;
     const currency = dominantCurrency;
     // Tài khoản trả KHÔNG còn suy ra từ thuế: trả qua công ty mà dưới 5tr thì thuế 0% vẫn là sổ công ty.
-    onCreate(selWorkerId, selProjectName, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, selAccount);
+    onCreate(selWorkerId, selProjectName, selPeriod, selTaskIds, selectedTotal, currency, selNotes, selBonusType, selBonusValue, selTaxRate, selAccount, selBonusReason);
     onBack();
   };
 
@@ -325,6 +326,9 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
                 <div>
                   <label className={labelCls}>{selBonusType === 'percent' ? 'Bonus (%)' : 'Bonus (số tiền)'}</label>
                   <input type="number" className={inputCls} value={selBonusValue || ''} onChange={e => setSelBonusValue(Number(e.target.value) || 0)} placeholder={selBonusType === 'percent' ? 'VD: 5' : 'VD: 500000'} />
+                  {selBonusValue > 0 && (
+                    <input type="text" className={`${inputCls} mt-2`} value={selBonusReason} onChange={e => setSelBonusReason(e.target.value)} placeholder="Lý do bonus (hiện trên phiếu + PDF)" />
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Thanh toán qua</label>

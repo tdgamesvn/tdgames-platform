@@ -1,6 +1,6 @@
 import { supabase } from '@/services/supabaseClient';
 import { fetchEmployees } from '@/apps/hr/services/hrService';
-import { acceptanceNetAmount } from './projectAcceptanceService';
+import { acceptanceNetAmount, acceptanceTaskNetAmount } from './projectAcceptanceService';
 import { estimateMonthlyPayroll } from '@/apps/payroll/services/payrollService';
 
 /** Tag HR: hồ sơ KHÔNG phải fulltime nhưng vẫn hiện ở bảng "Hiệu suất nhân sự" (có doanh thu). */
@@ -172,7 +172,7 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // cộng lại đúng bằng tổng công ty, phiếu khách chưa duyệt không được tính vào Thực tế.
   let acceptanceQuery = supabase
     .from('wf_project_acceptances')
-    .select('id, total_amount, currency, status, discount_type, discount_value')
+    .select('id, total_amount, currency, status, discount_type, discount_value, extra_items')
     .eq('period', periodStr);
   if (accountTypeFilter !== 'all') acceptanceQuery = acceptanceQuery.eq('account_type', accountTypeFilter);
   const { data: acceptances } = await acceptanceQuery;
@@ -182,7 +182,8 @@ export async function getDashboardData(month: number, year: number, exchangeRate
   // client_currency của task, sửa 2026-09-24). Tỷ giá 0 ⇒ trả 0 thay vì Infinity.
   const toUSD = (amount: number, currency?: string | null) =>
     currency === 'VND' ? (exchangeRate > 0 ? amount / exchangeRate : 0) : amount;
-  const acceptanceNetUSD = (a: { total_amount: number; currency?: string | null; discount_type?: string; discount_value?: number }) =>
+  // Gồm cả extra_items (bonus khách) ⇒ doanh thu CÔNG TY; per-NV dùng acceptanceTaskNetAmount bên dưới.
+  const acceptanceNetUSD = (a: { total_amount: number; currency?: string | null; discount_type?: string; discount_value?: number; extra_items?: any }) =>
     toUSD(acceptanceNetAmount(a), a.currency);
 
   // P&L tổng: chỉ phiếu accepted (số thực)
@@ -578,8 +579,10 @@ export async function getDashboardData(month: number, year: number, exchangeRate
       const acceptanceIds = acceptances.map(a => a.id);
       // Discount của phiếu phân bổ theo tỷ lệ vào từng task ⇒ cộng các dòng NV = tổng công ty.
       // (Phiếu chỉ có draft/sent/accepted — không có trạng thái huỷ để loại.)
+      // extra_items (bonus khách, 2026-10-01) KHÔNG phân bổ cho NV ⇒ dùng phần task-only;
+      // vì vậy Σ dòng NV = tổng công ty − tổng bonus khách.
       const discountFactor = new Map(acceptances.map(a => [
-        a.id, Number(a.total_amount) > 0 ? acceptanceNetAmount(a) / Number(a.total_amount) : 1,
+        a.id, Number(a.total_amount) > 0 ? acceptanceTaskNetAmount(a) / Number(a.total_amount) : 1,
       ]));
       const accStatus = new Map(acceptances.map(a => [a.id, a.status]));
       // client_price trên dòng phiếu ghi theo currency của phiếu ⇒ quy USD theo phiếu cha.

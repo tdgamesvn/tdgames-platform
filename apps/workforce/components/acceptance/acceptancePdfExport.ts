@@ -68,6 +68,7 @@ export async function exportAcceptancePdf(
     notes?: string;
     discount_type?: string;
     discount_value?: number;
+    extra_items?: { label: string; amount: number }[];
     account_type?: 'company' | 'personal';
   },
   tasks: AcceptanceTask[],
@@ -108,15 +109,20 @@ export async function exportAcceptancePdf(
   const discountAmt = acceptance.discount_type === 'percent'
     ? totalClientPrice * (acceptance.discount_value || 0) / 100
     : (acceptance.discount_value || 0);
-  const netTotal = Math.max(0, totalClientPrice - discountAmt);
+  const extras = (acceptance.extra_items || []).filter(i => Number(i.amount));
+  const extraTotal = extras.reduce((s, i) => s + Number(i.amount), 0);
+  const netTotal = Math.max(0, totalClientPrice - discountAmt) + extraTotal;
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
+  const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  const fmtSigned = (n: number) => `${n < 0 ? '-' : '+'}$${Math.abs(n).toLocaleString('en-US')}`;
   const hasDiscount = (acceptance.discount_value || 0) > 0;
-  const discountRowHtml = hasDiscount ? `
+  const discountRowHtml = (hasDiscount || extras.length > 0) ? `
     <div class="row"><span>Subtotal:</span><span>$${totalClientPrice.toLocaleString('en-US')}</span></div>
-    <div class="row" style="color:#e74c3c"><span>Discount${acceptance.discount_type === 'percent' ? ` (${acceptance.discount_value}%)` : ''}:</span><span>-$${discountAmt.toLocaleString('en-US')}</span></div>
+    ${hasDiscount ? `<div class="row" style="color:#e74c3c"><span>Discount${acceptance.discount_type === 'percent' ? ` (${acceptance.discount_value}%)` : ''}:</span><span>-$${discountAmt.toLocaleString('en-US')}</span></div>` : ''}
+    ${extras.map(i => `<div class="row" style="color:#059669"><span>${esc(i.label)}:</span><span>${fmtSigned(Number(i.amount))}</span></div>`).join('')}
   ` : '';
 
   printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Project Acceptance - ${acceptance.project_name}</title>

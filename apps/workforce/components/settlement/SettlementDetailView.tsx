@@ -46,6 +46,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
   const [editing, setEditing] = useState(false);
   const [editBonusType, setEditBonusType] = useState(s.bonus_type || 'amount');
   const [editBonusValue, setEditBonusValue] = useState(s.bonus_value || 0);
+  const [editBonusReason, setEditBonusReason] = useState(s.bonus_reason || '');
   const [editTaxRate, setEditTaxRate] = useState(s.tax_rate ?? 10);
   const [editNotes, setEditNotes] = useState(s.notes || '');
   const [editTaskIds, setEditTaskIds] = useState<string[]>([]);
@@ -87,10 +88,11 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
     if (editTaskIds.length === 0) return;
     setSaving(true);
     try {
-      const accountType = editTaxRate === 0 ? 'personal' : 'company';
+      // Thuế 0% không còn đồng nghĩa TK cá nhân (dưới 5tr/lần trả qua công ty cũng 0%) ⇒ giữ sổ cũ.
+      const accountType = editTaxRate > 0 ? 'company' : (s.tax_rate === 0 ? (s.account_type || 'personal') : 'personal');
       await svc.updateSettlementTasks(
         s.id!, editTaskIds, editTotal, editCurrency,
-        editBonusType, editBonusValue, editTaxRate, editNotes, accountType
+        editBonusType, editBonusValue, editTaxRate, editNotes, accountType, editBonusReason
       );
       // Refresh
       const updatedTasks = await svc.fetchSettlementTasks(s.id!);
@@ -106,7 +108,8 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
         tax_amount: editPreview.taxAmount,
         net_amount: editPreview.netAmount,
         notes: editNotes,
-        account_type: editTaxRate === 0 ? 'personal' : 'company',
+        account_type: accountType,
+        bonus_reason: editPreview.bonusAmount > 0 ? editBonusReason.trim() : '',
       };
       setS(prev => ({ ...prev, ...updatedFields }));
       // Đồng bộ lại mảng settlements ở component cha — nếu không, quay lại danh sách
@@ -254,6 +257,9 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2 block">{editBonusType === 'percent' ? 'Bonus (%)' : 'Bonus (số tiền)'}</label>
               <input type="number" className={inputCls} value={editBonusValue || ''} onChange={e => setEditBonusValue(Number(e.target.value) || 0)} />
+              {editBonusValue > 0 && (
+                <input type="text" className={`${inputCls} mt-2`} value={editBonusReason} onChange={e => setEditBonusReason(e.target.value)} placeholder="Lý do bonus" />
+              )}
             </div>
             <div>
               <label className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2 block">Thanh toán qua</label>
@@ -416,7 +422,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
                 </tr>
                 {(s.bonus_amount || 0) > 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-2 text-right text-[10px] font-black uppercase tracking-widest text-yellow-400">+ Bonus ({s.bonus_type === 'percent' ? `${s.bonus_value}%` : 'Cố định'})</td>
+                    <td colSpan={4} className="px-4 py-2 text-right text-[10px] font-black uppercase tracking-widest text-yellow-400">+ Bonus ({s.bonus_type === 'percent' ? `${s.bonus_value}%` : 'Cố định'}){s.bonus_reason ? <span className="block normal-case tracking-normal font-bold text-yellow-400/70">{s.bonus_reason}</span> : null}</td>
                     <td colSpan={2} className="px-4 py-2 text-right text-yellow-400 font-bold">+{fmt(s.bonus_amount || 0)} <span className="text-xs text-neutral-medium">{s.currency}</span></td>
                     <td colSpan={4}></td>
                   </tr>
@@ -433,7 +439,7 @@ const SettlementDetailView: React.FC<SettlementDetailViewProps> = ({
                   <td colSpan={2} className="px-4 py-3 text-right">
                     <span className="text-emerald-400 font-black text-xl">{fmt(s.net_amount || 0)} <span className="text-xs text-neutral-medium">{s.currency}</span></span>
                     {s.currency !== 'VND' && totalVND > 0 && (
-                      <div className="text-neutral-medium text-xs mt-0.5">≈ {fmt(Math.round(totalVND * (1 - (s.tax_rate ?? 0) / 100)))} VNĐ</div>
+                      <div className="text-neutral-medium text-xs mt-0.5">≈ {fmt(Math.round(totalPrice > 0 ? (s.net_amount || 0) * (totalVND / totalPrice) : 0))} VNĐ</div>
                     )}
                   </td>
                   <td colSpan={4}></td>

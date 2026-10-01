@@ -272,7 +272,8 @@ export async function createSettlement(
   bonusType: 'percent' | 'amount' = 'amount',
   bonusValue: number = 0,
   taxRate: number = 10,
-  accountType: 'company' | 'personal' = 'company'
+  accountType: 'company' | 'personal' = 'company',
+  bonusReason: string = ''
 ): Promise<Settlement> {
   const { bonusAmount, taxAmount, netAmount } = computeSettlementTotals(totalAmount, bonusType, bonusValue, taxRate);
 
@@ -290,6 +291,7 @@ export async function createSettlement(
       bonus_type: bonusType,
       bonus_value: bonusValue,
       bonus_amount: bonusAmount,
+      bonus_reason: bonusAmount > 0 ? bonusReason.trim() : '',
       tax_rate: taxRate,
       tax_amount: taxAmount,
       net_amount: netAmount,
@@ -407,7 +409,8 @@ export async function updateSettlementTasks(
   bonusValue: number,
   taxRate: number,
   notes: string,
-  accountType: 'company' | 'personal'
+  accountType: 'company' | 'personal',
+  bonusReason: string = ''
 ): Promise<void> {
   const { bonusAmount, taxAmount, netAmount } = computeSettlementTotals(totalAmount, bonusType, bonusValue, taxRate);
 
@@ -428,6 +431,7 @@ export async function updateSettlementTasks(
     currency,
     bonus_type: bonusType,
     bonus_value: bonusValue,
+    bonus_reason: bonusAmount > 0 ? bonusReason.trim() : '',
     bonus_amount: bonusAmount,
     tax_rate: taxRate,
     tax_amount: taxAmount,

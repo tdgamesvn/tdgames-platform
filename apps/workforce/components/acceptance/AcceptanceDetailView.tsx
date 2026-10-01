@@ -6,6 +6,7 @@ import { CompanySelector, CompanyId } from '../shared/CompanySelector';
 import { StatusBadge } from '../shared/StatusBadge';
 import { SignedScanButton } from '../shared/SignedScanButton';
 import { getClickupStatusStyle, exportAcceptancePdf, periodEndDate } from './acceptancePdfExport';
+import { ExtraItemsEditor, cleanExtraItems } from './ExtraItemsEditor';
 
 type AcceptanceTask = WorkforceTask & { client_price: number; acceptance_note: string };
 
@@ -45,7 +46,16 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
   const nextStatus = STATUS_FLOW[a.status];
   const totalClientPrice = detailTasks.reduce((sum, t) => sum + (t.client_price || 0), 0);
   const discountAmount = calcDiscount(totalClientPrice, a.discount_type, a.discount_value);
-  const netTotal = Math.max(0, totalClientPrice - discountAmount);
+  const [extraItems, setExtraItems] = useState(a.extra_items || []);
+  const extraTotal = paSvc.extraItemsTotal(cleanExtraItems(extraItems));
+  const netTotal = Math.max(0, totalClientPrice - discountAmount) + extraTotal;
+
+  const handleCommitExtras = (items: typeof extraItems) => {
+    const cleaned = cleanExtraItems(items);
+    if (JSON.stringify(cleaned) === JSON.stringify(a.extra_items || [])) return;
+    onUpdate(a.id!, { extra_items: cleaned });
+    setA(prev => ({ ...prev, extra_items: cleaned }));
+  };
 
   const handleDiscountChange = (field: 'discount_type' | 'discount_value', val: any) => {
     const updates = { [field]: val };
@@ -70,7 +80,7 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
     } catch { /* revert if needed */ }
   };
 
-  const handleExportPDF = () => exportAcceptancePdf(a, detailTasks, selCompany);
+  const handleExportPDF = () => exportAcceptancePdf({ ...a, extra_items: cleanExtraItems(extraItems) }, detailTasks, selCompany);
 
   return (
     <div className="animate-fadeInUp space-y-6">
@@ -133,9 +143,11 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
         <div className="p-4 rounded-[16px] border border-blue-500/10 bg-surface border-blue-500/30">
           <p className="text-[9px] font-black uppercase tracking-widest text-blue-400 mb-1">NET TOTAL</p>
           <p className="text-2xl font-black text-blue-400">{fmtUSD(netTotal)}</p>
-          {(a.discount_value || 0) > 0 && (
+          {((a.discount_value || 0) > 0 || extraTotal !== 0) && (
             <p className="text-[10px] text-neutral-medium/50 mt-0.5">
-              Subtotal: {fmtUSD(totalClientPrice)} − Discount: {fmtUSD(discountAmount)}
+              Subtotal: {fmtUSD(totalClientPrice)}
+              {(a.discount_value || 0) > 0 && <> − Discount: {fmtUSD(discountAmount)}</>}
+              {extraTotal !== 0 && <> + Cộng thêm: {fmtUSD(extraTotal)}</>}
             </p>
           )}
         </div>
@@ -244,6 +256,13 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
         </div>
       </div>
 
+      {/* Extra items — bonus khách / phát sinh không gắn task */}
+      <div className="rounded-[20px] border border-primary/10 bg-surface p-5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Khoản cộng thêm</p>
+        <p className="text-[10px] text-neutral-medium/50 mb-4">Không gắn task, không bị discount, không chia vào doanh thu/KPI nhân viên.</p>
+        <ExtraItemsEditor items={extraItems} onChange={setExtraItems} onCommit={handleCommitExtras} />
+      </div>
+
       {/* Discount controls */}
       <div className="rounded-[20px] border border-primary/10 bg-surface p-5">
         <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-4">Discount</p>
@@ -266,12 +285,20 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
             />
             {a.discount_type === 'percent' && <span className="text-neutral-medium/40 text-sm">%</span>}
           </div>
-          {(a.discount_value || 0) > 0 && (
+          {((a.discount_value || 0) > 0 || extraTotal !== 0) && (
             <div className="ml-auto flex items-center gap-6">
-              <div className="text-right">
-                <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">Discount</p>
-                <p className="text-red-400 font-bold text-lg">-{fmtUSD(discountAmount)}</p>
-              </div>
+              {(a.discount_value || 0) > 0 && (
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">Discount</p>
+                  <p className="text-red-400 font-bold text-lg">-{fmtUSD(discountAmount)}</p>
+                </div>
+              )}
+              {extraTotal !== 0 && (
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">Cộng thêm</p>
+                  <p className="text-emerald-400 font-bold text-lg">{extraTotal < 0 ? '-' : '+'}{fmtUSD(Math.abs(extraTotal))}</p>
+                </div>
+              )}
               <div className="text-right">
                 <p className="text-[9px] font-black uppercase tracking-widest text-blue-400">Net Total</p>
                 <p className="text-blue-400 font-black text-2xl">{fmtUSD(netTotal)}</p>

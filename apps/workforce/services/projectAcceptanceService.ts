@@ -1,13 +1,24 @@
 import { supabase } from '@/services/supabaseClient';
-import { ProjectAcceptance, WorkforceTask } from '@/types';
+import { AcceptanceExtraItem, ProjectAcceptance, WorkforceTask } from '@/types';
 
 // ── Discount helpers ───────────────────────────────────────────
 // ponytail: total_amount trong DB = subtotal (chưa trừ discount); net tính lúc hiển thị
 export const calcDiscount = (subtotal: number, type: string | undefined, value: number | undefined) =>
   type === 'percent' ? subtotal * (value || 0) / 100 : (value || 0);
 
-export const acceptanceNetAmount = (a: { total_amount: number; discount_type?: string; discount_value?: number }) =>
+type NetInput = { total_amount: number; discount_type?: string; discount_value?: number; extra_items?: AcceptanceExtraItem[] | null };
+
+/** Tổng khoản cộng thêm (bonus khách...) — không gắn task, không bị discount */
+export const extraItemsTotal = (items?: AcceptanceExtraItem[] | null) =>
+  (items || []).reduce((s, i) => s + (Number(i.amount) || 0), 0);
+
+/** Phần task sau discount — dùng để phân bổ doanh thu theo NV (bonus không chia cho NV) */
+export const acceptanceTaskNetAmount = (a: NetInput) =>
   Math.max(0, (a.total_amount || 0) - calcDiscount(a.total_amount || 0, a.discount_type, a.discount_value));
+
+/** Tổng thực thu của phiếu = task sau discount + khoản cộng thêm */
+export const acceptanceNetAmount = (a: NetInput) =>
+  acceptanceTaskNetAmount(a) + extraItemsTotal(a.extra_items);
 
 // ── Fetch all project acceptances ─────────────────────────────
 export async function fetchProjectAcceptances(): Promise<ProjectAcceptance[]> {
@@ -29,7 +40,8 @@ export async function createProjectAcceptance(
   currency: string,
   notes: string,
   clientPrices?: Record<string, number>,
-  accountType: 'company' | 'personal' = 'company'
+  accountType: 'company' | 'personal' = 'company',
+  extraItems: AcceptanceExtraItem[] = []
 ): Promise<ProjectAcceptance> {
   // ponytail: resolve mapping lúc tạo; đổi mapping sau không tự cập nhật bản ghi cũ
   const { data: maps } = await supabase
@@ -56,6 +68,7 @@ export async function createProjectAcceptance(
       currency,
       notes,
       account_type: accountType,
+      extra_items: extraItems.filter(i => i.label.trim() && i.amount),
     })
     .select()
     .single();

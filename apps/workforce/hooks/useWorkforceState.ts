@@ -1,6 +1,6 @@
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Worker, WorkerContract, WorkforceTask, Settlement, ProjectAcceptance } from '@/types';
+import { Worker, WorkerContract, WorkforceTask, Settlement, ProjectAcceptance, AcceptanceExtraItem } from '@/types';
 import * as svc from '../services/workforceService';
 import * as paSvc from '../services/projectAcceptanceService';
 import { supabase } from '@/services/supabaseClient';
@@ -246,10 +246,11 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
     bonusType: 'percent' | 'amount' = 'amount',
     bonusValue: number = 0,
     taxRate: number = 10,
-    accountType: 'company' | 'personal' = 'company'
+    accountType: 'company' | 'personal' = 'company',
+    bonusReason: string = ''
   ) => {
     try {
-      const saved = await svc.createSettlement(workerId, projectName, period, taskIds, totalAmount, currency, notes, bonusType, bonusValue, taxRate, accountType);
+      const saved = await svc.createSettlement(workerId, projectName, period, taskIds, totalAmount, currency, notes, bonusType, bonusValue, taxRate, accountType, bonusReason);
       setSettlements(prev => [saved, ...prev]);
       // Refresh tasks since they've been marked approved
       const updatedTasks = await svc.fetchTasks();
@@ -298,10 +299,11 @@ export function useWorkforceState(currentUsername: string, initialTab?: string |
     currency: string,
     notes: string,
     clientPrices?: Record<string, number>,
-    accountType: 'company' | 'personal' = 'company'
+    accountType: 'company' | 'personal' = 'company',
+    extraItems: AcceptanceExtraItem[] = []
   ) => {
     try {
-      const saved = await paSvc.createProjectAcceptance(projectName, clientName, period, taskIds, totalAmount, currency, notes, clientPrices, accountType);
+      const saved = await paSvc.createProjectAcceptance(projectName, clientName, period, taskIds, totalAmount, currency, notes, clientPrices, accountType, extraItems);
       setProjectAcceptances(prev => [saved, ...prev]);
       setToast({ message: 'Created project acceptance', type: 'success' });
     } catch (e: any) {
