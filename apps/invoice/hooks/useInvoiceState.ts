@@ -126,8 +126,8 @@ export function useInvoiceState(initialTab?: string | null) {
 
   // ── Exchange Rate (USD→VND for eInvoice) ──
   const [showExchangeRateModal, setShowExchangeRateModal] = useState(false);
-  // ── Live VCB Exchange Rate (shared via Context) ──
-  const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd } = useExchangeRate();
+  // ── Live Techcombank Exchange Rate (shared via Context) ──
+  const { rate: vcbRate, loading: vcbRateLoading, avgUsdVnd, refresh: refreshFxRate } = useExchangeRate();
   const [exchangeRate, setExchangeRate] = useState<number>(25400);
   const [exchangeRateTarget, setExchangeRateTarget] = useState<InvoiceData | null>(null);
 
@@ -571,6 +571,9 @@ export function useInvoiceState(initialTab?: string | null) {
     if (inv.currency === 'USD') {
       setExchangeRateTarget(inv);
       setShowExchangeRateModal(true);
+      // Tỷ giá phải là tỷ giá NGÀY xuất HĐ — tab để mở qua đêm thì context còn giữ
+      // tỷ giá cũ (refresh 1h/lần), nên tải lại ngay khi mở modal.
+      refreshFxRate();
       return;
     }
 

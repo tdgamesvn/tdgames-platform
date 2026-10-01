@@ -307,10 +307,14 @@ const InvoiceApp: React.FC<InvoiceAppProps> = ({ currentUser, onBack, initialTab
                     return (
                       <button type="button" onClick={() => state.setExchangeRate(avg)}
                         className="underline decoration-dotted hover:text-primary transition-colors cursor-pointer">
-                        🏦 VCB TB: {avg.toLocaleString('vi-VN')} VND (Mua {state.vcbRate!.buy.toLocaleString('vi-VN')} + Bán {state.vcbRate!.sell.toLocaleString('vi-VN')} / 2)
+                        🏦 {state.vcbRate!.source || 'Techcombank'} TB chuyển khoản: {avg.toLocaleString('vi-VN')} VND (Mua CK {state.vcbRate!.buy.toLocaleString('vi-VN')} + Bán CK {state.vcbRate!.sell.toLocaleString('vi-VN')} / 2)
+                        {(() => {
+                          const d = new Date(state.vcbRate!.updated_at);
+                          return isNaN(d.getTime()) ? '' : ` • ${d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+                        })()}
                       </button>
                     );
-                  })() : 'Dùng tỉ giá trung bình (mua + bán) / 2 của ngân hàng'}
+                  })() : 'Dùng tỷ giá trung bình (mua + bán chuyển khoản) / 2 của Techcombank'}
                 </p>
               </div>
               <div className={`mb-6 p-4 rounded-xl ${APP_UI_IS_DARK ? 'bg-emerald-500/5 border border-emerald-500/20' : 'bg-emerald-50 border border-emerald-200'}`}>

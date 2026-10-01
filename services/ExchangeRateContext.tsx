@@ -48,7 +48,7 @@ export const ExchangeRateProvider: React.FC<{ children: ReactNode }> = ({ childr
     try {
       const data = await fetchExchangeRate();
       setRate(data);
-      // Auto-save today's VCB avg rate to DB for historical reporting
+      // Auto-save today's Techcombank avg transfer rate to DB for historical reporting
       const today = new Date().toISOString().split('T')[0];
       const avg = avgRate(data);
       if (avg > 0 && savedFxDate !== today && await canWriteFxRate()) {
@@ -63,7 +63,7 @@ export const ExchangeRateProvider: React.FC<{ children: ReactNode }> = ({ childr
             from_currency: 'USD',
             to_currency: 'VND',
             rate: avg,
-            source: 'vcb',
+            source: 'techcombank',
           }).catch(() => { savedFxDate = null; }); // hỏng thì cho phép thử lại
         }
       }

@@ -173,7 +173,7 @@ export const EXPENSE_HELP: HelpContent[] = [
         title: 'Nguồn tỷ giá',
         type: 'info',
         items: [
-          'Tỷ giá VCB mua/bán cập nhật tự động hàng ngày ở thanh Navbar.',
+          'Tỷ giá Techcombank mua/bán cập nhật tự động hàng ngày ở thanh Navbar.',
           'Tỷ giá bình quân trong Expense được dùng cho quy đổi P&L và Bank Reconciliation.',
           'Nếu thiếu tỷ giá một ngày, các module sẽ dùng tỷ giá gần nhất có sẵn trong database.',
         ],
@@ -202,7 +202,7 @@ export const EXPENSE_HELP: HelpContent[] = [
         type: 'tips',
         items: [
           'Chỉ tính giao dịch <strong>thực thu / thực chi</strong> — không tính hoá đơn pending hoặc chi phí chờ duyệt.',
-          'Chi phí USD được quy đổi VND theo tỷ giá bình quân VCB hiện tại.',
+          'Chi phí USD được quy đổi VND theo tỷ giá bình quân Techcombank hiện tại.',
           'Dùng Cash Flow để dự đoán nhu cầu vốn ngắn hạn, không thay thế cho P&L.',
         ],
       },

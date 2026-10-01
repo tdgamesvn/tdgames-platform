@@ -125,7 +125,7 @@ export const WORKFORCE_HELP: HelpContent[] = [
           '<strong>Chi phí CTV</strong> — Tổng nghiệm thu đã trả cho cộng tác viên trong kỳ.',
           '<strong>Doanh thu dự án</strong> — Tổng nghiệm thu dự án đã xác nhận với khách hàng.',
           '<strong>Margin</strong> = Doanh thu − Chi phí CTV. Cho thấy hiệu quả dự án.',
-          'Chi phí USD được quy đổi theo tỷ giá VCB bình quân hiển thị trên Navbar.',
+          'Chi phí USD được quy đổi theo tỷ giá Techcombank bình quân hiển thị trên Navbar.',
         ],
       },
     ],

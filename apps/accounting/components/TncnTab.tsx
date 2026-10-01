@@ -297,7 +297,7 @@ export default function TncnTab({ records, employees, freelancerSettlements, vcb
       </div>
 
       <p className="text-neutral-600 text-xs">
-        * Freelancer: TNCN khấu trừ tại nguồn 10% theo Thông tư 111/2013/TT-BTC. Số liệu quy đổi về VND theo tỷ giá bình quân VCB.
+        * Freelancer: TNCN khấu trừ tại nguồn 10% theo Thông tư 111/2013/TT-BTC. Số liệu quy đổi về VND theo tỷ giá bình quân Techcombank.
       </p>
     </div>
   );

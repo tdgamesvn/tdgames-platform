@@ -86,7 +86,7 @@ export const COMPANY_HELP: HelpContent[] = [
         items: [
           'Hiển thị các tài khoản của TD GAMES.',
           'Tài khoản <strong>Chính</strong> được dùng mặc định khi tạo hoá đơn trong Invoice app.',
-          'Tỷ giá VND/USD được lấy theo VCB bình quân hiển thị trên Navbar.',
+          'Tỷ giá VND/USD được lấy theo Techcombank bình quân hiển thị trên Navbar.',
         ],
       },
       {

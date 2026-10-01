@@ -107,7 +107,7 @@ export const ACCOUNTING_HELP: HelpContent[] = [
     tabLabel: 'Lãi / Lỗ',
     icon: '📈',
     summary:
-      'Báo cáo P&L (Profit & Loss) tổng hợp doanh thu từ Hoá đơn đã thu tiền và chi phí đã thanh toán. Tự động quy đổi USD → VND theo tỷ giá VCB.',
+      'Báo cáo P&L (Profit & Loss) tổng hợp doanh thu từ Hoá đơn đã thu tiền và chi phí đã thanh toán. Tự động quy đổi USD → VND theo tỷ giá Techcombank.',
     sections: [
       {
         title: 'Cách đọc P&L',
@@ -132,7 +132,7 @@ export const ACCOUNTING_HELP: HelpContent[] = [
         title: 'Lưu ý về tỷ giá',
         type: 'tips',
         items: [
-          'Tỷ giá USD/VND lấy từ VCB bình quân, cập nhật trong phần <strong>Expense → Tỷ giá</strong>.',
+          'Tỷ giá USD/VND lấy từ Techcombank bình quân, cập nhật trong phần <strong>Expense → Tỷ giá</strong>.',
           'Nếu tỷ giá chưa cập nhật hôm nay, hệ thống dùng tỷ giá gần nhất có trong database.',
         ],
       },

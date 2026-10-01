@@ -24,7 +24,7 @@ export const INVOICE_HELP: HelpContent[] = [
         type: 'info',
         items: [
           'Hoá đơn hỗ trợ <strong>USD</strong> và <strong>VND</strong>.',
-          'Tỷ giá VCB (mua/bán) hiển thị ở thanh trên cùng, cập nhật tự động mỗi ngày.',
+          'Tỷ giá Techcombank (mua/bán) hiển thị ở thanh trên cùng, cập nhật tự động mỗi ngày.',
           'Khi tạo eInvoice cho HĐ USD, hệ thống yêu cầu nhập tỷ giá để convert sang VND (SePay chỉ hỗ trợ VND).',
         ],
       },
@@ -118,7 +118,7 @@ export const INVOICE_HELP: HelpContent[] = [
           '<strong>Doanh thu</strong> — Tổng giá trị HĐ đã Paid trong kỳ (đã trừ phí chuyển khoản).',
           '<strong>Pending</strong> — Tổng giá trị HĐ chưa thu tiền, cần theo dõi.',
           '<strong>Số HĐ</strong> — Đếm theo trạng thái: Paid / Pending / Cancelled.',
-          'Doanh thu USD được quy đổi VND theo tỷ giá VCB trung bình hiện tại.',
+          'Doanh thu USD được quy đổi VND theo tỷ giá Techcombank trung bình hiện tại.',
         ],
       },
       {
