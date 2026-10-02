@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import AppBackground from '@/components/AppBackground';
 import { PayPayrollSheet, PayPayrollRecord, PayrollFormulaConfig } from '@/types';
-import { exportPayrollToExcel } from '../services/payrollExportService';
 import PaySlip from './PaySlip';
 
 interface Props {
@@ -183,7 +182,9 @@ const PayrollSheet: React.FC<Props> = ({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {onRefresh && (
+            {/* 1 nút duy nhất theo trạng thái: nháp → "Tính lại" (kéo chấm công + áp công thức,
+                tự ghi DB nên đã là số mới nhất); đã chốt → "Làm mới" (xem NV xác nhận/khiếu nại). */}
+            {!isDraft && onRefresh && (
               <button onClick={onRefresh} disabled={loading}
                 className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 hover:text-white transition-all disabled:opacity-50"
                 title="Làm mới trạng thái xác nhận">
@@ -206,10 +207,6 @@ const PayrollSheet: React.FC<Props> = ({
                 Tính lại
               </button>
             )}
-            <button onClick={() => exportPayrollToExcel(sheet, records, formula)}
-              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">
-              Export Excel
-            </button>
             {isDraft && (
               <button onClick={() => setConfirmModal(true)}
                 className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all hover:opacity-90"
@@ -461,151 +458,163 @@ const PayrollSheet: React.FC<Props> = ({
                   {/* Expanded: 8-step detail */}
                   {isExpanded && (
                     <div className="px-6 py-4 bg-black/20 border-b border-white/[0.04]">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-3">
-                        📊 Chi tiết tính lương — {empName}
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Left: Input + Steps 1-2 */}
-                        <div className="space-y-2">
-                          <div className="text-[10px] font-bold text-primary uppercase mb-1">Input & Bước 1-2</div>
-                          <Row label="Ngày công" value={`${rec.work_days} / ${std}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
-                          <Row label="Lương CB" value={fmt(rec.base_salary)} sub={`Thực: ${fmt(Math.round(rec.base_salary * ratio))}`} />
-                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
-                            <div className="pl-3 border-l-2 border-orange-500/30 space-y-1">
-                              {isDraft ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-orange-300/80 font-semibold whitespace-nowrap">Lương CB cũ (TV):</span>
-                                  <input
-                                    type="number" step="100000"
-                                    className="w-28 px-1.5 py-0.5 rounded bg-black/40 border border-orange-500/30 text-orange-300 text-[11px] text-right outline-none focus:border-orange-500/60"
-                                    value={rec.pre_official_base_salary ?? ''}
-                                    placeholder="Nhập lương cũ..."
-                                    onChange={e => handleCellChange(rec, 'pre_official_base_salary', +e.target.value || 0)}
-                                  />
-                                </div>
-                              ) : rec.pre_official_base_salary != null ? (
-                                <Row label="Lương CB cũ (thử việc)" value={fmt(rec.pre_official_base_salary)} color="text-orange-300/80" />
-                              ) : null}
-                              {rec.pre_official_base_salary != null && (
-                                <Row
-                                  label="Prorate"
-                                  value={`${fmt(rec.pre_official_base_salary)} × ${Math.round(rec.probation_ratio * 100)}% + ${fmt(rec.base_salary)} × ${Math.round((1 - rec.probation_ratio) * 100)}%`}
-                                  color="text-orange-200/60"
+                      {(() => {
+                        const fullMonth = Math.abs(ratio - 1) < 1e-9;
+                        const isSplit = !rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1;
+                        const otH = totalOtHours(rec);
+                        const bonus = rec.bonus ?? 0;
+                        const colSpan = fullMonth ? 2 : 3;
+                        const prorate = (field: 'pre_official_base_salary' | 'pre_official_kpi_allowance' | 'pre_official_default_ot', label: string, current: number) =>
+                          isSplit && (
+                            <tr>
+                              <td colSpan={colSpan} className="pb-2">
+                                <ProrateEditor
+                                  label={label}
+                                  oldValue={rec[field]}
+                                  current={current}
+                                  probationRatio={rec.probation_ratio}
+                                  editable={isDraft}
+                                  onChange={v => handleCellChange(rec, field, v)}
                                 />
-                              )}
+                              </td>
+                            </tr>
+                          );
+                        const income = (label: string, base: number, opts: { exempt?: boolean } = {}) => (
+                          <tr className="border-b border-white/5">
+                            <td className="py-2 text-neutral-400">
+                              {label}
+                              {opts.exempt && <span className="ml-2 text-[9px] font-black uppercase text-neutral-600">miễn thuế</span>}
+                            </td>
+                            {!fullMonth && <td className="py-2 text-right text-neutral-500 tabular-nums">{fmt(base)}</td>}
+                            <td className="py-2 text-right text-white font-semibold tabular-nums">{fmt(Math.round(base * ratio))}</td>
+                          </tr>
+                        );
+                        return (
+                          <>
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-neutral-600">
+                                Chi tiết tính lương — <span className="text-white">{empName}</span>
+                              </p>
+                              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
+                                Ngày công <span className="text-white">{rec.work_days} / {std}</span>
+                                {!fullMonth && <> · tỷ lệ <span className="text-white">{(ratio * 100).toFixed(1)}%</span></>}
+                                {rec.is_probation && <span className="ml-2 px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-400">Thử việc</span>}
+                              </p>
                             </div>
-                          )}
-                          <Row label="PC ăn trưa" value={fmt(rec.lunch_allowance)} sub={`Thực: ${fmt(Math.round(rec.lunch_allowance * ratio))}`} />
-                          <Row label="PC xăng xe" value={fmt(rec.transport_allowance)} sub={`Thực: ${fmt(Math.round(rec.transport_allowance * ratio))}`} />
-                          <Row label="PC điện thoại" value={fmt(rec.phone_allowance)} sub={`Thực: ${fmt(Math.round(rec.phone_allowance * ratio))}`} />
-                          <Row label="PC trang phục" value={fmt(rec.clothing_allowance)} sub={`Thực: ${fmt(Math.round(rec.clothing_allowance * ratio))}`} />
-                          <Row label="KPI" value={fmt(rec.kpi_allowance)} sub={`Thực: ${fmt(Math.round(rec.kpi_allowance * ratio))}`} />
-                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
-                            <div className="pl-3 border-l-2 border-orange-500/30 space-y-1">
-                              {isDraft ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-orange-300/80 font-semibold whitespace-nowrap">KPI cũ (TV):</span>
-                                  <input
-                                    type="number" step="100000"
-                                    className="w-28 px-1.5 py-0.5 rounded bg-black/40 border border-orange-500/30 text-orange-300 text-[11px] text-right outline-none focus:border-orange-500/60"
-                                    value={rec.pre_official_kpi_allowance ?? ''}
-                                    placeholder="Nhập KPI cũ..."
-                                    onChange={e => handleCellChange(rec, 'pre_official_kpi_allowance', +e.target.value || 0)}
-                                  />
-                                </div>
-                              ) : rec.pre_official_kpi_allowance != null ? (
-                                <Row label="KPI cũ (thử việc)" value={fmt(rec.pre_official_kpi_allowance)} color="text-orange-300/80" />
-                              ) : null}
-                              {rec.pre_official_kpi_allowance != null && (
-                                <Row
-                                  label="Prorate"
-                                  value={`${fmt(rec.pre_official_kpi_allowance)} × ${Math.round(rec.probation_ratio * 100)}% + ${fmt(rec.kpi_allowance)} × ${Math.round((1 - rec.probation_ratio) * 100)}%`}
-                                  color="text-orange-200/60"
-                                />
-                              )}
-                            </div>
-                          )}
-                          <Row label="Tăng ca MĐ" value={fmt(rec.default_ot)} sub={`Thực: ${fmt(Math.round(rec.default_ot * ratio))}`} />
-                          {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
-                            <div className="pl-3 border-l-2 border-orange-500/30 space-y-1">
-                              {isDraft ? (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-orange-300/80 font-semibold whitespace-nowrap">Tăng ca cũ (TV):</span>
-                                  <input
-                                    type="number" step="100000"
-                                    className="w-28 px-1.5 py-0.5 rounded bg-black/40 border border-orange-500/30 text-orange-300 text-[11px] text-right outline-none focus:border-orange-500/60"
-                                    value={rec.pre_official_default_ot ?? ''}
-                                    placeholder="Nhập tăng ca cũ..."
-                                    onChange={e => handleCellChange(rec, 'pre_official_default_ot', +e.target.value || 0)}
-                                  />
-                                </div>
-                              ) : rec.pre_official_default_ot != null ? (
-                                <Row label="Tăng ca cũ (thử việc)" value={fmt(rec.pre_official_default_ot)} color="text-orange-300/80" />
-                              ) : null}
-                              {rec.pre_official_default_ot != null && (
-                                <Row
-                                  label="Prorate"
-                                  value={`${fmt(rec.pre_official_default_ot)} × ${Math.round(rec.probation_ratio * 100)}% + ${fmt(rec.default_ot)} × ${Math.round((1 - rec.probation_ratio) * 100)}%`}
-                                  color="text-orange-200/60"
-                                />
-                              )}
-                            </div>
-                          )}
-                          <Row
-                            label="Tăng ca phát sinh"
-                            value={totalOtHours(rec) > 0 ? `${totalOtHours(rec)}h → ${fmt(rec.extra_ot)}đ` : '—'}
-                            sub={totalOtHours(rec) > 0 ? otBreakdown(rec) : undefined}
-                            highlight
-                          />
-                          <div className="border-t border-white/[0.06] pt-2 mt-2">
-                            <Row label="Gross tham chiếu" value={fmt(rec.gross_ref)} bold />
-                            <Row label="Gross thực tế" value={fmt(rec.gross_actual)} bold highlight />
-                          </div>
-                        </div>
 
-                        {/* Right: Steps 3-8 */}
-                        <div className="space-y-2">
-                          <div className="text-[10px] font-bold text-green-400 uppercase mb-1">
-                            {rec.is_probation ? 'THỬ VIỆC: Thuế 10% – Không BH' : 'Bước 3-8: BH → Thuế → Net'}
-                          </div>
-                          {rec.is_probation ? (
-                            <>
-                              <Row label="BH nhân viên" value="0 (không đóng)" color="text-neutral-medium/50" />
-                              <Row label="Thu nhập chịu thuế" value={fmt(rec.taxable_income)} />
-                              <Row label={`Thuế TNCN (${(formula.probationPitRate * 100).toFixed(0)}% cố định)`} value={fmt(rec.pit)} color="text-red-400" />
-                              {(rec.bonus ?? 0) > 0 && (
-                                <Row label={rec.bonus_reason ? `Thưởng: ${rec.bonus_reason}` : 'Thưởng (nhập tay)'} value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
-                              )}
-                              <div className="border-t border-white/[0.06] pt-2 mt-2">
-                                <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
+                            {/* Dòng tiền: Gross − BH − Thuế = Net */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                              <FlowCard label="Gross thực tế" value={rec.gross_actual} />
+                              <FlowCard
+                                sign="−"
+                                label={rec.is_probation ? 'BH nhân viên' : `BH nhân viên ${(formula.bhEmployeeRate * 100).toFixed(1)}%`}
+                                value={rec.employee_bhxh}
+                                note={rec.is_probation ? 'Thử việc không đóng' : undefined}
+                              />
+                              <FlowCard
+                                sign="−"
+                                label={rec.is_probation ? `Thuế TNCN ${(formula.probationPitRate * 100).toFixed(0)}%` : 'Thuế TNCN'}
+                                value={rec.pit}
+                                note={rec.is_probation ? 'Cố định' : 'Lũy tiến'}
+                              />
+                              <FlowCard sign="=" label="Net thực lĩnh" value={rec.net_salary} primary />
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr_1fr] gap-3">
+                              {/* Thu nhập */}
+                              <div className="rounded-[20px] border border-primary/10 bg-surface p-5">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2">Thu nhập</p>
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-white/5 text-[10px] font-black uppercase tracking-wider text-neutral-600">
+                                      <th className="py-2 text-left font-black">Khoản</th>
+                                      {!fullMonth && <th className="py-2 text-right font-black">Mức HĐ</th>}
+                                      <th className="py-2 text-right font-black">{fullMonth ? 'Số tiền' : 'Thực nhận'}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {income('Lương cơ bản', rec.base_salary)}
+                                    {prorate('pre_official_base_salary', 'Lương CB cũ (thử việc)', rec.base_salary)}
+                                    {income('PC ăn trưa', rec.lunch_allowance, { exempt: true })}
+                                    {income('PC xăng xe', rec.transport_allowance)}
+                                    {income('PC điện thoại', rec.phone_allowance)}
+                                    {income('PC trang phục', rec.clothing_allowance, { exempt: true })}
+                                    {income('KPI', rec.kpi_allowance)}
+                                    {prorate('pre_official_kpi_allowance', 'KPI cũ (thử việc)', rec.kpi_allowance)}
+                                    {income('Tăng ca mặc định', rec.default_ot, { exempt: true })}
+                                    {prorate('pre_official_default_ot', 'Tăng ca cũ (thử việc)', rec.default_ot)}
+                                    {otH > 0 && (
+                                      <tr className="border-b border-white/5">
+                                        <td className="py-2 text-neutral-400">
+                                          Tăng ca phát sinh <span className="text-neutral-600">({otH}h)</span>
+                                          <span className="ml-2 text-[9px] font-black uppercase text-neutral-600">miễn thuế</span>
+                                          <p className="text-[10px] text-neutral-600">{otBreakdown(rec)}</p>
+                                        </td>
+                                        {!fullMonth && <td />}
+                                        <td className="py-2 text-right text-white font-semibold tabular-nums">{fmt(rec.extra_ot)}</td>
+                                      </tr>
+                                    )}
+                                    {bonus > 0 && (
+                                      <tr className="border-b border-white/5">
+                                        <td className="py-2 text-neutral-400">
+                                          Thưởng
+                                          {rec.bonus_reason && <p className="text-[10px] text-neutral-600">{rec.bonus_reason}</p>}
+                                        </td>
+                                        {!fullMonth && <td />}
+                                        <td className="py-2 text-right text-primary font-semibold tabular-nums">+{fmt(bonus)}</td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr>
+                                      <td className="pt-3 text-neutral-600">Gross tham chiếu (đủ công, chưa thưởng/OT)</td>
+                                      {!fullMonth && <td />}
+                                      <td className="pt-3 text-right text-neutral-500 tabular-nums">{fmt(rec.gross_ref)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td className="pt-1 font-black text-white">Gross thực tế</td>
+                                      {!fullMonth && <td />}
+                                      <td className="pt-1 text-right font-black text-white tabular-nums">{fmt(rec.gross_actual)}</td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
                               </div>
-                              <div className="border-t border-white/[0.06] pt-2 mt-2">
-                                <Row label="BH công ty" value="0 (không đóng)" color="text-neutral-medium/50" />
-                                <Row label="Chi phí công ty" value={fmt(rec.total_company_cost)} bold color="text-blue-400" />
+
+                              {/* Thuế TNCN */}
+                              <div className="rounded-[20px] border border-primary/10 bg-surface p-5">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2">
+                                  Thuế TNCN {rec.is_probation ? `· ${(formula.probationPitRate * 100).toFixed(0)}% cố định` : '· lũy tiến'}
+                                </p>
+                                <Line label="Thu nhập chịu thuế" sub="CB + xăng + ĐT + KPI + thưởng" value={fmt(rec.taxable_income)} />
+                                {rec.is_probation ? (
+                                  <Line label="Thuế suất" value={`${(formula.probationPitRate * 100).toFixed(0)}%`} muted />
+                                ) : (
+                                  <>
+                                    <Line label="BH nhân viên" value={`−${fmt(rec.employee_bhxh)}`} muted />
+                                    <Line label="Giảm trừ bản thân" value={`−${fmt(formula.personalDeduction)}`} muted />
+                                    <Line label={`Giảm trừ NPT (${rec.dependents_count})`} value={`−${fmt(rec.dependents_count * formula.dependentDeduction)}`} muted />
+                                    <Line label="Thu nhập tính thuế" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0'} sub={rec.assessable_income > 0 ? undefined : 'Âm → tính 0'} />
+                                  </>
+                                )}
+                                <Line label="Thuế phải nộp" value={fmt(rec.pit)} total />
                               </div>
-                            </>
-                          ) : (
-                            <>
-                              <Row label={`BH nhân viên (${(formula.bhEmployeeRate * 100).toFixed(2)}%)`} value={fmt(rec.employee_bhxh)} color="text-orange-400" />
-                              <Row label="TNCT (CB + Xăng + ĐT + KPI)" value={fmt(rec.taxable_income)} />
-                              <Row label="Giảm trừ bản thân" value={`-${fmt(formula.personalDeduction)}`} color="text-neutral-medium" />
-                              <Row label={`Giảm trừ NPT (${rec.dependents_count})`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="text-neutral-medium" />
-                              <Row label="TNTT" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0 (âm → 0)'} />
-                              <Row label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? fmt(rec.pit) : '0'} color={rec.pit > 0 ? 'text-red-400' : 'text-green-400'} />
-                              {(rec.bonus ?? 0) > 0 && (
-                                <Row label={rec.bonus_reason ? `Thưởng: ${rec.bonus_reason}` : 'Thưởng (nhập tay)'} value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
-                              )}
-                              <div className="border-t border-white/[0.06] pt-2 mt-2">
-                                <Row label="NET THỰC LĨNH" value={`${fmt(rec.net_salary)}đ`} bold highlight />
+
+                              {/* Chi phí công ty */}
+                              <div className="rounded-[20px] border border-primary/10 bg-surface p-5">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600 mb-2">Công ty chi</p>
+                                <Line label="Gross thực tế" value={fmt(rec.gross_actual)} />
+                                <Line
+                                  label={rec.is_probation ? 'BH công ty' : `BH công ty ${(formula.bhCompanyRate * 100).toFixed(1)}%`}
+                                  value={rec.is_probation ? '0' : `+${fmt(rec.company_bhxh)}`}
+                                  sub={rec.is_probation ? 'Thử việc không đóng' : undefined}
+                                  muted
+                                />
+                                <Line label="Tổng chi phí" value={fmt(rec.total_company_cost)} total />
                               </div>
-                              <div className="border-t border-white/[0.06] pt-2 mt-2">
-                                <Row label={`BH công ty (${(formula.bhCompanyRate * 100).toFixed(2)}%)`} value={fmt(rec.company_bhxh)} color="text-blue-400" />
-                                <Row label="Chi phí công ty" value={fmt(rec.total_company_cost)} bold color="text-blue-400" />
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       {/* Lời nhắn cho nhân viên — hiện trên phiếu lương của nhân viên */}
                       {(isDraft || rec.note) && (
@@ -811,26 +820,63 @@ const PayrollSheet: React.FC<Props> = ({
   );
 };
 
-// Helper component for detail rows
-const Row: React.FC<{
-  label: string;
-  value: string;
-  sub?: string;
-  bold?: boolean;
-  highlight?: boolean;
-  color?: string;
-}> = ({ label, value, sub, bold, highlight, color }) => (
-  <div className="flex items-center justify-between">
-    <span className={`text-xs ${bold ? 'font-bold text-white' : 'text-neutral-medium'}`}>{label}</span>
-    <div className="text-right">
-      <span className={`text-xs ${
-        highlight ? 'text-green-400 font-black' :
-        bold ? 'text-white font-bold' :
-        color || 'text-white'
-      }`}>{value}</span>
-      {sub && <p className="text-[9px] text-neutral-medium/60">{sub}</p>}
+/** Ô trong dải dòng tiền Gross − BH − Thuế = Net. */
+const FlowCard: React.FC<{ label: string; value: number; sign?: string; note?: string; primary?: boolean }> =
+  ({ label, value, sign, note, primary }) => (
+    <div
+      className={`rounded-[20px] border p-4 ${primary ? '' : 'border-primary/10 bg-surface'}`}
+      style={primary ? { background: 'rgba(255,149,0,0.08)', borderColor: 'rgba(255,149,0,0.35)' } : undefined}
+    >
+      <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">
+        {sign && <span className="mr-1 text-neutral-500">{sign}</span>}{label}
+      </p>
+      <p className={`text-2xl font-black tabular-nums ${primary ? 'text-primary' : 'text-white'}`}>{fmt(value)}</p>
+      {note && <p className="text-[10px] text-neutral-600">{note}</p>}
     </div>
-  </div>
-);
+  );
+
+/** Dòng label — số trong thẻ Thuế / Công ty chi. `total` = dòng kết quả có gạch trên. */
+const Line: React.FC<{ label: string; value: string; sub?: string; muted?: boolean; total?: boolean }> =
+  ({ label, value, sub, muted, total }) => (
+    <div className={`flex items-start justify-between gap-3 text-xs ${total ? 'mt-2 pt-3 border-t border-white/10' : 'py-1.5'}`}>
+      <div>
+        <span className={total ? 'font-black text-white' : 'text-neutral-400'}>{label}</span>
+        {sub && <p className="text-[10px] text-neutral-600">{sub}</p>}
+      </div>
+      <span className={`tabular-nums whitespace-nowrap ${total ? 'font-black text-white text-sm' : muted ? 'text-neutral-500' : 'text-white font-semibold'}`}>
+        {value}
+      </span>
+    </div>
+  );
+
+/** Tháng lên chính thức giữa chừng: nhập mức cũ (thử việc) + hiện công thức prorate. */
+const ProrateEditor: React.FC<{
+  label: string; oldValue: number | null | undefined; current: number;
+  probationRatio: number; editable: boolean; onChange: (v: number) => void;
+}> = ({ label, oldValue, current, probationRatio, editable, onChange }) => {
+  if (!editable && oldValue == null) return null;
+  const pTv = Math.round(probationRatio * 100);
+  return (
+    <div className="ml-3 pl-3 border-l-2 border-primary/30 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]">
+      <span className="font-semibold text-primary/80">{label}</span>
+      {editable ? (
+        <input
+          type="number" step="100000"
+          className="w-28 px-2 py-0.5 rounded bg-[#1a1a1a] border border-white/10 text-white text-[11px] text-right outline-none focus:border-primary/50"
+          value={oldValue ?? ''}
+          placeholder="Nhập mức cũ..."
+          onChange={e => onChange(+e.target.value || 0)}
+        />
+      ) : (
+        <span className="text-white">{fmt(oldValue!)}</span>
+      )}
+      {oldValue != null && (
+        <span className="text-neutral-600">
+          {fmt(oldValue)} × {pTv}% + {fmt(current)} × {100 - pTv}%
+        </span>
+      )}
+    </div>
+  );
+};
 
 export default PayrollSheet;
