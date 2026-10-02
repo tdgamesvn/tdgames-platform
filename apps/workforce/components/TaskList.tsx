@@ -5,6 +5,7 @@ import { ClickUpConfig, ListContext } from '../services/clickupService';
 import * as wfSvc from '../services/workforceService';
 import { fetchAcceptedTaskIds } from '../services/projectAcceptanceService';
 import { supabase } from '@/services/supabaseClient';
+import ManualTaskForm from './ManualTaskForm';
 
 interface TaskListProps {
   tasks: WorkforceTask[];
@@ -42,6 +43,7 @@ const TaskList: React.FC<TaskListProps> = ({
   focusTaskId, onFocusConsumed,
 }) => {
   const [syncing, setSyncing] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; skipped: number; total: number } | null>(null);
   const [config, setConfig] = useState<ClickUpConfig | null>(null);
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
@@ -483,14 +485,32 @@ const TaskList: React.FC<TaskListProps> = ({
           <h2 className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tighter">Task</h2>
           <p className="text-neutral-medium text-sm mt-1">Đồng bộ task từ ClickUp theo email nhân sự</p>
         </div>
-        <button
-          onClick={handleSync}
-          disabled={syncing}
-          className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-gradient-primary text-white shadow-btn-glow hover:shadow-btn-glow-hover transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {syncing ? '⏳ Đang sync...' : '🔄 Sync ClickUp'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowManual(v => !v)}
+            className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-neutral-300 border border-white/10 hover:bg-white/5 hover:text-white transition-all"
+          >
+            + Việc ngoài ClickUp
+          </button>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-gradient-primary text-white shadow-btn-glow hover:shadow-btn-glow-hover transition-all hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {syncing ? '⏳ Đang sync...' : '🔄 Sync ClickUp'}
+          </button>
+        </div>
       </div>
+
+      {showManual && (
+        <ManualTaskForm
+          workers={workers}
+          projects={[...new Set(tasks.map(t => t.project).filter(Boolean))].sort()}
+          onClose={() => setShowManual(false)}
+          onSaved={onRefresh}
+          onToast={onToast}
+        />
+      )}
 
       {/* Sync Result */}
       {syncResult && (
@@ -740,6 +760,11 @@ const TaskList: React.FC<TaskListProps> = ({
 
                   {/* Row 4: ClickUp Status + Payment Status */}
                   <div className="flex items-center gap-2 flex-wrap">
+                    {!isFromClickUp && (
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/20">
+                        Ngoài ClickUp
+                      </span>
+                    )}
                     {isFromClickUp && t.clickup_status && (
                       <span className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/20">
                         {t.clickup_status}

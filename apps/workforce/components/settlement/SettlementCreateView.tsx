@@ -148,8 +148,9 @@ const SettlementCreateView: React.FC<SettlementCreateViewProps> = ({
             <label className={labelCls}>Nhân sự *</label>
             <select className={inputCls} value={selWorkerId} onChange={e => { setSelWorkerId(e.target.value); setSelProjectName(''); setSelTaskIds([]); }}>
               <option value="">-- Chọn nhân sự --</option>
-              {workers.filter(w => w.is_active).map(w => (
-                <option key={w.id} value={w.id}>{w.full_name}</option>
+              {/* Người đã nghỉ vẫn hiện nếu còn việc chưa thanh toán (vd freelancer phát sinh việc ngoài ClickUp) */}
+              {workers.filter(w => w.is_active || tasksForWorker(tasks, w.id!).length > 0).map(w => (
+                <option key={w.id} value={w.id}>{w.full_name}{w.is_active ? '' : ' (đã nghỉ · còn việc chưa TT)'}</option>
               ))}
             </select>
           </div>
