@@ -46,7 +46,7 @@ function formatDuration(checkInIso: string, checkOutIso?: string): { hm: string;
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
   const hours = totalMs / 3_600_000;
-  const dayFraction = (hours / 8).toFixed(2);
+  const dayFraction = (hours / 8).toFixed(1);
   return { hm: `${h}h ${m}p`, dayFraction };
 }
 

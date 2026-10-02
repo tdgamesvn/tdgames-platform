@@ -440,6 +440,16 @@ export async function updateMonthlyRecord(id: string, updates: Partial<AttMonthl
   if (error) throw error;
 }
 
+/** Bỏ cờ "sửa tay" của cả bảng — gọi trước syncMonthWorkDays khi HR bấm "Tính lại". */
+export async function clearManualWorkDays(sheetId: string) {
+  const { error } = await supabase
+    .from('att_monthly_records')
+    .update({ work_days_manual: false })
+    .eq('sheet_id', sheetId)
+    .eq('work_days_manual', true);
+  if (error) throw error;
+}
+
 /**
  * Tổng hợp att_records (chấm công hằng ngày) → work_days của bảng công tháng.
  * Công thức nằm trong SQL `att_work_days()` — dùng chung với thông báo Discord,

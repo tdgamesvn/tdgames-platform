@@ -1041,7 +1041,9 @@ export interface AttMonthlyRecord {
   id: string;
   sheet_id: string;
   employee_id: string;
-  work_days: number;         // decimal e.g. 12.56
+  work_days: number;         // 1 chữ số thập phân, e.g. 12.6
+  /** HR sửa tay work_days ⇒ đồng bộ tự động ban đêm không ghi đè */
+  work_days_manual?: boolean;
   /** OT ngày thường (T2-T6) — hệ số ot_rate_weekday (150%) */
   ot_hours: number;
   /** OT ngày nghỉ hằng tuần (T7/CN) — hệ số ot_rate_weekend (200%) */

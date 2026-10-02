@@ -472,7 +472,7 @@ const PortalApp: React.FC<PortalAppProps> = ({ currentUser, onBack, initialTab, 
                           const checkOut = rec.check_out ? new Date(rec.check_out) : null;
                           const totalMs = (checkIn && checkOut) ? checkOut.getTime() - checkIn.getTime() : 0;
                           const totalHours = totalMs / 3_600_000;
-                          const dayFrac = totalHours > 0 ? (totalHours / 8).toFixed(2) : '—';
+                          const dayFrac = totalHours > 0 ? (totalHours / 8).toFixed(1) : '—';
                           const hm = totalMs > 0 ? (() => {
                             const m = Math.floor(totalMs / 60000);
                             return `${Math.floor(m / 60)}h ${m % 60}p`;

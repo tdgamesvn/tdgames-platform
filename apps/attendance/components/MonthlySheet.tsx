@@ -79,9 +79,13 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
 
   // ── Update a record field inline ──
   const handleUpdateField = async (recordId: string, field: string, value: number | string) => {
+    // Ngày công sửa tay: làm tròn 1 số + đánh dấu để cron đồng bộ ban đêm không ghi đè.
+    const patch: Record<string, number | string | boolean> = field === 'work_days'
+      ? { work_days: Math.round(Number(value) * 10) / 10, work_days_manual: true }
+      : { [field]: value };
     try {
-      await svc.updateMonthlyRecord(recordId, { [field]: value });
-      setRecords(prev => prev.map(r => r.id === recordId ? { ...r, [field]: value } : r));
+      await svc.updateMonthlyRecord(recordId, patch);
+      setRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...patch } : r));
     } catch (e: any) {
       setToast({ message: e.message, type: 'error' });
     }
@@ -93,6 +97,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     if (!window.confirm('Tính lại sẽ GHI ĐÈ cột Ngày công (và OT cuối tuần của ngày có lịch OT) kể cả số đã sửa tay. Tiếp tục?')) return;
     setIsSyncing(true);
     try {
+      await svc.clearManualWorkDays(selectedSheet.id);
       const { updated, missing_checkout, holiday_days, ot_weekend_updated } = await svc.syncMonthWorkDays(selectedSheet.id);
       setRecords(await svc.fetchMonthlyRecords(selectedSheet.id));
       setToast({
@@ -329,9 +334,9 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Nhân viên', value: visibleRecords.length, icon: '👥', color: '#0A84FF' },
-              { label: 'Tổng ngày công', value: totalWorkDays.toFixed(2), icon: '📅', color: '#34C759' },
+              { label: 'Tổng ngày công', value: totalWorkDays.toFixed(1), icon: '📅', color: '#34C759' },
               { label: 'Tổng OT (h)', value: totalOT.toFixed(1), icon: '💪', color: '#AF52DE' },
-              { label: 'Tổng nghỉ', value: totalAbsent.toFixed(2), icon: '🏖️', color: '#FF9500' },
+              { label: 'Tổng nghỉ', value: totalAbsent.toFixed(1), icon: '🏖️', color: '#FF9500' },
             ].map(s => (
               <div key={s.label} className={cardCls + ' text-center'}>
                 <div className="text-xl mb-1">{s.icon}</div>
@@ -386,16 +391,17 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                       <td className="py-2 px-3 bg-green-500/[0.02]">
                         <input
                           type="number"
-                          step="0.01"
+                          step="0.1"
                           disabled={isLocked}
+                          title={r.work_days_manual ? 'Đã sửa tay — đồng bộ tự động ban đêm không ghi đè. Bấm "Tính lại" để tính lại từ chấm công.' : undefined}
                           value={r.work_days || ''}
                           onChange={e => {
                             const v = parseFloat(e.target.value) || 0;
                             setRecords(prev => prev.map(x => x.id === r.id ? { ...x, work_days: v } : x));
                           }}
                           onBlur={e => handleUpdateField(r.id, 'work_days', parseFloat(e.target.value) || 0)}
-                          className={inputCls + ' font-bold text-green-400 disabled:opacity-50'}
-                          placeholder="0.00"
+                          className={inputCls + ' font-bold text-green-400 disabled:opacity-50' + (r.work_days_manual ? ' border-primary/40' : '')}
+                          placeholder="0.0"
                         />
                       </td>
                       {OT_FIELDS.map(f => (
@@ -484,11 +490,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                 <tfoot>
                   <tr className="border-t-2 border-white/[0.1] font-black text-white">
                     <td colSpan={3} className="py-3 px-3 text-right uppercase text-xs tracking-wider text-neutral-medium">TỔNG CỘNG</td>
-                    <td className="py-3 px-3 text-center text-green-400 text-lg">{totalWorkDays.toFixed(2)}</td>
+                    <td className="py-3 px-3 text-center text-green-400 text-lg">{totalWorkDays.toFixed(1)}</td>
                     <td colSpan={OT_FIELDS.length} className="py-3 px-3 text-center text-purple-400 text-lg">{totalOT.toFixed(1)}</td>
                     <td className="py-3 px-3 text-center text-orange-400 text-lg">{records.reduce((s, r) => s + (r.late_count || 0), 0)}</td>
                     <td className="py-3 px-3 text-center text-orange-300 text-lg">{records.reduce((s, r) => s + (r.early_count || 0), 0)}</td>
-                    <td className="py-3 px-3 text-center text-red-400 text-lg">{totalAbsent.toFixed(2)}</td>
+                    <td className="py-3 px-3 text-center text-red-400 text-lg">{totalAbsent.toFixed(1)}</td>
                     <td></td>
                   </tr>
                 </tfoot>
