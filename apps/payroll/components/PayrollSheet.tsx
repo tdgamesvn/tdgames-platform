@@ -53,7 +53,7 @@ const otBreakdown = (rec: PayPayrollRecord) => OT_FIELDS
 
 const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   pending:   { label: '⏳ Chờ XN', cls: 'bg-yellow-500/15 text-yellow-400' },
-  confirmed: { label: '✅ Đã XN', cls: 'bg-emerald-500/15 text-emerald-400' },
+  confirmed: { label: '✅ Đã XN', cls: 'bg-green-500/15 text-green-400' },
   disputed:  { label: '❌ Khiếu nại', cls: 'bg-red-500/15 text-red-400' },
   resolved:  { label: '✓ Đã giải quyết', cls: 'bg-blue-500/15 text-blue-400' },
 };
@@ -139,19 +139,19 @@ const PayrollSheet: React.FC<Props> = ({
   const totalBonus = records.reduce((s, r) => s + (r.bonus ?? 0), 0);
 
   return (
-    <div className="min-h-screen bg-bg-dark relative overflow-hidden">
+    <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
       <AppBackground />
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-bg-dark/90 backdrop-blur-xl border-b border-primary/10">
-        <div className="max-w-[1400px] mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 z-30 backdrop-blur-xl border-b border-primary/10" style={{ background: 'rgba(15,15,15,0.9)' }}>
+        <div className="max-w-[1400px] mx-auto px-6 md:px-12 py-4 flex flex-wrap gap-3 items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={onBack} className="text-neutral-medium hover:text-white transition-colors text-lg">←</button>
+            <button onClick={onBack} aria-label="Quay lại danh sách" className="w-9 h-9 rounded-xl border border-white/10 text-neutral-medium hover:text-white hover:border-white/20 transition-all">←</button>
             <div>
-              <h1 className="text-white font-black text-lg uppercase tracking-tight">{sheet.title}</h1>
+              <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{sheet.title}</h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md ${
-                  sheet.status === 'draft' ? 'bg-yellow-500/20 text-yellow-400' :
-                  sheet.status === 'confirmed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'
+                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${
+                  sheet.status === 'draft' ? 'bg-orange-500/20 text-orange-400' :
+                  sheet.status === 'confirmed' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'
                 }`}>
                   {sheet.status === 'draft' ? 'Nháp' : sheet.status === 'confirmed' ? 'Đã xác nhận' : 'Đã trả'}
                 </span>
@@ -175,7 +175,7 @@ const PayrollSheet: React.FC<Props> = ({
                   )}
                 </span>
                 {isPaid && sheet.paid_at && (
-                  <span className="text-cyan-400/90 text-[10px] font-semibold">
+                  <span className="text-blue-400 text-[10px] font-semibold">
                     Đã trả: {new Date(sheet.paid_at).toLocaleString('vi-VN')}
                   </span>
                 )}
@@ -185,9 +185,9 @@ const PayrollSheet: React.FC<Props> = ({
           <div className="flex items-center gap-3">
             {onRefresh && (
               <button onClick={onRefresh} disabled={loading}
-                className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-medium hover:text-white border border-white/10 hover:border-white/20 transition-all"
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 hover:text-white transition-all disabled:opacity-50"
                 title="Làm mới trạng thái xác nhận">
-                🔄
+                Làm mới
               </button>
             )}
             {isDraft && onRecalcAll && (
@@ -201,21 +201,20 @@ const PayrollSheet: React.FC<Props> = ({
                   )) onRecalcAll();
                 }}
                 disabled={loading}
-                className="px-3 py-2 rounded-xl text-xs font-bold text-neutral-medium hover:text-white border border-white/10 hover:border-white/20 transition-all disabled:opacity-40"
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 hover:text-white transition-all disabled:opacity-50"
                 title="Kéo lại ngày công/OT từ chấm công đã chốt + áp lại công thức (không đổi công chuẩn)">
-                🧮 Tính lại
+                Tính lại
               </button>
             )}
             <button onClick={() => exportPayrollToExcel(sheet, records, formula)}
-              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
-              style={{ background: 'linear-gradient(135deg, #059669, #34D399)' }}>
-              📥 Export Excel
+              className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">
+              Export Excel
             </button>
             {isDraft && (
               <button onClick={() => setConfirmModal(true)}
-                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
-                style={{ background: 'linear-gradient(135deg, #34D399, #059669)' }}>
-                ✅ Xác nhận bảng lương
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all hover:opacity-90"
+                style={{ background: '#FF9500' }}>
+                Xác nhận bảng lương
               </button>
             )}
             {sheet.status === 'confirmed' && onMarkPaid && (
@@ -224,12 +223,12 @@ const PayrollSheet: React.FC<Props> = ({
                   onClick={canMarkPaid ? onMarkPaid : undefined}
                   disabled={!canMarkPaid}
                   title={!canMarkPaid ? `Còn ${pendingCount} chờ XN, ${disputedCount} khiếu nại chưa giải quyết` : ''}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all ${canMarkPaid ? 'hover:opacity-80' : 'opacity-40 cursor-not-allowed'}`}
-                  style={{ background: canMarkPaid ? 'linear-gradient(135deg, #0EA5E9, #2563EB)' : '#374151' }}>
-                  💳 Đánh dấu đã trả lương
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all ${canMarkPaid ? 'hover:opacity-90' : 'opacity-40 cursor-not-allowed'}`}
+                  style={{ background: canMarkPaid ? '#FF9500' : '#404040' }}>
+                  Đánh dấu đã trả lương
                 </button>
                 {!canMarkPaid && (
-                  <span className="text-[10px] text-yellow-400/80">
+                  <span className="text-[10px] text-orange-400/80">
                     {pendingCount > 0 && `${pendingCount} chờ xác nhận`}
                     {pendingCount > 0 && disputedCount > 0 && ' · '}
                     {disputedCount > 0 && `${disputedCount} khiếu nại`}
@@ -239,9 +238,8 @@ const PayrollSheet: React.FC<Props> = ({
             )}
             {sheet.status === 'confirmed' && onRollback && (
               <button onClick={onRollback}
-                className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
-                style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}>
-                ↩️ Huỷ xác nhận
+                className="px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 hover:text-white transition-all">
+                Huỷ xác nhận
               </button>
             )}
           </div>
@@ -249,19 +247,19 @@ const PayrollSheet: React.FC<Props> = ({
       </div>
 
       {/* Summary cards */}
-      <div className="max-w-[1400px] mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <div className="flex-1 max-w-[1400px] mx-auto w-full px-6 md:px-12 py-6 animate-fadeInUp">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {[
             { label: 'Tổng Gross thực tế', value: totalGrossActual, color: 'text-white' },
             { label: 'Tổng BH nhân viên', value: totalBhNv, color: 'text-orange-400' },
             { label: 'Tổng thuế TNCN', value: totalPit, color: 'text-red-400' },
-            { label: 'Tổng thưởng KPI', value: totalBonus, color: 'text-yellow-400' },
-            { label: 'Tổng Net thực lĩnh', value: totalNet, color: 'text-emerald-400' },
+            { label: 'Tổng thưởng KPI', value: totalBonus, color: 'text-primary' },
+            { label: 'Tổng Net thực lĩnh', value: totalNet, color: 'text-green-400' },
             { label: 'Tổng chi phí công ty', value: totalCompanyCost, color: 'text-blue-400' },
           ].map(card => (
-            <div key={card.label} className="p-3 rounded-2xl bg-card-dark border border-primary/10">
-              <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">{card.label}</p>
-              <p className={`text-lg font-black mt-1 ${card.color}`}>{fmt(card.value)}</p>
+            <div key={card.label} className="rounded-[20px] border border-primary/10 p-4 space-y-1 bg-surface">
+              <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{card.label}</p>
+              <p className={`text-xl font-black tabular-nums ${card.color}`}>{fmt(card.value)}</p>
             </div>
           ))}
         </div>
@@ -269,7 +267,7 @@ const PayrollSheet: React.FC<Props> = ({
         {/* Table */}
         {loading ? (
           <div className="flex justify-center py-16">
-            <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ) : (
           <div className="rounded-2xl border border-primary/10 overflow-hidden">
@@ -324,7 +322,7 @@ const PayrollSheet: React.FC<Props> = ({
                           )}
                           <button
                             onClick={e => { e.stopPropagation(); setPaySlipRecord(rec); }}
-                            className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 text-[9px] font-bold uppercase tracking-wider hover:bg-indigo-500/25 transition-all"
+                            className="px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-400 text-[9px] font-bold uppercase tracking-wider hover:bg-orange-500/25 transition-all"
                             title="Xem phiếu lương"
                           >
                             📄 Phiếu lương
@@ -346,13 +344,13 @@ const PayrollSheet: React.FC<Props> = ({
                     <div className="text-right" onClick={e => e.stopPropagation()}>
                       {isDraft && editingCell?.id === rec.id && editingCell?.field === 'work_days' ? (
                         <input ref={inputRef} type="number" step="0.5"
-                          className="w-16 px-1 py-0.5 rounded bg-black/40 border border-emerald-500/40 text-white text-xs text-right outline-none"
+                          className="w-16 px-1 py-0.5 rounded bg-black/40 border border-green-500/40 text-white text-xs text-right outline-none"
                           value={rec.work_days}
                           onChange={e => handleCellChange(rec, 'work_days', +e.target.value)}
                           onBlur={() => setEditingCell(null)}
                         />
                       ) : (
-                        <span className={`text-xs ${isDraft ? 'text-emerald-400 cursor-text' : 'text-white'}`}
+                        <span className={`text-xs ${isDraft ? 'text-green-400 cursor-text' : 'text-white'}`}
                           onClick={() => isDraft && setEditingCell({ id: rec.id, field: 'work_days' })}>
                           {rec.work_days}/{std}
                         </span>
@@ -457,7 +455,7 @@ const PayrollSheet: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    <span className="text-right text-sm text-emerald-400 font-black">{fmt(rec.net_salary)}</span>
+                    <span className="text-right text-sm text-green-400 font-black">{fmt(rec.net_salary)}</span>
                   </div>
 
                   {/* Expanded: 8-step detail */}
@@ -469,7 +467,7 @@ const PayrollSheet: React.FC<Props> = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Left: Input + Steps 1-2 */}
                         <div className="space-y-2">
-                          <div className="text-[10px] font-bold text-indigo-400 uppercase mb-1">Input & Bước 1-2</div>
+                          <div className="text-[10px] font-bold text-primary uppercase mb-1">Input & Bước 1-2</div>
                           <Row label="Ngày công" value={`${rec.work_days} / ${std}`} sub={`Tỷ lệ: ${(ratio).toFixed(6)}`} />
                           <Row label="Lương CB" value={fmt(rec.base_salary)} sub={`Thực: ${fmt(Math.round(rec.base_salary * ratio))}`} />
                           {!rec.is_probation && rec.probation_ratio > 0 && rec.probation_ratio < 1 && (
@@ -567,7 +565,7 @@ const PayrollSheet: React.FC<Props> = ({
 
                         {/* Right: Steps 3-8 */}
                         <div className="space-y-2">
-                          <div className="text-[10px] font-bold text-emerald-400 uppercase mb-1">
+                          <div className="text-[10px] font-bold text-green-400 uppercase mb-1">
                             {rec.is_probation ? 'THỬ VIỆC: Thuế 10% – Không BH' : 'Bước 3-8: BH → Thuế → Net'}
                           </div>
                           {rec.is_probation ? (
@@ -593,7 +591,7 @@ const PayrollSheet: React.FC<Props> = ({
                               <Row label="Giảm trừ bản thân" value={`-${fmt(formula.personalDeduction)}`} color="text-neutral-medium" />
                               <Row label={`Giảm trừ NPT (${rec.dependents_count})`} value={`-${fmt(rec.dependents_count * formula.dependentDeduction)}`} color="text-neutral-medium" />
                               <Row label="TNTT" value={rec.assessable_income > 0 ? fmt(rec.assessable_income) : '0 (âm → 0)'} />
-                              <Row label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? fmt(rec.pit) : '0'} color={rec.pit > 0 ? 'text-red-400' : 'text-emerald-400'} />
+                              <Row label="Thuế TNCN (lũy tiến)" value={rec.pit > 0 ? fmt(rec.pit) : '0'} color={rec.pit > 0 ? 'text-red-400' : 'text-green-400'} />
                               {(rec.bonus ?? 0) > 0 && (
                                 <Row label={rec.bonus_reason ? `Thưởng: ${rec.bonus_reason}` : 'Thưởng (nhập tay)'} value={`+${fmt(rec.bonus)}đ`} color="text-yellow-400" />
                               )}
@@ -692,7 +690,7 @@ const PayrollSheet: React.FC<Props> = ({
               <span className="text-right text-orange-400">{fmt(totalBhNv)}</span>
               <span className="text-right text-red-400">{fmt(totalPit)}</span>
               <span className="text-right text-yellow-400">{totalBonus > 0 ? fmt(totalBonus) : '—'}</span>
-              <span className="text-right text-emerald-400 font-black text-sm">{fmt(totalNet)}</span>
+              <span className="text-right text-green-400 font-black text-sm">{fmt(totalNet)}</span>
             </div>
           </div>
         )}
@@ -720,7 +718,7 @@ const PayrollSheet: React.FC<Props> = ({
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-neutral-600 font-black uppercase tracking-wider text-[10px]">Tổng net</span>
-                <b className="text-emerald-400 tabular-nums">{fmt(totalNet)}</b>
+                <b className="text-green-400 tabular-nums">{fmt(totalNet)}</b>
               </div>
             </div>
 
@@ -826,7 +824,7 @@ const Row: React.FC<{
     <span className={`text-xs ${bold ? 'font-bold text-white' : 'text-neutral-medium'}`}>{label}</span>
     <div className="text-right">
       <span className={`text-xs ${
-        highlight ? 'text-emerald-400 font-black' :
+        highlight ? 'text-green-400 font-black' :
         bold ? 'text-white font-bold' :
         color || 'text-white'
       }`}>{value}</span>

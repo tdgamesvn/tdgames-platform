@@ -188,13 +188,13 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
 
   if (mode === 'edit' && editable) {
     return (
-      <main className="max-w-3xl mx-auto px-4 py-8">
+      <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full animate-fadeInUp">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-black text-white uppercase tracking-tight">⚙️ {editId ? 'Sửa' : 'Thêm'} bộ thông số</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{editId ? 'Sửa' : 'Thêm'} bộ thông số</h2>
           <button type="button" onClick={() => setMode('list')}
             className="text-sm text-neutral-medium hover:text-white">← Danh sách</button>
         </div>
-        <div className="space-y-4 p-5 rounded-2xl bg-card-dark border border-primary/10">
+        <div className="space-y-4 p-5 rounded-[20px] bg-surface border border-primary/10">
           <Field label="Tên hiển thị" value={form.name} onChange={v => setForm(f => ({ ...f, name: v }))} />
           <Field label="Hiệu lực từ (ngày đầu tháng áp dụng)" type="date" value={form.effective_from} onChange={v => setForm(f => ({ ...f, effective_from: v }))} />
           <div className="grid grid-cols-2 gap-3">
@@ -227,7 +227,7 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black uppercase tracking-widest text-neutral-medium">Biểu thuế lũy tiến (bậc cuối để trống mức = vô hạn)</span>
-              <button type="button" onClick={addBracket} className="text-xs text-emerald-400 font-bold">+ Bậc</button>
+              <button type="button" onClick={addBracket} className="text-xs text-primary font-bold">+ Bậc</button>
             </div>
             <div className="space-y-2">
               {form.tax_brackets.map((b, i) => (
@@ -251,7 +251,7 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
 
           <Field label="Ghi chú" value={form.notes} onChange={v => setForm(f => ({ ...f, notes: v }))} multiline />
           <button type="button" onClick={save}
-            className="w-full py-3 rounded-xl bg-emerald-500 text-white font-black uppercase text-sm tracking-widest hover:bg-emerald-600">
+            className="w-full py-3 rounded-xl text-white font-black uppercase text-sm tracking-wider hover:opacity-90 transition-all" style={{ background: '#FF9500' }}>
             Lưu
           </button>
         </div>
@@ -260,18 +260,18 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
+    <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full animate-fadeInUp">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-black text-white uppercase tracking-tight">📐 Công thức & thông số</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Công thức & thông số</h2>
           <p className="text-neutral-medium text-sm mt-1">
-            Hệ thống chọn bản <strong className="text-white">mới nhất</strong> có <code className="text-emerald-400">Hiệu lực từ</code> ≤ tháng lương (giống cách đặt kỳ áp dụng trên AMIS).
+            Hệ thống chọn bản <strong className="text-white">mới nhất</strong> có <code className="text-primary">Hiệu lực từ</code> ≤ tháng lương (giống cách đặt kỳ áp dụng trên AMIS).
           </p>
         </div>
         {editable && (
           <button type="button" onClick={startNew}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white"
-            style={{ background: 'linear-gradient(135deg, #5E5CE6, #0A84FF)' }}>
+            style={{ background: '#FF9500' }}>
             + Thêm bộ mới
           </button>
         )}
@@ -283,14 +283,14 @@ const PayrollFormulaPanel: React.FC<Props> = ({ currentUser, onNotify }) => {
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-3 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
       ) : (
         <div className="space-y-3">
           {list.map(row => {
             const cfg = settingsRowToConfig(row);
             return (
-              <div key={row.id} className="p-4 rounded-2xl bg-card-dark border border-primary/10">
+              <div key={row.id} className="p-4 rounded-[20px] bg-surface border border-primary/10">
                 <div className="flex justify-between items-start gap-4">
                   <div>
                     <p className="text-white font-bold">{row.name}</p>

@@ -233,9 +233,9 @@ const GrossNetCalculator: React.FC = () => {
             <>
               {/* Big Numbers */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="rounded-2xl border border-emerald-500/20 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-400/70 mb-1">Lương Gross</p>
-                  <p className="text-2xl font-black text-emerald-400 tabular-nums">{fmt(result.grossActual)}</p>
+                <div className="rounded-2xl border border-green-500/20 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-green-400/70 mb-1">Lương Gross</p>
+                  <p className="text-2xl font-black text-green-400 tabular-nums">{fmt(result.grossActual)}</p>
                   <p className="text-[10px] text-neutral-600 mt-0.5">VND / tháng</p>
                 </div>
                 <div className="rounded-2xl border border-primary/20 p-5" style={{ background: 'rgba(255,255,255,0.02)' }}>
@@ -267,7 +267,7 @@ const GrossNetCalculator: React.FC = () => {
                         <Divider />
                       </>
                     )}
-                    <Row label="Lương Gross" value={result.grossActual} bold color="text-emerald-400" />
+                    <Row label="Lương Gross" value={result.grossActual} bold color="text-green-400" />
                     <Divider />
                     <Row
                       label={`BHXH nhân viên${inputMode === 'detailed' ? ` (${fmt(baseSalary)} × ${(formula.bhEmployeeRate * 100).toFixed(1)}%)` : ''}`}
@@ -351,7 +351,7 @@ function SalaryField({ label, value, onChange, tag, highlight }: {
       <div className="flex-1 flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
           <label className="text-neutral-500 text-[10px] font-black uppercase tracking-wider">{label}</label>
-          {tag && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400/70">{tag}</span>}
+          {tag && <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-lg bg-green-500/10 text-green-400/70">{tag}</span>}
         </div>
         <input
           type="number"

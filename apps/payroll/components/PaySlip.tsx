@@ -93,7 +93,7 @@ const PaySlip: React.FC<Props> = ({ sheet, record: rec, formula, onClose }) => {
           </button>
           <button onClick={handlePrint}
             className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all hover:opacity-80"
-            style={{ background: 'linear-gradient(135deg, #5E5CE6, #0A84FF)' }}>
+            style={{ background: '#FF9500' }}>
             🖨️ In / PDF
           </button>
         </div>
