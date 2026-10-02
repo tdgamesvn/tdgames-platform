@@ -22,6 +22,8 @@ interface Props {
   onRollback?: () => void;
   /** Kế toán đánh dấu đã giải quyết khiếu nại của nhân viên */
   onResolveDispute?: (recordId: string) => void;
+  /** Kế toán xác nhận hộ NV đã nghỉ / không có tài khoản Portal (bắt buộc lý do) */
+  onConfirmOnBehalf?: (recordId: string, reason: string) => Promise<void>;
   /** Làm mới dữ liệu từ DB */
   onRefresh?: () => void;
 }
@@ -57,8 +59,10 @@ const EMP_STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   resolved:  { label: '✓ Đã giải quyết', cls: 'bg-blue-500/15 text-blue-400' },
 };
 
+const BEHALF_BADGE = { label: '✍ Kế toán XN hộ', cls: 'bg-purple-500/15 text-purple-300' };
+
 const PayrollSheet: React.FC<Props> = ({
-  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onUpdateStandardWorkDays, onRecalcAll, onConfirm, onMarkPaid, onRollback, onResolveDispute, onRefresh,
+  sheet, records, formula, loading, onBack, onUpdateRecord, onSaveRecord, onUpdateStandardWorkDays, onRecalcAll, onConfirm, onMarkPaid, onRollback, onResolveDispute, onConfirmOnBehalf, onRefresh,
 }) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
@@ -93,6 +97,16 @@ const PayrollSheet: React.FC<Props> = ({
   // Xác nhận bảng lương = khoá số liệu + phiếu lương hiện cho toàn bộ NV trên Portal
   // (portalService lọc sheet `confirmed|paid`) ⇒ bắt bấm 2 lần, không cho ấn nhầm 1 phát.
   const [confirmModal, setConfirmModal] = useState(false);
+
+  // Xác nhận hộ: dòng đang mở form nhập lý do + nội dung lý do
+  const [behalfId, setBehalfId] = useState<string | null>(null);
+  const [behalfReason, setBehalfReason] = useState('');
+  // Chỉ NV đã nghỉ hoặc không có tài khoản Portal (khớp điều kiện trong RPC pay_confirm_on_behalf)
+  const canConfirmOnBehalf = (r: PayPayrollRecord) => {
+    const e = (r as any).employee;
+    return sheet.status === 'confirmed' && (r.employee_status ?? 'pending') === 'pending'
+      && !!e && (e.status !== 'active' || !e.auth_user_id);
+  };
 
   // Chỉ cho phép "Đã trả lương" khi tất cả NV đã xác nhận hoặc đã giải quyết khiếu nại
   const canMarkPaid = records.length > 0 && records.every(r =>
@@ -326,7 +340,7 @@ const PayrollSheet: React.FC<Props> = ({
                           </button>
                           {sheet.status !== 'draft' && (() => {
                             const st = rec.employee_status ?? 'pending';
-                            const badge = EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending;
+                            const badge = rec.confirmed_on_behalf_by ? BEHALF_BADGE : (EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending);
                             return (
                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${badge.cls}`}>
                                 {badge.label}
@@ -644,7 +658,7 @@ const PayrollSheet: React.FC<Props> = ({
                       {/* Khối xác nhận nhân viên — chỉ hiện khi sheet đã confirmed/paid */}
                       {sheet.status !== 'draft' && (() => {
                         const st = rec.employee_status ?? 'pending';
-                        const badge = EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending;
+                        const badge = rec.confirmed_on_behalf_by ? BEHALF_BADGE : (EMP_STATUS_BADGE[st] ?? EMP_STATUS_BADGE.pending);
                         return (
                           <div className="mt-4 pt-4 border-t border-white/[0.06]">
                             <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-2">
@@ -672,6 +686,54 @@ const PayrollSheet: React.FC<Props> = ({
                                     </button>
                                   )}
                                 </div>
+                              )}
+                              {/* Đã xác nhận hộ: hiện ai / lý do */}
+                              {rec.confirmed_on_behalf_by && (
+                                <div className="w-full mt-1 p-2 bg-purple-500/8 border border-purple-500/20 rounded-lg">
+                                  <p className="text-[10px] text-purple-300/80 font-semibold mb-1">
+                                    Xác nhận hộ bởi {rec.confirmed_on_behalf_name || 'kế toán'}
+                                  </p>
+                                  <p className="text-[11px] text-purple-200/70">{rec.confirmed_on_behalf_reason}</p>
+                                </div>
+                              )}
+                              {/* Xác nhận hộ: chỉ NV đã nghỉ / không có tài khoản Portal */}
+                              {onConfirmOnBehalf && canConfirmOnBehalf(rec) && (
+                                behalfId === rec.id ? (
+                                  <div className="w-full mt-1 p-3 rounded-lg border border-primary/20 bg-primary/[0.04]" onClick={e => e.stopPropagation()}>
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-neutral-500 mb-2">
+                                      Lý do xác nhận hộ <span className="text-red-400">*</span>
+                                    </p>
+                                    <textarea
+                                      rows={2} autoFocus
+                                      placeholder="VD: NV đã nghỉ việc, đã xác nhận số lương qua Zalo ngày 2/10"
+                                      className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-primary/50 resize-none placeholder:text-neutral-700"
+                                      value={behalfReason}
+                                      onChange={e => setBehalfReason(e.target.value)}
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        disabled={behalfReason.trim().length < 5}
+                                        onClick={async () => {
+                                          await onConfirmOnBehalf(rec.id, behalfReason.trim());
+                                          setBehalfId(null); setBehalfReason('');
+                                        }}
+                                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-white bg-primary hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                                        Xác nhận hộ
+                                      </button>
+                                      <button onClick={() => { setBehalfId(null); setBehalfReason(''); }}
+                                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:bg-white/5 transition-all">
+                                        Huỷ
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setBehalfId(rec.id); setBehalfReason(''); }}
+                                    title={(rec as any).employee?.status !== 'active' ? 'Nhân viên đã nghỉ việc' : 'Nhân viên không có tài khoản Portal'}
+                                    className="px-3 py-1 rounded-lg border border-primary/30 text-primary text-[10px] font-black uppercase tracking-wider hover:bg-primary/10 transition-colors">
+                                    ✍ Xác nhận hộ
+                                  </button>
+                                )
                               )}
                               {st === 'resolved' && rec.employee_comment && (
                                 <div className="w-full mt-1 p-2 bg-blue-500/8 border border-blue-500/20 rounded-lg">

@@ -1195,6 +1195,10 @@ export interface PayPayrollRecord {
   employee_confirmed_at?: string | null;
   /** Nội dung khiếu nại / ghi chú của nhân viên */
   employee_comment?: string | null;
+  /** Kế toán xác nhận hộ (NV đã nghỉ / không có tài khoản Portal) — RPC pay_confirm_on_behalf */
+  confirmed_on_behalf_by?: string | null;
+  confirmed_on_behalf_name?: string | null;
+  confirmed_on_behalf_reason?: string | null;
   // OUTPUT
   gross_ref: number;
   gross_actual: number;

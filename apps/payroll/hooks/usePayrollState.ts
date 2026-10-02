@@ -310,6 +310,22 @@ export function usePayrollState(initialTab?: string | null) {
     }
   }, []);
 
+  /** Kế toán xác nhận hộ NV đã nghỉ / không có tài khoản Portal.
+   *  RPC pay_confirm_on_behalf kiểm tra quyền + điều kiện + lưu vết ai/lý do. */
+  const confirmOnBehalf = useCallback(async (recordId: string, reason: string) => {
+    try {
+      const { error } = await supabase.rpc('pay_confirm_on_behalf', { _record_id: recordId, _reason: reason });
+      if (error) throw error;
+      const { data } = await supabase.from('pay_payroll_records')
+        .select('employee_status, employee_confirmed_at, confirmed_on_behalf_by, confirmed_on_behalf_name, confirmed_on_behalf_reason')
+        .eq('id', recordId).single();
+      setRecords(prev => prev.map(r => r.id === recordId ? { ...r, ...(data ?? {}) } as PayPayrollRecord : r));
+      setToast({ message: 'Đã xác nhận hộ nhân viên', type: 'success' });
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' });
+    }
+  }, []);
+
   const backToSheets = useCallback(() => {
     setView('sheets');
     setActiveSheet(null);
@@ -320,6 +336,6 @@ export function usePayrollState(initialTab?: string | null) {
   return {
     view, sheets: sheets.filter(s => matchesWorkspace((s as any).entity, workspace)), records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, updateStandardWorkDays, recalcAllRecords, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, refreshRecords, backToSheets,
+    updateRecord, saveRecord, updateStandardWorkDays, recalcAllRecords, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, confirmOnBehalf, refreshRecords, backToSheets,
   };
 }

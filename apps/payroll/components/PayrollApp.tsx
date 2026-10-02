@@ -22,7 +22,7 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
   const {
     view, sheets, records, activeSheet, activeFormula, loading, toast,
     setToast, createSheet, openSheet, deleteSheet,
-    updateRecord, saveRecord, updateStandardWorkDays, recalcAllRecords, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, refreshRecords, backToSheets,
+    updateRecord, saveRecord, updateStandardWorkDays, recalcAllRecords, confirmSheet, markSheetPaid, rollbackSheet, resolveDispute, confirmOnBehalf, refreshRecords, backToSheets,
   } = state;
 
   const [helpOpen, setHelpOpen] = useState(false);
@@ -58,6 +58,7 @@ const PayrollApp: React.FC<PayrollAppProps> = ({ currentUser, onBack, initialTab
           onMarkPaid={markSheetPaid}
           onRollback={rollbackSheet}
           onResolveDispute={resolveDispute}
+          onConfirmOnBehalf={confirmOnBehalf}
           onRefresh={refreshRecords}
         />
       </>
