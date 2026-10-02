@@ -7,9 +7,6 @@ interface Props {
   employees: HrEmployee[];
 }
 
-const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-  'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'];
-
 const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const [sheets, setSheets] = useState<AttMonthlySheet[]>([]);
   const { workspace } = useWorkspace();
@@ -18,9 +15,6 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const [records, setRecords] = useState<AttMonthlyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
-  const [createMonth, setCreateMonth] = useState(new Date().getMonth() + 1);
-  const [createYear, setCreateYear] = useState(new Date().getFullYear());
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
@@ -57,25 +51,6 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     };
     load();
   }, [selectedSheet?.id]);
-
-  // ── Create new sheet ──
-  const handleCreate = async () => {
-    try {
-      const existing = wsSheets.find(s => s.month === createMonth && s.year === createYear);
-      if (existing) {
-        setToast({ message: `Bảng chấm công Tháng ${createMonth}/${createYear} đã tồn tại!`, type: 'error' });
-        return;
-      }
-      const { sheet, records: recs } = await svc.createMonthlySheet(createMonth, createYear, employees);
-      setSheets(prev => [sheet, ...prev]);
-      setSelectedSheet(sheet);
-      setRecords(recs);
-      setShowCreate(false);
-      setToast({ message: `Đã tạo ${sheet.title}`, type: 'success' });
-    } catch (e: any) {
-      setToast({ message: e.message, type: 'error' });
-    }
-  };
 
   // ── Update a record field inline ──
   const handleUpdateField = async (recordId: string, field: string, value: number | string) => {
@@ -134,9 +109,15 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const handleToggleStatus = async () => {
     if (!selectedSheet) return;
     const newStatus = selectedSheet.status === 'draft' ? 'finalized' : 'draft';
-    if (newStatus === 'finalized') {
-      const pending = records.filter(r => !r.confirmed_at && !(r.employee && (r.employee.status !== 'active' || (r.employee as any).exclude_from_payroll)));
-      if (pending.length > 0 && !window.confirm(`${pending.length} nhân viên chưa xác nhận bảng công. Vẫn chốt?`)) return;
+    // Giống bảng lương: phải gửi NV xác nhận và đủ xác nhận mới chốt được — không còn "Vẫn chốt".
+    if (newStatus === 'finalized' && !canFinalize) {
+      setToast({
+        message: !reviewSent
+          ? 'Chưa gửi NV xác nhận — gửi trước rồi mới chốt được bảng công.'
+          : `Còn ${pendingConfirm.length} nhân viên chưa xác nhận: ${pendingConfirm.map(r => r.employee?.full_name).join(', ')}`,
+        type: 'error',
+      });
+      return;
     }
     try {
       await svc.updateMonthlySheet(selectedSheet.id, { status: newStatus });
@@ -207,6 +188,20 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const lastDayOfSheet = selectedSheet ? new Date(selectedSheet.year, selectedSheet.month, 0) : null;
   const monthEnded = !!lastDayOfSheet && new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()) + 'T00:00:00') >= lastDayOfSheet;
 
+  // NV bắt buộc xác nhận = đang làm, có tài khoản Portal (mới nhận được thông báo), không bị loại khỏi lương.
+  const mustConfirm = records.filter(r => {
+    const e = r.employee as any;
+    return !!e && e.status === 'active' && !!e.auth_user_id && !e.exclude_from_payroll;
+  });
+  const pendingConfirm = mustConfirm.filter(r => !r.confirmed_at);
+  const reviewSent = !!selectedSheet?.review_sent_at;
+  const canFinalize = reviewSent && pendingConfirm.length === 0;
+  // Bước tiếp theo kế toán phải làm — nút tương ứng được làm nổi bật.
+  const nextStep: 'wait' | 'send' | 'collect' | 'finalize' | 'done' =
+    isLocked ? 'done' : !monthEnded ? 'wait' : !reviewSent ? 'send' : pendingConfirm.length > 0 ? 'collect' : 'finalize';
+  const btnPrimary = 'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-primary hover:opacity-90 transition-all shadow-[0_0_20px_rgba(255,149,0,0.45)] animate-pulse motion-reduce:animate-none';
+  const btnSecondary = 'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:bg-white/5 hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed';
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Toast */}
@@ -223,7 +218,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
           <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-orange-400 to-yellow-400 bg-clip-text text-transparent uppercase tracking-tight">
             📋 Bảng chấm công
           </h1>
-          <p className="text-neutral-medium text-sm mt-1">Tạo và quản lý bảng chấm công theo tháng</p>
+          <p className="text-neutral-medium text-sm mt-1">Tự tạo và cập nhật mỗi đêm từ dữ liệu chấm công</p>
         </div>
         <div className="flex gap-3">
           {/* Sheet selector */}
@@ -240,48 +235,15 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
               ))}
             </select>
           )}
-          <button onClick={() => setShowCreate(!showCreate)}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-black text-sm uppercase tracking-wide hover:scale-105 transition-all">
-            + Tạo bảng công
-          </button>
         </div>
       </div>
 
-      {/* Create form */}
-      {showCreate && (
-        <div className={cardCls}>
-          <h3 className="text-lg font-black text-white uppercase mb-4">➕ Tạo bảng chấm công mới</h3>
-          <div className="flex flex-col sm:flex-row gap-4 items-end">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Tháng</label>
-              <select value={createMonth} onChange={e => setCreateMonth(+e.target.value)}
-                className="px-4 py-3 rounded-xl bg-black/30 border border-primary/10 text-white text-sm w-40">
-                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Năm</label>
-              <input type="number" value={createYear} onChange={e => setCreateYear(+e.target.value)}
-                className="px-4 py-3 rounded-xl bg-black/30 border border-primary/10 text-white text-sm w-32" />
-            </div>
-            <div className="text-sm text-neutral-medium">
-              <span className="text-orange-400 font-bold">{employees.length}</span> nhân viên (fulltime + parttime)
-            </div>
-            <button onClick={handleCreate}
-              className="px-8 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-black text-sm uppercase tracking-wide hover:scale-105 transition-all">
-              ✅ Tạo
-            </button>
-            <button onClick={() => setShowCreate(false)} className="px-4 py-3 rounded-xl bg-white/[0.05] text-neutral-medium font-bold text-sm">Hủy</button>
-          </div>
-        </div>
-      )}
-
-      {/* No sheets */}
-      {!isLoading && wsSheets.length === 0 && !showCreate && (
+      {/* No sheets — bảng do cron đêm tự tạo, không còn tạo tay */}
+      {!isLoading && wsSheets.length === 0 && (
         <div className="text-center py-20 opacity-40">
           <div className="text-6xl mb-4">📋</div>
           <div className="text-xl font-bold">Chưa có bảng chấm công nào</div>
-          <div className="text-sm mt-2">Nhấn "Tạo bảng công" để bắt đầu</div>
+          <div className="text-sm mt-2">Bảng công tháng hiện tại được hệ thống tự tạo lúc 23:30 mỗi đêm.</div>
         </div>
       )}
 
@@ -302,15 +264,21 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                 className="px-4 py-2 rounded-xl bg-blue-500/20 text-blue-400 font-bold text-xs hover:bg-blue-500/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
                 {isSyncing ? '⏳ Đang tính...' : '🔄 Tính từ chấm công'}
               </button>
-              <button onClick={handleRequestConfirm} disabled={isLocked || !monthEnded}
-                title={!monthEnded && lastDayOfSheet
-                  ? `Tháng chưa kết thúc — gửi được từ ${lastDayOfSheet.getDate()}/${selectedSheet.month}. Bảng đang tự cập nhật mỗi đêm.`
-                  : selectedSheet.review_sent_at ? `Đã gửi ${new Date(selectedSheet.review_sent_at).toLocaleString('vi-VN')} · ${records.filter(r => r.confirmed_at).length}/${records.length} đã xác nhận` : 'Thông báo từng NV vào Portal kiểm tra và xác nhận bảng công'}
-                className="px-4 py-2 rounded-xl bg-primary/20 text-primary font-bold text-xs hover:bg-primary/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-                📣 Gửi NV xác nhận{selectedSheet.review_sent_at ? ` (${records.filter(r => r.confirmed_at).length}/${records.length})` : ''}
-              </button>
+              {!isLocked && (
+                <button onClick={handleRequestConfirm} disabled={!monthEnded}
+                  title={!monthEnded && lastDayOfSheet
+                    ? `Tháng chưa kết thúc — gửi được từ ${lastDayOfSheet.getDate()}/${selectedSheet.month}. Bảng đang tự cập nhật mỗi đêm.`
+                    : reviewSent ? 'Gửi lại sẽ xoá các xác nhận cũ — chỉ dùng khi đã sửa số liệu' : 'Thông báo từng NV vào Portal kiểm tra và xác nhận bảng công'}
+                  className={nextStep === 'send' ? btnPrimary : btnSecondary}>
+                  📣 {reviewSent ? 'Gửi lại NV xác nhận' : 'Gửi NV xác nhận'}
+                </button>
+              )}
               <button onClick={handleToggleStatus}
-                className={`px-4 py-2 rounded-xl font-bold text-xs transition-all ${isLocked ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'}`}>
+                disabled={!isLocked && !canFinalize}
+                title={!isLocked && !canFinalize
+                  ? (!reviewSent ? 'Phải gửi NV xác nhận trước' : `Còn ${pendingConfirm.length} NV chưa xác nhận`)
+                  : undefined}
+                className={nextStep === 'finalize' ? btnPrimary : btnSecondary}>
                 {isLocked ? '🔓 Mở lại' : '🔒 Chốt bảng'}
               </button>
               {confirmDelete ? (
@@ -329,6 +297,46 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
               )}
             </div>
           </div>
+
+          {/* Bước tiếp theo — cho kế toán biết phải làm gì */}
+          {(() => {
+            const confirmed = mustConfirm.length - pendingConfirm.length;
+            const steps = [
+              { key: 'run', label: 'Tự cập nhật trong tháng' },
+              { key: 'send', label: 'Gửi NV xác nhận' },
+              { key: 'collect', label: `NV xác nhận${reviewSent ? ` (${confirmed}/${mustConfirm.length})` : ''}` },
+              { key: 'finalize', label: 'Chốt bảng' },
+            ];
+            const current = { wait: 0, send: 1, collect: 2, finalize: 3, done: 4 }[nextStep];
+            const hint = {
+              wait: `Tháng chưa kết thúc — bảng tự cập nhật mỗi đêm. Từ ngày ${lastDayOfSheet?.getDate()}/${selectedSheet.month} gửi được NV xác nhận.`,
+              send: 'Việc tiếp theo: bấm "Gửi NV xác nhận" để nhân viên kiểm tra bảng công trên Portal.',
+              collect: `Đang chờ ${pendingConfirm.length} NV xác nhận: ${pendingConfirm.map(r => r.employee?.full_name).join(', ')}.`,
+              finalize: 'Tất cả nhân viên đã xác nhận — bấm "Chốt bảng" để chuyển sang tính lương.',
+              done: 'Bảng công đã chốt — Payroll dùng được số liệu này.',
+            }[nextStep];
+            return (
+              <div className="rounded-[20px] border p-5"
+                style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  {steps.map((s, i) => {
+                    const done = i < current;
+                    const active = i === current;
+                    return (
+                      <React.Fragment key={s.key}>
+                        {i > 0 && <span className={`h-px w-6 ${done || active ? 'bg-primary/60' : 'bg-white/10'}`} />}
+                        <span className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider ${
+                          active ? 'bg-primary text-black' : done ? 'bg-primary/15 text-primary' : 'bg-white/5 text-neutral-600'}`}>
+                          <span>{done ? '✓' : i + 1}</span>{s.label}
+                        </span>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+                <p className={`text-sm mt-3 ${nextStep === 'done' ? 'text-green-400' : 'text-neutral-300'}`}>{hint}</p>
+              </div>
+            );
+          })()}
 
           {/* Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
