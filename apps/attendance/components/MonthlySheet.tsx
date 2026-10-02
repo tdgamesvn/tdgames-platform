@@ -43,11 +43,9 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const needsAction = (s: AttMonthlySheet) => s.status !== 'finalized' && todayVN >= new Date(s.year, s.month, 0);
   const actionSheets = wsSheets.filter(needsAction); // mới → cũ (theo thứ tự fetch)
 
-  // Chọn bảng mặc định: bảng cần xử lý CŨ NHẤT, không có thì bảng mới nhất. Chạy lại khi đổi sổ.
+  // selectedSheet = null ⇒ màn danh sách. Đổi sổ mà bảng đang mở không thuộc sổ mới ⇒ về danh sách.
   useEffect(() => {
-    if (wsSheets.length === 0) { if (selectedSheet) setSelectedSheet(null); return; }
-    if (selectedSheet && wsSheets.some(s => s.id === selectedSheet.id)) return;
-    setSelectedSheet(actionSheets[actionSheets.length - 1] ?? wsSheets[0]);
+    if (selectedSheet && !wsSheets.some(s => s.id === selectedSheet.id)) setSelectedSheet(null);
   }, [sheets, workspace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load records when sheet changes ──
@@ -225,54 +223,126 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {selectedSheet ? (
+        <div className="flex items-center gap-4">
+          <button onClick={() => { setSelectedSheet(null); setConfirmDelete(false); loadSheets(); }}
+            aria-label="Về danh sách bảng công"
+            className="w-10 h-10 rounded-xl border border-white/10 text-neutral-300 hover:text-white hover:bg-white/5 transition-all">
+            ←
+          </button>
+          <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Bảng chấm công / {selectedSheet.title}</p>
+        </div>
+      ) : (
         <div>
-          <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-orange-400 to-yellow-400 bg-clip-text text-transparent uppercase tracking-tight">
-            📋 Bảng chấm công
+          <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>
+            Bảng chấm công
           </h1>
-          <p className="text-neutral-medium text-sm mt-1">Tự tạo và cập nhật mỗi đêm từ dữ liệu chấm công</p>
-        </div>
-        <div className="flex gap-3">
-          {/* Sheet selector */}
-          {wsSheets.length > 0 && (
-            <select
-              value={selectedSheet?.id || ''}
-              onChange={e => { const s = sheets.find(s => s.id === e.target.value); if (s) setSelectedSheet(s); }}
-              className="px-4 py-2 rounded-xl bg-surface border border-primary/10 text-white text-sm"
-            >
-              {wsSheets.map(s => (
-                <option key={s.id} value={s.id}>
-                  {s.title} {s.status === 'finalized' ? '✅' : needsAction(s) ? '⚠️ cần chốt' : '🔄 đang chạy'}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
-
-      {/* No sheets — bảng do cron đêm tự tạo, không còn tạo tay */}
-      {!isLoading && wsSheets.length === 0 && (
-        <div className="text-center py-20 opacity-40">
-          <div className="text-6xl mb-4">📋</div>
-          <div className="text-xl font-bold">Chưa có bảng chấm công nào</div>
-          <div className="text-sm mt-2">Bảng công tháng hiện tại được hệ thống tự tạo lúc 23:30 mỗi đêm.</div>
+          <p className="text-sm text-neutral-medium mt-1">Tự tạo và cập nhật mỗi đêm từ dữ liệu chấm công</p>
         </div>
       )}
 
-      {/* Cảnh báo bảng khác đã hết tháng mà chưa chốt (đang xem bảng khác) */}
-      {actionSheets.filter(s => s.id !== selectedSheet?.id).map(s => (
-        <div key={s.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-yellow-500/30 bg-yellow-500/[0.06] px-5 py-4">
-          <p className="text-sm text-yellow-300">
-            <span className="font-black">⚠ {s.title} chưa chốt</span>
-            <span className="text-yellow-200/70"> — tháng đã kết thúc, cần gửi NV xác nhận và chốt để tính lương.</span>
-          </p>
-          <button onClick={() => setSelectedSheet(s)}
-            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-yellow-400 hover:opacity-90 transition-all">
-            Mở bảng
-          </button>
-        </div>
-      ))}
+      {/* ── Màn danh sách ── */}
+      {!selectedSheet && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Tổng bảng công', value: wsSheets.length, color: '#FFFFFF' },
+              { label: 'Cần chốt', value: actionSheets.length, color: '#FF9500' },
+              { label: 'Đã chốt', value: wsSheets.filter(s => s.status === 'finalized').length, color: '#34C759' },
+            ].map(k => (
+              <div key={k.label} className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface">
+                <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">{k.label}</p>
+                <p className="text-2xl font-black" style={{ color: k.color }}>{k.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {isLoading && wsSheets.length === 0 ? (
+            <div className="flex justify-center py-16">
+              <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+          ) : wsSheets.length === 0 ? (
+            <div className="rounded-[20px] border border-primary/10 bg-surface text-center py-16">
+              <p className="text-sm font-semibold text-white">Chưa có bảng chấm công nào</p>
+              <p className="text-xs text-neutral-medium mt-1">Bảng công tháng hiện tại được hệ thống tự tạo lúc 23:30 mỗi đêm.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {Array.from(new Set(wsSheets.map(s => s.year))).sort((a, b) => b - a).map(year => (
+                <section key={year} className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-neutral-600">Năm {year}</p>
+                  {wsSheets.filter(s => s.year === year).map(s => {
+                    const mm = String(s.month).padStart(2, '0');
+
+                    // ── Đã chốt: chìm xuống ──
+                    if (s.status === 'finalized') {
+                      return (
+                        <div key={s.id} onClick={() => setSelectedSheet(s)}
+                          className="flex items-center gap-5 px-5 py-4 rounded-[20px] border border-white/5 bg-surface/40 opacity-60 hover:opacity-100 hover:border-primary/20 transition-all cursor-pointer group">
+                          <div className="w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 bg-white/5">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-neutral-600 leading-none">Th</span>
+                            <span className="text-lg font-black text-neutral-400 group-hover:text-primary leading-tight transition-colors">{mm}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-neutral-300 truncate">{s.title}</p>
+                            <p className="text-xs text-neutral-600 mt-0.5">Kỳ công {s.month}/{s.year}</p>
+                          </div>
+                          <span className="text-xs font-black uppercase tracking-wider text-green-400">✓ Đã chốt</span>
+                          <span className="text-xl text-neutral-600 group-hover:text-primary transition-colors">→</span>
+                        </div>
+                      );
+                    }
+
+                    // ── Chưa chốt: viền sáng chạy quanh. Cam = hết tháng, cần xử lý; xanh = tháng đang chạy ──
+                    const urgent = needsAction(s);
+                    const color = urgent ? '#FF9500' : '#0A84FF';
+                    const lastDay = new Date(s.year, s.month, 0).getDate();
+                    return (
+                      <div key={s.id} onClick={() => setSelectedSheet(s)}
+                        className="relative p-[1.5px] rounded-[20px] overflow-hidden cursor-pointer group">
+                        <div className="absolute left-1/2 top-1/2 w-[200%] aspect-square -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                          <div className="w-full h-full animate-spin motion-reduce:animate-none"
+                            style={{
+                              animationDuration: urgent ? '4s' : '8s',
+                              background: `conic-gradient(from 0deg, transparent 0deg, transparent 280deg, ${color} 340deg, transparent 360deg)`,
+                            }} />
+                        </div>
+                        <div className="absolute inset-0 rounded-[20px] border border-primary/20 pointer-events-none" />
+                        <div className="relative flex items-center gap-5 p-5 rounded-[19px] bg-[#161616] group-hover:bg-[#1c1c1c] transition-colors">
+                          <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0"
+                            style={{ background: `${color}26`, boxShadow: `0 0 24px ${color}26` }}>
+                            <span className="text-[9px] font-black uppercase tracking-widest leading-none" style={{ color, opacity: 0.7 }}>Th</span>
+                            <span className="text-2xl font-black leading-tight" style={{ color }}>{mm}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-base font-black text-white truncate">{s.title}</p>
+                            <p className="text-xs text-neutral-medium mt-0.5">Kỳ công {s.month}/{s.year}</p>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wider" style={{ color }}>
+                              <span className="relative flex w-2 h-2">
+                                <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping motion-reduce:animate-none" style={{ background: color }} />
+                                <span className="relative inline-flex w-2 h-2 rounded-full" style={{ background: color }} />
+                              </span>
+                              {urgent ? 'Cần chốt' : 'Đang chấm công'}
+                            </span>
+                            <span className="text-[11px] font-semibold text-neutral-400">
+                              {!urgent
+                                ? `Tự cập nhật mỗi đêm · gửi xác nhận từ ${lastDay}/${s.month}`
+                                : s.review_sent_at ? 'Đã gửi NV xác nhận · chờ đủ xác nhận để chốt' : 'Chưa gửi NV xác nhận'}
+                            </span>
+                          </div>
+                          <span className="text-xl" style={{ color }}>→</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </section>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Sheet content */}
       {selectedSheet && (
