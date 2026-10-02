@@ -28,7 +28,6 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
     try {
       const data = await svc.fetchMonthlySheets();
       setSheets(data);
-      if (data.length > 0 && !selectedSheet) setSelectedSheet(data[0]);
     } catch (e: any) {
       setToast({ message: e.message, type: 'error' });
     } finally {
@@ -37,6 +36,19 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
   }, []);
 
   useEffect(() => { loadSheets(); }, [loadSheets]);
+
+  // Bảng "cần xử lý" = đã hết tháng (gửi xác nhận được) mà chưa chốt. Sang T10 mà T9 chưa chốt
+  // thì T9 phải là thứ kế toán thấy đầu tiên, không phải bảng T10 đang chạy.
+  const todayVN = new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date()) + 'T00:00:00');
+  const needsAction = (s: AttMonthlySheet) => s.status !== 'finalized' && todayVN >= new Date(s.year, s.month, 0);
+  const actionSheets = wsSheets.filter(needsAction); // mới → cũ (theo thứ tự fetch)
+
+  // Chọn bảng mặc định: bảng cần xử lý CŨ NHẤT, không có thì bảng mới nhất. Chạy lại khi đổi sổ.
+  useEffect(() => {
+    if (wsSheets.length === 0) { if (selectedSheet) setSelectedSheet(null); return; }
+    if (selectedSheet && wsSheets.some(s => s.id === selectedSheet.id)) return;
+    setSelectedSheet(actionSheets[actionSheets.length - 1] ?? wsSheets[0]);
+  }, [sheets, workspace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load records when sheet changes ──
   useEffect(() => {
@@ -230,7 +242,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
             >
               {wsSheets.map(s => (
                 <option key={s.id} value={s.id}>
-                  {s.title} {s.status === 'finalized' ? '✅' : '📝'}
+                  {s.title} {s.status === 'finalized' ? '✅' : needsAction(s) ? '⚠️ cần chốt' : '🔄 đang chạy'}
                 </option>
               ))}
             </select>
@@ -246,6 +258,21 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
           <div className="text-sm mt-2">Bảng công tháng hiện tại được hệ thống tự tạo lúc 23:30 mỗi đêm.</div>
         </div>
       )}
+
+      {/* Cảnh báo bảng khác đã hết tháng mà chưa chốt (đang xem bảng khác) */}
+      {actionSheets.filter(s => s.id !== selectedSheet?.id).map(s => (
+        <div key={s.id}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-yellow-500/30 bg-yellow-500/[0.06] px-5 py-4">
+          <p className="text-sm text-yellow-300">
+            <span className="font-black">⚠ {s.title} chưa chốt</span>
+            <span className="text-yellow-200/70"> — tháng đã kết thúc, cần gửi NV xác nhận và chốt để tính lương.</span>
+          </p>
+          <button onClick={() => setSelectedSheet(s)}
+            className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-black bg-yellow-400 hover:opacity-90 transition-all">
+            Mở bảng
+          </button>
+        </div>
+      ))}
 
       {/* Sheet content */}
       {selectedSheet && (
