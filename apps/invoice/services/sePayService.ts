@@ -142,10 +142,10 @@ function mapInvoiceToSePay(invoice: InvoiceData, exchangeRate?: number) {
         } as any);
     }
 
-    // Format date: YYYY-MM-DD HH:mm:ss
-    const issuedDate = invoice.issueDate
-        ? `${invoice.issueDate} 00:00:00`
-        : new Date().toISOString().slice(0, 19).replace('T', ' ');
+    // Ngày xuất HĐĐT = đúng thời điểm bấm xuất (giờ VN, YYYY-MM-DD HH:mm:ss).
+    // KHÔNG lấy invoice.issueDate: luật không cho lùi/đẩy ngày xuất hoá đơn điện tử.
+    const issuedDate = new Date(Date.now() + 7 * 3600 * 1000)
+        .toISOString().slice(0, 19).replace('T', ' ');
 
     return {
         buyer: {
