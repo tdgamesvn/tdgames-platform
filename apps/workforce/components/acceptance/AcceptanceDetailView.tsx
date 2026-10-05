@@ -7,6 +7,7 @@ import { StatusBadge } from '../shared/StatusBadge';
 import { SignedScanButton } from '../shared/SignedScanButton';
 import { getClickupStatusStyle, exportAcceptancePdf, periodEndDate } from './acceptancePdfExport';
 import { ExtraItemsEditor, cleanExtraItems } from './ExtraItemsEditor';
+import { fetchBankAccounts, toBankingInfo, BankAccount } from '@/apps/expense/services/bankAccountService';
 
 type AcceptanceTask = WorkforceTask & { client_price: number; acceptance_note: string };
 
@@ -50,7 +51,32 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
   const extraTotal = paSvc.extraItemsTotal(cleanExtraItems(extraItems));
   const netTotal = Math.max(0, totalClientPrice - discountAmount) + extraTotal;
 
-  const handleCommitExtras = (items: typeof extraItems) => {
+  // ── Tạm ứng + TK nhận tiền ──
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  useEffect(() => { fetchBankAccounts().then(setBankAccounts).catch(() => setBankAccounts([])); }, []);
+  const advanceAmount = paSvc.calcAdvance(netTotal, a.advance_type, a.advance_value);
+  const remainingAmount = netTotal - advanceAmount;
+  // TK phù hợp: phiếu cá nhân → TK cá nhân; phiếu công ty → TK công ty đúng pháp nhân đang xuất
+  const eligibleBanks = bankAccounts.filter(acc => a.account_type === 'personal'
+    ? acc.account_type === 'personal'
+    : acc.account_type === 'company' && acc.entity === (selCompany === 'tdconsulting' ? 'TD CONSULTING' : 'TD GAMES'));
+  // Chưa chọn → gợi ý TK cùng currency (chỉ để hiển thị/xuất PDF, không tự ghi DB)
+  const suggestedBank = eligibleBanks.find(acc => acc.currency === (a.currency || 'USD')) || eligibleBanks[0];
+  const effectiveBankInfo = a.bank_info ?? (suggestedBank ? toBankingInfo(suggestedBank) : null);
+  // '__saved__' = có snapshot nhưng TK gốc đã bị xoá (FK set null) — PDF vẫn in snapshot
+  const selectedBankId = a.bank_account_id ?? (a.bank_info ? '__saved__' : suggestedBank?.id ?? '');
+
+  const handleAdvanceChange = (updates: Partial<ProjectAcceptance>) => {
+    onUpdate(a.id!, updates);
+    setA(prev => ({ ...prev, ...updates }));
+  };
+
+  const handleSelectBank = (id: string) => {
+    const acc = bankAccounts.find(x => x.id === id);
+    handleAdvanceChange({ bank_account_id: acc?.id ?? null, bank_info: acc ? toBankingInfo(acc) : null });
+  };
+
+  const handleCommitExtras =(items: typeof extraItems) => {
     const cleaned = cleanExtraItems(items);
     if (JSON.stringify(cleaned) === JSON.stringify(a.extra_items || [])) return;
     onUpdate(a.id!, { extra_items: cleaned });
@@ -80,7 +106,8 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
     } catch { /* revert if needed */ }
   };
 
-  const handleExportPDF = () => exportAcceptancePdf({ ...a, extra_items: cleanExtraItems(extraItems) }, detailTasks, selCompany);
+  const handleExportPDF = () => exportAcceptancePdf(
+    { ...a, extra_items: cleanExtraItems(extraItems), bank_info: effectiveBankInfo }, detailTasks, selCompany);
 
   return (
     <div className="animate-fadeInUp space-y-6">
@@ -303,6 +330,84 @@ const AcceptanceDetailView: React.FC<AcceptanceDetailViewProps> = ({
                 <p className="text-[9px] font-black uppercase tracking-widest text-blue-400">Net Total</p>
                 <p className="text-blue-400 font-black text-2xl">{fmtUSD(netTotal)}</p>
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Payment — tạm ứng khách đã trả + TK nhận tiền (in lên PDF) */}
+      <div className="rounded-[20px] border border-primary/10 bg-surface p-5 space-y-5">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Advance Payment</p>
+          <p className="text-[10px] text-neutral-medium/50 mb-4">Amount the client already paid in advance — deducted from Net Total, PDF shows the remaining amount.</p>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center rounded-xl border border-primary/10 overflow-hidden">
+              <button onClick={() => handleAdvanceChange({ advance_type: 'percent' })}
+                className={`px-4 py-2.5 text-xs font-bold tracking-wider transition-all ${a.advance_type !== 'amount' ? 'bg-blue-500/20 text-blue-400' : 'text-neutral-medium hover:text-white hover:bg-white/5'}`}
+              >% Percentage</button>
+              <button onClick={() => handleAdvanceChange({ advance_type: 'amount' })}
+                className={`px-4 py-2.5 text-xs font-bold tracking-wider transition-all ${a.advance_type === 'amount' ? 'bg-blue-500/20 text-blue-400' : 'text-neutral-medium hover:text-white hover:bg-white/5'}`}
+              >$ Fixed Amount</button>
+            </div>
+            <div className="flex items-center gap-2">
+              {a.advance_type === 'amount' && <span className="text-neutral-medium/40 text-sm">$</span>}
+              <input type="number" min="0" step="1" max={a.advance_type === 'amount' ? undefined : 100}
+                defaultValue={a.advance_value || ''} key={`adv-${a.advance_type}`}
+                onBlur={e => {
+                  let v = Math.max(0, parseFloat(e.target.value) || 0);
+                  if (a.advance_type !== 'amount') v = Math.min(100, v);
+                  e.target.value = v ? String(v) : '';
+                  if (v !== (a.advance_value || 0)) handleAdvanceChange({ advance_value: v });
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                placeholder="0"
+                className="w-32 bg-transparent border border-primary/10 rounded-lg px-3 py-2 text-blue-400 font-bold text-sm text-right focus:outline-none focus:border-blue-500/40 transition-all placeholder-neutral-medium/20"
+              />
+              {a.advance_type !== 'amount' && <span className="text-neutral-medium/40 text-sm">%</span>}
+            </div>
+            {advanceAmount > 0 && (
+              <div className="ml-auto flex items-center gap-6">
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium">Advance Paid</p>
+                  <p className="text-emerald-400 font-bold text-lg">-{fmtUSD(advanceAmount)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-blue-400">Remaining</p>
+                  <p className="text-blue-400 font-black text-2xl">{fmtUSD(remainingAmount)}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-white/5 pt-5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-neutral-medium mb-1">Payment Account</p>
+          <p className="text-[10px] text-neutral-medium/50 mb-3">
+            Bank account printed on the PDF.{!a.bank_info && suggestedBank && ' Auto-suggested by currency — pick one to lock it in.'}
+          </p>
+          <select value={selectedBankId} onChange={e => handleSelectBank(e.target.value)}
+            className="bg-transparent border border-primary/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/40 transition-all hover:border-primary/20 min-w-[280px] [&>option]:bg-surface">
+            <option value="">— No bank info —</option>
+            {a.bank_info && !a.bank_account_id && <option value="__saved__" disabled>{a.bank_info.accountNumber} (saved)</option>}
+            {eligibleBanks.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.name} • {acc.account_number} • {acc.currency}</option>
+            ))}
+          </select>
+          {effectiveBankInfo && (
+            <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+              {([
+                ['Account Name', effectiveBankInfo.accountName],
+                ['Account No.', effectiveBankInfo.accountNumber],
+                ['Bank', effectiveBankInfo.bankName],
+                ['Swift Code', effectiveBankInfo.swiftCode],
+                ['Citad Code', effectiveBankInfo.citadCode],
+                ['Bank Address', [effectiveBankInfo.branchName, effectiveBankInfo.bankAddress].filter(Boolean).join(', ')],
+              ] as const).filter(([, v]) => v).map(([label, v]) => (
+                <div key={label} className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-neutral-medium mb-0.5">{label}</p>
+                  <p className="text-sm font-bold text-white break-words">{v}</p>
+                </div>
+              ))}
             </div>
           )}
         </div>

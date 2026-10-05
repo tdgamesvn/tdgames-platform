@@ -1,4 +1,6 @@
 import { COMPANY_CONFIG, CompanyId } from '../shared/CompanySelector';
+import { BankingInfo } from '@/types';
+import { calcAdvance } from '../../services/projectAcceptanceService';
 
 // ClickUp status color palette
 const CLICKUP_STATUS_COLORS: Record<string, { bg: string; text: string; hex: string }> = {
@@ -70,6 +72,9 @@ export async function exportAcceptancePdf(
     discount_value?: number;
     extra_items?: { label: string; amount: number }[];
     account_type?: 'company' | 'personal';
+    advance_type?: 'percent' | 'amount';
+    advance_value?: number;
+    bank_info?: BankingInfo | null;
   },
   tasks: AcceptanceTask[],
   companyId: CompanyId
@@ -125,6 +130,33 @@ export async function exportAcceptancePdf(
     ${extras.map(i => `<div class="row" style="color:#059669"><span>${esc(i.label)}:</span><span>${fmtSigned(Number(i.amount))}</span></div>`).join('')}
   ` : '';
 
+  // ── Tạm ứng: cùng kiểu dòng với Subtotal/Discount (nhãn thường, số màu) ──
+  const advanceAmt = calcAdvance(netTotal, acceptance.advance_type, acceptance.advance_value);
+  const remainingAmt = netTotal - advanceAmt;
+  const advancePct = acceptance.advance_type === 'amount' ? '' : ` (${acceptance.advance_value}%)`;
+  const advanceRowsHtml = advanceAmt > 0 ? `
+    <div class="row" style="color:#059669"><span>Advance paid${advancePct}:</span><span>-$${advanceAmt.toLocaleString('en-US')}</span></div>
+    <div class="row remaining"><span>REMAINING:</span><span>$${remainingAmt.toLocaleString('en-US')}</span></div>
+  ` : '';
+
+  // ── TK nhận tiền: lưới nhãn/giá trị giống khối .meta & InvoicePreview ──
+  const b = acceptance.bank_info;
+  const bankFields: [string, string | undefined][] = b ? [
+    ['Account Name', b.accountName],
+    ['Account No.', b.accountNumber],
+    ['Bank', b.bankName],
+    ['Swift Code', b.swiftCode],
+    ['Citad Code', b.citadCode],
+    ['Bank Address', [b.branchName, b.bankAddress].filter(Boolean).join(', ')],
+  ] : [];
+  const bankCells = bankFields.filter(([, v]) => v)
+    .map(([k, v]) => `<div><div class="lbl">${k}</div><div class="val">${esc(v!)}</div></div>`).join('');
+  const bankHtml = bankCells ? `
+    <div class="bank">
+      <div class="bank-title">Payment Account</div>
+      <div class="bank-grid">${bankCells}</div>
+    </div>` : '';
+
   printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Project Acceptance - ${acceptance.project_name}</title>
   <style>
     body{font-family:'Segoe UI',Roboto,sans-serif;margin:40px;color:#222;font-size:13px}
@@ -142,6 +174,12 @@ export async function exportAcceptancePdf(
     .totals{margin-top:20px;text-align:right;font-size:14px;page-break-inside:avoid;break-inside:avoid}
     .totals .row{padding:6px 0;display:flex;justify-content:flex-end;gap:20px}
     .totals .grand{font-size:18px;font-weight:700;color:#3b82f6;border-top:2px solid #222;padding-top:10px;margin-top:5px}
+    .totals .remaining{font-size:16px;font-weight:700;color:#3b82f6}
+    .bank{margin-top:30px;padding:16px 20px;border:1px solid #e2e8f0;border-left:3px solid #3b82f6;border-radius:6px;background:#f8fafc;page-break-inside:avoid;break-inside:avoid}
+    .bank-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#666;font-weight:700;margin-bottom:12px}
+    .bank-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px}
+    .bank .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#94a3b8;margin-bottom:2px}
+    .bank .val{font-size:13px;font-weight:700;color:#222}
     .footer{margin-top:60px;display:flex;justify-content:space-between;page-break-inside:avoid;break-inside:avoid}
     .sig{text-align:center;width:200px}
     .sig .line{margin-top:60px;border-top:1px solid #333;padding-top:5px;font-weight:600}
@@ -172,7 +210,9 @@ export async function exportAcceptancePdf(
   <div class="totals">
     ${discountRowHtml}
     <div class="row grand"><span>TOTAL:</span><span>$${netTotal.toLocaleString('en-US')}</span></div>
+    ${advanceRowsHtml}
   </div>
+  ${bankHtml}
   <div class="footer">
     <div class="sig"><div style="font-size:11px;color:#666">Service Provider</div><div class="line">${company.name}</div></div>
     <div class="sig"><div style="font-size:11px;color:#666">Client</div><div class="line">${acceptance.client_name}</div></div>

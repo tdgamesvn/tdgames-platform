@@ -266,6 +266,12 @@ export interface ProjectAcceptance {
   /** Khoản cộng thêm không gắn task (vd. khách bonus) — cộng sau discount, không chia cho NV */
   extra_items?: AcceptanceExtraItem[];
   account_type?: 'company' | 'personal';
+  /** Tạm ứng khách đã trả trước — 'percent' = % của net total, 'amount' = số tiền tuyệt đối */
+  advance_type?: 'percent' | 'amount';
+  advance_value?: number;
+  /** TK nhận tiền (finance_bank_accounts) + snapshot thông tin in lên PDF */
+  bank_account_id?: string | null;
+  bank_info?: BankingInfo | null;
   signed_file_url?: string | null;
   client_id?: string | null;   // FK crm_clients (map từ ClickUp Space)
   project_id?: string | null;  // FK crm_projects (map từ ClickUp Folder)

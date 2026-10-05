@@ -20,6 +20,10 @@ export const acceptanceTaskNetAmount = (a: NetInput) =>
 export const acceptanceNetAmount = (a: NetInput) =>
   acceptanceTaskNetAmount(a) + extraItemsTotal(a.extra_items);
 
+/** Số tiền khách đã tạm ứng — kẹp trong [0, net] để "còn lại" không bao giờ âm */
+export const calcAdvance = (net: number, type: string | undefined, value: number | undefined) =>
+  Math.min(net, Math.max(0, type === 'amount' ? (value || 0) : net * (value || 0) / 100));
+
 // ── Fetch all project acceptances ─────────────────────────────
 export async function fetchProjectAcceptances(): Promise<ProjectAcceptance[]> {
   const { data, error } = await supabase
