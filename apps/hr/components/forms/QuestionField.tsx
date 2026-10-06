@@ -10,10 +10,11 @@ interface Props {
   disabled?: boolean;
 }
 
-const inputCls = 'w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2.5 text-[14px] text-white focus:border-primary outline-none';
+// Theo STYLE_GUIDE: ô nhập rounded-xl + focus cam mờ; nút chọn có phản hồi chạm (v1.5 mobile).
+const inputCls = 'w-full px-3 py-2.5 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors bg-[#1a1a1a] disabled:opacity-60';
 const chip = (on: boolean) =>
-  `min-h-[44px] px-3 py-2 rounded-lg border text-[13px] font-bold text-left transition-colors ${
-    on ? 'bg-primary/15 border-primary text-primary' : 'bg-[#1a1a1a] border-white/10 text-neutral-300'}`;
+  `min-h-[44px] px-3 py-2 rounded-xl border text-sm font-semibold text-left transition-all active:scale-[.97] disabled:active:scale-100 ${
+    on ? 'bg-orange-500/10 border-primary/40 text-primary' : 'bg-[#1a1a1a] border-white/10 text-neutral-light hover:border-white/20'}`;
 
 export function scaleRange(q: HrFormQuestion): number[] {
   if (q.kind === 'rating') return [1, 2, 3, 4, 5];
@@ -25,15 +26,15 @@ const QuestionField: React.FC<Props> = ({ q, value, onChange, disabled }) => {
   const opts: string[] = Array.isArray(q.options) ? q.options : [];
   return (
     <div className="space-y-2">
-      <p className="text-[14px] font-bold text-white leading-snug">
-        {q.label}{q.required && <span className="text-[#FF453A]"> *</span>}
+      <p className="text-sm font-semibold text-white leading-snug">
+        {q.label}{q.required && <span className="text-status-error"> *</span>}
       </p>
 
       {q.kind === 'text' && (
         <input className={inputCls} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value)} />
       )}
       {q.kind === 'textarea' && (
-        <textarea className={inputCls} rows={4} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value)} />
+        <textarea className={`${inputCls} resize-none`} rows={4} value={value ?? ''} disabled={disabled} onChange={e => onChange(e.target.value)} />
       )}
       {q.kind === 'single_choice' && (
         <div className="grid gap-2">
@@ -50,7 +51,7 @@ const QuestionField: React.FC<Props> = ({ q, value, onChange, disabled }) => {
             return (
               <button type="button" key={o} disabled={disabled} className={chip(on)}
                 onClick={() => onChange(on ? arr.filter(x => x !== o) : [...arr, o])}>
-                {on ? '☑' : '☐'} {o}
+                <span className={`inline-flex w-4 h-4 mr-2 align-[-2px] rounded border items-center justify-center text-[10px] font-black ${on ? 'bg-primary border-primary text-white' : 'border-white/20'}`}>{on && '✓'}</span>{o}
               </button>
             );
           })}

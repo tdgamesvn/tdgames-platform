@@ -1,6 +1,7 @@
 // HR → tab "Khảo sát" (giai đoạn 1: khảo sát thường).
 // ponytail: sắp xếp câu hỏi bằng nút ↑↓ thay vì kéo thả — đủ dùng, khỏi thêm thư viện dnd.
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/services/supabaseClient';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
@@ -14,16 +15,24 @@ interface Props { onToast: (msg: string, type: 'success' | 'error') => void }
 type Emp = { id: string; full_name: string; status: string; auth_user_id: string | null; department_id: string | null; entity?: string | null };
 type DraftQ = Omit<HrFormQuestion, 'id' | 'form_id' | 'position'> & { key: string };
 
-const card = 'bg-surface border border-white/8 rounded-xl';
-const input = 'w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white';
-const btnP = 'bg-primary text-black font-black text-xs uppercase px-4 py-2 rounded-lg disabled:opacity-40';
-const btnS = 'border border-white/10 text-white font-bold text-xs px-3 py-2 rounded-lg hover:bg-white/5 disabled:opacity-40';
-const label = 'text-[10px] font-black text-neutral-600 uppercase tracking-wider';
+// Theo .agent/meta/STYLE_GUIDE.md (v1.2+): card rounded-[20px] border-primary/10, nút/ô nhập rounded-xl.
+const card = 'rounded-[20px] border border-primary/10 bg-surface';
+const input = 'w-full px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors bg-[#1a1a1a]';
+const btnP = 'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-primary transition-all disabled:opacity-50';
+const btnS = 'px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-50';
+const btnXs = 'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all disabled:opacity-50';
+const label = 'text-neutral-500 text-[10px] font-black uppercase tracking-wider';
+const kpiLabel = 'text-[10px] font-black text-neutral-600 uppercase tracking-wider';
+const checkbox = { accentColor: '#FF9500' };
 const STATUS: Record<string, [string, string]> = {
-  draft: ['Nháp', 'bg-white/10 text-neutral-400'],
-  open: ['Đang mở', 'bg-[#34C759]/15 text-[#34C759]'],
-  closed: ['Đã đóng', 'bg-[#FF453A]/15 text-[#FF453A]'],
+  draft: ['Nháp', '#9D9C9D'],
+  open: ['Đang mở', '#34C759'],
+  closed: ['Đã đóng', '#F44336'],
 };
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
+  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg shrink-0"
+    style={{ background: `${STATUS[status][1]}20`, color: STATUS[status][1] }}>{STATUS[status][0]}</span>
+);
 const newKey = () => Math.random().toString(36).slice(2);
 
 const FormsTab: React.FC<Props> = ({ onToast }) => {
@@ -44,29 +53,34 @@ const FormsTab: React.FC<Props> = ({ onToast }) => {
   if (view.mode === 'detail') return <FormDetail form={view.form} onToast={onToast} onBack={() => { setView({ mode: 'list' }); load(); }} />;
 
   return (
-    <div className="space-y-4 animate-fadeInUp">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="space-y-6 animate-fadeInUp">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-2xl font-black text-white uppercase">📋 Khảo sát</h2>
-          <p className="text-neutral-500 text-sm">Tạo khảo sát, gửi cho nhân viên điền trên điện thoại</p>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Khảo sát</h2>
+          <p className="text-sm text-neutral-medium mt-1">Tạo khảo sát, gửi cho nhân viên điền trên điện thoại</p>
         </div>
         <button className={btnP} onClick={() => setView({ mode: 'edit', form: { title: '', is_anonymous: false } })}>+ Tạo khảo sát</button>
       </div>
-      {loading ? <p className="text-neutral-500 text-sm animate-pulse">Đang tải...</p>
-        : visible.length === 0 ? <div className={`${card} p-10 text-center text-neutral-500`}>Chưa có khảo sát nào</div>
-        : (
-          <div className="grid gap-2">
+      {loading ? <p className="text-xs text-neutral-medium animate-td-pulse">Đang tải...</p>
+        : visible.length === 0 ? (
+          <div className={`${card} text-center py-16`}>
+            <p className="text-3xl mb-3">📋</p>
+            <p className="text-neutral-600 text-sm">Chưa có khảo sát nào</p>
+            <p className="text-xs mt-1 text-neutral-700">Bấm "+ Tạo khảo sát" để bắt đầu</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
             {visible.map(f => (
-              <button key={f.id} className={`${card} p-4 text-left flex items-center gap-3 hover:border-white/20`}
+              <button key={f.id} className="w-full flex items-center gap-4 p-4 rounded-[20px] border border-primary/10 hover:border-primary/20 transition-all bg-surface text-left"
                 onClick={() => setView(f.status === 'draft' ? { mode: 'edit', form: f } : { mode: 'detail', form: f })}>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-white truncate">{f.title}</p>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-sm font-semibold text-white truncate">{f.title}</p>
+                  <p className="text-xs text-neutral-medium mt-0.5">
                     {f.deadline ? `Hạn ${f.deadline.split('-').reverse().join('/')}` : 'Không hạn'}
                     {f.is_anonymous && ' · 🕶 Ẩn danh'}
                   </p>
                 </div>
-                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded ${STATUS[f.status][1]}`}>{STATUS[f.status][0]}</span>
+                <StatusBadge status={f.status} />
               </button>
             ))}
           </div>
@@ -115,53 +129,53 @@ const FormEditor: React.FC<{ form: Partial<HrForm>; onToast: Props['onToast']; o
   };
 
   return (
-    <div className="space-y-4 animate-fadeInUp">
+    <div className="space-y-6 animate-fadeInUp">
       <div className="flex items-center gap-2 flex-wrap">
         <button className={btnS} onClick={onDone}>← Danh sách</button>
         <div className="flex-1" />
-        <button className={btnS} onClick={() => setPreview(!preview)}>{preview ? '✏️ Sửa' : '👁 Xem trước'}</button>
-        {f.id && <button className={btnS} onClick={async () => { if (confirm('Xoá khảo sát nháp này?')) { await deleteForm(f.id!); onDone(); } }}>🗑 Xoá</button>}
-        <button className={btnS} disabled={saving} onClick={async () => { if (await save()) onToast('Đã lưu nháp', 'success'); }}>💾 Lưu nháp</button>
-        <button className={btnP} disabled={saving || !qs.length} onClick={async () => { const s = await save(); if (s) setOpenPicker(s); }}>🚀 Gửi khảo sát</button>
+        <button className={btnS} onClick={() => setPreview(!preview)}>{preview ? 'Sửa' : 'Xem trước'}</button>
+        {f.id && <button className={btnS} onClick={async () => { if (confirm('Xoá khảo sát nháp này?')) { await deleteForm(f.id!); onDone(); } }}>Xoá</button>}
+        <button className={btnS} disabled={saving} onClick={async () => { if (await save()) onToast('Đã lưu nháp', 'success'); }}>{saving ? 'Đang lưu...' : 'Lưu nháp'}</button>
+        <button className={btnP} disabled={saving || !qs.length} onClick={async () => { const s = await save(); if (s) setOpenPicker(s); }}>Gửi khảo sát</button>
       </div>
 
       {preview ? (
-        <div className={`${card} p-5 space-y-5 max-w-[480px]`}>
-          <div><p className="text-lg font-black text-white">{f.title}</p><p className="text-sm text-neutral-400 whitespace-pre-wrap">{f.description}</p></div>
+        <div className={`${card} p-6 space-y-5`}>
+          <div><p className="text-base font-black uppercase tracking-wider text-white">{f.title}</p><p className="text-sm text-neutral-medium whitespace-pre-wrap mt-1">{f.description}</p></div>
           {qs.map(q => <QuestionField key={q.key} q={{ ...q, id: q.key, form_id: '', position: 0 }} value={undefined} onChange={() => {}} />)}
         </div>
       ) : (
         <>
-          <div className={`${card} p-4 grid gap-3 md:grid-cols-2`}>
-            <div className="md:col-span-2"><p className={label}>Tiêu đề</p>
+          <div className={`${card} p-6 grid gap-4 md:grid-cols-2`}>
+            <div className="md:col-span-2 flex flex-col gap-1"><label className={label}>Tiêu đề</label>
               <input className={input} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Khảo sát mức độ hài lòng Q4" /></div>
-            <div className="md:col-span-2"><p className={label}>Mô tả</p>
-              <textarea className={input} rows={2} value={f.description ?? ''} onChange={e => setF({ ...f, description: e.target.value })} /></div>
-            <div><p className={label}>Hạn nộp</p>
+            <div className="md:col-span-2 flex flex-col gap-1"><label className={label}>Mô tả</label>
+              <textarea className={`${input} resize-none`} rows={2} value={f.description ?? ''} onChange={e => setF({ ...f, description: e.target.value })} /></div>
+            <div className="flex flex-col gap-1"><label className={label}>Hạn nộp</label>
               <input type="date" className={input} style={{ colorScheme: 'dark' }} value={f.deadline ?? ''} onChange={e => setF({ ...f, deadline: e.target.value || null })} /></div>
-            <label className="flex items-center gap-2 text-sm text-white mt-4 cursor-pointer">
-              <input type="checkbox" checked={!!f.is_anonymous} onChange={e => setF({ ...f, is_anonymous: e.target.checked })} />
-              🕶 Ẩn danh <span className="text-neutral-500 text-xs">(HR biết ai đã nộp, không biết ai trả lời gì)</span>
+            <label className="flex items-center gap-2 text-sm font-semibold text-white md:mt-5 cursor-pointer">
+              <input type="checkbox" style={checkbox} checked={!!f.is_anonymous} onChange={e => setF({ ...f, is_anonymous: e.target.checked })} />
+              Ẩn danh <span className="text-neutral-medium text-xs font-normal">(HR biết ai đã nộp, không biết ai trả lời gì)</span>
             </label>
           </div>
 
           {qs.map((q, i) => (
-            <div key={q.key} className={`${card} p-4 space-y-2`}>
+            <div key={q.key} className={`${card} p-5 space-y-3`}>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase text-primary">Câu {i + 1} · {QUESTION_KIND_LABEL[q.kind]}</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-primary">Câu {i + 1} · {QUESTION_KIND_LABEL[q.kind]}</span>
                 <div className="flex-1" />
-                <label className="text-xs text-neutral-400 flex items-center gap-1"><input type="checkbox" checked={q.required} onChange={e => upd(i, { required: e.target.checked })} />Bắt buộc</label>
-                <button className={btnS} onClick={() => move(i, -1)}>↑</button>
-                <button className={btnS} onClick={() => move(i, 1)}>↓</button>
-                <button className={btnS} onClick={() => setQs(qs.filter((_, j) => j !== i))}>✕</button>
+                <label className="text-xs text-neutral-medium flex items-center gap-1.5 mr-1 cursor-pointer"><input type="checkbox" style={checkbox} checked={q.required} onChange={e => upd(i, { required: e.target.checked })} />Bắt buộc</label>
+                <button className={btnXs} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+                <button className={btnXs} disabled={i === qs.length - 1} onClick={() => move(i, 1)}>↓</button>
+                <button className={btnXs} onClick={() => setQs(qs.filter((_, j) => j !== i))}>✕</button>
               </div>
               <input className={input} value={q.label} placeholder="Nội dung câu hỏi" onChange={e => upd(i, { label: e.target.value })} />
               {q.kind.endsWith('choice') && (
-                <textarea className={input} rows={3} placeholder="Mỗi dòng 1 lựa chọn"
+                <textarea className={`${input} resize-none`} rows={3} placeholder="Mỗi dòng 1 lựa chọn"
                   value={(q.options as string[]).join('\n')} onChange={e => upd(i, { options: e.target.value.split('\n') })} />
               )}
               {q.kind === 'scale' && (
-                <div className="flex gap-2 items-center text-xs text-neutral-400">
+                <div className="flex gap-2 items-center text-xs text-neutral-medium">
                   Từ <input type="number" className={`${input} w-20`} value={q.options?.min ?? 1} onChange={e => upd(i, { options: { ...q.options, min: +e.target.value } })} />
                   đến <input type="number" className={`${input} w-20`} value={q.options?.max ?? 10} onChange={e => upd(i, { options: { ...q.options, max: +e.target.value } })} />
                 </div>
@@ -169,10 +183,13 @@ const FormEditor: React.FC<{ form: Partial<HrForm>; onToast: Props['onToast']; o
             </div>
           ))}
 
-          <div className="flex gap-2 flex-wrap">
+          <div className={`${card} p-5 flex flex-col gap-3`}>
+            <p className={label}>Thêm câu hỏi</p>
+            <div className="flex gap-2 flex-wrap">
             {(Object.keys(QUESTION_KIND_LABEL) as HrQuestionKind[]).map(k => (
-              <button key={k} className={btnS} onClick={() => add(k)}>+ {QUESTION_KIND_LABEL[k]}</button>
+              <button key={k} className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all" onClick={() => add(k)}>+ {QUESTION_KIND_LABEL[k]}</button>
             ))}
+            </div>
           </div>
         </>
       )}
@@ -215,33 +232,39 @@ const RecipientPicker: React.FC<{ form: HrForm; onToast: Props['onToast']; onClo
     } catch (e: any) { onToast(e.message, 'error'); } finally { setBusy(false); }
   };
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
-      <div className={`${card} p-5 w-full max-w-lg max-h-[85vh] flex flex-col gap-3`} onClick={e => e.stopPropagation()}>
-        <p className="font-black text-white">Gửi "{form.title}" cho</p>
+  // createPortal: tab cha có animate-fadeInUp (transform) ⇒ fixed bị trap nếu render tại chỗ.
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className={`relative z-10 ${card} p-6 w-full max-w-lg max-h-[85vh] flex flex-col gap-4 animate-scaleIn`}>
+        <div>
+          <p className="text-base font-black uppercase tracking-wider text-white">Gửi khảo sát</p>
+          <p className="text-xs text-neutral-medium mt-0.5 truncate">{form.title}</p>
+        </div>
         <div className="flex gap-2 flex-wrap">
-          <button className={btnS} onClick={() => toggle(list.filter(e => e.status === 'active').map(e => e.id), true)}>Toàn công ty</button>
-          <select className={`${input} w-auto`} value="" onChange={e => toggle(list.filter(x => x.department_id === e.target.value).map(x => x.id), true)}>
+          <button className={btnXs} onClick={() => toggle(list.filter(e => e.status === 'active').map(e => e.id), true)}>Toàn công ty</button>
+          <select className="px-3 py-1.5 rounded-xl text-xs text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors bg-[#1a1a1a]" value="" onChange={e => toggle(list.filter(x => x.department_id === e.target.value).map(x => x.id), true)}>
             <option value="">+ Theo phòng ban</option>
             {depts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
-          <button className={btnS} onClick={() => setSel(new Set())}>Bỏ chọn</button>
-          <label className="text-xs text-neutral-400 flex items-center gap-1"><input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />Hiện NV đã nghỉ</label>
+          <button className={btnXs} onClick={() => setSel(new Set())}>Bỏ chọn</button>
+          <label className="text-xs text-neutral-medium flex items-center gap-1.5 cursor-pointer"><input type="checkbox" style={checkbox} checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />Hiện NV đã nghỉ</label>
         </div>
-        <div className="overflow-y-auto flex-1 border border-white/8 rounded-lg divide-y divide-white/5">
+        <div className="overflow-y-auto flex-1 border border-white/10 rounded-xl divide-y divide-white/5">
           {list.map(e => (
-            <label key={e.id} className="flex items-center gap-2 px-3 py-2 text-sm text-white cursor-pointer hover:bg-white/5">
-              <input type="checkbox" checked={sel.has(e.id)} onChange={ev => toggle([e.id], ev.target.checked)} />
-              {e.full_name}{e.status !== 'active' && <span className="text-neutral-500 text-xs">(đã nghỉ)</span>}
+            <label key={e.id} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white cursor-pointer hover:bg-white/5 transition-colors">
+              <input type="checkbox" style={checkbox} checked={sel.has(e.id)} onChange={ev => toggle([e.id], ev.target.checked)} />
+              {e.full_name}{e.status !== 'active' && <span className="text-neutral-medium text-xs font-normal">(đã nghỉ)</span>}
             </label>
           ))}
         </div>
         <div className="flex justify-end gap-2">
           <button className={btnS} onClick={onClose}>Huỷ</button>
-          <button className={btnP} disabled={busy || !sel.size} onClick={send}>Gửi cho {sel.size} người</button>
+          <button className={btnP} disabled={busy || !sel.size} onClick={send}>{busy ? 'Đang gửi...' : `Gửi cho ${sel.size} người`}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
@@ -275,7 +298,7 @@ const FormDetail: React.FC<{ form: HrForm; onToast: Props['onToast']; onBack: ()
   };
 
   return (
-    <div className="space-y-4 animate-fadeInUp">
+    <div className="space-y-6 animate-fadeInUp">
       <div className="flex items-center gap-2 flex-wrap">
         <button className={btnS} onClick={onBack}>← Danh sách</button>
         <div className="flex-1" />
@@ -283,22 +306,25 @@ const FormDetail: React.FC<{ form: HrForm; onToast: Props['onToast']; onBack: ()
           <button className={btnS} onClick={() => setPicker(true)}>+ Thêm người nhận</button>
           <button className={btnS} disabled={!pending.length} onClick={async () => {
             try { onToast(`Đã nhắc ${await remindForm(f.id)} người`, 'success'); } catch (e: any) { onToast(e.message, 'error'); }
-          }}>⏰ Nhắc người chưa nộp</button>
-          <button className={btnS} onClick={() => confirm('Đóng khảo sát? Nhân viên sẽ không nộp được nữa.') && changeStatus('closed')}>🔒 Đóng</button>
+          }}>Nhắc người chưa nộp</button>
+          <button className={btnS} onClick={() => confirm('Đóng khảo sát? Nhân viên sẽ không nộp được nữa.') && changeStatus('closed')}>Đóng khảo sát</button>
         </>}
-        {f.status === 'closed' && <button className={btnS} onClick={() => changeStatus('open')}>🔓 Mở lại</button>}
+        {f.status === 'closed' && <button className={btnS} onClick={() => changeStatus('open')}>Mở lại</button>}
       </div>
 
-      <div className={`${card} p-4 flex items-center gap-6 flex-wrap`}>
-        <div className="flex-1 min-w-0"><p className="text-lg font-black text-white">{f.title}</p>
-          <p className="text-xs text-neutral-500">{STATUS[f.status][0]}{f.deadline && ` · Hạn ${f.deadline.split('-').reverse().join('/')}`}{f.is_anonymous && ' · 🕶 Ẩn danh'}</p></div>
-        <div><p className={label}>Đã nộp</p><p className="text-2xl font-black text-primary">{done}/{asg.length}</p></div>
+      <div className={`${card} p-6 flex items-center gap-6 flex-wrap`}>
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2"><StatusBadge status={f.status} />
+            {f.is_anonymous && <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg" style={{ background: '#AF52DE20', color: '#AF52DE' }}>Ẩn danh</span>}</div>
+          <p className="text-base font-black uppercase tracking-wider text-white">{f.title}</p>
+          <p className="text-xs text-neutral-medium">{f.deadline ? `Hạn ${f.deadline.split('-').reverse().join('/')}` : 'Không hạn'}</p></div>
+        <div className="space-y-1 text-right"><p className={kpiLabel}>Đã nộp</p><p className="text-2xl font-black text-white">{done}<span className="text-neutral-600">/{asg.length}</span></p></div>
       </div>
 
       {pending.length > 0 && (
-        <div className={`${card} p-4`}>
-          <p className={label}>Chưa nộp ({pending.length})</p>
-          <p className="text-sm text-neutral-300 mt-1">{pending.map(a => names[a.respondent_employee_id] ?? '…').join(', ')}</p>
+        <div className="rounded-[20px] border p-5" style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
+          <p className={kpiLabel}>Chưa nộp ({pending.length})</p>
+          <p className="text-sm font-semibold text-white mt-1">{pending.map(a => names[a.respondent_employee_id] ?? '…').join(', ')}</p>
         </div>
       )}
 
@@ -323,24 +349,24 @@ const QuestionResult: React.FC<{ idx: number; q: HrFormQuestion; res: HrFormResp
   const max = Math.max(1, ...counts.map(c => c[1]));
 
   return (
-    <div className={`${card} p-4 space-y-2`}>
+    <div className={`${card} p-5 space-y-3`}>
       <div className="flex items-baseline gap-2">
-        <p className="text-sm font-black text-white flex-1">{idx + 1}. {q.label}</p>
-        <span className="text-xs text-neutral-500">{vals.length} trả lời{avg && !q.kind.endsWith('choice') && ` · TB ${avg}`}</span>
+        <p className="text-sm font-semibold text-white flex-1"><span className="text-primary font-black">{idx + 1}.</span> {q.label}</p>
+        <span className="text-xs text-neutral-medium">{vals.length} trả lời{avg && !q.kind.endsWith('choice') && ` · TB ${avg}`}</span>
       </div>
       {isText ? (
         <div className="space-y-1.5 max-h-72 overflow-y-auto">
           {vals.map((x, i) => (
-            <div key={i} className="bg-[#1a1a1a] rounded-lg px-3 py-2 text-sm text-neutral-200 whitespace-pre-wrap">
-              {names && x.who && <span className="text-[10px] font-black text-primary uppercase block">{names[x.who]}</span>}
+            <div key={i} className="rounded-xl border border-white/5 px-3 py-2 text-sm text-neutral-light whitespace-pre-wrap" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              {names && x.who && <span className="text-[9px] font-bold uppercase tracking-widest text-primary block mb-0.5">{names[x.who]}</span>}
               {String(x.v)}
             </div>
           ))}
         </div>
       ) : counts.map(([k, n]) => (
         <div key={String(k)} className="flex items-center gap-2 text-xs">
-          <span className="w-32 truncate text-neutral-300">{q.kind === 'rating' ? `${k}★` : k}</span>
-          <div className="flex-1 h-2.5 bg-white/5 rounded"><div className="h-full bg-primary rounded" style={{ width: `${(n / max) * 100}%` }} /></div>
+          <span className="w-32 truncate text-neutral-medium font-semibold">{q.kind === 'rating' ? `${k}★` : k}</span>
+          <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(n / max) * 100}%` }} /></div>
           <span className="w-8 text-right font-black text-white">{n}</span>
         </div>
       ))}

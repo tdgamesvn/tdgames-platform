@@ -158,13 +158,16 @@ Bảng: `hr_change_requests` — auto-apply khi HR duyệt
 
 **PHẢI đọc `.agent/meta/STYLE_GUIDE.md` trước khi viết hoặc sửa bất kỳ UI component nào.**
 
-Tóm tắt nhanh:
+Tóm tắt nhanh (STYLE_GUIDE là nguồn chuẩn — lệch nhau thì theo STYLE_GUIDE):
 - **Font:** Montserrat (`font-black` = weight 900)
 - **Colors:** `bg-bg` (#0F0F0F), `bg-surface` (#1A1A1A), `text-primary`/`bg-primary` (#FF9500)
-- **Buttons:** 3 tiers — Primary (bg-primary), Secondary (border-white/10), Ghost (no border)
-- **Cards:** `bg-surface border border-white/8 rounded-xl`
-- **Inputs:** `bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2`
-- **Badges:** `text-[10px] font-black uppercase` — 4 colors: success/error/warning/info
+- **Tab heading:** `text-2xl md:text-4xl font-black uppercase tracking-tighter` + `style={{ color: '#FF9500' }}`, subtitle `text-sm text-neutral-medium`
+- **Buttons:** `rounded-xl text-xs font-black uppercase` — Primary (bg #FF9500, `text-white`), Ghost (`border-white/10 text-neutral-400`), Outline cam (`border-orange-500/30 text-orange-400`); XS inline `rounded-lg text-[10px]`
+- **Cards:** `rounded-[20px] border border-primary/10 bg-surface` — **cấm** `border-white/8`, `rounded-xl`/`rounded-2xl` cho card
+- **Inputs:** `rounded-xl border border-white/10 outline-none focus:border-orange-500/50` + nền `#1a1a1a`
+- **Badges:** `text-[9px] font-black uppercase px-2 py-0.5 rounded-lg` + `style={{ background: color+'20', color }}`
+- **Modal/overlay:** bắt buộc `createPortal(…, document.body)` (tab cha có `animate-fadeInUp` sẽ trap `fixed`)
+- **Mobile Portal — card bấm được:** gradient + chevron `›` + `active:scale-[.97]` (STYLE_GUIDE §Mobile v1.5)
 - **KPI labels:** `text-[10px] font-black text-neutral-600 uppercase tracking-wider`
 - **KPI values:** `text-2xl font-black`
 - **Không dùng `max-w-*` trong tab/page component** (parent `max-w-[1400px]` lo)
