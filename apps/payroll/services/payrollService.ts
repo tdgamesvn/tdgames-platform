@@ -144,7 +144,11 @@ export function calculatePayroll(
   // BHXH: all-or-nothing theo luật BHXH Việt Nam (TT 59/2015/TT-BLĐTBXH)
   // - Miễn (bhxhExempt=true): full probation HOẶC ngày làm việc chính thức < 14 ngày trong tháng
   // - Đóng full (không prorate): ngày làm việc chính thức ≥ 14 ngày
-  const bhxhExempt = input.bhxhExempt ?? (officialRatio === 0);
+  // - Miễn thêm: không làm việc & không hưởng lương từ 14 ngày làm việc trở lên trong tháng
+  //   (nghỉ việc đầu tháng, vào giữa tháng, nghỉ không lương dài) — xét theo ngày công thực tế,
+  //   tính lại mỗi lần recalc nên sửa ngày công / đồng bộ chấm công là tự cập nhật.
+  const unpaidDays = std - input.workDays;
+  const bhxhExempt = (input.bhxhExempt ?? (officialRatio === 0)) || unpaidDays >= 14;
   const bhxhBase = input.bhxhBaseSalary ?? input.baseSalary;
   const employeeBhxh = bhxhExempt ? 0 : r(bhxhBase * formula.bhEmployeeRate);
   const companyBhxh = bhxhExempt ? 0 : r(bhxhBase * formula.bhCompanyRate);
@@ -576,11 +580,33 @@ export async function createPayrollSheet(
   const payrollFirstDay = new Date(year, month - 1, 1);
   const payrollLastDay = new Date(year, month, 0);
 
+  // Nghỉ việc (termination đã duyệt) TRƯỚC ngày lên chính thức → chưa từng chính thức:
+  // bỏ mốc official để cả tháng tính thử việc (10% flat, không BHXH).
+  const terminationDateMap: Record<string, string> = {};
+  {
+    const { data: terms } = await supabase
+      .from('hr_change_requests')
+      .select('employee_id, effective_date')
+      .eq('request_type', 'termination')
+      .eq('status', 'approved')
+      .in('employee_id', employees.map(e => e.id));
+    (terms || []).forEach((t: any) => {
+      if (t.effective_date) terminationDateMap[t.employee_id] = String(t.effective_date).slice(0, 10);
+    });
+  }
+  const resolveOfficialRaw = (emp: any): string | null => {
+    const raw = emp.official_date
+      || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
+    if (!raw) return null;
+    const term = terminationDateMap[emp.id];
+    if (term && term < String(raw).slice(0, 10)) return null;
+    return raw;
+  };
+
   const officialDateStrMap: Record<string, string> = {};
   const transitionEmpIds = employees
     .filter(emp => {
-      const officialRaw = (emp as any).official_date
-        || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
+      const officialRaw = resolveOfficialRaw(emp);
       if (!officialRaw) return false;
       const od = new Date(officialRaw);
       const isTransition = od > payrollFirstDay && od <= payrollLastDay;
@@ -689,8 +715,7 @@ export async function createPayrollSheet(
 
     // ── Probation ratio computation ─────────────────────────
     // Ưu tiên official_date (ngày lên chính thức). Fallback về probation_end + 1 nếu chưa có.
-    const officialRaw = (emp as any).official_date
-      || (emp.probation_end ? new Date(new Date(emp.probation_end).getTime() + 24 * 3600 * 1000).toISOString().split('T')[0] : null);
+    const officialRaw = resolveOfficialRaw(emp);
     const officialDate = officialRaw ? new Date(officialRaw) : null;
 
     let probationRatio = 0;
