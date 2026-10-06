@@ -152,6 +152,7 @@ const MemberHome: React.FC<Props> = ({ currentUser, onLogout }) => {
           {[
             { icon: '🌴', label: 'Xin nghỉ',    to: 'portal/recurring' },
             { icon: '📝', label: 'Đề xuất',     to: 'portal/proposals' },
+            { icon: '📋', label: 'Khảo sát',    to: 'portal/surveys' },
             { icon: '💵', label: 'Phiếu lương', to: 'portal/activity' },
             { icon: '👥', label: 'Danh bạ',     to: 'handbook/activity' },
           ].map(a => (

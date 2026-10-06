@@ -4,8 +4,8 @@ import * as svc from '../services/hrService';
 import { setHashTab } from '@/App';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 
-export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd' | 'evaluation' | 'changeRequests';
-const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation', 'changeRequests'];
+export type HrTab = 'employees' | 'employeeForm' | 'employeeDetail' | 'departments' | 'reminders' | 'quickAdd' | 'evaluation' | 'changeRequests' | 'forms';
+const VALID_TABS: HrTab[] = ['employees', 'employeeForm', 'employeeDetail', 'departments', 'reminders', 'quickAdd', 'evaluation', 'changeRequests', 'forms'];
 
 export function useHrState(initialTab?: string | null) {
   const { workspace } = useWorkspace();

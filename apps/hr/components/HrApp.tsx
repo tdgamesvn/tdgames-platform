@@ -13,6 +13,7 @@ import QuickAddEmployee from './QuickAddEmployee';
 import HelpPanel from '@/components/HelpPanel';
 import { HR_HELP } from '../helpContent';
 import EvalTab from './EvalTab';
+import FormsTab from './forms/FormsTab';
 import ChangeRequestTab from './ChangeRequestTab';
 
 interface HrAppProps {
@@ -31,6 +32,7 @@ const TAB_MAP: Record<HrTab, string> = {
   quickAdd: 'edit',
   evaluation: 'tasks',
   changeRequests: 'requests',
+  forms: 'surveys',
 };
 
 const TAB_LABELS: Record<string, string> = {
@@ -40,6 +42,7 @@ const TAB_LABELS: Record<string, string> = {
   dashboard: 'Nhắc việc',
   tasks: 'Đánh giá',
   requests: 'Đề xuất',
+  surveys: 'Khảo sát',
 };
 
 const REVERSE_TAB: Record<string, HrTab> = {
@@ -50,6 +53,7 @@ const REVERSE_TAB: Record<string, HrTab> = {
   dashboard: 'reminders',
   tasks: 'evaluation',
   requests: 'changeRequests',
+  surveys: 'forms',
 };
 
 const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialParam }) => {
@@ -57,7 +61,7 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
   const [helpOpen, setHelpOpen] = React.useState(false);
 
   const navbarTab = TAB_MAP[state.activeTab];
-  const accessibleTabs = ['history', 'activity', 'dashboard', 'tasks', 'requests'];
+  const accessibleTabs = ['history', 'activity', 'dashboard', 'tasks', 'requests', 'surveys'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden transition-colors duration-500" style={{ backgroundColor: '#0F0F0F' }}>
@@ -185,6 +189,9 @@ const HrApp: React.FC<HrAppProps> = ({ currentUser, onBack, initialTab, initialP
           />
         )}
 
+        {state.activeTab === 'forms' && (
+          <FormsTab onToast={(msg, type) => state.setToast({ message: msg, type })} />
+        )}
         {state.activeTab === 'changeRequests' && (
           <ChangeRequestTab
             requests={state.changeRequests}
