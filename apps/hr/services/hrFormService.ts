@@ -34,6 +34,8 @@ export interface HrFormAssignment {
   id: string;
   form_id: string;
   respondent_employee_id: string;
+  is_manager?: boolean;
+  target_employee_id?: string | null;
   submitted_at?: string | null;
   form?: HrForm;
 }
@@ -41,6 +43,8 @@ export interface HrFormAssignment {
 export interface HrFormResponse {
   id: string;
   respondent_employee_id?: string | null;
+  is_manager?: boolean;
+  target_employee_id?: string | null;
   answers: Record<string, any>;
   submitted_on: string;
 }
@@ -76,7 +80,7 @@ export async function saveForm(form: Partial<HrForm>): Promise<HrForm> {
   };
   const q = form.id
     ? supabase.from('hr_forms').update(row).eq('id', form.id)
-    : supabase.from('hr_forms').insert({ ...row, kind: 'survey', entity: getWorkspace() });
+    : supabase.from('hr_forms').insert({ ...row, kind: form.kind || 'survey', entity: getWorkspace() });
   const { data, error } = await q.select().single();
   err(error);
   return data as HrForm;
@@ -123,9 +127,59 @@ export async function fetchAssignments(formId: string): Promise<HrFormAssignment
 
 export async function fetchResponses(formId: string): Promise<HrFormResponse[]> {
   const { data, error } = await supabase.from('hr_form_responses')
-    .select('id, respondent_employee_id, answers, submitted_on').eq('form_id', formId);
+    .select('id, respondent_employee_id, target_employee_id, answers, submitted_on, is_manager').eq('form_id', formId);
   err(error);
   return data || [];
+}
+
+// ─── Đánh giá chéo (GĐ2, migration 20261006200000) ─────────────────────────
+/** respondent chấm target; manager = người chấm là trưởng phòng (tạm: admin) — bài này người được chấm luôn xem được. */
+export interface PeerPair { respondent: string; target: string; manager?: boolean }
+
+export async function openPeerForm(formId: string, pairs: PeerPair[]): Promise<number> {
+  const { data, error } = await supabase.rpc('hr_form_open_peer', {
+    p_form_id: formId, p_respondents: pairs.map(p => p.respondent), p_targets: pairs.map(p => p.target),
+    p_is_manager: pairs.map(p => !!p.manager),
+  });
+  err(error);
+  return data as number;
+}
+
+export async function fetchPublications(formId: string): Promise<Set<string>> {
+  const { data, error } = await supabase.from('hr_form_peer_publications').select('target_employee_id').eq('form_id', formId);
+  err(error);
+  return new Set((data || []).map((r: any) => r.target_employee_id));
+}
+
+/** Admin duyệt công bố bài chấm của đồng nghiệp (ẩn tên). Trả về số người được công bố mới. */
+export async function publishPeer(formId: string, targetIds: string[]): Promise<number> {
+  const { data, error } = await supabase.rpc('hr_form_publish_peer', { p_form_id: formId, p_target_ids: targetIds });
+  err(error);
+  return data as number;
+}
+
+export async function unpublishPeer(formId: string, targetId: string): Promise<void> {
+  const { error } = await supabase.from('hr_form_peer_publications').delete().eq('form_id', formId).eq('target_employee_id', targetId);
+  err(error);
+}
+
+export async function fetchMyTargetNames(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.rpc('hr_form_my_targets');
+  err(error);
+  return Object.fromEntries((data || []).map((r: any) => [r.employee_id, r.full_name]));
+}
+
+export interface MyPeerResult {
+  form_id: string; title: string; published: boolean; n: number;
+  /** Bài trưởng phòng — luôn hiện, có tên. */
+  managers: { name: string; answers: Record<string, any> }[];
+  /** Bài đồng nghiệp (chỉ khi published) — values không tên, đã sort. */
+  questions: (Pick<HrFormQuestion, 'id' | 'label' | 'kind' | 'options'> & { values: any[] })[];
+}
+export async function fetchMyPeerResults(): Promise<MyPeerResult[]> {
+  const { data, error } = await supabase.rpc('hr_form_my_peer_results');
+  err(error);
+  return (data || []) as MyPeerResult[];
 }
 
 // ─── Portal (nhân viên) ─────────────────────────────────────────────────────
