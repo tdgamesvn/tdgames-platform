@@ -500,17 +500,6 @@ export async function createPayrollSheet(
     );
   }
 
-  const title = `Bảng lương Tháng ${month}/${year}`;
-  const insertSheet: Record<string, unknown> = { month, year, title, standard_work_days: stdDays, entity: getWorkspace() };
-  if (formulaRow?.id) insertSheet.formula_settings_id = formulaRow.id;
-
-  const { data: sheet, error: sheetErr } = await supabase
-    .from('pay_payroll_sheets')
-    .insert(insertSheet)
-    .select()
-    .single();
-  if (sheetErr) throw sheetErr;
-
   // 2. Fetch nhân viên hưởng lương tháng (fulltime + part-time)
   const { data: allEmployees } = await supabase
     .from('hr_employees')
@@ -548,6 +537,39 @@ export async function createPayrollSheet(
     e => !e.start_date || e.start_date <= monthEndISO
   );
 
+  // 4. Fetch monthly sheet records (attendance) for this month — sheet đã kiểm ở trên
+  const { data: attRecordRows } = await supabase
+    .from('att_monthly_records')
+    .select('*')
+    .eq('sheet_id', attSheet.id);
+  const attRecords: any[] = attRecordRows || [];
+
+  // Ai thiếu dòng chấm công (VD onboard sau khi tạo bảng công) hoặc ngày công trống ⇒ DỪNG.
+  // Trước đây rơi vào `?? stdDays` ⇒ trả đủ công chuẩn, không ai biết. Kiểm TRƯỚC insert
+  // để không đẻ bảng lương mồ côi.
+  const missingAtt = employees.filter(e => {
+    const r = attRecords.find(a => a.employee_id === e.id);
+    return !r || r.work_days == null;
+  });
+  if (missingAtt.length) {
+    throw new Error(
+      `Bảng chấm công Tháng ${month}/${year} thiếu ngày công của ${missingAtt.length} người: `
+      + missingAtt.map(e => e.full_name).join(', ')
+      + `. Vào Chấm công → Bảng công → mở lại bảng, bổ sung rồi chốt lại.`
+    );
+  }
+
+  const title = `Bảng lương Tháng ${month}/${year}`;
+  const insertSheet: Record<string, unknown> = { month, year, title, standard_work_days: stdDays, entity: getWorkspace() };
+  if (formulaRow?.id) insertSheet.formula_settings_id = formulaRow.id;
+
+  const { data: sheet, error: sheetErr } = await supabase
+    .from('pay_payroll_sheets')
+    .insert(insertSheet)
+    .select()
+    .single();
+  if (sheetErr) throw sheetErr;
+
   if (!employees?.length) return { sheet, records: [] };
 
   // 3. Fetch employee salary data
@@ -555,13 +577,6 @@ export async function createPayrollSheet(
     .from('hr_employee_salary')
     .select('*, component:hr_salary_components(name)')
     .in('employee_id', employees.map(e => e.id));
-
-  // 4. Fetch monthly sheet records (attendance) for this month — sheet đã kiểm ở trên
-  const { data: attRecordRows } = await supabase
-    .from('att_monthly_records')
-    .select('*')
-    .eq('sheet_id', attSheet.id);
-  const attRecords: any[] = attRecordRows || [];
 
   // 5. Fetch dependents count per employee
   const { data: dependents } = await supabase
