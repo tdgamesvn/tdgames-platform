@@ -8,6 +8,7 @@ import {
   HrForm, HrFormQuestion, HrQuestionKind, HrFormAssignment, HrFormResponse, QUESTION_KIND_LABEL,
   fetchForms, fetchQuestions, saveForm, replaceQuestions, deleteForm, setFormStatus,
   openForm, remindForm, fetchAssignments, fetchResponses,
+  PeerPair, openPeerForm, fetchPublications, publishPeer, unpublishPeer,
 } from '../../services/hrFormService';
 import QuestionField, { scaleRange } from './QuestionField';
 
@@ -59,7 +60,11 @@ const FormsTab: React.FC<Props> = ({ onToast }) => {
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>Khảo sát</h2>
           <p className="text-sm text-neutral-medium mt-1">Tạo khảo sát, gửi cho nhân viên điền trên điện thoại</p>
         </div>
-        <button className={btnP} onClick={() => setView({ mode: 'edit', form: { title: '', is_anonymous: false } })}>+ Tạo khảo sát</button>
+        <div className="flex gap-2">
+          <button className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all"
+            onClick={() => setView({ mode: 'edit', form: { title: '', is_anonymous: true, kind: 'peer_review' } })}>+ Đánh giá chéo</button>
+          <button className={btnP} onClick={() => setView({ mode: 'edit', form: { title: '', is_anonymous: false } })}>+ Tạo khảo sát</button>
+        </div>
       </div>
       {loading ? <p className="text-xs text-neutral-medium animate-td-pulse">Đang tải...</p>
         : visible.length === 0 ? (
@@ -80,6 +85,7 @@ const FormsTab: React.FC<Props> = ({ onToast }) => {
                     {f.is_anonymous && ' · 🕶 Ẩn danh'}
                   </p>
                 </div>
+                {f.kind === 'peer_review' && <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg shrink-0" style={{ background: '#5AC8FA20', color: '#5AC8FA' }}>Đánh giá chéo</span>}
                 <StatusBadge status={f.status} />
               </button>
             ))}
@@ -219,6 +225,25 @@ const RecipientPicker: React.FC<{ form: HrForm; onToast: Props['onToast']; onClo
   }, [workspace]);
 
   const list = emps.filter(e => showInactive || e.status === 'active');
+  const isPeer = form.kind === 'peer_review';
+  // Đánh giá chéo (sếp chốt 06/10): tick = người ĐƯỢC đánh giá; HR/admin tự chọn người chấm cho từng người
+  // (khác phòng ban cũng được) + 1 "trưởng phòng" (tạm: admin) — bài trưởng phòng người được chấm luôn thấy.
+  const [mgr, setMgr] = useState<Record<string, string>>({});
+  const [peers, setPeers] = useState<Record<string, string[]>>({});
+  const name = (id: string) => emps.find(e => e.id === id)?.full_name ?? '…';
+  const targets = list.filter(e => sel.has(e.id)).concat(emps.filter(e => sel.has(e.id) && !list.includes(e)));
+  const pairs = useMemo<PeerPair[]>(() => !isPeer ? [] : [...sel].flatMap(t => [
+    ...(mgr[t] && mgr[t] !== t ? [{ respondent: mgr[t], target: t, manager: true }] : []),
+    ...(peers[t] || []).filter(r => r !== t && r !== mgr[t]).map(r => ({ respondent: r, target: t })),
+  ]), [isPeer, sel, mgr, peers]);
+  const noOne = isPeer ? targets.filter(e => !pairs.some(p => p.target === e.id)) : [];
+  const addPeer = (t: string, r: string) => r && setPeers(p => ({ ...p, [t]: [...new Set([...(p[t] || []), r])] }));
+  const suggestSameDept = () => setPeers(p => {
+    const n = { ...p };
+    targets.forEach(t => { n[t.id] = [...new Set([...(n[t.id] || []), ...targets.filter(r => r.id !== t.id && t.department_id && r.department_id === t.department_id).map(r => r.id)])]; });
+    return n;
+  });
+  const sel2 = 'px-2 py-1 rounded-xl text-xs text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors bg-[#1a1a1a]';
   const toggle = (ids: string[], on: boolean) => {
     const n = new Set(sel); ids.forEach(id => on ? n.add(id) : n.delete(id)); setSel(n);
   };
@@ -226,8 +251,8 @@ const RecipientPicker: React.FC<{ form: HrForm; onToast: Props['onToast']; onClo
   const send = async () => {
     setBusy(true);
     try {
-      const n = await openForm(form.id, [...sel]);
-      onToast(`Đã gửi khảo sát · ${n} thông báo`, 'success');
+      const n = isPeer ? await openPeerForm(form.id, pairs) : await openForm(form.id, [...sel]);
+      onToast(`Đã gửi · ${n} thông báo`, 'success');
       onSent();
     } catch (e: any) { onToast(e.message, 'error'); } finally { setBusy(false); }
   };
@@ -236,9 +261,10 @@ const RecipientPicker: React.FC<{ form: HrForm; onToast: Props['onToast']; onClo
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70" onClick={onClose} />
-      <div className={`relative z-10 ${card} p-6 w-full max-w-lg max-h-[85vh] flex flex-col gap-4 animate-scaleIn`}>
+      <div className={`relative z-10 ${card} p-6 w-full ${isPeer ? 'max-w-3xl' : 'max-w-lg'} max-h-[85vh] flex flex-col gap-4 animate-scaleIn`}>
         <div>
-          <p className="text-base font-black uppercase tracking-wider text-white">Gửi khảo sát</p>
+          <p className="text-base font-black uppercase tracking-wider text-white">{isPeer ? 'Chọn người tham gia đánh giá chéo' : 'Gửi khảo sát'}</p>
+          {isPeer && <p className="text-xs text-neutral-medium mt-1">Tick người <b className="text-white">được đánh giá</b>, rồi chọn trưởng phòng + người chấm cho từng người (khác phòng cũng được). Người được đánh giá luôn thấy bài trưởng phòng; bài đồng nghiệp chỉ thấy khi admin duyệt và không biết ai chấm.</p>}
           <p className="text-xs text-neutral-medium mt-0.5 truncate">{form.title}</p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -258,9 +284,48 @@ const RecipientPicker: React.FC<{ form: HrForm; onToast: Props['onToast']; onClo
             </label>
           ))}
         </div>
+        {isPeer && targets.length > 0 && (
+          <div className="overflow-y-auto max-h-[35vh] border border-white/10 rounded-xl divide-y divide-white/5">
+            <div className="flex items-center gap-2 px-3 py-2 flex-wrap">
+              <span className={`${kpiLabel} flex-1`}>Người chấm ({pairs.length} lượt)</span>
+              <select className={sel2} value="" onChange={e => { const v = e.target.value; setMgr(Object.fromEntries(targets.map(t => [t.id, v]))); }}>
+                <option value="">Trưởng phòng cho tất cả…</option>
+                {list.map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+              </select>
+              <button className={btnXs} onClick={suggestSameDept}>+ Gợi ý cùng phòng</button>
+            </div>
+            {targets.map(t => (
+              <div key={t.id} className="px-3 py-2 space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white flex-1 min-w-[8rem]">{t.full_name}</span>
+                  <span className={kpiLabel}>Trưởng phòng</span>
+                  <select className={sel2} value={mgr[t.id] || ''} onChange={e => setMgr(m => ({ ...m, [t.id]: e.target.value }))}>
+                    <option value="">— không —</option>
+                    {list.filter(e => e.id !== t.id).map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {(peers[t.id] || []).filter(r => r !== mgr[t.id]).map(r => (
+                    <span key={r} className="text-[10px] font-black uppercase px-2 py-0.5 rounded-lg flex items-center gap-1" style={{ background: '#5AC8FA20', color: '#5AC8FA' }}>
+                      {name(r)}<button onClick={() => setPeers(p => ({ ...p, [t.id]: (p[t.id] || []).filter(x => x !== r) }))}>×</button>
+                    </span>
+                  ))}
+                  <select className={sel2} value="" onChange={e => addPeer(t.id, e.target.value)}>
+                    <option value="">+ Đồng nghiệp chấm…</option>
+                    {list.filter(e => e.id !== t.id && e.id !== mgr[t.id] && !(peers[t.id] || []).includes(e.id)).map(e => <option key={e.id} value={e.id}>{e.full_name}</option>)}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {isPeer && noOne.length > 0 && (
+          <p className="text-xs text-orange-400">⚠ Chưa có ai chấm: {noOne.map(e => e.full_name).join(', ')}</p>
+        )}
         <div className="flex justify-end gap-2">
           <button className={btnS} onClick={onClose}>Huỷ</button>
-          <button className={btnP} disabled={busy || !sel.size} onClick={send}>{busy ? 'Đang gửi...' : `Gửi cho ${sel.size} người`}</button>
+          <button className={btnP} disabled={busy || (isPeer ? !pairs.length : !sel.size)} onClick={send}>
+            {busy ? 'Đang gửi...' : isPeer ? `Gửi ${pairs.length} lượt chấm` : `Gửi cho ${sel.size} người`}</button>
         </div>
       </div>
     </div>,
@@ -281,7 +346,7 @@ const FormDetail: React.FC<{ form: HrForm; onToast: Props['onToast']; onBack: ()
     try {
       const [q, a, r] = await Promise.all([fetchQuestions(f.id), fetchAssignments(f.id), fetchResponses(f.id)]);
       setQs(q); setAsg(a); setRes(r);
-      const ids = [...new Set([...a.map(x => x.respondent_employee_id), ...r.map(x => x.respondent_employee_id).filter(Boolean) as string[]])];
+      const ids = [...new Set([...a.map(x => x.respondent_employee_id), ...a.map(x => x.target_employee_id).filter(Boolean) as string[], ...r.map(x => x.respondent_employee_id).filter(Boolean) as string[]])];
       if (ids.length) {
         const { data } = await supabase.from('hr_employees').select('id, full_name').in('id', ids);
         setNames(Object.fromEntries((data || []).map((e: any) => [e.id, e.full_name])));
@@ -324,13 +389,70 @@ const FormDetail: React.FC<{ form: HrForm; onToast: Props['onToast']; onBack: ()
       {pending.length > 0 && (
         <div className="rounded-[20px] border p-5" style={{ background: 'rgba(255,149,0,0.03)', borderColor: 'rgba(255,149,0,0.12)' }}>
           <p className={kpiLabel}>Chưa nộp ({pending.length})</p>
-          <p className="text-sm font-semibold text-white mt-1">{pending.map(a => names[a.respondent_employee_id] ?? '…').join(', ')}</p>
+          <p className="text-sm font-semibold text-white mt-1">{[...new Set(pending.map(a => names[a.respondent_employee_id] ?? '…'))].join(', ')}</p>
         </div>
       )}
 
-      {qs.map((q, i) => <QuestionResult key={q.id} idx={i} q={q} res={res} names={f.is_anonymous ? null : names} />)}
+      {f.kind === 'peer_review'
+        ? <PeerResults form={f} qs={qs} asg={asg} res={res} names={names} onToast={onToast} />
+        : qs.map((q, i) => <QuestionResult key={q.id} idx={i} q={q} res={res} names={f.is_anonymous ? null : names} />)}
 
       {picker && <RecipientPicker form={f} onToast={onToast} onClose={() => setPicker(false)} onSent={() => { setPicker(false); load(); }} />}
+    </div>
+  );
+};
+
+// ─── Đánh giá chéo: kết quả theo từng người được đánh giá + công bố ─────────
+const PeerResults: React.FC<{ form: HrForm; qs: HrFormQuestion[]; asg: HrFormAssignment[]; res: HrFormResponse[]; names: Record<string, string>; onToast: Props['onToast'] }> = ({ form, qs, asg, res, names, onToast }) => {
+  const [pub, setPub] = useState<Set<string>>(new Set());
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => { supabase.auth.getSession().then(({ data }) => { const m = { ...data.session?.user.user_metadata, ...data.session?.user.app_metadata } as any; setIsAdmin(m.role === 'admin' || (m.secondary_roles || []).includes('admin')); }); }, []);
+  const loadPub = () => fetchPublications(form.id).then(setPub).catch(e => onToast(e.message, 'error'));
+  useEffect(() => { loadPub(); }, [form.id]);
+
+  const targets = [...new Set(asg.map(a => a.target_employee_id).filter(Boolean) as string[])]
+    .sort((a, b) => (names[a] ?? '').localeCompare(names[b] ?? ''));
+  // Bài trưởng phòng (is_manager) người được chấm luôn thấy; admin chỉ duyệt công bố bài đồng nghiệp (ẩn tên).
+  const nRes = (t: string) => res.filter(r => r.target_employee_id === t && !r.is_manager).length;
+  const nAsg = (t: string) => asg.filter(a => a.target_employee_id === t && !a.is_manager).length;
+  const mgrOf = (t: string) => asg.find(a => a.target_employee_id === t && a.is_manager);
+  const mgrDone = (t: string) => res.some(r => r.target_employee_id === t && r.is_manager);
+  const ready = targets.filter(t => nRes(t) >= 1 && !pub.has(t));
+
+  const publish = async (ids: string[]) => {
+    try { onToast(`Đã công bố cho ${await publishPeer(form.id, ids)} người`, 'success'); loadPub(); }
+    catch (e: any) { onToast(e.message, 'error'); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <p className={`${kpiLabel} flex-1`}>Người được đánh giá ({targets.length}) · bài trưởng phòng luôn hiện cho người được chấm · bài đồng nghiệp chỉ hiện khi admin duyệt, KHÔNG có tên</p>
+        <button className={btnP} disabled={!ready.length || !isAdmin} onClick={() => confirm(`Công bố kết quả cho ${ready.length} người?`) && publish(ready)}>Công bố tất cả ({ready.length})</button>
+      </div>
+      {targets.map(t => {
+        const n = nRes(t), isPub = pub.has(t);
+        return (
+          <div key={t} className={`${card} p-4 space-y-3`}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button className="flex-1 min-w-0 text-left" onClick={() => setOpenId(openId === t ? null : t)}>
+                <p className="text-sm font-semibold text-white truncate">{openId === t ? '▾' : '▸'} {names[t] ?? '…'}</p>
+                <p className="text-xs text-neutral-medium">
+                  {mgrOf(t) ? `Trưởng phòng ${names[mgrOf(t)!.respondent_employee_id] ?? ''}: ${mgrDone(t) ? '✓ đã chấm' : 'chưa chấm'} · ` : ''}{n}/{nAsg(t)} bài đồng nghiệp{n === 1 && ' (1 bài — dễ đoán người chấm)'}
+                </p>
+              </button>
+              {isPub && <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg" style={{ background: '#34C75920', color: '#34C759' }}>Đã công bố</span>}
+              {isPub
+                ? <button className={btnXs} disabled={!isAdmin} onClick={async () => { if (!confirm('Thu hồi? Người được đánh giá sẽ không xem được nữa.')) return; try { await unpublishPeer(form.id, t); loadPub(); } catch (e: any) { onToast(e.message, 'error'); } }}>Thu hồi</button>
+                : <button className={btnXs} disabled={n < 1 || !isAdmin} title={!isAdmin ? 'Chỉ admin được duyệt' : n < 1 ? 'Chưa có bài đồng nghiệp' : ''} onClick={() => publish([t])}>Duyệt công bố</button>}
+            </div>
+            {openId === t && qs.map((q, i) => (
+              <QuestionResult key={q.id} idx={i} q={q} res={res.filter(r => r.target_employee_id === t)} names={form.is_anonymous ? null : names} />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 };
