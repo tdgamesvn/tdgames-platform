@@ -179,6 +179,16 @@
     .animate-shake     { animation: shake    0.4s ease; }
     .animate-td-pulse  { animation: tdPulse  1.5s ease infinite; }
 
+    /* Nút check-in/out tới giờ bấm: phình nhẹ + quầng sáng toả ra. Màu lấy từ --glow. */
+    @keyframes tdGlowCta {
+      0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 var(--glow), 0 0 14px 0 var(--glow); }
+      50%      { transform: scale(1.04); box-shadow: 0 0 0 10px transparent, 0 0 28px 6px var(--glow); }
+    }
+    .animate-td-glow { animation: tdGlowCta 1.6s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .animate-td-glow { animation: none; box-shadow: 0 0 18px 2px var(--glow); }
+    }
+
     /* Fix dropdown option text visibility in dark theme */
     select option {
       background-color: #1A1A1A;

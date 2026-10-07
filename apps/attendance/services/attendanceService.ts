@@ -640,6 +640,20 @@ export async function fetchRemoteStatus(
   return (data?.status as 'approved' | 'pending') ?? null;
 }
 
+export interface MyTodaySchedule {
+  start_time: string;   // 'HH:MM:SS' — giờ vào của khung phải có mặt
+  end_time: string;
+  checkout_due: string; // giờ về riêng (check-in + 9h, kẹp tối đa +30p) — att_checkout_due()
+  should_check: boolean;
+}
+
+/** Giờ vào/giờ về riêng hôm nay của chính user đang đăng nhập (RPC chỉ đọc auth.uid()). */
+export async function fetchMyTodaySchedule(): Promise<MyTodaySchedule | null> {
+  const { data, error } = await supabase.rpc('att_my_today_schedule');
+  if (error) throw error;
+  return (data as MyTodaySchedule[] | null)?.[0] ?? null;
+}
+
 /** Loại ngày theo lịch Admin (att_day_kind): holiday | makeup | ot | event | work | off. Nút OT chỉ hiện khi 'ot'. */
 export async function fetchDayKind(date: string): Promise<'holiday' | 'makeup' | 'ot' | 'event' | 'work' | 'off'> {
   const { data, error } = await supabase.rpc('att_day_kind', { _d: date });

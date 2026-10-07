@@ -8,6 +8,7 @@ import {
   selfCheckOut,
   fetchRemoteStatus,
   fetchDayKind,
+  fetchMyTodaySchedule,
   haversineDistance,
   todayVN,
 } from '@/apps/attendance/services/attendanceService';
@@ -50,6 +51,22 @@ function formatDuration(checkInIso: string, checkOutIso?: string): { hm: string;
   return { hm: `${h}h ${m}p`, dayFraction };
 }
 
+/** 'HH:MM[:SS]' → phút trong ngày. */
+const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+/** Phút hiện tại theo giờ VN (máy NV có thể để sai múi giờ). */
+const nowMinVN = () => {
+  const [h, m] = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false })
+    .split(':').map(Number);
+  return (h % 24) * 60 + m;
+};
+const fmtMin = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+// Phải khớp att_checkout_due() trong DB (cron nhắc dùng hàm đó): đến muộn bao nhiêu về muộn
+// bấy nhiêu, tối đa 30p; đến sớm vẫn về đúng giờ hết ca.
+const FLEX_MIN = 30;
+// Nút check-in bắt đầu phát sáng trước giờ vào bao lâu.
+const CHECKIN_GLOW_LEAD_MIN = 30;
+
 const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const [state, setState] = useState<WidgetState>('loading');
   const [record, setRecord] = useState<AttRecord | null>(null);
@@ -65,6 +82,27 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
   const [isEventDay, setIsEventDay] = useState(false);
   const [liveTimer, setLiveTimer] = useState('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Khung giờ hôm nay (ca − đơn nghỉ nửa ngày). RPC lỗi ⇒ mặc định ca hành chính.
+  const [win, setWin] = useState<{ start: number; end: number; shouldCheck: boolean }>(
+    { start: toMin('08:30'), end: toMin('17:30'), shouldCheck: true });
+  const [nowMin, setNowMin] = useState(nowMinVN);
+
+  useEffect(() => {
+    fetchMyTodaySchedule()
+      .then(s => { if (s) setWin({ start: toMin(s.start_time), end: toMin(s.end_time), shouldCheck: s.should_check }); })
+      .catch(() => { /* giữ mặc định */ });
+    const id = setInterval(() => setNowMin(nowMinVN()), 30000);
+    return () => clearInterval(id);
+  }, [employeeId]);
+
+  // Tính tại client từ giờ check-in thật ⇒ check-in xong là có ngay, khỏi gọi lại RPC.
+  const checkInMin = record?.check_in
+    ? toMin(new Date(record.check_in).toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false }))
+    : null;
+  const checkoutDue = checkInMin === null ? win.end
+    : Math.min(win.end + FLEX_MIN, Math.max(win.end, checkInMin + (win.end - win.start)));
+  const checkinGlow = win.shouldCheck && nowMin >= win.start - CHECKIN_GLOW_LEAD_MIN;
+  const checkoutGlow = nowMin >= checkoutDue;
 
   // Load office config + today's record on mount
   useEffect(() => {
@@ -271,10 +309,12 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
           {isMobileDevice ? (
             <button
               onClick={handleCheckIn}
+              className={checkinGlow ? 'animate-td-glow' : undefined}
               style={{
                 background: '#FF9500', color: '#000', border: 'none', borderRadius: '12px',
                 padding: '14px 40px', fontSize: '15px', fontWeight: 900, cursor: 'pointer',
                 letterSpacing: '-0.01em', width: '100%', maxWidth: '280px',
+                ['--glow' as string]: 'rgba(255,149,0,0.55)',
               }}
             >
               📍 CHECK IN
@@ -359,15 +399,24 @@ const CheckinWidget: React.FC<Props> = ({ employeeId, onToast }) => {
               <p style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
                 ⏱ Đang làm: {liveTimer}
               </p>
+              <p style={{ fontSize: '12px', color: checkoutGlow ? '#FF9500' : '#888', marginTop: '2px', fontWeight: checkoutGlow ? 800 : 400 }}>
+                🏁 Giờ về của bạn: <strong style={{ color: checkoutGlow ? '#FF9500' : '#F5F5F5' }}>{fmtMin(checkoutDue)}</strong>
+                {checkoutGlow && ' — đã đến giờ check-out!'}
+              </p>
             </div>
           </div>
           {isMobileDevice ? (
+            // Tới giờ về: nút chuyển nền cam đặc + glow; trước đó giữ dạng viền để không giục sớm.
             <button
               onClick={() => handleStamp('check_out')}
+              className={checkoutGlow ? 'animate-td-glow' : undefined}
               style={{
-                background: 'transparent', border: '1px solid #FF9500', borderRadius: '12px',
-                color: '#FF9500', padding: '12px 32px', fontSize: '14px', fontWeight: 800,
+                background: checkoutGlow ? '#FF9500' : 'transparent',
+                border: '1px solid #FF9500', borderRadius: '12px',
+                color: checkoutGlow ? '#000' : '#FF9500', padding: '12px 32px', fontSize: '14px',
+                fontWeight: checkoutGlow ? 900 : 800,
                 cursor: 'pointer', width: '100%', letterSpacing: '-0.01em',
+                ['--glow' as string]: 'rgba(255,149,0,0.55)',
               }}
             >
               🏁 CHECK OUT
