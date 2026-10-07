@@ -89,6 +89,16 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Trước chỉ kiểm "có đăng nhập" ⇒ freelancer/member cũng bấm gửi batch outreach thật được.
+    // Quyền khớp gate app CRM (app_metadata, KHÔNG user_metadata).
+    const meta = (user.app_metadata || {}) as Record<string, unknown>;
+    const roles = [meta.role, ...(Array.isArray(meta.secondary_roles) ? meta.secondary_roles : [])];
+    if (!roles.some((r) => r === "admin" || r === "ke_toan" || r === "bd")) {
+      return new Response(JSON.stringify({ detail: "Forbidden: cần quyền CRM (admin/ke_toan/bd)" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   } else {
     return new Response(JSON.stringify({ detail: "Missing auth: provide x-cron-secret or Authorization Bearer" }), {
       status: 401,
@@ -116,7 +126,8 @@ Deno.serve(async (req: Request) => {
   // A stale Deno.env project secret used to be checked first and silently shadowed
   // the correct DB value, breaking every cron run with 401 for days. Removed —
   // if the VPS token ever rotates again, update it in this one place only.
-  const { data: tokenRow } = await (supabase as any)
+  // Đọc bằng service_role: admin_token/cron_secret bị RLS giấu khỏi mọi user (20261007160000).
+  const { data: tokenRow } = await createClient(supabaseUrl, serviceRoleKey)
     .from("crm_outreach_config")
     .select("value")
     .eq("key", "admin_token")

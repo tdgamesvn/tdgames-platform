@@ -439,8 +439,9 @@ export async function updateOutreachSettings(
   updates: Partial<OutreachSettings>,
   actor: string,
 ): Promise<OutreachSettings> {
-  const token = (import.meta.env.VITE_OUTREACH_ADMIN_TOKEN as string | undefined)?.trim() || '';
-  if (!token) throw new Error('VITE_OUTREACH_ADMIN_TOKEN chưa cấu hình trong .env — không thể ghi settings.');
+  // X-Admin-Token + X-Actor do edge `outreach-proxy` gắn ở server (chỉ admin/ke_toan).
+  // KHÔNG đưa token vào VITE_* — Vite nhúng vào bundle JS công khai.
+  void actor;
   // Chỉ gửi các field whitelist (tránh BE 422)
   const allowed: (keyof OutreachSettings)[] = [
     'resend_from', 'resend_reply_to', 'resend_tag_campaign', 'sending_paused', 'daily_limit',
@@ -451,9 +452,8 @@ export async function updateOutreachSettings(
   }
   const res = await outreachRequest('/api/settings', {
     method: 'PUT',
-    headers: { 'X-Admin-Token': token, 'X-Actor': actor || 'unknown' },
     body: JSON.stringify(body),
-  });
+  }, true);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || `Update failed: ${res.status}`);

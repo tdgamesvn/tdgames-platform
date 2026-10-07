@@ -13,9 +13,12 @@ export function getOutreachApiBase(): string {
   return '';
 }
 
-/** Gọi API outreach với session Supabase (bắt buộc cho Edge verify_jwt). */
-export async function outreachRequest(path: string, init: RequestInit = {}): Promise<Response> {
-  const base = getOutreachApiBase();
+/** Gọi API outreach với session Supabase (bắt buộc cho Edge verify_jwt).
+ *  `viaProxy`: luôn đi qua Edge `outreach-proxy` kể cả khi có VITE_OUTREACH_API_URL —
+ *  dùng cho route cần secret server-side (vd. PUT /api/settings cần X-Admin-Token). */
+export async function outreachRequest(path: string, init: RequestInit = {}, viaProxy = false): Promise<Response> {
+  const sb = (import.meta.env.VITE_SUPABASE_URL || '').trim().replace(/\/$/, '');
+  const base = viaProxy ? (sb ? `${sb}/functions/v1/outreach-proxy` : '') : getOutreachApiBase();
   if (!base) {
     throw new Error(
       'Outreach API chưa cấu hình: đặt VITE_OUTREACH_API_URL (FastAPI trực tiếp) hoặc VITE_SUPABASE_URL + deploy Edge Function outreach-proxy.',

@@ -75,6 +75,23 @@ Deno.serve(async (req: Request) => {
   const internal = Deno.env.get("OUTREACH_INTERNAL_SECRET");
   if (internal) forwardHeaders.set("x-outreach-internal", internal);
 
+  // Ghi settings outreach (đổi From/Reply-To, tạm dừng gửi, daily_limit): chỉ admin/ke_toan.
+  // X-Admin-Token gắn ở server, đọc bằng service_role — trước đây nằm trong bundle JS
+  // (VITE_OUTREACH_ADMIN_TOKEN) ⇒ ai tải trang cũng lấy được. X-Actor lấy từ JWT, không tin client.
+  if (rest.replace(/\/$/, "") === "/api/settings" && req.method !== "GET" && req.method !== "HEAD") {
+    if (!roles.some((r) => r === "admin" || r === "ke_toan")) {
+      return new Response(JSON.stringify({ detail: "Forbidden: chỉ admin/kế toán được sửa cài đặt outreach" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: tokenRow } = await admin.from("crm_outreach_config").select("value").eq("key", "admin_token").single();
+    const token = tokenRow?.value as string | undefined;
+    if (token) forwardHeaders.set("X-Admin-Token", token);
+    forwardHeaders.set("X-Actor", user.email || user.id);
+  }
+
   const init: RequestInit = {
     method: req.method,
     headers: forwardHeaders,
