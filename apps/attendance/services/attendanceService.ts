@@ -1,5 +1,6 @@
 import { getWorkspace } from '@/services/WorkspaceContext';
 import { supabase } from '@/services/supabaseClient';
+import { resyncAttendanceFor } from '@/apps/portal/services/leaveService';
 import {
   AttShift, AttEmployeeShift, AttRecord, AttRequest, AttQrSession,
   AttMonthlySheet, AttMonthlyRecord, HrEmployee, AttOfficeConfig,
@@ -283,6 +284,8 @@ export async function approveRequest(id: string, approved_by: string, reviewer_n
   if (error) throw error;
 
   if (req?.request_type === 'forgot') await applyForgotRequest(req as AttRequest);
+  // Ghi giờ xong là tính lại bảng công luôn — trước đây phải chờ cron đêm mới thấy công.
+  if (req) await resyncAttendanceFor(req.date_from, req.date_to);
   if (req) await notifyRequestResult(req as AttRequest, true, reviewer_note);
 }
 
@@ -293,6 +296,7 @@ export async function rejectRequest(id: string, approved_by: string, reviewer_no
     .update({ status: 'rejected', approved_by, approved_at: new Date().toISOString(), reviewer_note })
     .eq('id', id);
   if (error) throw error;
+  if (req?.status === 'approved') await resyncAttendanceFor(req.date_from, req.date_to);
   if (req) await notifyRequestResult(req as AttRequest, false, reviewer_note);
 }
 

@@ -7,6 +7,10 @@ interface Props {
   employees: HrEmployee[];
 }
 
+// Ô nhập type="number" hiển thị theo locale trình duyệt (vi-VN → "2,5"), nên số tổng cũng phải
+// format vi-VN — toFixed() ra "17.5" lệch dấu thập phân với các dòng chi tiết.
+const fmtNum = (n: number) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
+
 const MonthlySheet: React.FC<Props> = ({ employees }) => {
   const [sheets, setSheets] = useState<AttMonthlySheet[]>([]);
   const { workspace } = useWorkspace();
@@ -439,9 +443,9 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: 'Nhân viên', value: visibleRecords.length, icon: '👥', color: '#0A84FF' },
-              { label: 'Tổng ngày công', value: totalWorkDays.toFixed(1), icon: '📅', color: '#34C759' },
-              { label: 'Tổng OT (h)', value: totalOT.toFixed(1), icon: '💪', color: '#AF52DE' },
-              { label: 'Tổng nghỉ', value: totalAbsent.toFixed(1), icon: '🏖️', color: '#FF9500' },
+              { label: 'Tổng ngày công', value: fmtNum(totalWorkDays), icon: '📅', color: '#34C759' },
+              { label: 'Tổng OT (h)', value: fmtNum(totalOT), icon: '💪', color: '#AF52DE' },
+              { label: 'Tổng nghỉ', value: fmtNum(totalAbsent), icon: '🏖️', color: '#FF9500' },
             ].map(s => (
               <div key={s.label} className={cardCls + ' text-center'}>
                 <div className="text-xl mb-1">{s.icon}</div>
@@ -471,7 +475,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                   <tr className="border-b border-white/[0.08] text-neutral-medium text-xs uppercase tracking-wider">
                     <th className="text-left py-3 px-3 w-8">#</th>
                     <th className="text-left py-3 px-3">Mã NV</th>
-                    <th className="text-left py-3 px-3">Họ tên</th>
+                    <th className="text-left py-3 px-3 whitespace-nowrap">Họ tên</th>
                     <th className="text-center py-3 px-3 w-32 bg-green-500/5">Ngày công</th>
                     <th className="text-center py-3 px-3 w-24 bg-purple-500/5" title="Tăng ca ngày thường T2-T6 — 150%">OT thường</th>
                     <th className="text-center py-3 px-3 w-24 bg-purple-500/5" title="Tăng ca ngày nghỉ hằng tuần T7/CN — 200%">OT T7/CN</th>
@@ -492,7 +496,7 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                       title={isDropped(r) ? 'Nhân viên đã nghỉ việc hoặc không tính lương' : undefined}>
                       <td className="py-2 px-3 text-neutral-medium text-xs">{idx + 1}</td>
                       <td className="py-2 px-3 text-neutral-medium text-xs font-mono">{r.employee?.employee_code || '—'}</td>
-                      <td className="py-2 px-3 text-white font-semibold">{r.employee?.full_name || '—'}</td>
+                      <td className="py-2 px-3 text-white font-semibold whitespace-nowrap">{r.employee?.full_name || '—'}</td>
                       <td className="py-2 px-3 bg-green-500/[0.02]">
                         <input
                           type="number"
@@ -595,11 +599,11 @@ const MonthlySheet: React.FC<Props> = ({ employees }) => {
                 <tfoot>
                   <tr className="border-t-2 border-white/[0.1] font-black text-white">
                     <td colSpan={3} className="py-3 px-3 text-right uppercase text-xs tracking-wider text-neutral-medium">TỔNG CỘNG</td>
-                    <td className="py-3 px-3 text-center text-green-400 text-lg">{totalWorkDays.toFixed(1)}</td>
-                    <td colSpan={OT_FIELDS.length} className="py-3 px-3 text-center text-purple-400 text-lg">{totalOT.toFixed(1)}</td>
+                    <td className="py-3 px-3 text-center text-green-400 text-lg">{fmtNum(totalWorkDays)}</td>
+                    <td colSpan={OT_FIELDS.length} className="py-3 px-3 text-center text-purple-400 text-lg">{fmtNum(totalOT)}</td>
                     <td className="py-3 px-3 text-center text-orange-400 text-lg">{records.reduce((s, r) => s + (r.late_count || 0), 0)}</td>
                     <td className="py-3 px-3 text-center text-orange-300 text-lg">{records.reduce((s, r) => s + (r.early_count || 0), 0)}</td>
-                    <td className="py-3 px-3 text-center text-red-400 text-lg">{totalAbsent.toFixed(1)}</td>
+                    <td className="py-3 px-3 text-center text-red-400 text-lg">{fmtNum(totalAbsent)}</td>
                     <td></td>
                   </tr>
                 </tfoot>

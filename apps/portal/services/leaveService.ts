@@ -133,6 +133,28 @@ export async function approveLeaveRequest(
     })
     .eq('id', requestId);
   if (error) throw error;
+  await resyncAttendanceForRequest(requestId);
+}
+
+/**
+ * Tính lại bảng công các tháng mà đơn phủ — ngay lúc duyệt/huỷ, khỏi chờ cron đêm.
+ * RPC `att_resync_for_dates` tự bỏ qua nếu người gọi không phải HR/admin, tháng đã chốt
+ * hoặc trước `att_sync_from_month`. Lỗi ở đây không được làm hỏng việc duyệt ⇒ nuốt lỗi.
+ */
+export async function resyncAttendanceFor(dateFrom?: string | null, dateTo?: string | null): Promise<void> {
+  if (!dateFrom) return;
+  try {
+    const { error } = await supabase.rpc('att_resync_for_dates', { _from: dateFrom, _to: dateTo || dateFrom });
+    if (error) throw error;
+  } catch (e) {
+    console.error('Không tính lại được bảng công:', e);
+  }
+}
+
+async function resyncAttendanceForRequest(requestId: string): Promise<void> {
+  const { data } = await supabase
+    .from('att_requests').select('date_from, date_to').eq('id', requestId).maybeSingle();
+  if (data) await resyncAttendanceFor(data.date_from, data.date_to);
 }
 
 export async function rejectLeaveRequest(
@@ -150,45 +172,25 @@ export async function rejectLeaveRequest(
     })
     .eq('id', requestId);
   if (error) throw error;
+  // Từ chối đơn đã duyệt → trigger hoàn phép, bảng công cũng phải trừ lại công phép.
+  await resyncAttendanceForRequest(requestId);
 }
 
 export async function deleteLeaveRequest(requestId: string): Promise<void> {
-  // Get request info first to check if we need to refund balance
   const { data: req, error: fetchErr } = await supabase
     .from('att_requests')
-    .select('*')
+    .select('status, date_from, date_to')
     .eq('id', requestId)
     .single();
   if (fetchErr) throw fetchErr;
 
-  // If it was approved annual leave, refund the used_days
-  if (req.status === 'approved' && req.leave_type === 'annual') {
-    const reqDate = new Date(req.date_from);
-    const year = reqDate.getFullYear();
-    const leaveDays = Number(req.leave_days || 0);
-
-    // Refund to yearly balance first
-    const { data: yearly } = await supabase
-      .from('leave_balances')
-      .select('*')
-      .eq('employee_id', req.employee_id)
-      .eq('year', year)
-      .eq('quarter', 0)
-      .maybeSingle();
-
-    if (yearly) {
-      const newUsed = Math.max(0, Number(yearly.used_days || 0) - leaveDays);
-      await supabase
-        .from('leave_balances')
-        .update({ used_days: newUsed })
-        .eq('id', yearly.id);
-    }
-  }
-
-  // Delete the request
+  // Hoàn phép do trigger DB `trg_leave_request_delete` lo (hoàn đúng carry-over / phép năm,
+  // migration 20261007130100). KHÔNG hoàn ở đây nữa — làm cả 2 nơi là hoàn 2 lần.
   const { error } = await supabase
     .from('att_requests')
     .delete()
     .eq('id', requestId);
   if (error) throw error;
+
+  if (req.status === 'approved') await resyncAttendanceFor(req.date_from, req.date_to);
 }
