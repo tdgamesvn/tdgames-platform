@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PmTask, PmTaskTime, PmInterval, fetchTaskIntervals, isDone, projectOf, statusLabel } from '../services/projectService';
+import { PmTask, PmTaskTime, PmInterval, fetchTaskIntervals, isDone, projectOf, statusLabel, clickupUrl } from '../services/projectService';
 
 // Drawer theo STYLE_GUIDE §Modals — Side panel / Drawer (portal, z-50, backdrop đóng).
 const CAT_META: Record<string, { label: string; color: string }> = {
   active: { label: 'Đang làm', color: '#FF9500' },
   waiting_client: { label: 'Chờ khách', color: '#0A84FF' },
+  paused: { label: 'Tạm dừng', color: '#AF52DE' },
   not_started: { label: 'Chưa bắt đầu', color: '#9D9C9D' },
   done: { label: 'Kết thúc', color: '#34C759' },
   unknown: { label: 'Chưa phân nhóm', color: '#AF52DE' },
@@ -89,7 +90,13 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
     body = (
       <>
         <h3 className="text-base font-black uppercase tracking-wider text-white">{t?.title || 'Task'}</h3>
-        <p className="text-xs text-neutral-medium mt-1 mb-6">{t ? projectOf(t) : ''} · Hạn {t?.due_date ? t.due_date.split('-').reverse().join('/') : '—'}</p>
+        <p className="text-xs text-neutral-medium mt-1">{t ? projectOf(t) : ''} · Hạn {t?.due_date ? t.due_date.split('-').reverse().join('/') : '—'} · {statusLabel(t?.clickup_status)}</p>
+        {t && clickupUrl(t) && (
+          <a href={clickupUrl(t)!} target="_blank" rel="noopener noreferrer"
+            className="inline-block mt-3 mb-6 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">
+            Mở trên ClickUp ↗</a>
+        )}
+        {!(t && clickupUrl(t)) && <div className="mb-6" />}
 
         {t?.time_estimate_hours != null && (() => {
           const actual = per.reduce((n, x) => n + x.active_hours, 0);
@@ -112,7 +119,7 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
                 <span className="text-neutral-300">{fmtH(x.active_hours)} làm · {fmtH(x.waiting_client_hours)} chờ khách · sửa {x.fix_rounds} lần</span>
               </div>
             ))}
-            <p className="text-xs text-neutral-medium">* freelancer: giờ đồng hồ ở trạng thái đang làm (tương đối)</p>
+            {per.some(x => !x.is_fulltime) && <p className="text-xs text-neutral-medium">* freelancer: giờ đồng hồ ở trạng thái đang làm (tương đối)</p>}
           </div>
         )}
 

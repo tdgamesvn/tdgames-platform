@@ -17,7 +17,7 @@ import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
   fetchPmData, fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
   fetchTaskTime, PmTaskTime, STUCK_HOURS, hoursSince, ESTIMATE_REQUIRED_FROM,
-  isDone, isFix, isOverdue, projectOf, norm, todayISO, statusLabel,
+  isDone, isFix, isOverdue, projectOf, norm, todayISO, statusLabel, clickupUrl,
 } from '../services/projectService';
 
 // Navbar chỉ nhận các id tab cố định ⇒ map id → nhãn của app này.
@@ -74,11 +74,20 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 /** Dòng task trong các danh sách cảnh báo: bấm mở drawer; nút "Bỏ qua" ẩn task chết khỏi cảnh báo. */
 const TaskRow: React.FC<{ t: PmTask; sub: string; badges: React.ReactNode; onOpen: () => void; onHide: () => void; hidden: boolean }> =
   ({ t, sub, badges, onOpen, onHide, hidden }) => (
-  <div onClick={onOpen} className={'group flex items-center justify-between gap-3 cursor-pointer rounded-xl px-2 py-2 hover:bg-white/5 transition-colors' + (hidden ? ' opacity-50' : '')}>
-    <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
-      <div className="text-xs text-neutral-medium truncate">{sub}</div></div>
-    <div className="flex items-center gap-2 shrink-0">
-      {badges}
+  <div onClick={onOpen} className={'group flex items-start justify-between gap-3 cursor-pointer rounded-xl px-2 py-2 hover:bg-white/5 transition-colors' + (hidden ? ' opacity-50' : '')}>
+    {/* Tên task dòng riêng (trước bị badge + nút chiếm chỗ ⇒ cắt còn "[2D Modeling] [C…") */}
+    <div className="min-w-0 flex-1">
+      <div className="text-sm font-semibold text-white truncate" title={t.title}>{t.title}</div>
+      <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <span className="text-xs text-neutral-medium truncate max-w-full">{sub}</span>
+        {badges}
+      </div>
+    </div>
+    <div className="flex items-center gap-2 shrink-0 pt-0.5">
+      {clickupUrl(t) && (
+        <a href={clickupUrl(t)!} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} title="Mở trên ClickUp"
+          className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all">ClickUp ↗</a>
+      )}
       <button onClick={(e) => { e.stopPropagation(); onHide(); }} title={hidden ? 'Hiện lại trong cảnh báo' : 'Bỏ qua — ẩn khỏi cảnh báo (task chết / không theo dõi)'}
         className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-500 border border-white/10 hover:text-white hover:border-white/20 transition-all md:opacity-0 md:group-hover:opacity-100">
         {hidden ? 'Hiện' : 'Bỏ qua'}</button>
@@ -113,6 +122,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [projFilter, setProjFilter] = useState<'running' | 'done' | 'all'>('running');
   const [projQuery, setProjQuery] = useState('');
   const [peopleView, setPeopleView] = useState<'cards' | 'table'>('cards');
+  const [showIdlePeople, setShowIdlePeople] = useState(false);
   const [projDetail, setProjDetail] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -168,6 +178,11 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   // client_review nằm trong DONE_STATUSES (đã giao khách) ⇒ không thuộc `open`; đếm theo nhóm trạng thái.
   const waitingOpen = wsTasks.filter(t => catOf(t) === 'waiting_client');
   const notStarted = open.filter(t => catOf(t) === 'not_started');
+  const pausedTasks = wsTasks.filter(t => catOf(t) === 'paused');
+  // Sắp đến hạn: chưa xong, hạn trong 3 ngày tới (hôm nay → +3). Chưa bắt đầu/tạm dừng ⇒ rủi ro cao.
+  const in3 = (() => { const d = new Date(todayISO() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 3); return d.toISOString().slice(0, 10); })();
+  const upcoming = open.filter(t => t.due_date && t.due_date >= todayISO() && t.due_date <= in3 && !hidden.has(t.id))
+    .sort((a, b) => a.due_date!.localeCompare(b.due_date!));
   const visible = (t: PmTask) => showHidden || !hidden.has(t.id);
   const overdue = open.filter(t => isOverdue(t, false) && visible(t));
   const hiddenCount = wsTasks.filter(t => hidden.has(t.id) && !isDone(t)).length;
@@ -203,6 +218,16 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     return out.sort((a, b) => b.h - a.h);
   }, [times, statusCat, wsTasks, hidden, showHidden]);
   const stuckTeam = stuck.filter(s => s.cat === 'active');
+  // Năng lực team: số task ĐANG LÀM (nhóm active) mỗi người — ai rảnh để giao việc, ai quá tải.
+  // Chỉ người có ít nhất 1 task chưa xong hoặc xong trong 30 ngày (bỏ tk test / người không làm dự án).
+  const capacity = (() => {
+    const since = (() => { const d = new Date(todayISO() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 30); return d.toISOString().slice(0, 10); })();
+    return wsWorkers.filter(w => w.is_active !== false).map(w => {
+      const ts = wsTasks.filter(t => (workersOfTask.get(t.id) || []).includes(w.id));
+      const recent = ts.some(t => !isDone(t) || (deliveredOn(t) || '') >= since);
+      return { w, active: ts.filter(t => !isDone(t) && catOf(t) === 'active').length, recent };
+    }).filter(x => x.recent).sort((a, b) => b.active - a.active);
+  })();
   const stuckClient = stuck.filter(s => s.cat === 'waiting_client');
 
   // ── Dự án ──
@@ -303,10 +328,49 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             <Heading title="Tổng quan" sub="Tiến độ công việc toàn công ty (ClickUp + task phụ)" />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
               <Kpi onClick={() => openList('Đang làm', activeOpen)} label="Đang làm" value={activeOpen.length} color={C.orange} hint={fixing.length ? `trong đó ${fixing.length} task đang sửa` : 'Team đang thực hiện'} />
-              <Kpi onClick={() => openList('Chờ khách', waitingOpen)} label="Chờ khách" value={waitingOpen.length} color={C.blue} hint="Đã gửi khách duyệt / tạm dừng" />
+              <Kpi onClick={() => openList('Chờ khách', waitingOpen)} label="Chờ khách" value={waitingOpen.length} color={C.blue} hint={pausedTasks.length ? `+ ${pausedTasks.length} task tạm dừng` : 'Đã gửi khách, chờ duyệt'} />
               <Kpi onClick={() => openList('Chưa bắt đầu', notStarted)} label="Chưa bắt đầu" value={notStarted.length} color={C.gray} hint="Task mới, chưa ai nhận" />
               <Kpi onClick={() => openList('Trễ hạn', overdue)} label="Trễ hạn" value={overdue.length} color={C.red} hint={withDue ? undefined : 'Chưa có task nào có hạn chót'} />
               <Kpi onClick={() => openList('Xong tháng này', doneThisMonth)} label="Xong tháng này" value={doneThisMonth.length} color={C.green} />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-start">
+              <div className={card}>
+                <div className="text-base font-black uppercase tracking-wider text-white mb-1">Đến hạn 3 ngày tới <span className="text-neutral-600">({upcoming.length})</span></div>
+                <p className="text-xs text-neutral-medium mb-4">Việc phải giao sớm — nhãn đỏ = chưa bắt đầu hoặc đang tạm dừng</p>
+                {upcoming.length === 0 ? <p className="text-sm text-neutral-600 py-4 text-center">Không có task nào sắp đến hạn ✅</p> : (
+                  <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                    {upcoming.map(t => {
+                      const risky = ['not_started', 'paused'].includes(catOf(t));
+                      return (
+                        <TaskRow key={t.id} t={t} onOpen={() => setDrawer({ kind: 'task', taskId: t.id })} onHide={() => toggleHide(t.id)} hidden={hidden.has(t.id)}
+                          sub={`${projectOf(t)} · ${(workersOfTask.get(t.id) || []).map(workerName).join(', ') || 'Chưa giao'}`}
+                          badges={<><Badge color={risky ? C.red : C.orange}>{statusLabel(t.clickup_status)}</Badge>
+                            <Badge color={t.due_date === todayISO() ? C.red : C.amber}>{t.due_date === todayISO() ? 'Hôm nay' : fmtDate(t.due_date)}</Badge></>} />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className={card}>
+                <div className="text-base font-black uppercase tracking-wider text-white mb-1">Năng lực team</div>
+                <p className="text-xs text-neutral-medium mb-4">Số task đang làm mỗi người — bấm tên để xem chi tiết</p>
+                {[{ k: 'free', title: 'Rảnh — có thể giao việc', color: C.green, list: capacity.filter(x => x.active === 0) },
+                  { k: 'ok', title: 'Vừa sức (1–3 task)', color: C.blue, list: capacity.filter(x => x.active >= 1 && x.active <= 3) },
+                  { k: 'busy', title: 'Quá tải (4+ task)', color: C.red, list: capacity.filter(x => x.active >= 4) }].map(g => (
+                  <div key={g.k} className="mb-4 last:mb-0">
+                    <div className={kpiLabel + ' mb-2 flex items-center gap-2'}><span className="w-1.5 h-1.5 rounded-full" style={{ background: g.color }} />{g.title} ({g.list.length})</div>
+                    {g.list.length === 0 ? <span className="text-xs text-neutral-600">—</span> : (
+                      <div className="flex flex-wrap gap-2">
+                        {g.list.map(x => (
+                          <button key={x.w.id} onClick={() => { setTab('history'); setPerson(x.w.id); }}
+                            className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border border-white/10 text-neutral-300 hover:text-white hover:border-white/20 transition-all">
+                            {x.w.full_name}{x.active ? ` · ${x.active}` : ''}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-start">
               {[{ title: 'Team đang kẹt', sub: `Ở trạng thái đang làm quá ${STUCK_HOURS.active}h — cần PM hỗ trợ`, list: stuckTeam, color: C.amber },
@@ -487,9 +551,18 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 </div>
                 <span className="text-xs text-neutral-medium self-center ml-2">Số liệu tính trong kỳ đã chọn · "Đang làm" là hiện tại</span>
               </div>
-              {peopleView === 'table'
-                ? <PeopleTable people={people} onOpen={setPerson} />
-                : <PeopleGrid people={[...people].sort((a, b) => b.done - a.done || b.activeNow - a.activeNow)} onOpen={setPerson} />}
+              {(() => {
+                // Ẩn người không có việc trong kỳ & không có task đang mở (tk test, người không làm dự án).
+                const shown = showIdlePeople ? people : people.filter(p => p.done > 0 || p.doing > 0);
+                const hiddenN = people.length - shown.length;
+                return (<>
+                  {peopleView === 'table'
+                    ? <PeopleTable people={shown} onOpen={setPerson} />
+                    : <PeopleGrid people={[...shown].sort((a, b) => b.done - a.done || b.activeNow - a.activeNow)} onOpen={setPerson} />}
+                  {hiddenN > 0 && <button onClick={() => setShowIdlePeople(!showIdlePeople)} className={btnXs + ' mt-4'}>
+                    {showIdlePeople ? 'Ẩn người không có việc' : `Hiện thêm ${hiddenN} người không có việc trong kỳ`}</button>}
+                </>);
+              })()}
               <p className="text-xs text-neutral-medium mt-6">Không rõ chỉ số nào? Bấm nút <strong>?</strong> trên thanh menu để xem giải thích.</p>
             </div>
           );

@@ -106,6 +106,8 @@ const STATUS_VI: Record<string, string> = {
   complete: 'Hoàn thành', done: 'Xong', cancelled: 'Đã huỷ',
 };
 export const statusLabel = (s?: string | null) => STATUS_VI[norm(s)] || s || '—';
+/** Link mở task trên ClickUp (để PM xử lý tiếp: nhắn, đổi hạn, đổi người). */
+export const clickupUrl = (t: { clickup_task_id: string | null }) => t.clickup_task_id ? `https://app.clickup.com/t/${t.clickup_task_id}` : null;
 export const workerTypeLabel = (t?: string | null) => (t === 'freelancer' ? 'Freelancer' : t ? 'Nội bộ' : '—');
 
 /** Mốc chuẩn hoá Time Estimate (sếp 08/10/2026): chỉ nhắc task TẠO từ ngày này — task cũ không có estimate.

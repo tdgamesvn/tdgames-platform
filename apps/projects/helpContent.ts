@@ -13,7 +13,8 @@ export const PROJECTS_HELP: HelpContent[] = [
         type: 'info',
         items: [
           '<strong>Đang làm</strong>: task team đang thực hiện (gồm cả đang sửa FIX, đang chờ lead kiểm tra).',
-          '<strong>Chờ khách</strong>: đã gửi khách duyệt hoặc tạm dừng — không tính vào thời gian làm của team.',
+          '<strong>Chờ khách</strong>: đã gửi khách duyệt — không tính vào thời gian làm của team.',
+          '<strong>Tạm dừng</strong> (pending): khách báo dừng hoặc người làm được điều sang việc ưu tiên hơn — không tính giờ, không tính là chờ khách.',
           '<strong>Chưa bắt đầu</strong>: task mới, chưa ai nhận làm.',
           '<strong>Trễ hạn</strong>: chưa xong mà đã qua hạn chót trên ClickUp.',
           'Bấm vào bất kỳ ô nào để xem danh sách task tương ứng.',
@@ -23,9 +24,11 @@ export const PROJECTS_HELP: HelpContent[] = [
         title: 'Việc cần xử lý',
         type: 'steps',
         items: [
+          '<strong>Đến hạn 3 ngày tới</strong>: nhãn đỏ = task sắp đến hạn mà chưa bắt đầu hoặc đang tạm dừng — xử lý ngay.',
+          '<strong>Năng lực team</strong>: ai rảnh (giao việc mới), ai quá tải (4+ task đang làm cùng lúc).',
           '<strong>Team đang kẹt</strong>: task nằm ở trạng thái đang làm quá 2 ngày — hỏi người làm xem có vướng gì.',
           '<strong>Chờ khách lâu</strong>: gửi khách quá 5 ngày chưa phản hồi — nhắc khách.',
-          'Bấm vào task để xem toàn bộ quá trình chuyển trạng thái.',
+          'Bấm vào task để xem toàn bộ quá trình chuyển trạng thái; nút <strong>ClickUp ↗</strong> mở task trên ClickUp để xử lý.',
           'Task "chết" (đã bỏ trên ClickUp nhưng chưa đóng): rê chuột vào dòng → <strong>Bỏ qua</strong> để ẩn khỏi cảnh báo.',
         ],
       },

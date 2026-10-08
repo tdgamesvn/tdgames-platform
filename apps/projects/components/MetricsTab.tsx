@@ -9,7 +9,8 @@ const tr = 'border-b border-white/5 hover:bg-white/5 transition-colors';
 const select = 'px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors';
 const btnPrimary = 'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50';
 const CATS: { v: string; label: string }[] = [
-  { v: 'active', label: 'Đang làm (tính giờ)' }, { v: 'waiting_client', label: 'Chờ khách / tạm dừng' },
+  { v: 'active', label: 'Đang làm (tính giờ)' }, { v: 'waiting_client', label: 'Chờ khách duyệt' },
+  { v: 'paused', label: 'Tạm dừng (khách dừng / chuyển việc ưu tiên)' },
   { v: 'not_started', label: 'Chưa bắt đầu' }, { v: 'done', label: 'Kết thúc' },
 ];
 const fmtH = (h: number) => (h >= 100 ? Math.round(h) : Math.round(h * 10) / 10) + 'h';
