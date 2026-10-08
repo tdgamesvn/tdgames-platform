@@ -71,6 +71,8 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const isAdmin = hasRole(currentUser, 'admin');
   const { workspace } = useWorkspace();
   const [tab, setTab] = useState<TabId>(HASH_TAB[initialTab || ''] || 'overview');
+  // Hash đổi khi app đang mở (Back, link #projects/subtasks) ⇒ App không remount ⇒ phải tự theo.
+  useEffect(() => { if (initialTab && HASH_TAB[initialTab]) setTab(HASH_TAB[initialTab]); }, [initialTab]);
   const [tasks, setTasks] = useState<PmTask[]>([]);
   const [assignees, setAssignees] = useState<{ task_id: string; worker_id: string }[]>([]);
   const [workers, setWorkers] = useState<PmWorker[]>([]);
