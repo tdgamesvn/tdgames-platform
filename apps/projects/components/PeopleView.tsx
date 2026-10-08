@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { PmTask, PmTaskTime, PmWorker, isDone, isOverdue, projectOf } from '../services/projectService';
+import { PmTask, PmTaskTime, PmWorker, isDone, isOverdue, projectOf, statusLabel, workerTypeLabel } from '../services/projectService';
 
 // STYLE_GUIDE: card rounded-[20px] border-primary/10 bg-surface; list-item card hover border-primary/20;
 // KPI label 10px font-black; badge 9px. Biểu đồ: skill dataviz — 1 chuỗi ⇒ 1 màu (#FF9500, contrast ≥3:1
@@ -63,7 +63,7 @@ export const PeopleGrid: React.FC<{ people: PersonStats[]; onOpen: (id: string) 
           <span className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-black text-primary shrink-0">{initials(p.w.full_name)}</span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-white truncate">{p.w.full_name}</div>
-            <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{p.w.type || '—'}</Badge>
+            <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{workerTypeLabel(p.w.type)}</Badge>
           </div>
           <span className="text-primary/70 text-[15px] font-black">›</span>
         </div>
@@ -74,10 +74,10 @@ export const PeopleGrid: React.FC<{ people: PersonStats[]; onOpen: (id: string) 
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
           {p.overdue > 0 && <Badge color={C.red}>{p.overdue} trễ hạn</Badge>}
-          {p.fix > 0 && <Badge color={C.amber}>{p.fix} lần FIX</Badge>}
-          {p.hours.firstPass != null && <Badge color={C.green}>{p.hours.firstPass}% duyệt lần đầu</Badge>}
+          {p.fix > 0 && <Badge color={C.amber}>{p.fix} lần sửa</Badge>}
+          {p.hours.firstPass != null && <Badge color={C.green}>{p.hours.firstPass}% duyệt ngay</Badge>}
           {p.onTimePct != null && <Badge color={C.blue}>{p.onTimePct}% đúng hạn · {p.onTimeN} task</Badge>}
-          {p.activeNow >= 4 && <Badge color={C.orange}>Đang ôm nhiều việc</Badge>}
+          {p.activeNow >= 4 && <Badge color={C.orange}>Nhiều việc cùng lúc</Badge>}
         </div>
       </button>
     ))}
@@ -159,7 +159,7 @@ export const PersonDetail: React.FC<DetailProps> = ({ stats, heading, extra, tas
         <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
           <div>
             <div className="text-base font-black uppercase tracking-wider text-white">Task hoàn thành theo {PERIODS.find(p => p.id === period)!.label.toLowerCase()}</div>
-            <p className="text-xs text-neutral-medium mt-1">Bấm 1 cột để xem chi tiết kỳ đó · tính theo lần đầu giao khách (task cũ: ngày đóng)</p>
+            <p className="text-xs text-neutral-medium mt-1">Bấm vào 1 cột để xem chi tiết kỳ đó</p>
           </div>
         </div>
         <div className="relative">
@@ -208,9 +208,9 @@ export const PersonDetail: React.FC<DetailProps> = ({ stats, heading, extra, tas
             <div className="text-2xl font-black text-white">{cur.hours ? fmtH(cur.hours) : '—'}</div></div>
           <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>TB / task</div>
             <div className="text-2xl font-black text-white">{cur.avgH == null ? '—' : fmtH(cur.avgH)}</div></div>
-          <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>Duyệt lần đầu</div>
+          <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>Duyệt ngay</div>
             <div className="text-2xl font-black text-white">{cur.firstPass == null ? '—' : cur.firstPass + '%'}</div>
-            {cur.fix > 0 && <div className="text-xs text-neutral-medium">{cur.fix} vòng FIX</div>}</div>
+            {cur.fix > 0 && <div className="text-xs text-neutral-medium">{cur.fix} lần sửa</div>}</div>
           <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>Đúng hạn</div>
             <div className="text-2xl font-black text-white">{cur.onTime == null ? '—' : cur.onTime + '%'}</div></div>
         </div>
@@ -235,10 +235,10 @@ const TaskList: React.FC<{ title: string; tasks: PmTask[]; timeOf: Map<string, P
           return (
             <div key={t.id} onClick={() => onOpenTask(t.id)} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl px-3 py-2 hover:bg-white/5 transition-colors">
               <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
-                <div className="text-xs text-neutral-medium truncate">{projectOf(t)}{x ? ` · ${fmtH(x.active_hours)} làm` : ''}{x?.fix_rounds ? ` · ${x.fix_rounds} FIX` : ''}</div></div>
+                <div className="text-xs text-neutral-medium truncate">{projectOf(t)}{x ? ` · ${fmtH(x.active_hours)} làm` : ''}{x?.fix_rounds ? ` · sửa ${x.fix_rounds} lần` : ''}</div></div>
               <div className="flex gap-1 shrink-0">
                 {isOverdue(t, isDone(t)) && <Badge color={C.red}>Trễ</Badge>}
-                <Badge color={isDone(t) ? C.green : C.orange}>{t.clickup_status || '—'}</Badge>
+                <Badge color={isDone(t) ? C.green : C.orange}>{statusLabel(t.clickup_status)}</Badge>
               </div>
             </div>
           );
@@ -253,10 +253,10 @@ type SortKey = 'done' | 'hours' | 'avg' | 'firstPass' | 'onTime' | 'fix' | 'acti
 const COLS: { k: SortKey; label: string; title: string; lowerBetter?: boolean }[] = [
   { k: 'done', label: 'Đã xong', title: 'Task giao khách / đóng trong kỳ' },
   { k: 'hours', label: 'Giờ làm', title: 'Tổng giờ ở trạng thái đang làm (task giao trong kỳ)' },
-  { k: 'avg', label: 'TB / task', title: 'Giờ làm trung bình mỗi task — thấp hơn = nhanh hơn', lowerBetter: true },
-  { k: 'firstPass', label: 'Duyệt lần đầu', title: '% task không bị FIX' },
+  { k: 'avg', label: 'Giờ TB/task', title: 'Giờ làm trung bình mỗi task — thấp hơn = nhanh hơn', lowerBetter: true },
+  { k: 'firstPass', label: 'Duyệt ngay', title: '% task khách duyệt luôn, không phải sửa' },
   { k: 'onTime', label: 'Đúng hạn', title: '% giao khách ≤ hạn chót' },
-  { k: 'fix', label: 'Lần FIX', title: 'Số lần chuyển sang FIX — thấp hơn = tốt hơn', lowerBetter: true },
+  { k: 'fix', label: 'Lần sửa', title: 'Số lần bị yêu cầu sửa (FIX) — càng ít càng tốt', lowerBetter: true },
   { k: 'active', label: 'Đang làm', title: 'Task đang ở trạng thái đang làm (hiện tại)' },
 ];
 const valOf = (p: PersonStats, k: SortKey): number | null => ({
@@ -305,7 +305,7 @@ export const PeopleTable: React.FC<{ people: PersonStats[]; onOpen: (id: string)
                 <td className="py-3 pr-4 sticky left-10 bg-surface">
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     <span className="text-sm font-semibold text-white">{p.w.full_name}</span>
-                    <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{p.w.type === 'freelancer' ? 'FL' : 'IN'}</Badge>
+                    <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{workerTypeLabel(p.w.type)}</Badge>
                   </div>
                 </td>
                 {COLS.map(c => <td key={c.k} className={'py-3 px-3 text-right whitespace-nowrap ' + (sort.k === c.k ? 'text-white font-semibold' : 'text-neutral-300')}>{fmt(p, c.k)}</td>)}
@@ -314,7 +314,7 @@ export const PeopleTable: React.FC<{ people: PersonStats[]; onOpen: (id: string)
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-medium px-4 py-3 border-t border-white/5">Bấm tiêu đề cột để xếp hạng · tỷ lệ % kèm số task (chữ mờ = dưới 3 task, xếp sau) · * freelancer: giờ đồng hồ (tương đối) · "—" chưa có dữ liệu (luôn xếp cuối) · bấm 1 dòng để xem chi tiết</p>
+      <p className="text-xs text-neutral-medium px-4 py-3 border-t border-white/5">Bấm tiêu đề cột để xếp hạng · bấm 1 dòng để xem chi tiết · chữ mờ = dưới 3 task, chưa đủ đánh giá · * giờ freelancer chỉ để tham khảo</p>
     </div>
   );
 };

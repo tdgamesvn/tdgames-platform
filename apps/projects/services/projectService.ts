@@ -98,6 +98,16 @@ export async function fetchTaskIntervals(taskId: string): Promise<PmInterval[]> 
   return (data || []) as PmInterval[];
 }
 
+/** Tên trạng thái ClickUp → tiếng Việt dễ hiểu cho người dùng (khớp label trong wf_status_categories). */
+const STATUS_VI: Record<string, string> = {
+  'in progress': 'Đang làm', fix: 'Đang sửa', lead_check: 'Lead kiểm tra', 'internal review': 'Review nội bộ',
+  client_review: 'Chờ khách duyệt', pending: 'Tạm dừng', backlog: 'Chưa làm', 'new request': 'Yêu cầu mới',
+  planning: 'Lên kế hoạch', approved: 'Khách đã duyệt', closed: 'Đã đóng', completed: 'Hoàn thành',
+  complete: 'Hoàn thành', done: 'Xong', cancelled: 'Đã huỷ',
+};
+export const statusLabel = (s?: string | null) => STATUS_VI[norm(s)] || s || '—';
+export const workerTypeLabel = (t?: string | null) => (t === 'freelancer' ? 'Freelancer' : t ? 'Nội bộ' : '—');
+
 /** Mốc chuẩn hoá Time Estimate (sếp 08/10/2026): chỉ nhắc task TẠO từ ngày này — task cũ không có estimate.
  *  Khớp hằng số trong SQL pm_notify_stuck_tasks (migration 20261008160000). */
 export const ESTIMATE_REQUIRED_FROM = '2026-10-08';

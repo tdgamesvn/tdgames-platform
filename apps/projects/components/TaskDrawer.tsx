@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { PmTask, PmTaskTime, PmInterval, fetchTaskIntervals, isDone, projectOf } from '../services/projectService';
+import { PmTask, PmTaskTime, PmInterval, fetchTaskIntervals, isDone, projectOf, statusLabel } from '../services/projectService';
 
 // Drawer theo STYLE_GUIDE §Modals — Side panel / Drawer (portal, z-50, backdrop đóng).
 const CAT_META: Record<string, { label: string; color: string }> = {
@@ -70,7 +70,7 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {h > 0 && <span className="text-xs font-semibold text-white">{fmtH(h)}</span>}
-                  <Badge color={isDone(t) ? '#34C759' : '#FF9500'}>{t.clickup_status || '—'}</Badge>
+                  <Badge color={isDone(t) ? '#34C759' : '#FF9500'}>{statusLabel(t.clickup_status)}</Badge>
                 </div>
               </button>
             );
@@ -109,7 +109,7 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
             {per.map(x => (
               <div key={x.worker_id} className="flex items-center justify-between text-sm">
                 <span className="text-white font-semibold">{workerName(x.worker_id)}{!x.is_fulltime && <span className="text-neutral-600"> *</span>}</span>
-                <span className="text-neutral-300">{fmtH(x.active_hours)} làm · {fmtH(x.waiting_client_hours)} chờ khách · {x.fix_rounds} FIX</span>
+                <span className="text-neutral-300">{fmtH(x.active_hours)} làm · {fmtH(x.waiting_client_hours)} chờ khách · sửa {x.fix_rounds} lần</span>
               </div>
             ))}
             <p className="text-xs text-neutral-medium">* freelancer: giờ đồng hồ ở trạng thái đang làm (tương đối)</p>
@@ -136,7 +136,7 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
                 <div key={i} className="relative">
                   <span className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full" style={{ background: meta.color }} />
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold text-white">{iv.status}</span>
+                    <span className="text-sm font-semibold text-white">{statusLabel(iv.status)}</span>
                     <Badge color={meta.color}>{meta.label}</Badge>
                     {!iv.ended_at && <Badge color="#FF375F">Hiện tại</Badge>}
                   </div>

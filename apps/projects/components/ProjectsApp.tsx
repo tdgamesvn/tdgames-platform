@@ -9,13 +9,15 @@ import { supabase } from '@/services/supabaseClient';
 import TaskDrawer, { DrawerTarget } from './TaskDrawer';
 import MetricsTab from './MetricsTab';
 import PmAssignments from './PmAssignments';
+import HelpPanel from '@/components/HelpPanel';
+import { PROJECTS_HELP } from '../helpContent';
 import { PeopleGrid, PersonDetail, PeopleTable } from './PeopleView';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
   fetchPmData, fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
   fetchTaskTime, PmTaskTime, STUCK_HOURS, hoursSince, ESTIMATE_REQUIRED_FROM,
-  isDone, isFix, isOverdue, projectOf, norm, todayISO,
+  isDone, isFix, isOverdue, projectOf, norm, todayISO, statusLabel,
 } from '../services/projectService';
 
 // Navbar chỉ nhận các id tab cố định ⇒ map id → nhãn của app này.
@@ -104,6 +106,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState<DrawerTarget>(null);
   const [person, setPerson] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [showHidden, setShowHidden] = useState(false);
   const [peopleRange, setPeopleRange] = useState<'month' | 'quarter' | 'year' | 'all'>('month');
@@ -283,7 +286,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       <Navbar
         theme="dark" currentUser={currentUser} appName="Dự án"
         activeTab={tab as any} accessibleTabs={accessibleTabs as any} tabLabels={TAB_LABELS}
-        onTabChange={(t) => setTab(t as TabId)} onLogout={onBack} onBack={onBack}
+        onTabChange={(t) => setTab(t as TabId)} onLogout={onBack} onBack={onBack} onHelp={() => setHelpOpen(true)}
       />
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
         {/* Lần tải đầu: khung xám thay vì số 0 / "Không có task ✅" (dễ hiểu nhầm là số thật). */}
@@ -299,9 +302,9 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           <div className="animate-fadeInUp">
             <Heading title="Tổng quan" sub="Tiến độ công việc toàn công ty (ClickUp + task phụ)" />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
-              <Kpi onClick={() => openList('Đang làm', activeOpen)} label="Đang làm" value={activeOpen.length} color={C.orange} hint={fixing.length ? `trong đó ${fixing.length} đang FIX` : undefined} />
-              <Kpi onClick={() => openList('Chờ khách', waitingOpen)} label="Chờ khách" value={waitingOpen.length} color={C.blue} hint="client_review / pending" />
-              <Kpi onClick={() => openList('Chưa bắt đầu', notStarted)} label="Chưa bắt đầu" value={notStarted.length} color={C.gray} hint="backlog / new request" />
+              <Kpi onClick={() => openList('Đang làm', activeOpen)} label="Đang làm" value={activeOpen.length} color={C.orange} hint={fixing.length ? `trong đó ${fixing.length} task đang sửa` : 'Team đang thực hiện'} />
+              <Kpi onClick={() => openList('Chờ khách', waitingOpen)} label="Chờ khách" value={waitingOpen.length} color={C.blue} hint="Đã gửi khách duyệt / tạm dừng" />
+              <Kpi onClick={() => openList('Chưa bắt đầu', notStarted)} label="Chưa bắt đầu" value={notStarted.length} color={C.gray} hint="Task mới, chưa ai nhận" />
               <Kpi onClick={() => openList('Trễ hạn', overdue)} label="Trễ hạn" value={overdue.length} color={C.red} hint={withDue ? undefined : 'Chưa có task nào có hạn chót'} />
               <Kpi onClick={() => openList('Xong tháng này', doneThisMonth)} label="Xong tháng này" value={doneThisMonth.length} color={C.green} />
             </div>
@@ -316,7 +319,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                       {g.list.map(({ t, x, h }) => (
                         <TaskRow key={t.id} t={t} onOpen={() => setDrawer({ kind: 'task', taskId: t.id })} onHide={() => toggleHide(t.id)} hidden={hidden.has(t.id)}
                           sub={`${projectOf(t)} · ${(workersOfTask.get(t.id) || []).map(workerName).join(', ')}`}
-                          badges={<><Badge color={g.color}>{x.current_status}</Badge><Badge color={C.red}>{Math.floor(h / 24)} ngày</Badge></>} />
+                          badges={<><Badge color={g.color}>{statusLabel(x.current_status)}</Badge><Badge color={C.red}>{Math.floor(h / 24)} ngày</Badge></>} />
                       ))}
                     </div>
                   )}
@@ -332,7 +335,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                     <div key={t.id} onClick={() => setDrawer({ kind: 'task', taskId: t.id })} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl -mx-2 px-2 py-1 hover:bg-white/5 transition-colors">
                       <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
                         <div className="text-xs text-neutral-medium">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
-                      <Badge color={C.amber}>{t.clickup_status}</Badge>
+                      <Badge color={C.amber}>{statusLabel(t.clickup_status)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -387,7 +390,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                     <table className="w-full text-sm min-w-[520px]">
                       <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
                         <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right">Đang mở</th>
-                        <th className="text-right">Giờ làm</th><th className="text-right">Lần FIX</th></tr></thead>
+                        <th className="text-right">Giờ làm</th><th className="text-right">Lần sửa</th></tr></thead>
                       <tbody>
                         {contrib.map(c => (
                           <tr key={c.wid} className={tr + ' cursor-pointer'} onClick={() => { setProjDetail(null); setTab('history'); setPerson(c.wid); }}>
@@ -445,7 +448,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                       <div className="flex items-center justify-between gap-2 mt-auto pt-4 min-h-[44px]">
                         <div className="flex flex-wrap gap-2">
                           {p.overdue > 0 && <Badge color={C.red}>{p.overdue} trễ hạn</Badge>}
-                          {p.fix > 0 && <Badge color={C.amber}>{p.fix} đang FIX</Badge>}
+                          {p.fix > 0 && <Badge color={C.amber}>{p.fix} đang sửa</Badge>}
                         </div>
                         <div className="flex -space-x-2 shrink-0" title={p.people.map(workerName).join(', ')}>
                           {p.people.slice(0, 4).map(id => (
@@ -482,12 +485,12 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                   <button onClick={() => setPeopleView('cards')} className={peopleView === 'cards' ? btnOutline : btnXs}>Thẻ</button>
                   <button onClick={() => setPeopleView('table')} className={peopleView === 'table' ? btnOutline : btnXs}>Bảng so sánh</button>
                 </div>
-                <span className="text-xs text-neutral-medium self-center ml-2">Đã xong / giờ làm / FIX / duyệt lần đầu / đúng hạn tính trong kỳ · Đang làm & trễ hạn là hiện tại</span>
+                <span className="text-xs text-neutral-medium self-center ml-2">Số liệu tính trong kỳ đã chọn · "Đang làm" là hiện tại</span>
               </div>
               {peopleView === 'table'
                 ? <PeopleTable people={people} onOpen={setPerson} />
                 : <PeopleGrid people={[...people].sort((a, b) => b.done - a.done || b.activeNow - a.activeNow)} onOpen={setPerson} />}
-              <p className="text-xs text-neutral-medium mt-6">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — freelancer tính giờ đồng hồ (tương đối). "Đang làm" = task ở trạng thái đang làm / tổng chưa xong. Dữ liệu giờ từ 17/09/2026.</p>
+              <p className="text-xs text-neutral-medium mt-6">Không rõ chỉ số nào? Bấm nút <strong>?</strong> trên thanh menu để xem giải thích.</p>
             </div>
           );
         })()}
@@ -518,6 +521,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
+      <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} appName="Dự án" appIcon="📊" contents={PROJECTS_HELP} activeTabId={tab} />
     </div>
   );
 };

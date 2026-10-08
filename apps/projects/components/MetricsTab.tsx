@@ -93,8 +93,8 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
-              <th className="py-2">Tuần</th><th className="text-right">Task giao khách</th><th className="text-right">Giờ làm TB / task</th>
-              <th className="text-right">Chờ khách TB</th><th className="text-right">Duyệt lần đầu</th><th className="text-right">Lần chuyển FIX</th><th className="text-right">So ước lượng</th></tr></thead>
+              <th className="py-2">Tuần</th><th className="text-right">Task giao khách</th><th className="text-right">Giờ TB/task</th>
+              <th className="text-right">Chờ khách TB</th><th className="text-right">Duyệt ngay</th><th className="text-right">Lần sửa</th><th className="text-right">So ước lượng</th></tr></thead>
             <tbody>
               {weeks.map((w, i) => (
                 <tr key={w.k} className={tr}>
@@ -110,7 +110,7 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-neutral-medium mt-3">"Task giao khách" = lần đầu sang client_review trong tuần (task cũ: ngày đóng). Giờ làm / chờ khách / duyệt lần đầu chỉ có cho task có nhật ký trạng thái (từ 17/09/2026) — "—" là chưa có dữ liệu.</p>
+        <p className="text-xs text-neutral-medium mt-3">"Task giao khách" = lần đầu gửi khách duyệt trong tuần. "—" = chưa có dữ liệu (lịch sử bắt đầu từ 17/09/2026). Bấm <strong>?</strong> trên menu để xem giải thích.</p>
       </div>
 
       {isAdmin && (
@@ -118,7 +118,7 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <div className="text-base font-black uppercase tracking-wider text-white">Phân nhóm trạng thái ClickUp</div>
-              <p className="text-xs text-neutral-medium mt-1">Chỉ admin thấy. Quyết định trạng thái nào được tính giờ làm. Trạng thái chưa phân nhóm nằm đầu danh sách.</p>
+              <p className="text-xs text-neutral-medium mt-1">Chỉ admin thấy. Chọn trạng thái ClickUp nào được tính là "đang làm" (tính giờ). Trạng thái mới chưa phân nhóm nằm đầu danh sách.</p>
             </div>
             <button onClick={save} disabled={saving || changed.length === 0} className={btnPrimary} style={{ background: '#FF9500' }}>
               {saving ? 'Đang lưu...' : `Lưu${changed.length ? ` (${changed.length})` : ''}`}</button>
