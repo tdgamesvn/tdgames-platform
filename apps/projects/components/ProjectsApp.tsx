@@ -123,6 +123,11 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [projQuery, setProjQuery] = useState('');
   const [peopleView, setPeopleView] = useState<'cards' | 'table'>('cards');
   const [showIdlePeople, setShowIdlePeople] = useState(false);
+  const [ovFilter, setOvFilterState] = useState<{ project: string; person: string }>(() => {
+    try { return { project: '', person: '', ...JSON.parse(localStorage.getItem('pm.ov.filter') || '{}') }; } catch { return { project: '', person: '' }; }
+  });
+  const setOvFilter = (f: { project: string; person: string }) => { setOvFilterState(f); localStorage.setItem('pm.ov.filter', JSON.stringify(f)); };
+  const [search, setSearch] = useState('');
   const [projDetail, setProjDetail] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -172,13 +177,17 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const vnDate = (iso: string) => new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
   /** Ngày giao: lần đầu sang client_review (có log từ 17/9); không có thì ngày đóng trên ClickUp. */
   const deliveredOn = (t: PmTask) => { const f = firstReview.get(t.id); return f ? vnDate(f) : (isDone(t) ? (t.completed_at || t.closed_date || null) : null); };
-  const open = wsTasks.filter(t => !isDone(t));
+  // Bộ lọc Tổng quan (dự án / người) — nhớ lựa chọn trong máy (localStorage).
+  const ovTasks = useMemo(() => wsTasks.filter(t =>
+    (!ovFilter.project || projectOf(t) === ovFilter.project)
+    && (!ovFilter.person || (workersOfTask.get(t.id) || []).includes(ovFilter.person))), [wsTasks, ovFilter, workersOfTask]);
+  const open = ovTasks.filter(t => !isDone(t));
   const catOf = (t: PmTask) => statusCat[norm(t.clickup_status)] || 'unknown';
   const activeOpen = open.filter(t => catOf(t) === 'active');
   // client_review nằm trong DONE_STATUSES (đã giao khách) ⇒ không thuộc `open`; đếm theo nhóm trạng thái.
-  const waitingOpen = wsTasks.filter(t => catOf(t) === 'waiting_client');
+  const waitingOpen = ovTasks.filter(t => catOf(t) === 'waiting_client');
   const notStarted = open.filter(t => catOf(t) === 'not_started');
-  const pausedTasks = wsTasks.filter(t => catOf(t) === 'paused');
+  const pausedTasks = ovTasks.filter(t => catOf(t) === 'paused');
   // Sắp đến hạn: chưa xong, hạn trong 3 ngày tới (hôm nay → +3). Chưa bắt đầu/tạm dừng ⇒ rủi ro cao.
   const in3 = (() => { const d = new Date(todayISO() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 3); return d.toISOString().slice(0, 10); })();
   const upcoming = open.filter(t => t.due_date && t.due_date >= todayISO() && t.due_date <= in3 && !hidden.has(t.id))
@@ -201,10 +210,14 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   };
   const fixing = open.filter(isFix);
   const monthPrefix = todayISO().slice(0, 7);
-  const doneThisMonth = wsTasks.filter(t => isDone(t) && (t.completed_at || t.closed_date || t.clickup_updated_at || '').startsWith(monthPrefix));
-  const withDue = wsTasks.filter(t => t.due_date).length;
+  const doneThisMonth = ovTasks.filter(t => isDone(t) && (t.completed_at || t.closed_date || t.clickup_updated_at || '').startsWith(monthPrefix));
+  const withDue = ovTasks.filter(t => t.due_date).length;
+  // Task chưa xong (trừ chờ khách / tạm dừng) mà KHÔNG có hạn chót ⇒ không bao giờ "trễ" ⇒ số trễ hạn đẹp giả.
+  const needDue = open.filter(t => ['active', 'not_started'].includes(catOf(t)));
+  const noDue = needDue.filter(t => !t.due_date);
+  const duePct = needDue.length ? Math.round((needDue.length - noDue.length) / needDue.length * 100) : null;
   // Task đang làm (task mới từ mốc chuẩn hoá) mà chưa nhập Time Estimate trên ClickUp.
-  const noEstimate = wsTasks.filter(t => !isDone(t) && statusCat[norm(t.clickup_status)] === 'active'
+  const noEstimate = ovTasks.filter(t => !isDone(t) && statusCat[norm(t.clickup_status)] === 'active'
     && t.time_estimate_hours == null && (t.start_date || '') >= ESTIMATE_REQUIRED_FROM && visible(t));
   // Task đứng: trạng thái hiện tại kéo dài quá ngưỡng (1 dòng / task dù nhiều người làm).
   const stuck = useMemo(() => {
@@ -212,18 +225,18 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     times.forEach(x => {
       if (seen.has(x.task_id)) return; seen.add(x.task_id);
       const cat = statusCat[x.current_status || '']; const lim = STUCK_HOURS[cat]; const h = hoursSince(x.current_status_since);
-      const t = wsTasks.find(tt => tt.id === x.task_id);
+      const t = ovTasks.find(tt => tt.id === x.task_id);
       if (t && lim && h > lim && visible(t)) out.push({ t, x, h, cat });
     });
     return out.sort((a, b) => b.h - a.h);
-  }, [times, statusCat, wsTasks, hidden, showHidden]);
+  }, [times, statusCat, ovTasks, hidden, showHidden]);
   const stuckTeam = stuck.filter(s => s.cat === 'active');
   // Năng lực team: số task ĐANG LÀM (nhóm active) mỗi người — ai rảnh để giao việc, ai quá tải.
   // Chỉ người có ít nhất 1 task chưa xong hoặc xong trong 30 ngày (bỏ tk test / người không làm dự án).
   const capacity = (() => {
     const since = (() => { const d = new Date(todayISO() + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - 30); return d.toISOString().slice(0, 10); })();
     return wsWorkers.filter(w => w.is_active !== false).map(w => {
-      const ts = wsTasks.filter(t => (workersOfTask.get(t.id) || []).includes(w.id));
+      const ts = ovTasks.filter(t => (workersOfTask.get(t.id) || []).includes(w.id));
       const recent = ts.some(t => !isDone(t) || (deliveredOn(t) || '') >= since);
       return { w, active: ts.filter(t => !isDone(t) && catOf(t) === 'active').length, recent };
     }).filter(x => x.recent).sort((a, b) => b.active - a.active);
@@ -314,6 +327,27 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         onTabChange={(t) => setTab(t as TabId)} onLogout={onBack} onBack={onBack} onHelp={() => setHelpOpen(true)}
       />
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
+        {ready && !person && !projDetail && (
+          <div className="relative mb-6 md:w-96 md:ml-auto">
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Tìm task theo tên (vd: Velma)..."
+              className={input} style={{ background: '#1a1a1a' }} aria-label="Tìm task" />
+            {search.trim().length >= 2 && (() => {
+              const q = search.trim().toLowerCase();
+              const hits = wsTasks.filter(t => t.title.toLowerCase().includes(q)).slice(0, 8);
+              return (
+                <div className="absolute z-30 left-0 right-0 mt-2 rounded-[20px] border border-primary/10 bg-surface p-2 shadow-lg">
+                  {hits.length === 0 ? <p className="text-sm text-neutral-600 p-3">Không tìm thấy task</p> : hits.map(t => (
+                    <button key={t.id} onClick={() => { setDrawer({ kind: 'task', taskId: t.id }); setSearch(''); }}
+                      className="w-full text-left rounded-xl px-3 py-2 hover:bg-white/5 transition-colors">
+                      <div className="text-sm font-semibold text-white truncate">{t.title}</div>
+                      <div className="text-xs text-neutral-medium truncate">{projectOf(t)} · {statusLabel(t.clickup_status)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ') || 'Chưa giao'}</div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
         {/* Lần tải đầu: khung xám thay vì số 0 / "Không có task ✅" (dễ hiểu nhầm là số thật). */}
         {!ready && (
           <div className="space-y-6" aria-busy="true">
@@ -326,6 +360,21 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         {ready && tab === 'overview' && (
           <div className="animate-fadeInUp">
             <Heading title="Tổng quan" sub="Tiến độ công việc toàn công ty (ClickUp + task phụ)" />
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <select value={ovFilter.project} onChange={e => setOvFilter({ ...ovFilter, project: e.target.value })}
+                className={input + ' md:w-56'} style={{ background: '#1a1a1a' }} aria-label="Lọc theo dự án">
+                <option value="">Tất cả dự án</option>{projects.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}</select>
+              <select value={ovFilter.person} onChange={e => setOvFilter({ ...ovFilter, person: e.target.value })}
+                className={input + ' md:w-56'} style={{ background: '#1a1a1a' }} aria-label="Lọc theo người">
+                <option value="">Tất cả nhân sự</option>{wsWorkers.filter(w => w.is_active !== false).map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}</select>
+              {(ovFilter.project || ovFilter.person) && <button onClick={() => setOvFilter({ project: '', person: '' })} className={btnXs}>Bỏ lọc</button>}
+              {duePct != null && (
+                <button onClick={() => noDue.length && openList('Task chưa đặt hạn chót', noDue)} title="Task đang làm / chưa bắt đầu có hạn chót trên ClickUp"
+                  className={'md:ml-auto px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all '
+                    + (duePct < 80 ? 'text-orange-400 border-orange-500/30 hover:bg-orange-500/10' : 'text-neutral-300 border-white/10 hover:border-white/20')}>
+                  📅 {duePct}% task có hạn chót{noDue.length ? ` · ${noDue.length} chưa đặt hạn ›` : ''}</button>
+              )}
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
               <Kpi onClick={() => openList('Đang làm', activeOpen)} label="Đang làm" value={activeOpen.length} color={C.orange} hint={fixing.length ? `trong đó ${fixing.length} task đang sửa` : 'Team đang thực hiện'} />
               <Kpi onClick={() => openList('Chờ khách', waitingOpen)} label="Chờ khách" value={waitingOpen.length} color={C.blue} hint={pausedTasks.length ? `+ ${pausedTasks.length} task tạm dừng` : 'Đã gửi khách, chờ duyệt'} />

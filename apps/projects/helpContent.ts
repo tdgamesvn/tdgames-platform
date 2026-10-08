@@ -18,6 +18,9 @@ export const PROJECTS_HELP: HelpContent[] = [
           '<strong>Chưa bắt đầu</strong>: task mới, chưa ai nhận làm.',
           '<strong>Trễ hạn</strong>: chưa xong mà đã qua hạn chót trên ClickUp.',
           'Bấm vào bất kỳ ô nào để xem danh sách task tương ứng.',
+          'Lọc theo <strong>dự án</strong> hoặc <strong>người</strong> ở đầu trang — app nhớ lựa chọn cho lần sau.',
+          '<strong>📅 % task có hạn chót</strong>: task không đặt hạn thì không bao giờ bị tính trễ — dưới 80% là đáng lo; bấm để xem task chưa có hạn.',
+          'Ô <strong>🔍 Tìm task</strong> (góc phải): gõ 2 chữ trở lên theo tên task để mở nhanh.',
         ],
       },
       {
