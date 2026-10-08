@@ -23,7 +23,8 @@ const fmtDur = (ms: number) => {
 const fmtDT = (iso: string) => new Date(iso).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 const fmtH = (h: number) => (h >= 100 ? Math.round(h) : Math.round(h * 10) / 10) + 'h';
 
-export type DrawerTarget = { kind: 'project'; name: string } | { kind: 'task'; taskId: string } | null;
+export type DrawerTarget = { kind: 'project'; name: string } | { kind: 'task'; taskId: string }
+  | { kind: 'list'; title: string; ids: string[] } | null;
 
 interface Props {
   target: DrawerTarget;
@@ -48,12 +49,14 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
   const hoursOf = (id: string) => times.filter(x => x.task_id === id);
 
   let body: React.ReactNode;
-  if (target.kind === 'project') {
-    const list = tasks.filter(t => projectOf(t) === target.name)
+  if (target.kind === 'project' || target.kind === 'list') {
+    // 'list' = danh sách task bất kỳ (bấm ô KPI ở Tổng quan)
+    const idSet = target.kind === 'list' ? new Set(target.ids) : null;
+    const list = tasks.filter(t => idSet ? idSet.has(t.id) : projectOf(t) === (target as { name: string }).name)
       .sort((a, b) => Number(isDone(a)) - Number(isDone(b)) || (b.created_at || '').localeCompare(a.created_at || ''));
     body = (
       <>
-        <h3 className="text-base font-black uppercase tracking-wider text-white">{target.name}</h3>
+        <h3 className="text-base font-black uppercase tracking-wider text-white">{target.kind === 'list' ? target.title : target.name}</h3>
         <p className="text-xs text-neutral-medium mt-1 mb-6">{list.length} task · bấm 1 task để xem dòng thời gian</p>
         <div className="space-y-3">
           {list.map(t => {
@@ -154,7 +157,7 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
         <div className="flex justify-between items-center mb-4">
           {target.kind === 'task' && tasks.find(x => x.id === target.taskId) ? (
             <span className={label}>Chi tiết task</span>
-          ) : <span className={label}>Dự án</span>}
+          ) : <span className={label}>{target.kind === 'list' ? 'Danh sách task' : 'Dự án'}</span>}
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">Đóng</button>
         </div>
         {body}

@@ -242,3 +242,66 @@ const TaskList: React.FC<{ title: string; tasks: PmTask[]; timeOf: Map<string, P
     )}
   </div>
 );
+
+// ── Bảng so sánh nhân sự (xếp hạng theo kỳ đang chọn) ─────────────────────
+type SortKey = 'done' | 'hours' | 'avg' | 'firstPass' | 'onTime' | 'fix' | 'active';
+const COLS: { k: SortKey; label: string; title: string; lowerBetter?: boolean }[] = [
+  { k: 'done', label: 'Đã xong', title: 'Task giao khách / đóng trong kỳ' },
+  { k: 'hours', label: 'Giờ làm', title: 'Tổng giờ ở trạng thái đang làm (task giao trong kỳ)' },
+  { k: 'avg', label: 'TB / task', title: 'Giờ làm trung bình mỗi task — thấp hơn = nhanh hơn', lowerBetter: true },
+  { k: 'firstPass', label: 'Duyệt lần đầu', title: '% task không bị FIX' },
+  { k: 'onTime', label: 'Đúng hạn', title: '% giao khách ≤ hạn chót' },
+  { k: 'fix', label: 'Lần FIX', title: 'Số lần chuyển sang FIX — thấp hơn = tốt hơn', lowerBetter: true },
+  { k: 'active', label: 'Đang làm', title: 'Task đang ở trạng thái đang làm (hiện tại)' },
+];
+const valOf = (p: PersonStats, k: SortKey): number | null => ({
+  done: p.done, hours: p.hours.total || null, avg: p.hours.avg, firstPass: p.hours.firstPass,
+  onTime: p.onTimePct, fix: p.fix, active: p.activeNow,
+}[k]);
+
+export const PeopleTable: React.FC<{ people: PersonStats[]; onOpen: (id: string) => void }> = ({ people, onOpen }) => {
+  const [sort, setSort] = useState<{ k: SortKey; desc: boolean }>({ k: 'done', desc: true });
+  const rows = [...people].sort((a, b) => {
+    const va = valOf(a, sort.k), vb = valOf(b, sort.k);
+    if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; // "—" luôn xuống cuối
+    return sort.desc ? vb - va : va - vb;
+  });
+  const fmt = (p: PersonStats, k: SortKey) => {
+    const v = valOf(p, k); if (v == null) return <span className="text-neutral-600">—</span>;
+    if (k === 'hours' || k === 'avg') return fmtH(v) + (k === 'hours' && !p.hours.fulltime ? '*' : '');
+    if (k === 'firstPass' || k === 'onTime') return v + '%' + (k === 'onTime' && p.onTimeN ? ` · ${p.onTimeN}` : '');
+    return v;
+  };
+  return (
+    <div className="rounded-[20px] border border-primary/10 bg-surface overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[860px]">
+          <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
+            <th className="py-3 px-4 sticky left-0 bg-surface w-10">#</th>
+            <th className="py-3 pr-4 sticky left-10 bg-surface">Nhân sự</th>
+            {COLS.map(c => (
+              <th key={c.k} title={c.title} className="py-3 px-3 text-right cursor-pointer select-none hover:text-white transition-colors"
+                onClick={() => setSort(s => ({ k: c.k, desc: s.k === c.k ? !s.desc : !c.lowerBetter }))}>
+                {c.label}{sort.k === c.k ? (sort.desc ? ' ↓' : ' ↑') : ''}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {rows.map((p, i) => (
+              <tr key={p.w.id} onClick={() => onOpen(p.w.id)} className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer">
+                <td className="py-3 px-4 sticky left-0 bg-surface text-neutral-600 font-black">{i + 1}</td>
+                <td className="py-3 pr-4 sticky left-10 bg-surface">
+                  <div className="flex items-center gap-2 whitespace-nowrap">
+                    <span className="text-sm font-semibold text-white">{p.w.full_name}</span>
+                    <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{p.w.type === 'freelancer' ? 'FL' : 'IN'}</Badge>
+                  </div>
+                </td>
+                {COLS.map(c => <td key={c.k} className={'py-3 px-3 text-right whitespace-nowrap ' + (sort.k === c.k ? 'text-white font-semibold' : 'text-neutral-300')}>{fmt(p, c.k)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-neutral-medium px-4 py-3 border-t border-white/5">Bấm tiêu đề cột để xếp hạng · * freelancer: giờ đồng hồ (tương đối) · "—" chưa có dữ liệu (luôn xếp cuối) · bấm 1 dòng để xem chi tiết</p>
+    </div>
+  );
+};

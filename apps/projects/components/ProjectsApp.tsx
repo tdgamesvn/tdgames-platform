@@ -8,7 +8,7 @@ import { hasRole } from '@/utils/roleUtils';
 import { supabase } from '@/services/supabaseClient';
 import TaskDrawer, { DrawerTarget } from './TaskDrawer';
 import MetricsTab from './MetricsTab';
-import { PeopleGrid, PersonDetail } from './PeopleView';
+import { PeopleGrid, PersonDetail, PeopleTable } from './PeopleView';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
@@ -42,8 +42,8 @@ const input = 'px-3 py-2 rounded-xl text-sm text-white border border-white/10 ou
 const Badge: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => (
   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg" style={{ background: color + '20', color }}>{children}</span>
 );
-const Kpi: React.FC<{ label: string; value: React.ReactNode; color?: string; hint?: string }> = ({ label, value, color, hint }) => (
-  <div className={kpiCard}>
+const Kpi: React.FC<{ label: string; value: React.ReactNode; color?: string; hint?: string; onClick?: () => void }> = ({ label, value, color, hint, onClick }) => (
+  <div className={kpiCard + (onClick ? ' cursor-pointer hover:border-primary/30 transition-all' : '')} onClick={onClick} role={onClick ? 'button' : undefined}>
     <div className={kpiLabel + ' flex items-center gap-2'}>
       {color && <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: color }} />}{label}
     </div>
@@ -108,6 +108,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [peopleRange, setPeopleRange] = useState<'month' | 'quarter' | 'year' | 'all'>('month');
   const [projFilter, setProjFilter] = useState<'running' | 'done' | 'all'>('running');
   const [projQuery, setProjQuery] = useState('');
+  const [peopleView, setPeopleView] = useState<'cards' | 'table'>('cards');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const load = useCallback(async () => {
@@ -269,6 +270,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times, firstReview, statusCat, rangeFrom]);
 
   const ready = !(loading && tasks.length === 0);
+  const openList = (title: string, list: PmTask[]) => setDrawer({ kind: 'list', title: `${title} (${list.length})`, ids: list.map(t => t.id) });
   const workerName = (id: string | null) => workers.find(w => w.id === id)?.full_name || '—';
   const accessibleTabs: TabId[] = isAdmin ? ['overview', 'reports', 'history', 'dashboard', 'recurring', 'activity'] : ['overview', 'reports', 'history', 'dashboard', 'recurring'];
 
@@ -295,11 +297,11 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           <div className="animate-fadeInUp">
             <Heading title="Tổng quan" sub="Tiến độ công việc toàn công ty (ClickUp + task phụ)" />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
-              <Kpi label="Đang làm" value={activeOpen.length} color={C.orange} hint={fixing.length ? `trong đó ${fixing.length} đang FIX` : undefined} />
-              <Kpi label="Chờ khách" value={waitingOpen.length} color={C.blue} hint="client_review / pending" />
-              <Kpi label="Chưa bắt đầu" value={notStarted.length} color={C.gray} hint="backlog / new request" />
-              <Kpi label="Trễ hạn" value={overdue.length} color={C.red} hint={withDue ? undefined : 'Chưa có task nào có hạn chót'} />
-              <Kpi label="Xong tháng này" value={doneThisMonth.length} color={C.green} />
+              <Kpi onClick={() => openList('Đang làm', activeOpen)} label="Đang làm" value={activeOpen.length} color={C.orange} hint={fixing.length ? `trong đó ${fixing.length} đang FIX` : undefined} />
+              <Kpi onClick={() => openList('Chờ khách', waitingOpen)} label="Chờ khách" value={waitingOpen.length} color={C.blue} hint="client_review / pending" />
+              <Kpi onClick={() => openList('Chưa bắt đầu', notStarted)} label="Chưa bắt đầu" value={notStarted.length} color={C.gray} hint="backlog / new request" />
+              <Kpi onClick={() => openList('Trễ hạn', overdue)} label="Trễ hạn" value={overdue.length} color={C.red} hint={withDue ? undefined : 'Chưa có task nào có hạn chót'} />
+              <Kpi onClick={() => openList('Xong tháng này', doneThisMonth)} label="Xong tháng này" value={doneThisMonth.length} color={C.green} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-start">
               {[{ title: 'Team đang kẹt', sub: `Ở trạng thái đang làm quá ${STUCK_HOURS.active}h — cần PM hỗ trợ`, list: stuckTeam, color: C.amber },
@@ -425,9 +427,15 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 {([['month', 'Tháng này'], ['quarter', 'Quý này'], ['year', 'Năm nay'], ['all', 'Tất cả']] as const).map(([k, l]) => (
                   <button key={k} onClick={() => setPeopleRange(k)} className={peopleRange === k ? btnPrimary : btnGhost} style={peopleRange === k ? { background: '#FF9500' } : {}}>{l}</button>
                 ))}
+                <div className="flex gap-2 md:ml-auto md:order-last">
+                  <button onClick={() => setPeopleView('cards')} className={peopleView === 'cards' ? btnOutline : btnXs}>Thẻ</button>
+                  <button onClick={() => setPeopleView('table')} className={peopleView === 'table' ? btnOutline : btnXs}>Bảng so sánh</button>
+                </div>
                 <span className="text-xs text-neutral-medium self-center ml-2">Đã xong / giờ làm / FIX / duyệt lần đầu / đúng hạn tính trong kỳ · Đang làm & trễ hạn là hiện tại</span>
               </div>
-              <PeopleGrid people={[...people].sort((a, b) => b.done - a.done || b.activeNow - a.activeNow)} onOpen={setPerson} />
+              {peopleView === 'table'
+                ? <PeopleTable people={people} onOpen={setPerson} />
+                : <PeopleGrid people={[...people].sort((a, b) => b.done - a.done || b.activeNow - a.activeNow)} onOpen={setPerson} />}
               <p className="text-xs text-neutral-medium mt-6">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — freelancer tính giờ đồng hồ (tương đối). "Đang làm" = task ở trạng thái đang làm / tổng chưa xong. Dữ liệu giờ từ 17/09/2026.</p>
             </div>
           );
