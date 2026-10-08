@@ -6,6 +6,7 @@ import { ToastNotification } from '@/components/ToastNotification';
 import { AccountUser } from '@/types';
 import { hasRole } from '@/utils/roleUtils';
 import { supabase } from '@/services/supabaseClient';
+import TaskDrawer, { DrawerTarget } from './TaskDrawer';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
@@ -84,6 +85,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [times, setTimes] = useState<PmTaskTime[]>([]);
   const [statusCat, setStatusCat] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [drawer, setDrawer] = useState<DrawerTarget>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const load = useCallback(async () => {
@@ -119,6 +121,15 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     return m;
   }, [logs]);
 
+  // Lần đầu giao khách (sang client_review) theo task — mốc tính "Đúng hạn".
+  const firstReview = useMemo(() => {
+    const m = new Map<string, string>();
+    times.forEach(x => { if (x.first_client_review_at && (!m.get(x.task_id) || x.first_client_review_at < m.get(x.task_id)!)) m.set(x.task_id, x.first_client_review_at); });
+    return m;
+  }, [times]);
+  const vnDate = (iso: string) => new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
+  /** Ngày giao: lần đầu sang client_review (có log từ 17/9); không có thì ngày đóng trên ClickUp. */
+  const deliveredOn = (t: PmTask) => { const f = firstReview.get(t.id); return f ? vnDate(f) : (t.completed_at || t.closed_date || null); };
   const open = wsTasks.filter(t => !isDone(t));
   const overdue = open.filter(t => isOverdue(t, false));
   const fixing = open.filter(isFix);
@@ -158,11 +169,15 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const people = useMemo(() => wsWorkers.filter(w => w.is_active !== false).map(w => {
     const ts = wsTasks.filter(t => (workersOfTask.get(t.id) || []).includes(w.id));
     const done = ts.filter(isDone);
-    const onTime = done.filter(t => t.due_date && (t.completed_at || t.closed_date || '') <= t.due_date).length;
-    const doneWithDue = done.filter(t => t.due_date).length;
+    // Đúng hạn = giao khách lần đầu ≤ hạn chót (trước đây so ngày ĐÓNG task ⇒ thấp oan vì chờ khách duyệt).
+    const delivered = ts.filter(t => t.due_date && (firstReview.has(t.id) || isDone(t)));
+    const onTime = delivered.filter(t => { const d = deliveredOn(t); return d && d <= t.due_date!; }).length;
+    const doneWithDue = delivered.length;
+    // Khối lượng: task đang ở trạng thái "đang làm" (không tính chờ khách / chưa bắt đầu).
+    const activeNow = ts.filter(t => !isDone(t) && statusCat[norm(t.clickup_status)] === 'active').length;
     const subs = subtasks.filter(s => s.assignee_worker_id === w.id);
     return {
-      w, total: ts.length, done: done.length,
+      w, total: ts.length, done: done.length, activeNow,
       doing: ts.length - done.length,
       overdue: ts.filter(t => isOverdue(t, isDone(t))).length + subs.filter(s => isOverdue(s, s.status === 'done' || s.status === 'cancelled')).length,
       fix: ts.reduce((n, t) => n + (fixCount.get(t.id) || 0), 0),
@@ -178,7 +193,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                  fulltime: mine.some(x => x.is_fulltime) };
       })(),
     };
-  }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times]);
+  }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times, firstReview, statusCat]);
 
   const workerName = (id: string | null) => workers.find(w => w.id === id)?.full_name || '—';
   const accessibleTabs: TabId[] = isAdmin ? ['overview', 'reports', 'history', 'recurring', 'activity'] : ['overview', 'reports', 'history', 'recurring'];
@@ -211,7 +226,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 <p className="text-xs text-neutral-medium mb-4">Đang làm quá {STUCK_HOURS.active}h hoặc chờ khách quá {STUCK_HOURS.waiting_client / 24} ngày ở cùng một trạng thái</p>
                 <div className="space-y-3">
                   {stuck.slice(0, 20).map(({ t, x, h }) => (
-                    <div key={t.id} className="flex items-center justify-between gap-3">
+                    <div key={t.id} onClick={() => setDrawer({ kind: 'task', taskId: t.id })} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl -mx-2 px-2 py-1 hover:bg-white/5 transition-colors">
                       <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
                         <div className="text-xs text-neutral-medium">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
                       <div className="flex gap-2 shrink-0">
@@ -228,7 +243,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
               {overdue.length === 0 ? <Empty emoji="✅" text="Không có task trễ hạn" /> : (
                 <div className="space-y-3">
                   {overdue.slice(0, 20).map(t => (
-                    <div key={t.id} className="flex items-center justify-between gap-3">
+                    <div key={t.id} onClick={() => setDrawer({ kind: 'task', taskId: t.id })} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl -mx-2 px-2 py-1 hover:bg-white/5 transition-colors">
                       <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
                         <div className="text-xs text-neutral-medium">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
                       <Badge color={C.red}>Hạn {fmtDate(t.due_date)}</Badge>
@@ -242,7 +257,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
 
         {tab === 'reports' && (
           <div className="animate-fadeInUp">
-            <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp)" />
+            <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp) — bấm 1 dự án để xem task và dòng thời gian" />
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
                 <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
@@ -251,7 +266,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 <tbody>
                   {projects.length === 0 && !loading && <tr><td colSpan={6}><Empty emoji="📁" text="Chưa có dự án" /></td></tr>}
                   {projects.map(p => (
-                    <tr key={p.name} className={tr}>
+                    <tr key={p.name} className={tr + ' cursor-pointer'} onClick={() => setDrawer({ kind: 'project', name: p.name })}>
                       <td className="py-3"><div className="text-sm font-semibold text-white">{p.name}</div><div className="text-xs text-neutral-medium">{p.space}</div></td>
                       <td className="w-56"><div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 rounded-full bg-white/10"><div className="h-1.5 rounded-full" style={{ width: p.pct + '%', background: '#FF9500' }} /></div>
@@ -274,7 +289,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
                 <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
-                  <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right">Đang làm</th>
+                  <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right" title="Task ở trạng thái đang làm / tổng task chưa xong">Đang làm</th>
                   <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Giờ làm</th><th className="text-right">TB / task</th><th className="text-right">Duyệt lần đầu</th><th className="text-right">Task phụ mở</th></tr></thead>
                 <tbody>
                   {people.map(p => (
@@ -282,7 +297,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                       <td className="py-3"><span className="text-sm font-semibold text-white">{p.w.full_name}</span>{' '}
                         <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{p.w.type || '—'}</Badge></td>
                       <td className="text-right text-white font-bold">{p.done}</td>
-                      <td className="text-right text-neutral-300">{p.doing}</td>
+                      <td className="text-right text-neutral-300"><span className={p.activeNow >= 4 ? 'text-orange-400 font-semibold' : ''}>{p.activeNow}</span><span className="text-neutral-600">/{p.doing}</span></td>
                       <td className="text-right">{p.overdue ? <Badge color={C.red}>{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
                       <td className="text-right">{p.fix ? <Badge color={C.amber}>{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
                       <td className="text-right text-neutral-300">{p.onTimePct == null ? '—' : p.onTimePct + '%'}</td>
@@ -295,7 +310,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-neutral-medium mt-3">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — <span className="text-neutral-600">*</span> freelancer tính giờ đồng hồ (tương đối). Không tính client_review / pending. "TB / task" và "Duyệt lần đầu" (không FIX) tính trên task đã giao khách. Dữ liệu từ 17/09/2026.</p>
+            <p className="text-xs text-neutral-medium mt-3">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — <span className="text-neutral-600">*</span> freelancer tính giờ đồng hồ (tương đối). Không tính client_review / pending. "TB / task" và "Duyệt lần đầu" (không FIX) tính trên task đã giao khách. Dữ liệu từ 17/09/2026. "Đang làm" = task ở trạng thái đang làm / tổng task chưa xong (cam khi ≥ 4). "Đúng hạn" = lần đầu giao khách ≤ hạn chót.</p>
           </div>
         )}
 
@@ -315,6 +330,8 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           </div>
         )}
       </main>
+      <TaskDrawer target={drawer} onClose={() => setDrawer(null)} onOpenTask={(id) => setDrawer({ kind: 'task', taskId: id })}
+        tasks={wsTasks} times={times} workerName={workerName} workersOfTask={workersOfTask} />
       <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
         TD Games • Enterprise Platform • v3.0
       </footer>
