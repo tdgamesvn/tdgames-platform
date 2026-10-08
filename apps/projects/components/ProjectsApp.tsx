@@ -128,6 +128,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   });
   const setOvFilter = (f: { project: string; person: string }) => { setOvFilterState(f); localStorage.setItem('pm.ov.filter', JSON.stringify(f)); };
   const [search, setSearch] = useState('');
+  const [projGroup, setProjGroup] = useState<'project' | 'client'>('project');
   const [projDetail, setProjDetail] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -262,6 +263,28 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       };
     }).sort((a, b) => (b.total - b.done) - (a.total - a.done));
   }, [wsTasks, workersOfTask]);
+  // ── Theo khách hàng (space ClickUp) — số liệu dùng khi đàm phán / nhắc khách ──
+  const clients = useMemo(() => {
+    const perTask = new Map<string, { wait: number; fix: number; reviewed: boolean }>();
+    times.forEach(x => {
+      const c = perTask.get(x.task_id) || { wait: 0, fix: 0, reviewed: false };
+      perTask.set(x.task_id, { wait: Math.max(c.wait, x.waiting_client_hours), fix: Math.max(c.fix, x.fix_rounds), reviewed: c.reviewed || !!x.first_client_review_at });
+    });
+    const m = new Map<string, PmTask[]>();
+    wsTasks.forEach(t => { const k = t.clickup_space_name || t.client_name || '(Không rõ khách)'; m.set(k, [...(m.get(k) || []), t]); });
+    return [...m.entries()].map(([name, ts]) => {
+      const tracked = ts.map(t => perTask.get(t.id)).filter(x => x?.reviewed) as { wait: number; fix: number }[];
+      return {
+        name, projects: new Set(ts.map(projectOf)).size, total: ts.length,
+        open: ts.filter(t => !isDone(t)).length,
+        waiting: ts.filter(t => catOf(t) === 'waiting_client').length,
+        n: tracked.length,
+        avgWait: tracked.length ? tracked.reduce((a, x) => a + x.wait, 0) / tracked.length : null,
+        avgFix: tracked.length ? tracked.reduce((a, x) => a + x.fix, 0) / tracked.length : null,
+        firstPass: tracked.length ? Math.round(tracked.filter(x => x.fix === 0).length / tracked.length * 100) : null,
+      };
+    }).sort((a, b) => b.open - a.open || b.total - a.total);
+  }, [wsTasks, times, statusCat]);
   const shownProjects = projects.filter(p =>
     (projFilter === 'all' || (projFilter === 'done' ? p.pct === 100 : p.pct < 100))
     && (!projQuery.trim() || (p.name + ' ' + p.space).toLowerCase().includes(projQuery.trim().toLowerCase())));
@@ -524,6 +547,34 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         {ready && tab === 'reports' && !projDetail && (
           <div className="animate-fadeInUp">
             <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp) — bấm 1 dự án để xem chi tiết theo ngày / tuần / tháng / quý / năm" />
+            <div className="flex gap-2 mb-4">
+              <button onClick={() => setProjGroup('project')} className={projGroup === 'project' ? btnOutline : btnXs}>Theo dự án</button>
+              <button onClick={() => setProjGroup('client')} className={projGroup === 'client' ? btnOutline : btnXs}>Theo khách hàng</button>
+            </div>
+            {projGroup === 'client' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {clients.map(c => (
+                  <div key={c.name} className="rounded-[20px] border border-primary/10 bg-surface p-5 h-full flex flex-col">
+                    <div className="text-sm font-semibold text-white truncate">{c.name}</div>
+                    <div className="text-xs text-neutral-medium">{c.projects} dự án · {c.total} task</div>
+                    <div className="grid grid-cols-2 gap-4 mt-5">
+                      <div><div className={kpiLabel}>Đang mở</div><div className="text-2xl font-black text-white">{c.open}</div></div>
+                      <div><div className={kpiLabel}>Chờ khách duyệt</div><div className="text-2xl font-black text-white">{c.waiting}</div></div>
+                      <div title="Thời gian task nằm chờ khách duyệt, trung bình mỗi task"><div className={kpiLabel}>Khách duyệt mất TB</div>
+                        <div className="text-2xl font-black text-white">{c.avgWait == null ? '—' : c.avgWait >= 48 ? (Math.round(c.avgWait / 24 * 10) / 10) + ' ngày' : fmtH(c.avgWait)}</div></div>
+                      <div title="Số lần khách / lead yêu cầu sửa, trung bình mỗi task"><div className={kpiLabel}>Sửa TB / task</div>
+                        <div className="text-2xl font-black text-white">{c.avgFix == null ? '—' : Math.round(c.avgFix * 10) / 10}</div></div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-auto pt-4 min-h-[36px]">
+                      {c.firstPass != null && <Badge color={c.firstPass >= 50 ? C.green : C.amber}>{c.firstPass}% duyệt ngay</Badge>}
+                      {c.avgFix != null && c.avgFix >= 2 && <Badge color={C.red}>Sửa nhiều</Badge>}
+                      {c.avgWait != null && c.avgWait >= 120 && <Badge color={C.blue}>Duyệt chậm</Badge>}
+                      {c.n > 0 && c.n < 3 && <Badge color={C.gray}>Ít dữ liệu ({c.n} task)</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (<>
             <div className="flex flex-wrap items-center gap-2 mb-6">
               {([['running', 'Đang chạy'], ['done', 'Hoàn thành'], ['all', 'Tất cả']] as const).map(([k, l]) => (
                 <button key={k} onClick={() => setProjFilter(k)} className={projFilter === k ? btnPrimary : btnGhost} style={projFilter === k ? { background: '#FF9500' } : {}}>
@@ -577,6 +628,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 })}
               </div>
             )}
+            </>)}
           </div>
         )}
 
