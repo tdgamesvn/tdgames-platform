@@ -506,6 +506,13 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           </div>
         )}
 
+        {/* Tab Task phụ — từng bị xoá nhầm ở 4567a94 (cắt khối history→dashboard bằng index). */}
+        {tab === 'recurring' && (
+          <SubtaskTab subtasks={subtasks} setSubtasks={setSubtasks} workers={wsWorkers} tasks={wsTasks}
+            projectNames={projects.map(p => p.name)} workerName={workerName}
+            onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
+        )}
+
         {tab === 'activity' && isAdmin && (
           <div className="animate-fadeInUp">
             <Heading title="Tài chính" sub="Chỉ admin thấy — doanh thu, chi phí theo dự án" />
