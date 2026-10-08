@@ -189,7 +189,14 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         const mine = times.filter(x => x.worker_id === w.id);
         const delivered = mine.filter(x => x.first_client_review_at);
         const sum = mine.reduce((n, x) => n + x.active_hours, 0);
-        return { total: sum, avg: delivered.length ? delivered.reduce((n, x) => n + x.active_hours, 0) / delivered.length : null,
+        // So ước lượng: task đã giao có estimate; estimate chia đều cho số người làm task.
+        let estSum = 0, actSum = 0;
+        delivered.forEach(x => {
+          const t = tasks.find(tt => tt.id === x.task_id); const est = Number(t?.time_estimate_hours || 0);
+          if (est > 0) { estSum += est / Math.max(1, (workersOfTask.get(x.task_id) || []).length); actSum += x.active_hours; }
+        });
+        return { estPct: estSum > 0 ? Math.round(actSum / estSum * 100) : null,
+                 total: sum, avg: delivered.length ? delivered.reduce((n, x) => n + x.active_hours, 0) / delivered.length : null,
                  firstPass: delivered.length ? Math.round(delivered.filter(x => x.fix_rounds === 0).length / delivered.length * 100) : null,
                  fulltime: mine.some(x => x.is_fulltime) };
       })(),
@@ -291,7 +298,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
               <table className="w-full min-w-[760px] text-sm">
                 <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
                   <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right" title="Task ở trạng thái đang làm / tổng task chưa xong">Đang làm</th>
-                  <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Giờ làm</th><th className="text-right">TB / task</th><th className="text-right">Duyệt lần đầu</th><th className="text-right">Task phụ mở</th></tr></thead>
+                  <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Giờ làm</th><th className="text-right">TB / task</th><th className="text-right">Duyệt lần đầu</th><th className="text-right" title="Giờ làm thật / ước lượng ClickUp">So ước lượng</th><th className="text-right">Task phụ mở</th></tr></thead>
                 <tbody>
                   {people.map(p => (
                     <tr key={p.w.id} className={tr}>
@@ -305,13 +312,15 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                       <td className="text-right text-white font-semibold">{p.hours.total ? fmtH(p.hours.total) : '—'}{!p.hours.fulltime && p.hours.total > 0 && <span className="text-neutral-600">*</span>}</td>
                       <td className="text-right text-neutral-300">{p.hours.avg == null ? '—' : fmtH(p.hours.avg)}</td>
                       <td className="text-right text-neutral-300">{p.hours.firstPass == null ? '—' : p.hours.firstPass + '%'}</td>
+                      <td className="text-right">{p.hours.estPct == null ? <span className="text-neutral-600">—</span> :
+                        <Badge color={p.hours.estPct > 120 ? C.red : p.hours.estPct > 100 ? C.amber : C.green}>{p.hours.estPct}%</Badge>}</td>
                       <td className="text-right text-neutral-300">{p.subOpen}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-neutral-medium mt-3">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — <span className="text-neutral-600">*</span> freelancer tính giờ đồng hồ (tương đối). Không tính client_review / pending. "TB / task" và "Duyệt lần đầu" (không FIX) tính trên task đã giao khách. Dữ liệu từ 17/09/2026. "Đang làm" = task ở trạng thái đang làm / tổng task chưa xong (cam khi ≥ 4). "Đúng hạn" = lần đầu giao khách ≤ hạn chót.</p>
+            <p className="text-xs text-neutral-medium mt-3">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — <span className="text-neutral-600">*</span> freelancer tính giờ đồng hồ (tương đối). Không tính client_review / pending. "TB / task" và "Duyệt lần đầu" (không FIX) tính trên task đã giao khách. Dữ liệu từ 17/09/2026. "Đang làm" = task ở trạng thái đang làm / tổng task chưa xong (cam khi ≥ 4). "Đúng hạn" = lần đầu giao khách ≤ hạn chót. "So ước lượng" = giờ làm thật / Time Estimate ClickUp (task đã giao; xanh đến 100%, cam đến 120%, đỏ trên 120%).</p>
           </div>
         )}
 

@@ -246,6 +246,8 @@ async function handleWebhookEvent(body: any) {
   const dueDate = task.due_date
     ? new Date(parseInt(task.due_date) + 7 * 3600_000).toISOString().split("T")[0]
     : null;
+  // Ước lượng ClickUp (ms) → giờ; null nếu không đặt.
+  const estimateHours = task.time_estimate ? Math.round(Number(task.time_estimate) / 36000) / 100 : null;
   const startDate = task.date_created
     ? new Date(parseInt(task.date_created)).toISOString().split("T")[0]
     : null;
@@ -277,6 +279,7 @@ async function handleWebhookEvent(body: any) {
       status: ourStatus,
       start_date: startDate,
       due_date: dueDate,
+      time_estimate_hours: estimateHours,
       closed_date: closedDate,
       completed_at: closedDate,
       clickup_updated_at: clickupUpdatedAt,
@@ -310,6 +313,7 @@ async function handleWebhookEvent(body: any) {
     bonus_note: "",
     start_date: startDate,
     due_date: dueDate,
+    time_estimate_hours: estimateHours,
     closed_date: closedDate,
     completed_at: closedDate,
     clickup_updated_at: clickupUpdatedAt,

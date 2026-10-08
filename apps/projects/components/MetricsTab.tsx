@@ -35,6 +35,7 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
     const keys = Array.from({ length: 8 }, (_, i) => weekStartVN(now - i * 7 * DAY));
     const taskIds = new Set(tasks.map(t => t.id));
     const perTask = new Map<string, { h: number; wait: number; fix: number }>();
+    const estOf = new Map(tasks.map(t => [t.id, Number(t.time_estimate_hours || 0)]));
     // Chỉ task có lần giao khách NẰM TRONG nhật ký (từ 17/9) — task giao trước đó mà có log về sau
     // sẽ ra 0h giả (tuần 31/08 từng hiện "0h · 100%").
     times.forEach(x => {
@@ -46,13 +47,15 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
     return keys.map(k => {
       const delivered = tasks.filter(t => { const d = deliveredOn(t); return d && weekStartVN(new Date(d + 'T12:00:00+07:00').getTime()) === k; });
       const tracked = delivered.map(t => perTask.get(t.id)).filter(Boolean) as { h: number; wait: number; fix: number }[];
+      const withEst = delivered.filter(t => perTask.has(t.id) && (estOf.get(t.id) || 0) > 0);
+      const estPct = withEst.length ? Math.round(withEst.reduce((n, t) => n + perTask.get(t.id)!.h, 0) / withEst.reduce((n, t) => n + estOf.get(t.id)!, 0) * 100) : null;
       const fixEvents = logs.filter(l => taskIds.has(l.task_id) && norm(l.to_status) === 'fix' && weekStartVN(new Date(l.changed_at).getTime()) === k).length;
       return {
         k, delivered: delivered.length, tracked: tracked.length,
         avgH: tracked.length ? tracked.reduce((n, x) => n + x.h, 0) / tracked.length : null,
         avgWait: tracked.length ? tracked.reduce((n, x) => n + x.wait, 0) / tracked.length : null,
         firstPass: tracked.length ? Math.round(tracked.filter(x => x.fix === 0).length / tracked.length * 100) : null,
-        fixEvents,
+        fixEvents, estPct,
       };
     });
   }, [tasks, times, logs, deliveredOn]);
@@ -91,7 +94,7 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
           <table className="w-full min-w-[720px] text-sm">
             <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
               <th className="py-2">Tuần</th><th className="text-right">Task giao khách</th><th className="text-right">Giờ làm TB / task</th>
-              <th className="text-right">Chờ khách TB</th><th className="text-right">Duyệt lần đầu</th><th className="text-right">Lần chuyển FIX</th></tr></thead>
+              <th className="text-right">Chờ khách TB</th><th className="text-right">Duyệt lần đầu</th><th className="text-right">Lần chuyển FIX</th><th className="text-right">So ước lượng</th></tr></thead>
             <tbody>
               {weeks.map((w, i) => (
                 <tr key={w.k} className={tr}>
@@ -101,6 +104,7 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
                   <td className="text-right text-neutral-300">{w.avgWait == null ? '—' : fmtH(w.avgWait)}</td>
                   <td className="text-right text-neutral-300">{w.firstPass == null ? '—' : w.firstPass + '%'}</td>
                   <td className="text-right text-neutral-300">{w.fixEvents}</td>
+                  <td className="text-right text-neutral-300">{w.estPct == null ? '—' : w.estPct + '%'}</td>
                 </tr>
               ))}
             </tbody>

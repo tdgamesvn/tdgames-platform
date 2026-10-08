@@ -10,6 +10,7 @@ export interface PmTask {
   start_date: string | null; due_date: string | null; completed_at: string | null; closed_date: string | null;
   clickup_space_name: string | null; clickup_folder_name: string | null; clickup_list_name: string | null;
   clickup_updated_at: string | null; created_at: string;
+  time_estimate_hours: number | null; // ClickUp time_estimate (giờ)
 }
 export interface PmWorker { id: string; full_name: string; email: string | null; type: string | null; is_active: boolean | null; }
 export interface PmStatusLog { task_id: string; from_status: string | null; to_status: string | null; changed_at: string; }

@@ -88,6 +88,18 @@ const TaskDrawer: React.FC<Props> = ({ target, onClose, onOpenTask, tasks, times
         <h3 className="text-base font-black uppercase tracking-wider text-white">{t?.title || 'Task'}</h3>
         <p className="text-xs text-neutral-medium mt-1 mb-6">{t ? projectOf(t) : ''} · Hạn {t?.due_date ? t.due_date.split('-').reverse().join('/') : '—'}</p>
 
+        {t?.time_estimate_hours != null && (() => {
+          const actual = per.reduce((n, x) => n + x.active_hours, 0);
+          const est = Number(t.time_estimate_hours);
+          const pct = est > 0 ? Math.round(actual / est * 100) : null;
+          return (
+            <div className="rounded-[20px] border border-primary/10 p-4 bg-surface mb-6 flex items-center justify-between gap-3">
+              <div><div className={label}>Ước lượng / thực tế</div>
+                <div className="text-sm font-semibold text-white mt-1">{fmtH(est)} / {per.length ? fmtH(actual) : '—'}</div></div>
+              {pct != null && per.length > 0 && <Badge color={pct > 120 ? '#F44336' : pct > 100 ? '#FFA726' : '#34C759'}>{pct}% ước lượng</Badge>}
+            </div>
+          );
+        })()}
         <div className={label + ' mb-2'}>Giờ làm theo người</div>
         {per.length === 0 ? <p className="text-xs text-neutral-medium mb-6">Chưa có nhật ký trạng thái (task đổi trạng thái lần cuối trước 17/09/2026).</p> : (
           <div className="space-y-2 mb-6">
