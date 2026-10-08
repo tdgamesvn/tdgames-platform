@@ -130,7 +130,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   }, [times]);
   const vnDate = (iso: string) => new Date(new Date(iso).getTime() + 7 * 3600_000).toISOString().slice(0, 10);
   /** Ngày giao: lần đầu sang client_review (có log từ 17/9); không có thì ngày đóng trên ClickUp. */
-  const deliveredOn = (t: PmTask) => { const f = firstReview.get(t.id); return f ? vnDate(f) : (t.completed_at || t.closed_date || null); };
+  const deliveredOn = (t: PmTask) => { const f = firstReview.get(t.id); return f ? vnDate(f) : (isDone(t) ? (t.completed_at || t.closed_date || null) : null); };
   const open = wsTasks.filter(t => !isDone(t));
   const overdue = open.filter(t => isOverdue(t, false));
   const fixing = open.filter(isFix);

@@ -12,10 +12,17 @@ DECLARE
   _delivered int; _fix int; _closed int; _stuck int; _body text; _n int;
 BEGIN
   -- Giao khách lần đầu trong tuần (lần đầu sang client_review rơi vào tuần trước)
-  SELECT count(*) INTO _delivered FROM (
-    SELECT task_id, min(changed_at) f FROM wf_task_status_log
-    WHERE lower(trim(to_status)) = 'client_review' GROUP BY task_id) x
-  WHERE x.f >= _from AND x.f < _to;
+  -- Khớp UI (MetricsTab/deliveredOn): lần đầu sang client_review; task chưa từng có log client_review
+  -- thì lấy ngày đóng.
+  SELECT (SELECT count(*) FROM (
+            SELECT task_id, min(changed_at) f FROM wf_task_status_log
+            WHERE lower(trim(to_status)) = 'client_review' GROUP BY task_id) x
+          WHERE x.f >= _from AND x.f < _to)
+       + (SELECT count(*) FROM wf_tasks t
+          WHERE COALESCE(t.completed_at, t.closed_date) >= _mon - 7 AND COALESCE(t.completed_at, t.closed_date) < _mon
+            AND lower(trim(t.clickup_status)) IN ('client_review','approved','closed','done','completed','complete')
+            AND NOT EXISTS (SELECT 1 FROM wf_task_status_log l WHERE l.task_id = t.id AND lower(trim(l.to_status)) = 'client_review'))
+    INTO _delivered;
 
   SELECT count(*) INTO _fix FROM wf_task_status_log
   WHERE lower(trim(to_status)) = 'fix' AND changed_at >= _from AND changed_at < _to;

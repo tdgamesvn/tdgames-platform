@@ -35,7 +35,10 @@ const MetricsTab: React.FC<Props> = ({ tasks, times, logs, statusCat, isAdmin, d
     const keys = Array.from({ length: 8 }, (_, i) => weekStartVN(now - i * 7 * DAY));
     const taskIds = new Set(tasks.map(t => t.id));
     const perTask = new Map<string, { h: number; wait: number; fix: number }>();
+    // Chỉ task có lần giao khách NẰM TRONG nhật ký (từ 17/9) — task giao trước đó mà có log về sau
+    // sẽ ra 0h giả (tuần 31/08 từng hiện "0h · 100%").
     times.forEach(x => {
+      if (!x.first_client_review_at) return;
       const c = perTask.get(x.task_id) || { h: 0, wait: 0, fix: 0 };
       c.h += x.active_hours; c.wait = Math.max(c.wait, x.waiting_client_hours); c.fix = Math.max(c.fix, x.fix_rounds);
       perTask.set(x.task_id, c);
