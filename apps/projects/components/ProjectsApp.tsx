@@ -264,7 +264,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         return { estPct: estSum > 0 ? Math.round(actSum / estSum * 100) : null,
                  total: sum, avg: delivered.length ? delivered.reduce((n, x) => n + x.active_hours, 0) / delivered.length : null,
                  firstPass: delivered.length ? Math.round(delivered.filter(x => x.fix_rounds === 0).length / delivered.length * 100) : null,
-                 fulltime: mine.some(x => x.is_fulltime) };
+                 fulltime: mine.some(x => x.is_fulltime), n: delivered.length };
       })(),
     };
   }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times, firstReview, statusCat, rangeFrom]);

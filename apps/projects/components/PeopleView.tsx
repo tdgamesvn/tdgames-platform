@@ -16,7 +16,7 @@ const initials = (n: string) => n.trim().split(/\s+/).slice(-2).map(x => x[0]).j
 export interface PersonStats {
   w: PmWorker; done: number; activeNow: number; doing: number; overdue: number; fix: number;
   onTimePct: number | null; onTimeN?: number; subOpen: number;
-  hours: { total: number; avg: number | null; firstPass: number | null; fulltime: boolean; estPct: number | null };
+  hours: { total: number; avg: number | null; firstPass: number | null; fulltime: boolean; estPct: number | null; n?: number };
 }
 
 // ── Kỳ thống kê ──────────────────────────────────────────────────────────
@@ -261,7 +261,12 @@ const valOf = (p: PersonStats, k: SortKey): number | null => ({
 
 export const PeopleTable: React.FC<{ people: PersonStats[]; onOpen: (id: string) => void }> = ({ people, onOpen }) => {
   const [sort, setSort] = useState<{ k: SortKey; desc: boolean }>({ k: 'done', desc: true });
+  // Cột tỷ lệ: < MIN_N task thì kết quả không đáng tin (1 task = 100%) ⇒ xếp sau người đủ mẫu.
+  const MIN_N = 3;
+  const nOf = (p: PersonStats, k: SortKey) => k === 'firstPass' || k === 'avg' ? (p.hours.n ?? 0) : k === 'onTime' ? (p.onTimeN ?? 0) : MIN_N;
   const rows = [...people].sort((a, b) => {
+    const ea = nOf(a, sort.k) >= MIN_N, eb = nOf(b, sort.k) >= MIN_N;
+    if (ea !== eb) return ea ? -1 : 1;
     const va = valOf(a, sort.k), vb = valOf(b, sort.k);
     if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; // "—" luôn xuống cuối
     return sort.desc ? vb - va : va - vb;
@@ -269,7 +274,10 @@ export const PeopleTable: React.FC<{ people: PersonStats[]; onOpen: (id: string)
   const fmt = (p: PersonStats, k: SortKey) => {
     const v = valOf(p, k); if (v == null) return <span className="text-neutral-600">—</span>;
     if (k === 'hours' || k === 'avg') return fmtH(v) + (k === 'hours' && !p.hours.fulltime ? '*' : '');
-    if (k === 'firstPass' || k === 'onTime') return v + '%' + (k === 'onTime' && p.onTimeN ? ` · ${p.onTimeN}` : '');
+    if (k === 'firstPass' || k === 'onTime') {
+      const n = k === 'onTime' ? p.onTimeN : p.hours.n;
+      return <span className={n != null && n < MIN_N ? 'text-neutral-600' : ''} title={n != null && n < MIN_N ? 'Ít hơn 3 task — chưa đủ tin cậy' : undefined}>{v}%{n ? ` · ${n}` : ''}</span>;
+    }
     return v;
   };
   return (
@@ -301,7 +309,7 @@ export const PeopleTable: React.FC<{ people: PersonStats[]; onOpen: (id: string)
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-neutral-medium px-4 py-3 border-t border-white/5">Bấm tiêu đề cột để xếp hạng · * freelancer: giờ đồng hồ (tương đối) · "—" chưa có dữ liệu (luôn xếp cuối) · bấm 1 dòng để xem chi tiết</p>
+      <p className="text-xs text-neutral-medium px-4 py-3 border-t border-white/5">Bấm tiêu đề cột để xếp hạng · tỷ lệ % kèm số task (chữ mờ = dưới 3 task, xếp sau) · * freelancer: giờ đồng hồ (tương đối) · "—" chưa có dữ liệu (luôn xếp cuối) · bấm 1 dòng để xem chi tiết</p>
     </div>
   );
 };
