@@ -21,24 +21,47 @@ const HASH_TAB: Record<string, TabId> = {
   overview: 'overview', projects: 'reports', people: 'history', subtasks: 'recurring', finance: 'activity',
 };
 
-const card = 'rounded-[20px] border border-primary/10 bg-surface p-5';
+const card = 'rounded-[20px] border border-primary/10 p-6 bg-surface';
+const kpiCard = 'rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface';
+const rowCard = 'flex items-center gap-4 p-4 rounded-[20px] border border-primary/10 hover:border-primary/20 transition-all bg-surface';
+const tr = 'border-b border-white/5 hover:bg-white/5 transition-colors';
+const btnXs = 'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all disabled:opacity-50';
+const btnPrimary = 'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all disabled:opacity-50';
+const btnGhost = 'px-4 py-2 rounded-xl text-xs font-black uppercase text-neutral-400 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-50';
+const btnOutline = 'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-orange-400 border border-orange-500/30 hover:bg-orange-500/10 transition-all disabled:opacity-50';
+const fieldLabel = 'text-neutral-500 text-[10px] font-black uppercase tracking-wider';
+// Màu badge theo bảng gợi ý STYLE_GUIDE §Badges + token neutral-medium.
+const C = { orange: '#FF9500', green: '#34C759', red: '#F44336', amber: '#FFA726', blue: '#0A84FF', purple: '#AF52DE', gray: '#9D9C9D' };
 const kpiLabel = 'text-[10px] font-black text-neutral-600 uppercase tracking-wider';
-const input = 'w-full rounded-xl border border-white/10 outline-none focus:border-orange-500/50 px-3 py-2 text-sm text-white';
+const input = 'px-3 py-2 rounded-xl text-sm text-white border border-white/10 outline-none focus:border-orange-500/50 transition-colors w-full';
 const Badge: React.FC<{ color: string; children: React.ReactNode }> = ({ color, children }) => (
   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-lg" style={{ background: color + '20', color }}>{children}</span>
 );
 const Kpi: React.FC<{ label: string; value: React.ReactNode; color?: string; hint?: string }> = ({ label, value, color, hint }) => (
-  <div className={card}>
-    <div className={kpiLabel}>{label}</div>
-    <div className="text-2xl font-black mt-1" style={{ color: color || '#fff' }}>{value}</div>
-    {hint && <div className="text-[11px] text-neutral-500 mt-1">{hint}</div>}
+  <div className={kpiCard}>
+    <div className={kpiLabel + ' flex items-center gap-2'}>
+      {color && <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: color }} />}{label}
+    </div>
+    <div className="text-2xl font-black text-white">{value}</div>
+    {hint && <div className="text-xs text-neutral-medium">{hint}</div>}
+  </div>
+);
+const Empty: React.FC<{ emoji: string; text: string; hint?: string }> = ({ emoji, text, hint }) => (
+  <div className="text-center py-16 text-neutral-700 text-sm">
+    <p className="text-3xl mb-3">{emoji}</p>
+    <p className="text-neutral-600 text-sm">{text}</p>
+    {hint && <p className="text-xs mt-1 text-neutral-700">{hint}</p>}
   </div>
 );
 const Heading: React.FC<{ title: string; sub: string }> = ({ title, sub }) => (
   <div className="mb-6">
-    <h1 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{title}</h1>
-    <p className="text-sm text-neutral-medium">{sub}</p>
+    <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{title}</h2>
+    <p className="text-sm text-neutral-medium mt-1">{sub}</p>
   </div>
+);
+// Khai báo NGOÀI component: khai báo trong render ⇒ remount mỗi lần gõ ⇒ input mất focus.
+const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div className="flex flex-col gap-1"><label className={fieldLabel}>{label}</label>{children}</div>
 );
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '—');
 
@@ -54,7 +77,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [logs, setLogs] = useState<PmStatusLog[]>([]);
   const [subtasks, setSubtasks] = useState<PmSubtask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,7 +85,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       const d = await fetchPmData();
       setTasks(d.tasks); setAssignees(d.assignees); setWorkers(d.workers); setLogs(d.logs);
       setSubtasks(await fetchSubtasks());
-    } catch (e: any) { setToast({ text: e.message || 'Lỗi tải dữ liệu', type: 'error' }); }
+    } catch (e: any) { setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' }); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load, workspace]);
@@ -133,34 +156,34 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
       <AppBackground />
-      {toast && <ToastNotification message={toast} onDismiss={() => setToast(null)} />}
+      {toast && <ToastNotification message={{ text: toast.message, type: toast.type }} onDismiss={() => setToast(null)} />}
       <Navbar
         theme="dark" currentUser={currentUser} appName="Dự án"
         activeTab={tab as any} accessibleTabs={accessibleTabs as any} tabLabels={TAB_LABELS}
         onTabChange={(t) => setTab(t as TabId)} onLogout={onBack} onBack={onBack}
       />
       <main className="flex-1 p-6 md:p-12 max-w-[1400px] mx-auto w-full">
-        {loading && <div className="text-sm text-neutral-500 mb-4">Đang tải…</div>}
+        {loading && <div className="text-xs text-neutral-medium mb-4 animate-td-pulse">Đang tải...</div>}
 
         {tab === 'overview' && (
           <div className="animate-fadeInUp">
             <Heading title="Tổng quan" sub="Tiến độ công việc toàn công ty (ClickUp + task phụ)" />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <Kpi label="Đang làm" value={open.length} />
-              <Kpi label="Trễ hạn" value={overdue.length} color="#FF453A" hint={withDue ? undefined : 'Chưa có task nào có hạn chót'} />
-              <Kpi label="Đang FIX" value={fixing.length} color="#FF9F0A" />
-              <Kpi label="Xong tháng này" value={doneThisMonth.length} color="#34C759" />
-              <Kpi label="Task phụ mở" value={subtasks.filter(s => s.status === 'todo' || s.status === 'doing').length} color="#0A84FF" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-6">
+              <Kpi label="Đang làm" value={open.length} color={C.blue} />
+              <Kpi label="Trễ hạn" value={overdue.length} color={C.red} hint={withDue ? undefined : 'Chưa có task nào có hạn chót'} />
+              <Kpi label="Đang FIX" value={fixing.length} color={C.amber} />
+              <Kpi label="Xong tháng này" value={doneThisMonth.length} color={C.green} />
+              <Kpi label="Task phụ mở" value={subtasks.filter(s => s.status === 'todo' || s.status === 'doing').length} color={C.orange} />
             </div>
             <div className={card}>
-              <div className={kpiLabel + ' mb-3'}>Task trễ hạn</div>
-              {overdue.length === 0 ? <div className="text-sm text-neutral-500">Không có task trễ hạn.</div> : (
-                <div className="space-y-2">
+              <div className="text-base font-black uppercase tracking-wider text-white mb-4">Task trễ hạn</div>
+              {overdue.length === 0 ? <Empty emoji="✅" text="Không có task trễ hạn" /> : (
+                <div className="space-y-3">
                   {overdue.slice(0, 20).map(t => (
-                    <div key={t.id} className="flex items-center justify-between gap-3 text-sm">
-                      <div className="min-w-0"><div className="text-white truncate">{t.title}</div>
-                        <div className="text-[11px] text-neutral-500">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
-                      <Badge color="#FF453A">Hạn {fmtDate(t.due_date)}</Badge>
+                    <div key={t.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
+                        <div className="text-xs text-neutral-medium">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
+                      <Badge color={C.red}>Hạn {fmtDate(t.due_date)}</Badge>
                     </div>
                   ))}
                 </div>
@@ -174,19 +197,20 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp)" />
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-sm">
-                <thead><tr className={kpiLabel + ' text-left'}>
+                <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
                   <th className="py-2">Dự án</th><th>Tiến độ</th><th className="text-right">Task</th>
                   <th className="text-right">Trễ</th><th className="text-right">FIX</th><th className="text-right">Hạn cuối</th></tr></thead>
                 <tbody>
+                  {projects.length === 0 && !loading && <tr><td colSpan={6}><Empty emoji="📁" text="Chưa có dự án" /></td></tr>}
                   {projects.map(p => (
-                    <tr key={p.name} className="border-t border-white/5">
-                      <td className="py-3"><div className="text-white font-bold">{p.name}</div><div className="text-[11px] text-neutral-500">{p.space}</div></td>
+                    <tr key={p.name} className={tr}>
+                      <td className="py-3"><div className="text-sm font-semibold text-white">{p.name}</div><div className="text-xs text-neutral-medium">{p.space}</div></td>
                       <td className="w-56"><div className="flex items-center gap-2">
                         <div className="flex-1 h-1.5 rounded-full bg-white/10"><div className="h-1.5 rounded-full" style={{ width: p.pct + '%', background: '#FF9500' }} /></div>
                         <span className="text-xs text-neutral-400 w-9 text-right">{p.pct}%</span></div></td>
                       <td className="text-right text-neutral-300">{p.done}/{p.total}</td>
-                      <td className="text-right">{p.overdue ? <Badge color="#FF453A">{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
-                      <td className="text-right">{p.fix ? <Badge color="#FF9F0A">{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
+                      <td className="text-right">{p.overdue ? <Badge color={C.red}>{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
+                      <td className="text-right">{p.fix ? <Badge color={C.amber}>{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
                       <td className="text-right text-neutral-400">{fmtDate(p.lastDue)}</td>
                     </tr>
                   ))}
@@ -201,18 +225,18 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             <Heading title="Nhân sự" sub="Hiệu suất fulltime + freelancer (không hiển thị tiền)" />
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] text-sm">
-                <thead><tr className={kpiLabel + ' text-left'}>
+                <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
                   <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right">Đang làm</th>
                   <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Task phụ mở</th></tr></thead>
                 <tbody>
                   {people.map(p => (
-                    <tr key={p.w.id} className="border-t border-white/5">
-                      <td className="py-3"><span className="text-white font-bold">{p.w.full_name}</span>{' '}
-                        <Badge color={p.w.type === 'freelancer' ? '#BF5AF2' : '#0A84FF'}>{p.w.type || '—'}</Badge></td>
+                    <tr key={p.w.id} className={tr}>
+                      <td className="py-3"><span className="text-sm font-semibold text-white">{p.w.full_name}</span>{' '}
+                        <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{p.w.type || '—'}</Badge></td>
                       <td className="text-right text-white font-bold">{p.done}</td>
                       <td className="text-right text-neutral-300">{p.doing}</td>
-                      <td className="text-right">{p.overdue ? <Badge color="#FF453A">{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
-                      <td className="text-right">{p.fix ? <Badge color="#FF9F0A">{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
+                      <td className="text-right">{p.overdue ? <Badge color={C.red}>{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
+                      <td className="text-right">{p.fix ? <Badge color={C.amber}>{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
                       <td className="text-right text-neutral-300">{p.onTimePct == null ? '—' : p.onTimePct + '%'}</td>
                       <td className="text-right text-neutral-300">{p.subOpen}</td>
                     </tr>
@@ -220,36 +244,39 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 </tbody>
               </table>
             </div>
-            <p className="text-[11px] text-neutral-600 mt-3">"Đúng hạn" chỉ tính task đã xong có hạn chót. "Lần FIX" đếm từ nhật ký trạng thái (ghi từ 17/09/2026).</p>
+            <p className="text-xs text-neutral-medium mt-3">"Đúng hạn" chỉ tính task đã xong có hạn chót. "Lần FIX" đếm từ nhật ký trạng thái (ghi từ 17/09/2026).</p>
           </div>
         )}
 
         {tab === 'recurring' && (
           <SubtaskTab subtasks={subtasks} setSubtasks={setSubtasks} workers={wsWorkers} tasks={wsTasks}
             projectNames={projects.map(p => p.name)} workerName={workerName}
-            onError={(m) => setToast({ text: m, type: 'error' })} onOk={(m) => setToast({ text: m, type: 'success' })} />
+            onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
         )}
 
         {tab === 'activity' && isAdmin && (
           <div className="animate-fadeInUp">
             <Heading title="Tài chính" sub="Chỉ admin thấy — doanh thu, chi phí theo dự án" />
             <div className={card}>
-              <p className="text-sm text-neutral-300 mb-4">Số liệu tài chính đang nằm ở Workforce → Tổng quan (doanh thu, chi phí nhân sự, hiệu suất theo tiền).</p>
-              <a href="#workforce/overview" className="inline-block rounded-xl text-xs font-black uppercase px-4 py-2 text-white" style={{ background: '#FF9500' }}>Mở tài chính dự án →</a>
+              <p className="text-sm text-neutral-medium mb-4">Số liệu tài chính đang nằm ở Workforce → Tổng quan (doanh thu, chi phí nhân sự, hiệu suất theo tiền).</p>
+              <a href="#workforce/overview" className={btnPrimary + ' inline-block'} style={{ background: '#FF9500' }}>Mở tài chính dự án →</a>
             </div>
           </div>
         )}
       </main>
+      <footer className="py-12 border-t text-center opacity-30 text-[9px] font-black uppercase tracking-[0.5em]">
+        TD Games • Enterprise Platform • v3.0
+      </footer>
     </div>
   );
 };
 
 // ── Task phụ ──────────────────────────────────────────────────────────────
 const STATUS_META: Record<SubtaskStatus, { label: string; color: string }> = {
-  todo: { label: 'Cần làm', color: '#8E8E93' }, doing: { label: 'Đang làm', color: '#0A84FF' },
-  done: { label: 'Xong', color: '#34C759' }, cancelled: { label: 'Huỷ', color: '#636366' },
+  todo: { label: 'Cần làm', color: C.gray }, doing: { label: 'Đang làm', color: C.blue },
+  done: { label: 'Xong', color: C.green }, cancelled: { label: 'Huỷ', color: C.gray },
 };
-const PRIORITY_META = { low: { label: 'Thấp', color: '#8E8E93' }, normal: { label: 'Thường', color: '#FF9500' }, high: { label: 'Gấp', color: '#FF453A' } };
+const PRIORITY_META = { low: { label: 'Thấp', color: C.gray }, normal: { label: 'Thường', color: C.orange }, high: { label: 'Gấp', color: C.red } };
 
 const SubtaskTab: React.FC<{
   subtasks: PmSubtask[]; setSubtasks: React.Dispatch<React.SetStateAction<PmSubtask[]>>;
@@ -257,6 +284,7 @@ const SubtaskTab: React.FC<{
   onError: (m: string) => void; onOk: (m: string) => void;
 }> = ({ subtasks, setSubtasks, workers, tasks, projectNames, workerName, onError, onOk }) => {
   const [editing, setEditing] = useState<Partial<PmSubtask> | null>(null);
+  const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<'open' | 'all'>('open');
   const shown = subtasks.filter(s => filter === 'all' || s.status === 'todo' || s.status === 'doing');
 
@@ -267,6 +295,7 @@ const SubtaskTab: React.FC<{
       parent_task_id: editing.parent_task_id || null, assignee_worker_id: editing.assignee_worker_id || null,
       status: editing.status || 'todo', priority: editing.priority || 'normal', due_date: editing.due_date || null,
     } as Partial<PmSubtask>;
+    setSaving(true);
     try {
       if (editing.id) {
         const u = await updateSubtask(editing.id, payload);
@@ -276,51 +305,55 @@ const SubtaskTab: React.FC<{
         setSubtasks(prev => [c, ...prev]);
       }
       setEditing(null); onOk('Đã lưu task phụ');
-    } catch (e: any) { onError(e.message); }
+    } catch (e: any) { onError(e.message || 'Có lỗi xảy ra'); }
+    finally { setSaving(false); }
   };
   const setStatus = async (s: PmSubtask, status: SubtaskStatus) => {
     try { const u = await updateSubtask(s.id, { status }); setSubtasks(prev => prev.map(x => (x.id === u.id ? u : x))); }
-    catch (e: any) { onError(e.message); }
+    catch (e: any) { onError(e.message || 'Có lỗi xảy ra'); }
   };
   const remove = async (s: PmSubtask) => {
     if (!window.confirm(`Xoá task phụ "${s.title}"?`)) return;
-    try { await deleteSubtask(s.id); setSubtasks(prev => prev.filter(x => x.id !== s.id)); } catch (e: any) { onError(e.message); }
+    try { await deleteSubtask(s.id); setSubtasks(prev => prev.filter(x => x.id !== s.id)); }
+    catch (e: any) { onError(e.message || 'Có lỗi xảy ra'); }
   };
+
+  const bg = { background: '#1a1a1a' };
 
   return (
     <div className="animate-fadeInUp">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <Heading title="Task phụ" sub="Việc tạo thêm trong app — ClickUp vẫn là nguồn task chính" />
         <div className="flex gap-2">
-          <button onClick={() => setFilter(filter === 'open' ? 'all' : 'open')}
-            className="rounded-xl text-xs font-black uppercase px-4 py-2 border border-white/10 text-neutral-400">
+          <button onClick={() => setFilter(filter === 'open' ? 'all' : 'open')} className={btnGhost}>
             {filter === 'open' ? 'Xem tất cả' : 'Chỉ việc đang mở'}</button>
-          <button onClick={() => setEditing({ status: 'todo', priority: 'normal' })}
-            className="rounded-xl text-xs font-black uppercase px-4 py-2 text-white" style={{ background: '#FF9500' }}>+ Thêm task</button>
+          <button onClick={() => setEditing({ status: 'todo', priority: 'normal' })} className={btnPrimary} style={{ background: '#FF9500' }}>+ Thêm task</button>
         </div>
       </div>
 
-      {shown.length === 0 ? <div className={card + ' text-sm text-neutral-500'}>Chưa có task phụ.</div> : (
-        <div className="space-y-2">
+      {shown.length === 0 ? (
+        <Empty emoji="📝" text="Chưa có task phụ" hint="Bấm “+ Thêm task” để tạo việc ngoài ClickUp" />
+      ) : (
+        <div className="space-y-3">
           {shown.map(s => (
-            <div key={s.id} className={card + ' flex items-center justify-between gap-4 !p-4'}>
+            <div key={s.id} className={rowCard + ' justify-between'}>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-white font-bold">{s.title}</span>
+                  <span className="text-sm font-semibold text-white">{s.title}</span>
                   <Badge color={STATUS_META[s.status].color}>{STATUS_META[s.status].label}</Badge>
                   <Badge color={PRIORITY_META[s.priority].color}>{PRIORITY_META[s.priority].label}</Badge>
-                  {isOverdue(s, s.status === 'done' || s.status === 'cancelled') && <Badge color="#FF453A">Trễ hạn</Badge>}
+                  {isOverdue(s, s.status === 'done' || s.status === 'cancelled') && <Badge color={C.red}>Trễ hạn</Badge>}
                 </div>
-                <div className="text-[11px] text-neutral-500 mt-1">
+                <div className="text-xs text-neutral-medium mt-1">
                   {s.project || 'Không gắn dự án'} · {workerName(s.assignee_worker_id)} · Hạn {fmtDate(s.due_date)}
                   {s.parent_task_id && <> · ↳ {tasks.find(t => t.id === s.parent_task_id)?.title || 'task ClickUp'}</>}
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
-                {s.status === 'todo' && <button onClick={() => setStatus(s, 'doing')} className="rounded-lg text-[10px] font-black uppercase px-3 py-1.5 border border-orange-500/30 text-orange-400">Bắt đầu</button>}
-                {s.status === 'doing' && <button onClick={() => setStatus(s, 'done')} className="rounded-lg text-[10px] font-black uppercase px-3 py-1.5 border border-orange-500/30 text-orange-400">Xong</button>}
-                <button onClick={() => setEditing(s)} className="rounded-lg text-[10px] font-black uppercase px-3 py-1.5 border border-white/10 text-neutral-400">Sửa</button>
-                <button onClick={() => remove(s)} className="rounded-lg text-[10px] font-black uppercase px-3 py-1.5 border border-white/10 text-neutral-400">Xoá</button>
+                {s.status === 'todo' && <button onClick={() => setStatus(s, 'doing')} className={btnOutline}>Bắt đầu</button>}
+                {s.status === 'doing' && <button onClick={() => setStatus(s, 'done')} className={btnOutline}>Xong</button>}
+                <button onClick={() => setEditing(s)} className={btnXs}>Sửa</button>
+                <button onClick={() => remove(s)} className={btnXs}>Xoá</button>
               </div>
             </div>
           ))}
@@ -329,31 +362,45 @@ const SubtaskTab: React.FC<{
 
       {editing && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setEditing(null)} />
-          <div className="relative z-10 w-full max-w-lg rounded-[20px] border border-primary/10 bg-surface p-6 space-y-3 animate-scaleIn">
-            <h3 className="text-white font-black text-base uppercase tracking-tight">{editing.id ? 'Sửa task phụ' : 'Task phụ mới'}</h3>
-            <input className={input} style={{ background: '#1a1a1a' }} placeholder="Tên task *" autoFocus
-              value={editing.title || ''} onChange={e => setEditing({ ...editing, title: e.target.value })} />
-            <textarea className={input} style={{ background: '#1a1a1a' }} rows={3} placeholder="Mô tả"
-              value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
-              <select className={input} style={{ background: '#1a1a1a' }} value={editing.project || ''} onChange={e => setEditing({ ...editing, project: e.target.value })}>
-                <option value="">— Dự án —</option>{projectNames.map(p => <option key={p} value={p}>{p}</option>)}</select>
-              <select className={input} style={{ background: '#1a1a1a' }} value={editing.assignee_worker_id || ''} onChange={e => setEditing({ ...editing, assignee_worker_id: e.target.value })}>
-                <option value="">— Người làm —</option>{workers.filter(w => w.is_active !== false).map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}</select>
-              <select className={input} style={{ background: '#1a1a1a' }} value={editing.priority || 'normal'} onChange={e => setEditing({ ...editing, priority: e.target.value as any })}>
-                {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>Ưu tiên: {v.label}</option>)}</select>
-              <select className={input} style={{ background: '#1a1a1a' }} value={editing.status || 'todo'} onChange={e => setEditing({ ...editing, status: e.target.value as SubtaskStatus })}>
-                {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
-              <input type="date" className={input} style={{ background: '#1a1a1a' }} value={editing.due_date || ''} onChange={e => setEditing({ ...editing, due_date: e.target.value })} />
-              <select className={input} style={{ background: '#1a1a1a' }} value={editing.parent_task_id || ''} onChange={e => setEditing({ ...editing, parent_task_id: e.target.value })}>
-                <option value="">— Gắn task ClickUp —</option>
-                {tasks.filter(t => !isDone(t) && (!editing.project || projectOf(t) === editing.project)).slice(0, 200)
-                  .map(t => <option key={t.id} value={t.id}>{t.title.slice(0, 60)}</option>)}</select>
+          <div className="absolute inset-0 bg-black/70" onClick={() => !saving && setEditing(null)} />
+          <div className="relative z-10 w-full max-w-lg rounded-[20px] border border-primary/10 bg-surface p-6 space-y-4 animate-scaleIn">
+            <h3 className="text-base font-black uppercase tracking-wider text-white">{editing.id ? 'Sửa task phụ' : 'Task phụ mới'}</h3>
+            <Field label="Tên task *">
+              <input className={input} style={bg} autoFocus value={editing.title || ''} onChange={e => setEditing({ ...editing, title: e.target.value })} />
+            </Field>
+            <Field label="Mô tả">
+              <textarea className={input + ' resize-none'} style={bg} rows={3} value={editing.description || ''} onChange={e => setEditing({ ...editing, description: e.target.value })} />
+            </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Dự án">
+                <select className={input} style={bg} value={editing.project || ''} onChange={e => setEditing({ ...editing, project: e.target.value })}>
+                  <option value="">— Không gắn —</option>{projectNames.map(p => <option key={p} value={p}>{p}</option>)}</select>
+              </Field>
+              <Field label="Người làm">
+                <select className={input} style={bg} value={editing.assignee_worker_id || ''} onChange={e => setEditing({ ...editing, assignee_worker_id: e.target.value })}>
+                  <option value="">— Chưa giao —</option>{workers.filter(w => w.is_active !== false).map(w => <option key={w.id} value={w.id}>{w.full_name}</option>)}</select>
+              </Field>
+              <Field label="Ưu tiên">
+                <select className={input} style={bg} value={editing.priority || 'normal'} onChange={e => setEditing({ ...editing, priority: e.target.value as PmSubtask['priority'] })}>
+                  {Object.entries(PRIORITY_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+              </Field>
+              <Field label="Trạng thái">
+                <select className={input} style={bg} value={editing.status || 'todo'} onChange={e => setEditing({ ...editing, status: e.target.value as SubtaskStatus })}>
+                  {Object.entries(STATUS_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+              </Field>
+              <Field label="Hạn chót">
+                <input type="date" className={input} style={bg} value={editing.due_date || ''} onChange={e => setEditing({ ...editing, due_date: e.target.value })} />
+              </Field>
+              <Field label="Gắn task ClickUp">
+                <select className={input} style={bg} value={editing.parent_task_id || ''} onChange={e => setEditing({ ...editing, parent_task_id: e.target.value })}>
+                  <option value="">— Không gắn —</option>
+                  {tasks.filter(t => !isDone(t) && (!editing.project || projectOf(t) === editing.project)).slice(0, 200)
+                    .map(t => <option key={t.id} value={t.id}>{t.title.slice(0, 60)}</option>)}</select>
+              </Field>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setEditing(null)} className="rounded-xl text-xs font-black uppercase px-4 py-2 border border-white/10 text-neutral-400">Huỷ</button>
-              <button onClick={save} className="rounded-xl text-xs font-black uppercase px-4 py-2 text-white" style={{ background: '#FF9500' }}>Lưu</button>
+              <button onClick={() => setEditing(null)} disabled={saving} className={btnGhost}>Huỷ</button>
+              <button onClick={save} disabled={saving} className={btnPrimary} style={{ background: '#FF9500' }}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>, document.body)}

@@ -287,6 +287,10 @@ async function runAutoSync() {
 
         const clickupStatus = task.status?.status || "";
         const ourStatus = mapStatus(clickupStatus);
+        // Hạn chót ClickUp (ms, UTC) → ngày theo giờ VN, null nếu không đặt hạn. App Dự án dùng để tính trễ hạn.
+        const dueDate = task.due_date
+          ? new Date(parseInt(task.due_date) + 7 * 3600_000).toISOString().split("T")[0]
+          : null;
         const startDate = task.date_created
           ? new Date(parseInt(task.date_created)).toISOString().split("T")[0]
           : null;
@@ -315,6 +319,7 @@ async function runAutoSync() {
             clickup_status: clickupStatus,
             status: ourStatus,
             start_date: startDate,
+            due_date: dueDate,
             closed_date: closedDate,
             completed_at: closedDate,
             clickup_updated_at: clickupUpdatedAt,
@@ -352,6 +357,7 @@ async function runAutoSync() {
             bonus: 0,
             bonus_note: "",
             start_date: startDate,
+            due_date: dueDate,
             closed_date: closedDate,
             completed_at: closedDate,
             clickup_updated_at: clickupUpdatedAt,
