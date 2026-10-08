@@ -7,6 +7,7 @@ import { AccountUser } from '@/types';
 import { hasRole } from '@/utils/roleUtils';
 import { supabase } from '@/services/supabaseClient';
 import TaskDrawer, { DrawerTarget } from './TaskDrawer';
+import MetricsTab from './MetricsTab';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
@@ -16,12 +17,12 @@ import {
 } from '../services/projectService';
 
 // Navbar chỉ nhận các id tab cố định ⇒ map id → nhãn của app này.
-type TabId = 'overview' | 'reports' | 'history' | 'recurring' | 'activity';
+type TabId = 'overview' | 'reports' | 'history' | 'dashboard' | 'recurring' | 'activity';
 const TAB_LABELS: Record<string, string> = {
-  overview: 'Tổng quan', reports: 'Dự án', history: 'Nhân sự', recurring: 'Task phụ', activity: 'Tài chính',
+  overview: 'Tổng quan', reports: 'Dự án', history: 'Nhân sự', dashboard: 'Chỉ số', recurring: 'Task phụ', activity: 'Tài chính',
 };
 const HASH_TAB: Record<string, TabId> = {
-  overview: 'overview', projects: 'reports', people: 'history', subtasks: 'recurring', finance: 'activity',
+  overview: 'overview', projects: 'reports', people: 'history', metrics: 'dashboard', subtasks: 'recurring', finance: 'activity',
 };
 
 const card = 'rounded-[20px] border border-primary/10 p-6 bg-surface';
@@ -196,7 +197,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times, firstReview, statusCat]);
 
   const workerName = (id: string | null) => workers.find(w => w.id === id)?.full_name || '—';
-  const accessibleTabs: TabId[] = isAdmin ? ['overview', 'reports', 'history', 'recurring', 'activity'] : ['overview', 'reports', 'history', 'recurring'];
+  const accessibleTabs: TabId[] = isAdmin ? ['overview', 'reports', 'history', 'dashboard', 'recurring', 'activity'] : ['overview', 'reports', 'history', 'dashboard', 'recurring'];
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ backgroundColor: '#0F0F0F' }}>
@@ -318,6 +319,11 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           <SubtaskTab subtasks={subtasks} setSubtasks={setSubtasks} workers={wsWorkers} tasks={wsTasks}
             projectNames={projects.map(p => p.name)} workerName={workerName}
             onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
+        )}
+
+        {tab === 'dashboard' && (
+          <MetricsTab tasks={wsTasks} times={times} logs={logs} statusCat={statusCat} isAdmin={isAdmin} deliveredOn={deliveredOn}
+            onCatsSaved={load} onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
         )}
 
         {tab === 'activity' && isAdmin && (
