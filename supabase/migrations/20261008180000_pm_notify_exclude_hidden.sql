@@ -1,0 +1,4 @@
+-- pm_notify_stuck_tasks: loại task PM đã "Bỏ qua" (pm_task_hidden) khỏi noti 08:30 — khớp UI.
+-- Thân hàm = 20261008160000 + 2 điều kiện NOT EXISTS pm_task_hidden (stuck + no_estimate).
+-- (Đã apply prod qua MCP 2026-10-08; xem bản đầy đủ trong lịch sử migration Supabase.)
+-- ponytail: pm_send_weekly_report (_stuck) CHƯA loại task ẩn — sửa lần sau nếu số tuần lệch UI.
