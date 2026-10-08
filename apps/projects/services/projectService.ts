@@ -71,3 +71,32 @@ export async function deleteSubtask(id: string): Promise<void> {
   const { error } = await supabase.from('pm_subtasks').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ── Thời gian làm task (migration 20261008120000) ──
+export interface PmTaskTime {
+  task_id: string; worker_id: string; is_fulltime: boolean;
+  active_hours: number; active_calendar_hours: number; waiting_client_hours: number;
+  fix_rounds: number; first_client_review_at: string | null; tracked_since: string | null;
+  current_status: string | null; current_status_since: string | null;
+}
+export interface PmInterval { task_id: string; status: string; category: string; started_at: string; ended_at: string | null; }
+
+export async function fetchTaskTime(): Promise<PmTaskTime[]> {
+  const { data, error } = await supabase.from('pm_task_time').select('*');
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    ...r, active_hours: Number(r.active_hours), active_calendar_hours: Number(r.active_calendar_hours),
+    waiting_client_hours: Number(r.waiting_client_hours), fix_rounds: Number(r.fix_rounds),
+  }));
+}
+
+export async function fetchTaskIntervals(taskId: string): Promise<PmInterval[]> {
+  const { data, error } = await supabase.from('pm_task_status_intervals')
+    .select('task_id, status, category, started_at, ended_at').eq('task_id', taskId).order('started_at');
+  if (error) throw error;
+  return (data || []) as PmInterval[];
+}
+
+/** Ngưỡng "task đứng" (giờ đồng hồ ở trạng thái hiện tại). */
+export const STUCK_HOURS: Record<string, number> = { active: 48, waiting_client: 120 };
+export const hoursSince = (iso?: string | null) => (iso ? (Date.now() - new Date(iso).getTime()) / 3600_000 : 0);

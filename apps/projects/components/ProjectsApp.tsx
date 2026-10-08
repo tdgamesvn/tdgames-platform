@@ -5,10 +5,12 @@ import { Navbar } from '@/components/Navbar';
 import { ToastNotification } from '@/components/ToastNotification';
 import { AccountUser } from '@/types';
 import { hasRole } from '@/utils/roleUtils';
+import { supabase } from '@/services/supabaseClient';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
   fetchPmData, fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
+  fetchTaskTime, PmTaskTime, STUCK_HOURS, hoursSince,
   isDone, isFix, isOverdue, projectOf, norm, todayISO,
 } from '../services/projectService';
 
@@ -63,6 +65,7 @@ const Heading: React.FC<{ title: string; sub: string }> = ({ title, sub }) => (
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="flex flex-col gap-1"><label className={fieldLabel}>{label}</label>{children}</div>
 );
+const fmtH = (h: number) => (h >= 100 ? Math.round(h) : Math.round(h * 10) / 10) + 'h';
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split('-').reverse().join('/') : '—');
 
 interface Props { currentUser: AccountUser; onBack: () => void; initialTab?: string | null; }
@@ -78,6 +81,8 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [workers, setWorkers] = useState<PmWorker[]>([]);
   const [logs, setLogs] = useState<PmStatusLog[]>([]);
   const [subtasks, setSubtasks] = useState<PmSubtask[]>([]);
+  const [times, setTimes] = useState<PmTaskTime[]>([]);
+  const [statusCat, setStatusCat] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -87,6 +92,9 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       const d = await fetchPmData();
       setTasks(d.tasks); setAssignees(d.assignees); setWorkers(d.workers); setLogs(d.logs);
       setSubtasks(await fetchSubtasks());
+      setTimes(await fetchTaskTime());
+      const { data: cats } = await supabase.from('wf_status_categories').select('status, category');
+      setStatusCat(Object.fromEntries((cats || []).map((c: any) => [c.status, c.category])));
     } catch (e: any) { setToast({ message: e.message || 'Có lỗi xảy ra', type: 'error' }); }
     finally { setLoading(false); }
   }, []);
@@ -117,6 +125,17 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const monthPrefix = todayISO().slice(0, 7);
   const doneThisMonth = wsTasks.filter(t => isDone(t) && (t.completed_at || t.closed_date || t.clickup_updated_at || '').startsWith(monthPrefix));
   const withDue = wsTasks.filter(t => t.due_date).length;
+  // Task đứng: trạng thái hiện tại kéo dài quá ngưỡng (1 dòng / task dù nhiều người làm).
+  const stuck = useMemo(() => {
+    const seen = new Set<string>(); const out: { t: PmTask; x: PmTaskTime; h: number }[] = [];
+    times.forEach(x => {
+      if (seen.has(x.task_id)) return; seen.add(x.task_id);
+      const cat = statusCat[x.current_status || '']; const lim = STUCK_HOURS[cat]; const h = hoursSince(x.current_status_since);
+      const t = wsTasks.find(tt => tt.id === x.task_id);
+      if (t && lim && h > lim) out.push({ t, x, h });
+    });
+    return out.sort((a, b) => b.h - a.h);
+  }, [times, statusCat, wsTasks]);
 
   // ── Dự án ──
   const projects = useMemo(() => {
@@ -149,8 +168,17 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       fix: ts.reduce((n, t) => n + (fixCount.get(t.id) || 0), 0),
       onTimePct: doneWithDue ? Math.round((onTime / doneWithDue) * 100) : null,
       subOpen: subs.filter(s => s.status === 'todo' || s.status === 'doing').length,
+      // Giờ làm: fulltime = giao giờ chấm công; freelancer = giờ đồng hồ (tương đối).
+      hours: (() => {
+        const mine = times.filter(x => x.worker_id === w.id);
+        const delivered = mine.filter(x => x.first_client_review_at);
+        const sum = mine.reduce((n, x) => n + x.active_hours, 0);
+        return { total: sum, avg: delivered.length ? delivered.reduce((n, x) => n + x.active_hours, 0) / delivered.length : null,
+                 firstPass: delivered.length ? Math.round(delivered.filter(x => x.fix_rounds === 0).length / delivered.length * 100) : null,
+                 fulltime: mine.some(x => x.is_fulltime) };
+      })(),
     };
-  }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount]);
+  }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times]);
 
   const workerName = (id: string | null) => workers.find(w => w.id === id)?.full_name || '—';
   const accessibleTabs: TabId[] = isAdmin ? ['overview', 'reports', 'history', 'recurring', 'activity'] : ['overview', 'reports', 'history', 'recurring'];
@@ -177,6 +205,24 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
               <Kpi label="Xong tháng này" value={doneThisMonth.length} color={C.green} />
               <Kpi label="Task phụ mở" value={subtasks.filter(s => s.status === 'todo' || s.status === 'doing').length} color={C.orange} />
             </div>
+            {stuck.length > 0 && (
+              <div className={card + ' mb-6'}>
+                <div className="text-base font-black uppercase tracking-wider text-white mb-1">Task đứng lâu</div>
+                <p className="text-xs text-neutral-medium mb-4">Đang làm quá {STUCK_HOURS.active}h hoặc chờ khách quá {STUCK_HOURS.waiting_client / 24} ngày ở cùng một trạng thái</p>
+                <div className="space-y-3">
+                  {stuck.slice(0, 20).map(({ t, x, h }) => (
+                    <div key={t.id} className="flex items-center justify-between gap-3">
+                      <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
+                        <div className="text-xs text-neutral-medium">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
+                      <div className="flex gap-2 shrink-0">
+                        <Badge color={statusCat[x.current_status || ''] === 'active' ? C.amber : C.blue}>{x.current_status}</Badge>
+                        <Badge color={C.red}>{Math.floor(h / 24)} ngày</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className={card}>
               <div className="text-base font-black uppercase tracking-wider text-white mb-4">Task trễ hạn</div>
               {overdue.length === 0 ? <Empty emoji="✅" text="Không có task trễ hạn" /> : (
@@ -229,7 +275,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
               <table className="w-full min-w-[760px] text-sm">
                 <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
                   <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right">Đang làm</th>
-                  <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Task phụ mở</th></tr></thead>
+                  <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Giờ làm</th><th className="text-right">TB / task</th><th className="text-right">Duyệt lần đầu</th><th className="text-right">Task phụ mở</th></tr></thead>
                 <tbody>
                   {people.map(p => (
                     <tr key={p.w.id} className={tr}>
@@ -240,13 +286,16 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                       <td className="text-right">{p.overdue ? <Badge color={C.red}>{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
                       <td className="text-right">{p.fix ? <Badge color={C.amber}>{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
                       <td className="text-right text-neutral-300">{p.onTimePct == null ? '—' : p.onTimePct + '%'}</td>
+                      <td className="text-right text-white font-semibold">{p.hours.total ? fmtH(p.hours.total) : '—'}{!p.hours.fulltime && p.hours.total > 0 && <span className="text-neutral-600">*</span>}</td>
+                      <td className="text-right text-neutral-300">{p.hours.avg == null ? '—' : fmtH(p.hours.avg)}</td>
+                      <td className="text-right text-neutral-300">{p.hours.firstPass == null ? '—' : p.hours.firstPass + '%'}</td>
                       <td className="text-right text-neutral-300">{p.subOpen}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-neutral-medium mt-3">"Đúng hạn" chỉ tính task đã xong có hạn chót. "Lần FIX" đếm từ nhật ký trạng thái (ghi từ 17/09/2026).</p>
+            <p className="text-xs text-neutral-medium mt-3">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — <span className="text-neutral-600">*</span> freelancer tính giờ đồng hồ (tương đối). Không tính client_review / pending. "TB / task" và "Duyệt lần đầu" (không FIX) tính trên task đã giao khách. Dữ liệu từ 17/09/2026.</p>
           </div>
         )}
 
