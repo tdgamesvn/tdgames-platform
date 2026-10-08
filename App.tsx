@@ -8,6 +8,7 @@ import { fetchMyProfile } from './apps/portal/services/portalService';
 import InvoiceApp from './apps/invoice/components/InvoiceApp';
 import ExpenseApp from './apps/expense/components/ExpenseApp';
 import WorkforceApp from './apps/workforce/components/WorkforceApp';
+import ProjectsApp from './apps/projects/components/ProjectsApp';
 import CrmApp from './apps/crm/components/CrmApp';
 import HrApp from './apps/hr/components/HrApp';
 import AttendanceApp from './apps/attendance/components/AttendanceApp';
@@ -37,7 +38,7 @@ const parseSecondaryRoles = (raw: unknown): string[] | undefined => {
 };
 // ponytail: 'ai-agent' tạm gỡ khỏi VALID_APPS — ẩn thẻ ở HomeScreen thôi chưa đủ,
 // gõ thẳng #ai-agent vào URL vẫn vào được. Thêm lại chuỗi này là bật lại route.
-const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'system-monitor', 'handbook', 'tax-portal'];
+const VALID_APPS = ['dashboard', 'invoice', 'expense', 'workforce', 'projects', 'crm', 'hr', 'attendance', 'payroll', 'portal', 'freelancer-portal', 'accounting', 'company', 'system-monitor', 'handbook', 'tax-portal'];
 
 /** Parse hash like #workforce/tasks or #hr/requests/uuid → { app, tab, param } */
 const parseHash = (): { app: string | null; tab: string | null; param: string | null } => {
@@ -325,6 +326,9 @@ const App: React.FC = () => {
     return <ExpenseApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
   }
 
+  if (activeApp === 'projects') {
+    return <ProjectsApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
+  }
   if (activeApp === 'workforce') {
     return <WorkforceApp currentUser={currentUser} onBack={handleBack} initialTab={initialTab} />;
   }

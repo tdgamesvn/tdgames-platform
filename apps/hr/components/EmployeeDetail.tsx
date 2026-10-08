@@ -60,6 +60,7 @@ const EmployeeDetail: React.FC<Props> = ({ employee, departments, currentUser, o
     { value: 'admin', label: '👑 Admin', color: '#FF375F' },
     { value: 'freelancer', label: '🤝 Freelancer', color: '#5E5CE6' },
     { value: 'bd', label: '💼 Business Dev', color: '#34D399' },
+    { value: 'pm', label: '📊 Quản lý dự án', color: '#FF9500' },
   ];
 
   // CCCD upload state

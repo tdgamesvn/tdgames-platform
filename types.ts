@@ -83,7 +83,7 @@ export interface AccountUser {
   id: string;
   username: string;
   email?: string; // real login/work email (auth.users.email) — dùng làm Reply-To cá nhân khi BD gửi outreach
-  role: 'admin' | 'ke_toan' | 'hr' | 'member' | 'freelancer' | 'bd' | 'ke_toan_thue';
+  role: 'admin' | 'ke_toan' | 'hr' | 'member' | 'freelancer' | 'bd' | 'pm' | 'ke_toan_thue';
   secondary_roles?: string[]; // Additional roles (e.g. user can be both hr + ke_toan)
   employee_id?: string; // Links to hr_employees.id for Employee Portal
   worker_id?: string;   // Links to wf_workers.id for Freelancer Portal

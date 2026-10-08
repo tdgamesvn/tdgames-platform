@@ -50,6 +50,15 @@ export const APPS: AppConfig[] = [
     roles: ['admin', 'ke_toan'],
   },
   {
+    id: 'projects',
+    name: 'Dự án',
+    icon: '📊',
+    description: 'Tiến độ, hiệu suất nhân sự, task phụ',
+    color: '#FF9500',
+    gradient: 'linear-gradient(135deg, #FF9500 0%, #FF5E3A 100%)',
+    roles: ['admin', 'pm'],
+  },
+  {
     id: 'crm',
     name: 'CRM',
     icon: '👥',
