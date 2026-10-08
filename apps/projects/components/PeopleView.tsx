@@ -86,11 +86,15 @@ export const PeopleGrid: React.FC<{ people: PersonStats[]; onOpen: (id: string) 
 
 // ── Chi tiết 1 nhân sự ───────────────────────────────────────────────────
 interface DetailProps {
-  stats: PersonStats; tasks: PmTask[]; times: PmTaskTime[];
+  tasks: PmTask[]; times: PmTaskTime[];
   deliveredOn: (t: PmTask) => string | null; onBack: () => void; onOpenTask: (id: string) => void;
+  /** Dùng chung cho nhân sự (stats) và dự án (heading + extra). */
+  stats?: PersonStats;
+  heading?: { title: string; sub: string; avatar: string; back: string };
+  extra?: React.ReactNode;
 }
 
-export const PersonDetail: React.FC<DetailProps> = ({ stats, tasks, times, deliveredOn, onBack, onOpenTask }) => {
+export const PersonDetail: React.FC<DetailProps> = ({ stats, heading, extra, tasks, times, deliveredOn, onBack, onOpenTask }) => {
   const [period, setPeriod] = useState<Period>('week');
   const [sel, setSel] = useState<string | null>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -129,17 +133,18 @@ export const PersonDetail: React.FC<DetailProps> = ({ stats, tasks, times, deliv
 
   return (
     <div className="animate-fadeInUp space-y-6">
-      <button onClick={onBack} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">‹ Tất cả nhân sự</button>
+      <button onClick={onBack} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-neutral-300 border border-white/10 hover:text-white hover:border-white/20 transition-all">‹ {heading?.back || 'Tất cả nhân sự'}</button>
 
       <div className="flex items-center gap-4 flex-wrap">
-        <span className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-lg font-black text-primary">{initials(stats.w.full_name)}</span>
+        <span className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-lg font-black text-primary">{heading ? heading.avatar : initials(stats!.w.full_name)}</span>
         <div>
-          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{stats.w.full_name}</h2>
+          <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ color: '#FF9500' }}>{heading ? heading.title : stats!.w.full_name}</h2>
           <p className="text-sm text-neutral-medium mt-1">
-            {stats.w.type === 'freelancer' ? 'Freelancer — giờ làm là giờ đồng hồ (tương đối)' : 'Nội bộ — giờ làm tính trong giờ chấm công'} · {stats.done} task đã xong · {openTasks.length} chưa xong
+            {heading ? heading.sub : <>{stats!.w.type === 'freelancer' ? 'Freelancer — giờ làm là giờ đồng hồ (tương đối)' : 'Nội bộ — giờ làm tính trong giờ chấm công'} · {tasks.length - openTasks.length} task đã xong · {openTasks.length} chưa xong</>}
           </p>
         </div>
       </div>
+      {extra}
 
       {/* Bộ chọn kỳ */}
       <div className="flex gap-2 flex-wrap">

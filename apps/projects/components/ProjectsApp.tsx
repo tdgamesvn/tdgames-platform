@@ -8,6 +8,7 @@ import { hasRole } from '@/utils/roleUtils';
 import { supabase } from '@/services/supabaseClient';
 import TaskDrawer, { DrawerTarget } from './TaskDrawer';
 import MetricsTab from './MetricsTab';
+import PmAssignments from './PmAssignments';
 import { PeopleGrid, PersonDetail, PeopleTable } from './PeopleView';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
@@ -109,6 +110,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [projFilter, setProjFilter] = useState<'running' | 'done' | 'all'>('running');
   const [projQuery, setProjQuery] = useState('');
   const [peopleView, setPeopleView] = useState<'cards' | 'table'>('cards');
+  const [projDetail, setProjDetail] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const load = useCallback(async () => {
@@ -354,9 +356,58 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
           </div>
         )}
 
-        {ready && tab === 'reports' && (
+        {ready && tab === 'reports' && projDetail && (() => {
+          const pts = wsTasks.filter(t => projectOf(t) === projDetail);
+          const ids = new Set(pts.map(t => t.id));
+          // Gộp giờ theo task (task nhiều người ⇒ cộng giờ, FIX lấy max) để biểu đồ/KPI tính theo task.
+          const agg = new Map<string, PmTaskTime>();
+          times.filter(x => ids.has(x.task_id)).forEach(x => {
+            const c = agg.get(x.task_id);
+            agg.set(x.task_id, c ? { ...c, active_hours: c.active_hours + x.active_hours, fix_rounds: Math.max(c.fix_rounds, x.fix_rounds),
+              waiting_client_hours: Math.max(c.waiting_client_hours, x.waiting_client_hours) } : { ...x });
+          });
+          const done = pts.filter(isDone).length;
+          const waitAvg = [...agg.values()].filter(x => x.first_client_review_at);
+          const contrib = [...new Set(pts.flatMap(t => workersOfTask.get(t.id) || []))].map(wid => {
+            const mine = pts.filter(t => (workersOfTask.get(t.id) || []).includes(wid));
+            const tt = times.filter(x => x.worker_id === wid && ids.has(x.task_id));
+            return { wid, done: mine.filter(isDone).length, open: mine.filter(t => !isDone(t)).length,
+              hours: tt.reduce((n, x) => n + x.active_hours, 0), fix: tt.reduce((n, x) => n + x.fix_rounds, 0) };
+          }).sort((a, b) => b.done - a.done);
+          return (
+            <PersonDetail tasks={pts} times={[...agg.values()]} deliveredOn={deliveredOn}
+              onBack={() => setProjDetail(null)} onOpenTask={(id) => setDrawer({ kind: 'task', taskId: id })}
+              heading={{ title: projDetail, avatar: '📁', back: 'Tất cả dự án',
+                sub: `${pts[0]?.clickup_space_name || '—'} · ${done}/${pts.length} task xong (${pts.length ? Math.round(done / pts.length * 100) : 0}%)`
+                  + (waitAvg.length ? ` · chờ khách TB ${fmtH(waitAvg.reduce((n, x) => n + x.waiting_client_hours, 0) / waitAvg.length)}/task` : '') }}
+              extra={
+                <div className={card}>
+                  <div className="text-base font-black uppercase tracking-wider text-white mb-4">Ai làm bao nhiêu</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[520px]">
+                      <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
+                        <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right">Đang mở</th>
+                        <th className="text-right">Giờ làm</th><th className="text-right">Lần FIX</th></tr></thead>
+                      <tbody>
+                        {contrib.map(c => (
+                          <tr key={c.wid} className={tr + ' cursor-pointer'} onClick={() => { setProjDetail(null); setTab('history'); setPerson(c.wid); }}>
+                            <td className="py-3 text-sm font-semibold text-white">{workerName(c.wid)}</td>
+                            <td className="text-right text-white font-semibold">{c.done}</td>
+                            <td className="text-right text-neutral-300">{c.open}</td>
+                            <td className="text-right text-neutral-300">{c.hours ? fmtH(c.hours) : '—'}</td>
+                            <td className="text-right">{c.fix ? <Badge color={C.amber}>{c.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              } />
+          );
+        })()}
+        {ready && tab === 'reports' && !projDetail && (
           <div className="animate-fadeInUp">
-            <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp) — bấm 1 dự án để xem task và dòng thời gian" />
+            <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp) — bấm 1 dự án để xem chi tiết theo ngày / tuần / tháng / quý / năm" />
             <div className="flex flex-wrap items-center gap-2 mb-6">
               {([['running', 'Đang chạy'], ['done', 'Hoàn thành'], ['all', 'Tất cả']] as const).map(([k, l]) => (
                 <button key={k} onClick={() => setProjFilter(k)} className={projFilter === k ? btnPrimary : btnGhost} style={projFilter === k ? { background: '#FF9500' } : {}}>
@@ -370,7 +421,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                 {shownProjects.map(p => {
                   const R = 26, L = 2 * Math.PI * R;
                   return (
-                    <button key={p.name} onClick={() => setDrawer({ kind: 'project', name: p.name })}
+                    <button key={p.name} onClick={() => setProjDetail(p.name)}
                       className="text-left rounded-[20px] border border-primary/10 hover:border-primary/30 transition-all bg-surface p-5 h-full flex flex-col">
                       <div className="flex items-center gap-4">
                         <svg width="64" height="64" viewBox="0 0 64 64" className="shrink-0" aria-label={`Tiến độ ${p.pct}%`}>
@@ -444,6 +495,12 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         {ready && tab === 'dashboard' && (
           <MetricsTab tasks={wsTasks} times={times} logs={logs} statusCat={statusCat} isAdmin={isAdmin} deliveredOn={deliveredOn}
             onCatsSaved={load} onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
+        )}
+        {ready && tab === 'dashboard' && isAdmin && (
+          <div className="mt-6">
+            <PmAssignments projectNames={projects.map(p => p.name)}
+              onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
+          </div>
         )}
 
         {tab === 'activity' && isAdmin && (

@@ -1,0 +1,3 @@
+-- pm_send_weekly_report: _stuck loại task PM đã "Bỏ qua" (pm_task_hidden) — khớp UI + noti 08:30.
+-- Thân hàm = 20261008140000 (bản align) + NOT EXISTS pm_task_hidden ở phần đếm đứng lâu.
+-- (Đã apply prod qua MCP 2026-10-08.)
