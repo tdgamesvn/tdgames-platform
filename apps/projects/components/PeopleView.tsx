@@ -14,7 +14,7 @@ const fmtH = (h: number) => (h >= 100 ? Math.round(h) : Math.round(h * 10) / 10)
 const initials = (n: string) => n.trim().split(/\s+/).slice(-2).map(x => x[0]).join('').toUpperCase();
 
 export interface PersonStats {
-  w: PmWorker; done: number; activeNow: number; doing: number; overdue: number; fix: number;
+  w: PmWorker; ids?: string[]; done: number; activeNow: number; doing: number; overdue: number; fix: number;
   onTimePct: number | null; onTimeN?: number; subOpen: number;
   hours: { total: number; avg: number | null; firstPass: number | null; fulltime: boolean; estPct: number | null; n?: number };
 }
@@ -64,6 +64,7 @@ export const PeopleGrid: React.FC<{ people: PersonStats[]; onOpen: (id: string) 
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-white truncate">{p.w.full_name}</div>
             <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{workerTypeLabel(p.w.type)}</Badge>
+            {(p.ids?.length || 0) > 1 && <span className="ml-1"><Badge color={C.gray}>Gộp {p.ids!.length} hồ sơ</Badge></span>}
           </div>
           <span className="text-primary/70 text-[15px] font-black">›</span>
         </div>
@@ -206,7 +207,7 @@ export const PersonDetail: React.FC<DetailProps> = ({ stats, heading, extra, tas
             {delta != null && <div className={'text-xs font-semibold ' + (delta >= 0 ? 'text-status-success' : 'text-status-error')}>{delta >= 0 ? '+' : ''}{delta} so với kỳ trước</div>}</div>
           <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>Giờ làm</div>
             <div className="text-2xl font-black text-white">{cur.hours ? fmtH(cur.hours) : '—'}</div></div>
-          <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>TB / task</div>
+          <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>Giờ TB/task</div>
             <div className="text-2xl font-black text-white">{cur.avgH == null ? '—' : fmtH(cur.avgH)}</div></div>
           <div className="rounded-[20px] border border-primary/10 p-5 space-y-1 bg-surface"><div className={kpiLabel}>Duyệt ngay</div>
             <div className="text-2xl font-black text-white">{cur.firstPass == null ? '—' : cur.firstPass + '%'}</div>

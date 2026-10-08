@@ -298,8 +298,18 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     return '0000-01-01';
   })();
   const inRange = (t: PmTask) => { const d = deliveredOn(t); return !!d && d >= rangeFrom; };
-  const people = useMemo(() => wsWorkers.filter(w => w.is_active !== false).map(w => {
-    const ts = wsTasks.filter(t => (workersOfTask.get(t.id) || []).includes(w.id));
+  // 1 người có thể có NHIỀU hồ sơ worker (vd fulltime → freelancer, Trần Phương Linh 26/9) ⇒ gộp theo họ tên.
+  const personGroups = useMemo(() => {
+    const m = new Map<string, { w: PmWorker; ids: Set<string> }>();
+    wsWorkers.filter(w => w.is_active !== false).forEach(w => {
+      const k = w.full_name.trim().toLowerCase().replace(/\s+/g, ' ');
+      const g = m.get(k);
+      if (g) g.ids.add(w.id); else m.set(k, { w, ids: new Set([w.id]) });
+    });
+    return [...m.values()];
+  }, [wsWorkers]);
+  const people = useMemo(() => personGroups.map(({ w, ids }) => {
+    const ts = wsTasks.filter(t => (workersOfTask.get(t.id) || []).some(id => ids.has(id)));
     // Số liệu "đã làm" theo kỳ đang chọn (cùng 1 khung thời gian); "đang làm/trễ" là hiện tại.
     const done = ts.filter(t => inRange(t));
     // Đúng hạn = giao khách lần đầu ≤ hạn chót (trước đây so ngày ĐÓNG task ⇒ thấp oan vì chờ khách duyệt).
@@ -308,9 +318,9 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
     const doneWithDue = delivered.length;
     // Khối lượng: task đang ở trạng thái "đang làm" (không tính chờ khách / chưa bắt đầu).
     const activeNow = ts.filter(t => !isDone(t) && statusCat[norm(t.clickup_status)] === 'active').length;
-    const subs = subtasks.filter(s => s.assignee_worker_id === w.id);
+    const subs = subtasks.filter(s => ids.has(s.assignee_worker_id || ''));
     return {
-      w, total: ts.length, done: done.length, activeNow,
+      w, ids: [...ids], total: ts.length, done: done.length, activeNow,
       doing: ts.filter(t => !isDone(t)).length, // hiện tại, KHÔNG theo kỳ (done đã lọc theo kỳ)
       overdue: ts.filter(t => isOverdue(t, isDone(t))).length + subs.filter(s => isOverdue(s, s.status === 'done' || s.status === 'cancelled')).length,
       fix: ts.filter(t => inRange(t)).reduce((n, t) => n + (fixCount.get(t.id) || 0), 0),
@@ -318,7 +328,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
       subOpen: subs.filter(s => s.status === 'todo' || s.status === 'doing').length,
       // Giờ làm: fulltime = giao giờ chấm công; freelancer = giờ đồng hồ (tương đối).
       hours: (() => {
-        const mine = times.filter(x => x.worker_id === w.id && x.first_client_review_at && vnDate(x.first_client_review_at) >= rangeFrom);
+        const mine = times.filter(x => ids.has(x.worker_id) && x.first_client_review_at && vnDate(x.first_client_review_at) >= rangeFrom);
         const delivered = mine;
         const sum = mine.reduce((n, x) => n + x.active_hours, 0);
         // So ước lượng: task đã giao có estimate; estimate chia đều cho số người làm task.
@@ -333,7 +343,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                  fulltime: mine.some(x => x.is_fulltime), n: delivered.length };
       })(),
     };
-  }).sort((a, b) => b.done - a.done), [wsWorkers, wsTasks, workersOfTask, subtasks, fixCount, times, firstReview, statusCat, rangeFrom]);
+  }).sort((a, b) => b.done - a.done), [personGroups, wsTasks, workersOfTask, subtasks, fixCount, times, firstReview, statusCat, rangeFrom]);
 
   const ready = !(loading && tasks.length === 0);
   const openList = (title: string, list: PmTask[]) => setDrawer({ kind: 'list', title: `${title} (${list.length})`, ids: list.map(t => t.id) });
@@ -512,14 +522,19 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
             const tt = times.filter(x => x.worker_id === wid && ids.has(x.task_id));
             return { wid, done: mine.filter(isDone).length, open: mine.filter(t => !isDone(t)).length,
               hours: tt.reduce((n, x) => n + x.active_hours, 0), fix: tt.reduce((n, x) => n + x.fix_rounds, 0) };
-          }).sort((a, b) => b.done - a.done);
+          }).reduce((acc, c) => {
+            // Gộp hồ sơ trùng tên (cùng 1 người có 2 hồ sơ worker)
+            const k = workerName(c.wid).trim().toLowerCase(); const o = acc.find(a => workerName(a.wid).trim().toLowerCase() === k);
+            if (o) { o.done += c.done; o.open += c.open; o.hours += c.hours; o.fix += c.fix; } else acc.push({ ...c });
+            return acc;
+          }, [] as { wid: string; done: number; open: number; hours: number; fix: number }[]).sort((a, b) => b.done - a.done);
           return (
             <PersonDetail tasks={pts} times={[...agg.values()]} deliveredOn={deliveredOn}
               onBack={() => setProjDetail(null)} onOpenTask={(id) => setDrawer({ kind: 'task', taskId: id })}
               heading={{ title: projDetail, avatar: '📁', back: 'Tất cả dự án',
                 sub: `${pts[0]?.clickup_space_name || '—'} · ${done}/${pts.length} task xong (${pts.length ? Math.round(done / pts.length * 100) : 0}%)`
                   + (waitAvg.length ? ` · chờ khách TB ${fmtH(waitAvg.reduce((n, x) => n + x.waiting_client_hours, 0) / waitAvg.length)}/task` : '') }}
-              extra={
+              extra={<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <div className={card}>
                   <div className="text-base font-black uppercase tracking-wider text-white mb-4">Ai làm bao nhiêu</div>
                   <div className="overflow-x-auto">
@@ -541,7 +556,38 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                     </table>
                   </div>
                 </div>
-              } />
+                <div className={card}>
+                  <div className="text-base font-black uppercase tracking-wider text-white mb-1">Theo batch</div>
+                  <p className="text-xs text-neutral-medium mb-4">Nhóm theo List trên ClickUp (thường là đợt giao / milestone) — bấm để xem task</p>
+                  <div className="space-y-3">
+                    {[...pts.reduce((m, t) => m.set(t.clickup_list_name || '(Không có list)', [...(m.get(t.clickup_list_name || '(Không có list)') || []), t]), new Map<string, PmTask[]>()).entries()]
+                      .map(([name, ts]) => ({ name, ts, done: ts.filter(isDone).length, late: ts.filter(t => isOverdue(t, isDone(t))).length,
+                        next: ts.filter(t => !isDone(t) && t.due_date).map(t => t.due_date!).sort()[0] || null }))
+                      .sort((a, b) => (a.done === a.ts.length ? 1 : 0) - (b.done === b.ts.length ? 1 : 0) || (a.next || '9').localeCompare(b.next || '9'))
+                      .map(b => {
+                        const pct = Math.round(b.done / b.ts.length * 100);
+                        return (
+                          <button key={b.name} onClick={() => openList(`${projDetail} · ${b.name}`, b.ts)} className="w-full text-left rounded-xl px-2 py-2 hover:bg-white/5 transition-colors">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-sm font-semibold text-white truncate">{b.name}</span>
+                              <span className="text-xs text-neutral-300 shrink-0">{b.done}/{b.ts.length}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <div className="flex-1 h-1.5 rounded-full bg-white/10">{pct > 0 && <div className="h-1.5 rounded-full" style={{ width: pct + '%', background: pct === 100 ? C.green : '#FF9500' }} />}</div>
+                              <span className="text-[10px] font-black text-neutral-500 w-8 text-right">{pct}%</span>
+                            </div>
+                            {(b.late > 0 || b.next) && (
+                              <div className="flex gap-2 mt-1.5">
+                                {b.late > 0 && <Badge color={C.red}>{b.late} trễ</Badge>}
+                                {b.next && pct < 100 && <Badge color={b.next < todayISO() ? C.red : C.amber}>Hạn gần nhất {fmtDate(b.next)}</Badge>}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>} />
           );
         })()}
         {ready && tab === 'reports' && !projDetail && (
@@ -633,10 +679,10 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         )}
 
         {ready && tab === 'history' && (() => {
-          const sp = person ? people.find(x => x.w.id === person) : null;
+          const sp = person ? people.find(x => x.ids.includes(person)) : null;
           if (sp) return (
-            <PersonDetail stats={sp} tasks={wsTasks.filter(t => (workersOfTask.get(t.id) || []).includes(sp.w.id))}
-              times={times.filter(x => x.worker_id === sp.w.id)} deliveredOn={deliveredOn}
+            <PersonDetail stats={sp} tasks={wsTasks.filter(t => (workersOfTask.get(t.id) || []).some(id => sp.ids.includes(id)))}
+              times={times.filter(x => sp.ids.includes(x.worker_id))} deliveredOn={deliveredOn}
               onBack={() => setPerson(null)} onOpenTask={(id) => setDrawer({ kind: 'task', taskId: id })} />
           );
           return (
