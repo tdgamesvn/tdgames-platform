@@ -15,7 +15,7 @@ const initials = (n: string) => n.trim().split(/\s+/).slice(-2).map(x => x[0]).j
 
 export interface PersonStats {
   w: PmWorker; done: number; activeNow: number; doing: number; overdue: number; fix: number;
-  onTimePct: number | null; subOpen: number;
+  onTimePct: number | null; onTimeN?: number; subOpen: number;
   hours: { total: number; avg: number | null; firstPass: number | null; fulltime: boolean; estPct: number | null };
 }
 
@@ -68,7 +68,7 @@ export const PeopleGrid: React.FC<{ people: PersonStats[]; onOpen: (id: string) 
           <span className="text-primary/70 text-[15px] font-black">›</span>
         </div>
         <div className="grid grid-cols-3 gap-3 mt-5">
-          <div><div className={kpiLabel}>Đã xong</div><div className="text-2xl font-black text-white">{p.done}</div></div>
+          <div><div className={kpiLabel}>Đã xong (kỳ)</div><div className="text-2xl font-black text-white">{p.done}</div></div>
           <div><div className={kpiLabel}>Đang làm</div><div className="text-2xl font-black text-white">{p.activeNow}<span className="text-sm text-neutral-600">/{p.doing}</span></div></div>
           <div><div className={kpiLabel}>Giờ làm</div><div className="text-2xl font-black text-white">{p.hours.total ? fmtH(p.hours.total) : '—'}</div></div>
         </div>
@@ -76,7 +76,7 @@ export const PeopleGrid: React.FC<{ people: PersonStats[]; onOpen: (id: string) 
           {p.overdue > 0 && <Badge color={C.red}>{p.overdue} trễ hạn</Badge>}
           {p.fix > 0 && <Badge color={C.amber}>{p.fix} lần FIX</Badge>}
           {p.hours.firstPass != null && <Badge color={C.green}>{p.hours.firstPass}% duyệt lần đầu</Badge>}
-          {p.onTimePct != null && <Badge color={C.blue}>{p.onTimePct}% đúng hạn</Badge>}
+          {p.onTimePct != null && <Badge color={C.blue}>{p.onTimePct}% đúng hạn · {p.onTimeN} task</Badge>}
           {p.activeNow >= 4 && <Badge color={C.orange}>Đang ôm nhiều việc</Badge>}
         </div>
       </button>
