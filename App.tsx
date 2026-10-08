@@ -29,7 +29,7 @@ import { APPS } from './config/apps';
 import { OnboardingScreen } from './components/OnboardingScreen';
 import { checkOnboardingNeeded } from './apps/handbook/services/handbookService';
 
-const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd', 'ke_toan_thue'] as const;
+const VALID_ROLES = ['admin', 'ke_toan', 'hr', 'member', 'freelancer', 'bd', 'pm', 'ke_toan_thue'] as const;
 const parseRole = (r: string) => (VALID_ROLES.includes(r as any) ? r : 'member') as AccountUser['role'];
 const parseSecondaryRoles = (raw: unknown): string[] | undefined => {
   if (!Array.isArray(raw) || raw.length === 0) return undefined;
