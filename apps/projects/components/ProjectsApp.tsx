@@ -8,6 +8,7 @@ import { hasRole } from '@/utils/roleUtils';
 import { supabase } from '@/services/supabaseClient';
 import TaskDrawer, { DrawerTarget } from './TaskDrawer';
 import MetricsTab from './MetricsTab';
+import { PeopleGrid, PersonDetail } from './PeopleView';
 import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
@@ -87,6 +88,7 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const [statusCat, setStatusCat] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState<DrawerTarget>(null);
+  const [person, setPerson] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const load = useCallback(async () => {
@@ -284,69 +286,60 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
         {tab === 'reports' && (
           <div className="animate-fadeInUp">
             <Heading title="Dự án" sub="Tiến độ theo dự án (folder ClickUp) — bấm 1 dự án để xem task và dòng thời gian" />
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
-                <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
-                  <th className="py-2">Dự án</th><th>Tiến độ</th><th className="text-right">Task</th>
-                  <th className="text-right">Trễ</th><th className="text-right">FIX</th><th className="text-right">Hạn cuối</th></tr></thead>
-                <tbody>
-                  {projects.length === 0 && !loading && <tr><td colSpan={6}><Empty emoji="📁" text="Chưa có dự án" /></td></tr>}
-                  {projects.map(p => (
-                    <tr key={p.name} className={tr + ' cursor-pointer'} onClick={() => setDrawer({ kind: 'project', name: p.name })}>
-                      <td className="py-3"><div className="text-sm font-semibold text-white">{p.name}</div><div className="text-xs text-neutral-medium">{p.space}</div></td>
-                      <td className="w-56"><div className="flex items-center gap-2">
-                        <div className="flex-1 h-1.5 rounded-full bg-white/10"><div className="h-1.5 rounded-full" style={{ width: p.pct + '%', background: '#FF9500' }} /></div>
-                        <span className="text-xs text-neutral-400 w-9 text-right">{p.pct}%</span></div></td>
-                      <td className="text-right text-neutral-300">{p.done}/{p.total}</td>
-                      <td className="text-right">{p.overdue ? <Badge color={C.red}>{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
-                      <td className="text-right">{p.fix ? <Badge color={C.amber}>{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
-                      <td className="text-right text-neutral-400">{fmtDate(p.lastDue)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            {projects.length === 0 && !loading ? <Empty emoji="📁" text="Chưa có dự án" /> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {projects.map(p => {
+                  const R = 26, L = 2 * Math.PI * R;
+                  return (
+                    <button key={p.name} onClick={() => setDrawer({ kind: 'project', name: p.name })}
+                      className="text-left rounded-[20px] border border-primary/10 hover:border-primary/30 transition-all bg-surface p-5">
+                      <div className="flex items-center gap-4">
+                        <svg width="64" height="64" viewBox="0 0 64 64" className="shrink-0" aria-label={`Tiến độ ${p.pct}%`}>
+                          <circle cx="32" cy="32" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="5" />
+                          <circle cx="32" cy="32" r={R} fill="none" stroke="#FF9500" strokeWidth="5" strokeLinecap="round"
+                            strokeDasharray={`${(p.pct / 100) * L} ${L}`} transform="rotate(-90 32 32)" />
+                          <text x="32" y="36" textAnchor="middle" fontSize="13" fontWeight="900" fill="#F2F2F2">{p.pct}%</text>
+                        </svg>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-white truncate">{p.name}</div>
+                          <div className="text-xs text-neutral-medium truncate">{p.space || '—'}</div>
+                        </div>
+                        <span className="text-primary/70 text-[15px] font-black">›</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 mt-5">
+                        <div><div className={kpiLabel}>Task</div><div className="text-2xl font-black text-white">{p.done}<span className="text-sm text-neutral-600">/{p.total}</span></div></div>
+                        <div><div className={kpiLabel}>Còn lại</div><div className="text-2xl font-black text-white">{p.total - p.done}</div></div>
+                        <div><div className={kpiLabel}>Hạn cuối</div><div className="text-sm font-semibold text-white mt-2">{fmtDate(p.lastDue)}</div></div>
+                      </div>
+                      {(p.overdue > 0 || p.fix > 0) && (
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {p.overdue > 0 && <Badge color={C.red}>{p.overdue} trễ hạn</Badge>}
+                          {p.fix > 0 && <Badge color={C.amber}>{p.fix} đang FIX</Badge>}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        {tab === 'history' && (
-          <div className="animate-fadeInUp">
-            <Heading title="Nhân sự" sub="Hiệu suất fulltime + freelancer (không hiển thị tiền)" />
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead><tr className={kpiLabel + ' text-left border-b border-white/5'}>
-                  <th className="py-2">Nhân sự</th><th className="text-right">Đã xong</th><th className="text-right" title="Task ở trạng thái đang làm / tổng task chưa xong">Đang làm</th>
-                  <th className="text-right">Trễ hạn</th><th className="text-right">Lần FIX</th><th className="text-right">Đúng hạn</th><th className="text-right">Giờ làm</th><th className="text-right">TB / task</th><th className="text-right">Duyệt lần đầu</th><th className="text-right" title="Giờ làm thật / ước lượng ClickUp">So ước lượng</th><th className="text-right">Task phụ mở</th></tr></thead>
-                <tbody>
-                  {people.map(p => (
-                    <tr key={p.w.id} className={tr}>
-                      <td className="py-3"><span className="text-sm font-semibold text-white">{p.w.full_name}</span>{' '}
-                        <Badge color={p.w.type === 'freelancer' ? C.purple : C.blue}>{p.w.type || '—'}</Badge></td>
-                      <td className="text-right text-white font-bold">{p.done}</td>
-                      <td className="text-right text-neutral-300"><span className={p.activeNow >= 4 ? 'text-orange-400 font-semibold' : ''}>{p.activeNow}</span><span className="text-neutral-600">/{p.doing}</span></td>
-                      <td className="text-right">{p.overdue ? <Badge color={C.red}>{p.overdue}</Badge> : <span className="text-neutral-600">0</span>}</td>
-                      <td className="text-right">{p.fix ? <Badge color={C.amber}>{p.fix}</Badge> : <span className="text-neutral-600">0</span>}</td>
-                      <td className="text-right text-neutral-300">{p.onTimePct == null ? '—' : p.onTimePct + '%'}</td>
-                      <td className="text-right text-white font-semibold">{p.hours.total ? fmtH(p.hours.total) : '—'}{!p.hours.fulltime && p.hours.total > 0 && <span className="text-neutral-600">*</span>}</td>
-                      <td className="text-right text-neutral-300">{p.hours.avg == null ? '—' : fmtH(p.hours.avg)}</td>
-                      <td className="text-right text-neutral-300">{p.hours.firstPass == null ? '—' : p.hours.firstPass + '%'}</td>
-                      <td className="text-right">{p.hours.estPct == null ? <span className="text-neutral-600">—</span> :
-                        <Badge color={p.hours.estPct > 120 ? C.red : p.hours.estPct > 100 ? C.amber : C.green}>{p.hours.estPct}%</Badge>}</td>
-                      <td className="text-right text-neutral-300">{p.subOpen}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {tab === 'history' && (() => {
+          const sp = person ? people.find(x => x.w.id === person) : null;
+          if (sp) return (
+            <PersonDetail stats={sp} tasks={wsTasks.filter(t => (workersOfTask.get(t.id) || []).includes(sp.w.id))}
+              times={times.filter(x => x.worker_id === sp.w.id)} deliveredOn={deliveredOn}
+              onBack={() => setPerson(null)} onOpenTask={(id) => setDrawer({ kind: 'task', taskId: id })} />
+          );
+          return (
+            <div className="animate-fadeInUp">
+              <Heading title="Nhân sự" sub="Fulltime + freelancer — bấm 1 người để xem hiệu suất theo ngày / tuần / tháng / quý / năm" />
+              <PeopleGrid people={people} onOpen={setPerson} />
+              <p className="text-xs text-neutral-medium mt-6">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — freelancer tính giờ đồng hồ (tương đối). "Đang làm" = task ở trạng thái đang làm / tổng chưa xong. Dữ liệu giờ từ 17/09/2026.</p>
             </div>
-            <p className="text-xs text-neutral-medium mt-3">"Giờ làm" = thời gian task ở trạng thái đang làm (in progress, fix, lead_check, internal review); fulltime chỉ tính trong giờ chấm công, trừ nghỉ trưa — <span className="text-neutral-600">*</span> freelancer tính giờ đồng hồ (tương đối). Không tính client_review / pending. "TB / task" và "Duyệt lần đầu" (không FIX) tính trên task đã giao khách. Dữ liệu từ 17/09/2026. "Đang làm" = task ở trạng thái đang làm / tổng task chưa xong (cam khi ≥ 4). "Đúng hạn" = lần đầu giao khách ≤ hạn chót. "So ước lượng" = giờ làm thật / Time Estimate ClickUp (task đã giao; xanh đến 100%, cam đến 120%, đỏ trên 120%).</p>
-          </div>
-        )}
-
-        {tab === 'recurring' && (
-          <SubtaskTab subtasks={subtasks} setSubtasks={setSubtasks} workers={wsWorkers} tasks={wsTasks}
-            projectNames={projects.map(p => p.name)} workerName={workerName}
-            onError={(m) => setToast({ message: m, type: 'error' })} onOk={(m) => setToast({ message: m, type: 'success' })} />
-        )}
+          );
+        })()}
 
         {tab === 'dashboard' && (
           <MetricsTab tasks={wsTasks} times={times} logs={logs} statusCat={statusCat} isAdmin={isAdmin} deliveredOn={deliveredOn}
