@@ -98,6 +98,10 @@ export async function fetchTaskIntervals(taskId: string): Promise<PmInterval[]> 
   return (data || []) as PmInterval[];
 }
 
+/** Mốc chuẩn hoá Time Estimate (sếp 08/10/2026): chỉ nhắc task TẠO từ ngày này — task cũ không có estimate.
+ *  Khớp hằng số trong SQL pm_notify_stuck_tasks (migration 20261008160000). */
+export const ESTIMATE_REQUIRED_FROM = '2026-10-08';
+
 /** Ngưỡng "task đứng" (giờ đồng hồ ở trạng thái hiện tại). */
 export const STUCK_HOURS: Record<string, number> = { active: 48, waiting_client: 120 };
 export const hoursSince = (iso?: string | null) => (iso ? (Date.now() - new Date(iso).getTime()) / 3600_000 : 0);

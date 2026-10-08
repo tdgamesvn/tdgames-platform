@@ -12,7 +12,7 @@ import { useWorkspace, matchesWorkspace } from '@/services/WorkspaceContext';
 import {
   PmTask, PmWorker, PmStatusLog, PmSubtask, SubtaskStatus,
   fetchPmData, fetchSubtasks, createSubtask, updateSubtask, deleteSubtask,
-  fetchTaskTime, PmTaskTime, STUCK_HOURS, hoursSince,
+  fetchTaskTime, PmTaskTime, STUCK_HOURS, hoursSince, ESTIMATE_REQUIRED_FROM,
   isDone, isFix, isOverdue, projectOf, norm, todayISO,
 } from '../services/projectService';
 
@@ -137,6 +137,9 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
   const monthPrefix = todayISO().slice(0, 7);
   const doneThisMonth = wsTasks.filter(t => isDone(t) && (t.completed_at || t.closed_date || t.clickup_updated_at || '').startsWith(monthPrefix));
   const withDue = wsTasks.filter(t => t.due_date).length;
+  // Task đang làm (task mới từ mốc chuẩn hoá) mà chưa nhập Time Estimate trên ClickUp.
+  const noEstimate = wsTasks.filter(t => !isDone(t) && statusCat[norm(t.clickup_status)] === 'active'
+    && t.time_estimate_hours == null && (t.start_date || '') >= ESTIMATE_REQUIRED_FROM);
   // Task đứng: trạng thái hiện tại kéo dài quá ngưỡng (1 dòng / task dù nhiều người làm).
   const stuck = useMemo(() => {
     const seen = new Set<string>(); const out: { t: PmTask; x: PmTaskTime; h: number }[] = [];
@@ -241,6 +244,21 @@ const ProjectsApp: React.FC<Props> = ({ currentUser, onBack, initialTab }) => {
                         <Badge color={statusCat[x.current_status || ''] === 'active' ? C.amber : C.blue}>{x.current_status}</Badge>
                         <Badge color={C.red}>{Math.floor(h / 24)} ngày</Badge>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {noEstimate.length > 0 && (
+              <div className={card + ' mb-6'}>
+                <div className="text-base font-black uppercase tracking-wider text-white mb-1">Task đang làm chưa có ước lượng</div>
+                <p className="text-xs text-neutral-medium mb-4">Nhập Time Estimate trên ClickUp (task tạo từ {fmtDate(ESTIMATE_REQUIRED_FROM)}) — app tự cập nhật mỗi giờ</p>
+                <div className="space-y-3">
+                  {noEstimate.slice(0, 20).map(t => (
+                    <div key={t.id} onClick={() => setDrawer({ kind: 'task', taskId: t.id })} className="flex items-center justify-between gap-3 cursor-pointer rounded-xl -mx-2 px-2 py-1 hover:bg-white/5 transition-colors">
+                      <div className="min-w-0"><div className="text-sm font-semibold text-white truncate">{t.title}</div>
+                        <div className="text-xs text-neutral-medium">{projectOf(t)} · {(workersOfTask.get(t.id) || []).map(workerName).join(', ')}</div></div>
+                      <Badge color={C.amber}>{t.clickup_status}</Badge>
                     </div>
                   ))}
                 </div>
